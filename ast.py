@@ -3,6 +3,9 @@ from block_types import ParticlePairsBlock, ParticlesBlock
 
 expression_id = 0
 
+def is_expr(e):
+    return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, NbIterAST)
+
 class BlockAST:
     def __init__(self, stmts, block_type):
         self.stmts = stmts
@@ -68,12 +71,12 @@ class ExprAST:
         produced_stmts.append(AssignAST(self, self + other))
 
     def generate(self, mem=False):
-        if isinstance(self.lhs, ExprAST):
+        if is_expr(self.lhs):
             lvname = self.lhs.generate(mem)
         else:
             lvname = self.lhs
 
-        if isinstance(self.rhs, ExprAST):
+        if is_expr(self.rhs):
             rvname = self.rhs.generate()
         else:
             rvname = self.rhs
@@ -134,6 +137,12 @@ class IterAST:
     def __str__(self):
         return "IterAST <>"
 
+    def generate(self):
+        return 'i'
+
 class NbIterAST:
     def __str__(self):
         return "NbIterAST <>"
+
+    def generate(self):
+        return 'j'
