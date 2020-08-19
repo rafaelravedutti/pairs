@@ -1,29 +1,50 @@
-properties = {}
+properties = []
 defaults = {}
 particle_setup = []
 grid_config = []
 ncells = []
+blocks = []
+produced_stmts = []
 nprops = 0
 ntimesteps = 0
 
-def add_real_property(prop_name, value=0.0):
-    add_property(prop_name, value)
+from ast import BlockAST
+from ast import ExprAST
+from ast import IfAST
+from ast import IterAST
+from ast import NbIterAST
 
-def add_vector_property(prop_name, value=[0.0, 0.0, 0.0]):
-    add_property(prop_name, value)
+ParticlePairsBlock = 0
+ParticlesBlock = 1
 
-def add_property(prop_name, value):
-    prop = Property(prop_name, value)
+class Property:
+    def __init__(self, prop_name, default_value, volatile):
+        self.prop_name = prop_name
+        self.default_value = default_value
+        self.volatile = volatile
+
+    def __getitem__(self, expr_ast):
+        return ExprAST(self.prop_name, expr_ast, '[]', True)
+
+def add_real_property(prop_name, value=0.0, volatile=False):
+    return add_property(prop_name, value)
+
+def add_vector_property(prop_name, value=[0.0, 0.0, 0.0], volatile=False):
+    return add_property(prop_name, value)
+
+def add_property(prop_name, value, volatile=False):
+    prop = Property(prop_name, value, volatile)
     properties.append(prop)
     return prop
 
 def setup_grid(config):
+    global grid_config
     grid_config = config
 
 def create_particle_lattice(config, spacing, props={}):
-    nx = (config[0][1] - config[0][0]) / spacing[0]
-    ny = (config[1][1] - config[1][0]) / spacing[1]
-    nz = (config[2][1] - config[2][0]) / spacing[2]
+    nx = int((config[0][1] - config[0][0]) / spacing[0]) + 1
+    ny = int((config[1][1] - config[1][0]) / spacing[1]) + 1
+    nz = int((config[2][1] - config[2][0]) / spacing[2]) + 1
 
     for i in range(0, nx):
         for j in range(0, ny):
@@ -39,9 +60,11 @@ def create_particle_lattice(config, spacing, props={}):
                     config[2][0] + spacing[2] * k
                 ]
 
-                particle_setup.insert(particle_props)
+                particle_setup.append(particle_props)
 
 def setup_cell_lists(cutoff_radius):
+    global grid_config
+
     ncells = [
         (grid_config[0][1] - grid_config[0][0]) / cutoff_radius,
         (grid_config[1][1] - grid_config[1][0]) / cutoff_radius,
@@ -52,20 +75,34 @@ def set_timesteps(ts):
     ntimesteps = ts
 
 def particle_pairs(cutoff_radius=None, position=None):
+    global produced_stmts
+    global blocks
+
     i = IterAST()
     j = NbIterAST()
+    stmts = []
 
     if cutoff_radius is not None and position is not None:
+        prod_stmts = produced_stmts.copy()
         delta = position[i] - position[j]
-        rsq = pt.vector_len_sq(delta)
-        block.append(IfAST(rsq < cutoff_radius))
+        rsq = vector_len_sq(delta)
         yield i, j, delta, rsq
+        stmts.append(IfAST(rsq < cutoff_radius, prod_stmts, None))
 
     else:
         yield i, j
+        stmts.append(produced_stmts)
+
+    blocks.append(BlockAST(stmts, ParticlePairsBlock))
+    produced_stmts = []
 
 def particles():
+    global produced_stmts
+    global blocks
+
     yield IterAST()
+    blocks.append(BlockAST(produced_stmts, ParticlesBlock))
+    produced_stmts = []
 
 def vector_len_sq(expr):
-    ExprAST(expr, None, 'vector_len_sq')
+    return ExprAST(expr, None, 'vector_len_sq')

@@ -10,7 +10,7 @@ sigma6 = sigma ** 6
 mass = pt.add_property('mass', 1.0)
 position = pt.add_vector_property('position')
 velocity = pt.add_vector_property('velocity')
-force = pt.add_vector_property('force')
+force = pt.add_vector_property('force', volatile=True)
 
 grid_config = [[0.0, 20.0], [0.0, 20.0], [0.0, 20.0]]
 pt.setup_grid(grid_config)
@@ -18,7 +18,6 @@ pt.create_particle_lattice(grid_config, spacing=[1.0, 1.0, 1.0])
 pt.setup_cell_lists(cutoff_radius + skin)
 pt.set_timesteps(100)
 
-force[i].set(0.0)
 for i, j, delta, rsq in pt.particle_pairs(cutoff_radius, position):
     sr2 = 1.0 / rsq
     sr6 = sr2 * sr2 * sr2 * sigma6
