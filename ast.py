@@ -1,10 +1,22 @@
 from part_prot import produced_stmts
 from block_types import ParticlePairsBlock, ParticlesBlock
 
-expression_id = 0
 
 def is_expr(e):
     return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, NbIterAST)
+
+class Printer:
+    def __init__(self):
+        self.indent = 0
+
+    def add_ind(self, offset):
+        self.indent += offset
+
+    def print(self, text):
+        print(self.indent * ' ' + text)
+
+printer = Printer()
+expression_id = 0
 
 class BlockAST:
     def __init__(self, stmts, block_type):
@@ -13,14 +25,17 @@ class BlockAST:
 
     def generate(self):
         if self.block_type == ParticlePairsBlock:
-            print("for particle_pairs:");
+            printer.print("for particle_pairs {");
         elif self.block_type == ParticlesBlock:
-            print("for particles:");
+            printer.print("for particles {");
         else:
             raise Exception("Invalid block type!")
 
+        printer.add_ind(4)
         for stmt in self.stmts:
             stmt.generate()
+        printer.add_ind(-4)
+        printer.print("}")
 
 class ExprAST:
     def __init__(self, lhs, rhs, op, mem=False):
@@ -94,7 +109,7 @@ class ExprAST:
         vname = "v{}".format(self.expr_id)
 
         if self.generated is False:
-            print("{} = {}".format(vname, output))
+            printer.print("{} = {}".format(vname, output))
             self.generated = True
 
         return vname
@@ -110,7 +125,7 @@ class AssignAST:
 
     def generate(self):
         if self.generated is False:
-            print("{} = {}".format(self.dest.generate(True), self.src.generate()))
+            printer.print("{} = {}".format(self.dest.generate(True), self.src.generate()))
             self.generated = True
 
 class IfAST:
@@ -121,17 +136,21 @@ class IfAST:
 
     def generate(self):
         cvname = self.cond.generate()
-        print("if({}) {{".format(cvname))
+        printer.print("if({}) {{".format(cvname))
 
+        printer.add_ind(4)
         for stmt in self.block_if:
             stmt.generate()
+        printer.add_ind(-4)
 
         if self.block_else is not None:
-            print("} else {")
+            printer.print("} else {")
+            printer.add_ind(4)
             for stmt in self.block_else:
                 stmt.generate()
+            printer.add_ind(-4)
 
-        print("}")
+        printer.print("}")
         
 class IterAST:
     def __str__(self):
