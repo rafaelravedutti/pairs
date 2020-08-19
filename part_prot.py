@@ -69,34 +69,33 @@ def set_timesteps(ts):
     ntimesteps = ts
 
 def particle_pairs(cutoff_radius=None, position=None):
-    global produced_stmts
     global blocks
+    global produced_stmts
 
     i = IterAST()
     j = NbIterAST()
     block_stmts = []
-    #produced_stmts = []
 
     if cutoff_radius is not None and position is not None:
         delta = position[i] - position[j]
         rsq = vector_len_sq(delta)
         yield i, j, delta, rsq
-        print(produced_stmts)
-        block_stmts.append(IfAST(rsq < cutoff_radius, produced_stmts, None))
+        block_stmts.append(IfAST(rsq < cutoff_radius, produced_stmts.copy(), None))
 
     else:
         yield i, j
-        block_stmts.append(produced_stmts)
+        block_stmts.append(produced_stmts.copy())
 
     blocks.append(BlockAST(block_stmts, ParticlePairsBlock))
+    #produced_stmts = []
 
 def particles():
     global produced_stmts
     global blocks
 
-    produced_stmts = []
     yield IterAST()
-    blocks.append(BlockAST(produced_stmts, ParticlesBlock))
+    blocks.append(BlockAST(produced_stmts.copy(), ParticlesBlock))
+    #produced_stmts = []
 
 def vector_len_sq(expr):
     return ExprAST(expr, None, 'vector_len_sq')
@@ -105,4 +104,3 @@ def generate():
     global blocks
     for block in blocks:
         block.generate()
-

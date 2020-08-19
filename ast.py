@@ -66,7 +66,6 @@ class ExprAST:
         global produced_stmts
         assert self.mem is True, "Invalid assignment: lvalue expected!"
         produced_stmts.append(AssignAST(self, self + other))
-        print(produced_stmts)
 
     def generate(self, mem=False):
         if isinstance(self.lhs, ExprAST):
@@ -101,12 +100,15 @@ class AssignAST:
     def __init__(self, dest, src):
         self.dest = dest
         self.src = src
+        self.generated = False
 
     def __str__(self):
         return "Assign<a: {}, b: {}>".format(dest, src)
 
     def generate(self):
-        print("{} = {}".format(self.dest.generate(True), self.src.generate()))
+        if self.generated is False:
+            print("{} = {}".format(self.dest.generate(True), self.src.generate()))
+            self.generated = True
 
 class IfAST:
     def __init__(self, cond, block_if, block_else):
