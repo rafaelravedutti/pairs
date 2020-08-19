@@ -45,8 +45,8 @@ def infer_expr_type(lhs_type, rhs_type, op):
 
     return None
 
-def suffixed(var_name, index):
-    if isinstance(var_name, str) is False:
+def suffixed(var_name, index, var_type):
+    if var_type != 'vector' or isinstance(var_name, str) is False:
         return var_name
 
     if var_name[-1] == ']':
@@ -164,11 +164,11 @@ class ExprAST:
             if self.expr_type == 'vector':
                 for i in range(0, 3):
                     if self.op == '[]':
-                        output = suffixed("{}[{}]".format(lvname, rvname), i)
+                        output = suffixed("{}[{}]".format(lvname, rvname), i, self.lhs_type)
                     else:
-                        output = "{} {} {}".format(suffixed(lvname, i), self.op, suffixed(rvname, i))
+                        output = "{} {} {}".format(suffixed(lvname, i, self.lhs_type), self.op, suffixed(rvname, i, self.rhs_type))
 
-                    printer.print("double {} = {};".format(suffixed(vname, i), output))
+                    printer.print("double {} = {};".format(suffixed(vname, i, self.expr_type), output))
             else:
                 t = 'double' if self.expr_type == 'real' else 'int'
                 printer.print("{} {} = {};".format(t, vname, output))
