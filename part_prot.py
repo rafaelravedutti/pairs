@@ -9,25 +9,17 @@ nprops = 0
 ntimesteps = 0
 
 from ast import BlockAST, ExprAST, IfAST, IterAST, NbIterAST
+from properties import Property
 from block_types import ParticlePairsBlock, ParticlesBlock
 
-class Property:
-    def __init__(self, prop_name, default_value, volatile):
-        self.prop_name = prop_name
-        self.default_value = default_value
-        self.volatile = volatile
-
-    def __getitem__(self, expr_ast):
-        return ExprAST(self.prop_name, expr_ast, '[]', True)
-
 def add_real_property(prop_name, value=0.0, volatile=False):
-    return add_property(prop_name, value)
+    return add_property(prop_name, 'real', value)
 
 def add_vector_property(prop_name, value=[0.0, 0.0, 0.0], volatile=False):
-    return add_property(prop_name, value)
+    return add_property(prop_name, 'vector', value)
 
-def add_property(prop_name, value, volatile=False):
-    prop = Property(prop_name, value, volatile)
+def add_property(prop_name, prop_type, value, volatile=False):
+    prop = Property(prop_name, prop_type, value, volatile)
     properties.append(prop)
     return prop
 

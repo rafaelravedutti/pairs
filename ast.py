@@ -1,22 +1,58 @@
 from part_prot import produced_stmts
+from printer import Printer
+from properties import Property
 from block_types import ParticlePairsBlock, ParticlesBlock
 
+printer = Printer()
+expression_id = 0
 
 def is_expr(e):
     return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, NbIterAST)
 
-class Printer:
-    def __init__(self):
-        self.indent = 0
+def get_expr_type(expr):
+    if expr is None:
+        return None
 
-    def add_ind(self, offset):
-        self.indent += offset
+    if isinstance(expr, ExprAST):
+        return expr.expr_type
 
-    def print(self, text):
-        print(self.indent * ' ' + text)
+    if isinstance(expr, int) or isinstance(expr, IterAST) or isinstance(expr, NbIterAST):
+        return 'integer'
 
-printer = Printer()
-expression_id = 0
+    if isinstance(expr, float):
+        return 'real'
+
+    if isinstance(expr, Property):
+        return expr.prop_type
+
+    return None
+
+def infer_expr_type(lhs_type, rhs_type, op):
+    if op == 'vector_len_sq':
+        return 'real'
+
+    if op == '[]':
+        return lhs_type
+
+    if lhs_type == rhs_type:
+        return lhs_type
+
+    if lhs_type == 'vector' or rhs_type == 'vector':
+        return 'vector'
+
+    if lhs_type == 'real' or rhs_type == 'real':
+        return 'real'
+
+    return None
+
+def suffixed(var_name, index):
+    if isinstance(var_name, str) is False:
+        return var_name
+
+    if var_name[-1] == ']':
+        return var_name + '[{}]'.format(index)
+
+    return var_name + '_{}'.format(index)
 
 class BlockAST:
     def __init__(self, stmts, block_type):
@@ -25,17 +61,26 @@ class BlockAST:
 
     def generate(self):
         if self.block_type == ParticlePairsBlock:
-            printer.print("for particle_pairs {");
+            printer.print("for(i = 0; i < nparticles; ++i) {");
+            printer.add_ind(4)
+            printer.print("for(j = 0; j < nparticles; ++j) {");
+            printer.add_ind(4)
+            printer.print("if(i != j) {");
+            printer.add_ind(4)
+            nclose = 3
         elif self.block_type == ParticlesBlock:
-            printer.print("for particles {");
+            printer.print("for(int i = 0; i < nparticles; ++i) {");
+            printer.add_ind(4)
+            nclose = 1
         else:
             raise Exception("Invalid block type!")
 
-        printer.add_ind(4)
         for stmt in self.stmts:
             stmt.generate()
-        printer.add_ind(-4)
-        printer.print("}")
+
+        for _ in range(0, nclose):
+            printer.add_ind(-4)
+            printer.print("}")
 
 class ExprAST:
     def __init__(self, lhs, rhs, op, mem=False):
@@ -45,6 +90,9 @@ class ExprAST:
         self.rhs = rhs
         self.op = op
         self.mem = mem
+        self.lhs_type = get_expr_type(lhs)
+        self.rhs_type = get_expr_type(rhs)
+        self.expr_type = infer_expr_type(self.lhs_type, self.rhs_type, self.op)
         self.generated = False
         expression_id += 1
 
@@ -88,11 +136,15 @@ class ExprAST:
     def generate(self, mem=False):
         if is_expr(self.lhs):
             lvname = self.lhs.generate(mem)
+        elif isinstance(self.lhs, Property):
+            lvname = self.lhs.prop_name
         else:
             lvname = self.lhs
 
         if is_expr(self.rhs):
             rvname = self.rhs.generate()
+        elif isinstance(self.rhs, Property):
+            rvname = self.rhs.prop_name
         else:
             rvname = self.rhs
 
@@ -109,7 +161,18 @@ class ExprAST:
         vname = "v{}".format(self.expr_id)
 
         if self.generated is False:
-            printer.print("{} = {}".format(vname, output))
+            if self.expr_type == 'vector':
+                for i in range(0, 3):
+                    if self.op == '[]':
+                        output = suffixed("{}[{}]".format(lvname, rvname), i)
+                    else:
+                        output = "{} {} {}".format(suffixed(lvname, i), self.op, suffixed(rvname, i))
+
+                    printer.print("double {} = {};".format(suffixed(vname, i), output))
+            else:
+                t = 'double' if self.expr_type == 'real' else 'int'
+                printer.print("{} {} = {};".format(t, vname, output))
+
             self.generated = True
 
         return vname
@@ -125,7 +188,16 @@ class AssignAST:
 
     def generate(self):
         if self.generated is False:
-            printer.print("{} = {}".format(self.dest.generate(True), self.src.generate()))
+            if self.src.expr_type == 'vector':
+                d = self.dest.generate(True)
+                s = self.src.generate()
+                printer.print("{}[0] = {}_0;".format(d, s))
+                printer.print("{}[1] = {}_1;".format(d, s))
+                printer.print("{}[2] = {}_2;".format(d, s))
+
+            else:
+                printer.print("{} = {};".format(self.dest.generate(True), self.src.generate()))
+
             self.generated = True
 
 class IfAST:

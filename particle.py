@@ -7,7 +7,7 @@ sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
 
-mass = pt.add_property('mass', 1.0)
+mass = pt.add_real_property('mass', 1.0)
 position = pt.add_vector_property('position')
 velocity = pt.add_vector_property('velocity')
 force = pt.add_vector_property('force', volatile=True)
