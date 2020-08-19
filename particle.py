@@ -19,10 +19,13 @@ pt.setup_cell_lists(cutoff_radius + skin)
 pt.set_timesteps(100)
 
 for i, j, delta, rsq in pt.particle_pairs(cutoff_radius, position):
-    sr2 = 1.0 / rsq
+    sr2 = rsq.inv()
     sr6 = sr2 * sr2 * sr2 * sigma6
-    force[i].add(delta * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon)
+    f = 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon
+    force[i].add(delta * f)
 
 for i in pt.particles():
-    velocity[i].add(dt * force[i] / mass[i])
+    #velocity[i].add(dt * force[i] / mass[i])
     position[i].add(dt * velocity[i])
+
+pt.generate()

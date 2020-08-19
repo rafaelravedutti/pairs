@@ -8,14 +8,8 @@ produced_stmts = []
 nprops = 0
 ntimesteps = 0
 
-from ast import BlockAST
-from ast import ExprAST
-from ast import IfAST
-from ast import IterAST
-from ast import NbIterAST
-
-ParticlePairsBlock = 0
-ParticlesBlock = 1
+from ast import BlockAST, ExprAST, IfAST, IterAST, NbIterAST
+from block_types import ParticlePairsBlock, ParticlesBlock
 
 class Property:
     def __init__(self, prop_name, default_value, volatile):
@@ -80,29 +74,35 @@ def particle_pairs(cutoff_radius=None, position=None):
 
     i = IterAST()
     j = NbIterAST()
-    stmts = []
+    block_stmts = []
+    #produced_stmts = []
 
     if cutoff_radius is not None and position is not None:
-        prod_stmts = produced_stmts.copy()
         delta = position[i] - position[j]
         rsq = vector_len_sq(delta)
         yield i, j, delta, rsq
-        stmts.append(IfAST(rsq < cutoff_radius, prod_stmts, None))
+        print(produced_stmts)
+        block_stmts.append(IfAST(rsq < cutoff_radius, produced_stmts, None))
 
     else:
         yield i, j
-        stmts.append(produced_stmts)
+        block_stmts.append(produced_stmts)
 
-    blocks.append(BlockAST(stmts, ParticlePairsBlock))
-    produced_stmts = []
+    blocks.append(BlockAST(block_stmts, ParticlePairsBlock))
 
 def particles():
     global produced_stmts
     global blocks
 
+    produced_stmts = []
     yield IterAST()
     blocks.append(BlockAST(produced_stmts, ParticlesBlock))
-    produced_stmts = []
 
 def vector_len_sq(expr):
     return ExprAST(expr, None, 'vector_len_sq')
+
+def generate():
+    global blocks
+    for block in blocks:
+        block.generate()
+
