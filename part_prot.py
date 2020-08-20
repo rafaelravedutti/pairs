@@ -14,12 +14,12 @@ from block_types import ParticlePairsBlock, ParticlesBlock
 from printer import printer
 
 def add_real_property(prop_name, value=0.0, volatile=False):
-    return add_property(prop_name, 'real', value)
+    return add_property(prop_name, 'real', value, volatile)
 
 def add_vector_property(prop_name, value=[0.0, 0.0, 0.0], volatile=False):
-    return add_property(prop_name, 'vector', value)
+    return add_property(prop_name, 'vector', value, volatile)
 
-def add_property(prop_name, prop_type, value, volatile=False):
+def add_property(prop_name, prop_type, value, volatile):
     prop = Property(prop_name, prop_type, value, volatile)
     properties.append(prop)
     defaults[prop_name] = value
@@ -60,6 +60,7 @@ def setup_cell_lists(cutoff_radius):
     ]
 
 def set_timesteps(ts):
+    global ntimesteps
     ntimesteps = ts
 
 def particle_pairs(cutoff_radius=None, position=None):
@@ -118,14 +119,33 @@ def generate_setup():
 
         index += 1
 
+def generate_volatile_reset():
+    printer.print("for(int i = 0; i < {}; i++) {{".format(len(particle_setup)))
+    printer.add_ind(4)
+
+    for p in properties:
+        if p.volatile is True:
+            if p.prop_type == 'vector':
+                printer.print('{}[i][0] = 0.0;'.format(p.prop_name))
+                printer.print('{}[i][1] = 0.0;'.format(p.prop_name))
+                printer.print('{}[i][2] = 0.0;'.format(p.prop_name))
+
+    printer.add_ind(-4)
+    printer.print("}")
+
 def generate():
     printer.print("int main() {")
     printer.add_ind(4)
     printer.print("const int nparticles = {};".format(len(particle_setup)))
     generate_properties_decl()
     generate_setup()
+    printer.print("for(int t = 0; t < {}; t++) {{".format(ntimesteps))
+    printer.add_ind(4)
+    generate_volatile_reset()
     global blocks
     for block in blocks:
         block.generate()
+    printer.add_ind(-4)
+    printer.print("}")
     printer.add_ind(-4)
     printer.print("}")

@@ -150,7 +150,11 @@ class ExprAST:
         if self.op == '[]':
             output = "{}[{}]".format(lvname, rvname)
         elif self.op == 'vector_len_sq':
-            output = "vector_len_sq({})".format(lvname)
+            terms = []
+            for i in range(0, 3):
+                t = suffixed(lvname, i, self.lhs_type)
+                terms.append("{} * {}".format(t, t))
+            output = "{} + {} + {}".format(terms[0], terms[1], terms[2])
         else:
             output = "{} {} {}".format(lvname, self.op, rvname)
 
