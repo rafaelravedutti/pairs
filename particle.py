@@ -12,7 +12,7 @@ position = pt.add_vector_property('position')
 velocity = pt.add_vector_property('velocity')
 force = pt.add_vector_property('force', volatile=True)
 
-grid_config = [[0.0, 20.0], [0.0, 20.0], [0.0, 20.0]]
+grid_config = [[0.0, 4.0], [0.0, 4.0], [0.0, 4.0]]
 pt.setup_grid(grid_config)
 pt.create_particle_lattice(grid_config, spacing=[1.0, 1.0, 1.0])
 pt.setup_cell_lists(cutoff_radius + skin)

@@ -11,6 +11,7 @@ ntimesteps = 0
 from ast import BlockAST, ExprAST, IfAST, IterAST, NbIterAST
 from properties import Property
 from block_types import ParticlePairsBlock, ParticlesBlock
+from printer import printer
 
 def add_real_property(prop_name, value=0.0, volatile=False):
     return add_property(prop_name, 'real', value)
@@ -21,6 +22,7 @@ def add_vector_property(prop_name, value=[0.0, 0.0, 0.0], volatile=False):
 def add_property(prop_name, prop_type, value, volatile=False):
     prop = Property(prop_name, prop_type, value, volatile)
     properties.append(prop)
+    defaults[prop_name] = value
     return prop
 
 def setup_grid(config):
@@ -28,9 +30,9 @@ def setup_grid(config):
     grid_config = config
 
 def create_particle_lattice(config, spacing, props={}):
-    nx = int((config[0][1] - config[0][0]) / spacing[0]) + 1
-    ny = int((config[1][1] - config[1][0]) / spacing[1]) + 1
-    nz = int((config[2][1] - config[2][0]) / spacing[2]) + 1
+    nx = int((config[0][1] - config[0][0]) / spacing[0] - 0.001) + 1
+    ny = int((config[1][1] - config[1][0]) / spacing[1] - 0.001) + 1
+    nz = int((config[2][1] - config[2][0]) / spacing[2] - 0.001) + 1
 
     for i in range(0, nx):
         for j in range(0, ny):
@@ -40,7 +42,7 @@ def create_particle_lattice(config, spacing, props={}):
                 for p in props:
                     particle_props[p] = props[p]
 
-                particle_props['positions'] = [
+                particle_props['position'] = [
                     config[0][0] + spacing[0] * i,
                     config[1][0] + spacing[1] * j,
                     config[2][0] + spacing[2] * k
@@ -92,7 +94,38 @@ def particles():
 def vector_len_sq(expr):
     return ExprAST(expr, None, 'vector_len_sq')
 
+def generate_properties_decl():
+    for p in properties:
+        if p.prop_type == 'real':
+            printer.print("double {}[{}];".format(p.prop_name, len(particle_setup)))
+        elif p.prop_type == 'vector':
+            printer.print("double {}[{}][3];".format(p.prop_name, len(particle_setup)))
+        else:
+            raise Exception("Invalid property type!")
+
+def generate_setup():
+    index = 0
+    for ps in particle_setup:
+        for key in ps:
+            vname = "{}[{}]".format(key, index)
+            if isinstance(ps[key], list):
+                output =  "{}[0] = {}, ".format(vname, ps[key][0])
+                output += "{}[1] = {}, ".format(vname, ps[key][1])
+                output += "{}[2] = {};".format(vname, ps[key][2])
+                printer.print(output)
+            else:
+                printer.print("{} = {};".format(vname, ps[key]))
+
+        index += 1
+
 def generate():
+    printer.print("int main() {")
+    printer.add_ind(4)
+    printer.print("const int nparticles = {};".format(len(particle_setup)))
+    generate_properties_decl()
+    generate_setup()
     global blocks
     for block in blocks:
         block.generate()
+    printer.add_ind(-4)
+    printer.print("}")

@@ -1,9 +1,8 @@
 from part_prot import produced_stmts
-from printer import Printer
+from printer import printer
 from properties import Property
 from block_types import ParticlePairsBlock, ParticlesBlock
 
-printer = Printer()
 expression_id = 0
 
 def is_expr(e):
@@ -61,9 +60,9 @@ class BlockAST:
 
     def generate(self):
         if self.block_type == ParticlePairsBlock:
-            printer.print("for(i = 0; i < nparticles; ++i) {");
+            printer.print("for(int i = 0; i < nparticles; ++i) {");
             printer.add_ind(4)
-            printer.print("for(j = 0; j < nparticles; ++j) {");
+            printer.print("for(int j = 0; j < nparticles; ++j) {");
             printer.add_ind(4)
             printer.print("if(i != j) {");
             printer.add_ind(4)

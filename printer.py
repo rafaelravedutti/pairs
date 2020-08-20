@@ -7,3 +7,5 @@ class Printer:
 
     def print(self, text):
         print(self.indent * ' ' + text)
+
+printer = Printer()
