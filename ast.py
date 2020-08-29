@@ -1,9 +1,6 @@
-from part_prot import produced_stmts
 from printer import printer
 from properties import Property
 from block_types import ParticlePairsBlock, ParticlesBlock
-
-expression_id = 0
 
 def is_expr(e):
     return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, NbIterAST)
@@ -82,9 +79,9 @@ class BlockAST:
             printer.print("}")
 
 class ExprAST:
-    def __init__(self, lhs, rhs, op, mem=False):
-        global expression_id
-        self.expr_id = expression_id
+    def __init__(self, sim, lhs, rhs, op, mem=False):
+        self.sim = sim
+        self.expr_id = sim.new_expr()
         self.lhs = lhs
         self.rhs = rhs
         self.op = op
@@ -93,44 +90,41 @@ class ExprAST:
         self.rhs_type = get_expr_type(rhs)
         self.expr_type = infer_expr_type(self.lhs_type, self.rhs_type, self.op)
         self.generated = False
-        expression_id += 1
 
     def __str__(self):
         return "Expr <a: {}, b: {}, op: {}>".format(self.lhs, self.rhs, self.op)
 
     def __add__(self, other):
-        return ExprAST(self, other, '+')
+        return ExprAST(self.sim, self, other, '+')
 
     def __sub__(self, other):
-        return ExprAST(self, other, '-')
+        return ExprAST(self.sim, self, other, '-')
 
     def __mul__(self, other):
-        return ExprAST(self, other, '*')
+        return ExprAST(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        return ExprAST(other, self, '*')
+        return ExprAST(self.sim, other, self, '*')
 
     def __truediv__(self, other):
-        return ExprAST(self, other, '/')
+        return ExprAST(self.sim, self, other, '/')
 
     def __rtruediv__(self, other):
-        return ExprAST(other, self, '/')
+        return ExprAST(self.sim, other, self, '/')
 
     def __lt__(self, other):
-        return ExprAST(self, other, '<')
+        return ExprAST(self.sim, self, other, '<')
 
     def inv(self):
-        return ExprAST(1.0, self, '/')
+        return ExprAST(self.sim, 1.0, self, '/')
 
     def set(self, other):
-        global produced_stmts
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        produced_stmts.append(AssignAST(self, other))
+        self.sim.produced_stmts.append(AssignAST(self, other))
 
     def add(self, other):
-        global produced_stmts
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        produced_stmts.append(AssignAST(self, self + other))
+        self.sim.produced_stmts.append(AssignAST(self, self + other))
 
     def generate(self, mem=False):
         if is_expr(self.lhs):
