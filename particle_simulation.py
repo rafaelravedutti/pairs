@@ -1,6 +1,6 @@
-from ast import BlockAST, ExprAST, IfAST, IterAST, NbIterAST
+from ast import BlockAST, ExprAST, IfAST
+from loops import ParticleForAST, NeighborForAST
 from properties import Property
-from block_types import ParticlePairsBlock, ParticlesBlock
 from printer import printer
 
 class ParticleSimulation:
@@ -13,6 +13,7 @@ class ParticleSimulation:
         self.produced_stmts = []
         self.ntimesteps = 0
         self.expr_id = 0
+        self.iter_id = 0
 
     def add_property(self, prop_name, prop_type, value, volatile):
         prop = Property(self, prop_name, prop_type, value, volatile)
@@ -29,6 +30,10 @@ class ParticleSimulation:
     def new_expr(self):
         self.expr_id += 1
         return self.expr_id - 1
+
+    def new_iter(self):
+        self.iter_id += 1
+        return self.iter_id - 1
 
     def setup_grid(self, config):
         self.grid_config = config
@@ -65,26 +70,28 @@ class ParticleSimulation:
         self.ntimesteps = ts
 
     def particle_pairs(self, cutoff_radius=None, position=None):
-        i = IterAST()
-        j = NbIterAST()
-        block_stmts = []
+        i = ParticleForAST(self)
+        j = NeighborForAST(self, i.iter())
+        i.set_body(j)
 
         if cutoff_radius is not None and position is not None:
-            delta = position[i] - position[j]
+            delta = position[i.iter()] - position[j.iter()]
             rsq = self.vector_len_sq(delta)
-            yield i, j, delta, rsq
-            block_stmts.append(IfAST(rsq < cutoff_radius, self.produced_stmts.copy(), None))
+            yield i.iter(), j.iter(), delta, rsq
+            j.set_body(IfAST(rsq < cutoff_radius, self.produced_stmts.copy(), None))
 
         else:
-            yield i, j
-            block_stmts.append(produced_stmts.copy())
+            yield i.iter(), j.iter()
+            j.set_body(self.produced_stmts.copy())
 
-        self.blocks.append(BlockAST(block_stmts, ParticlePairsBlock))
+        self.blocks.append(BlockAST([i]))
         #self.produced_stmts = []
 
     def particles(self):
-        yield IterAST()
-        self.blocks.append(BlockAST(self.produced_stmts.copy(), ParticlesBlock))
+        i = ParticleForAST(self)
+        yield i.iter()
+        i.set_body(BlockAST(self.produced_stmts.copy()))
+        self.blocks.append(BlockAST([i]))
         #self.produced_stmts = []
 
     def vector_len_sq(self, expr):

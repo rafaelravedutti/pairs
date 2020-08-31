@@ -1,9 +1,9 @@
+from loops import IterAST
 from printer import printer
 from properties import Property
-from block_types import ParticlePairsBlock, ParticlesBlock
 
 def is_expr(e):
-    return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, NbIterAST)
+    return isinstance(e, ExprAST) or isinstance(e, IterAST)
 
 def get_expr_type(expr):
     if expr is None:
@@ -12,7 +12,7 @@ def get_expr_type(expr):
     if isinstance(expr, ExprAST):
         return expr.expr_type
 
-    if isinstance(expr, int) or isinstance(expr, IterAST) or isinstance(expr, NbIterAST):
+    if isinstance(expr, int) or isinstance(expr, IterAST):
         return 'integer'
 
     if isinstance(expr, float):
@@ -51,32 +51,12 @@ def suffixed(var_name, index, var_type):
     return var_name + '_{}'.format(index)
 
 class BlockAST:
-    def __init__(self, stmts, block_type):
+    def __init__(self, stmts):
         self.stmts = stmts
-        self.block_type = block_type
 
     def generate(self):
-        if self.block_type == ParticlePairsBlock:
-            printer.print("for(int i = 0; i < nparticles; ++i) {");
-            printer.add_ind(4)
-            printer.print("for(int j = 0; j < nparticles; ++j) {");
-            printer.add_ind(4)
-            printer.print("if(i != j) {");
-            printer.add_ind(4)
-            nclose = 3
-        elif self.block_type == ParticlesBlock:
-            printer.print("for(int i = 0; i < nparticles; ++i) {");
-            printer.add_ind(4)
-            nclose = 1
-        else:
-            raise Exception("Invalid block type!")
-
         for stmt in self.stmts:
             stmt.generate()
-
-        for _ in range(0, nclose):
-            printer.add_ind(-4)
-            printer.print("}")
 
 class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
@@ -220,17 +200,3 @@ class IfAST:
             printer.add_ind(-4)
 
         printer.print("}")
-        
-class IterAST:
-    def __str__(self):
-        return "IterAST <>"
-
-    def generate(self):
-        return 'i'
-
-class NbIterAST:
-    def __str__(self):
-        return "NbIterAST <>"
-
-    def generate(self):
-        return 'j'
