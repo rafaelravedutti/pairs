@@ -1,3 +1,4 @@
+from assign import AssignAST
 from loops import IterAST
 from printer import printer
 from properties import Property
@@ -49,14 +50,6 @@ def suffixed(var_name, index, var_type):
         return var_name + '[{}]'.format(index)
 
     return var_name + '_{}'.format(index)
-
-class BlockAST:
-    def __init__(self, stmts):
-        self.stmts = stmts
-
-    def generate(self):
-        for stmt in self.stmts:
-            stmt.generate()
 
 class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
@@ -153,50 +146,3 @@ class ExprAST:
             self.generated = True
 
         return vname
-
-class AssignAST:
-    def __init__(self, dest, src):
-        self.dest = dest
-        self.src = src
-        self.generated = False
-
-    def __str__(self):
-        return "Assign<a: {}, b: {}>".format(dest, src)
-
-    def generate(self):
-        if self.generated is False:
-            if self.src.expr_type == 'vector':
-                d = self.dest.generate(True)
-                s = self.src.generate()
-                printer.print("{}[0] = {}_0;".format(d, s))
-                printer.print("{}[1] = {}_1;".format(d, s))
-                printer.print("{}[2] = {}_2;".format(d, s))
-
-            else:
-                printer.print("{} = {};".format(self.dest.generate(True), self.src.generate()))
-
-            self.generated = True
-
-class IfAST:
-    def __init__(self, cond, block_if, block_else):
-        self.cond = cond
-        self.block_if = block_if
-        self.block_else = block_else
-
-    def generate(self):
-        cvname = self.cond.generate()
-        printer.print("if({}) {{".format(cvname))
-
-        printer.add_ind(4)
-        for stmt in self.block_if:
-            stmt.generate()
-        printer.add_ind(-4)
-
-        if self.block_else is not None:
-            printer.print("} else {")
-            printer.add_ind(4)
-            for stmt in self.block_else:
-                stmt.generate()
-            printer.add_ind(-4)
-
-        printer.print("}")

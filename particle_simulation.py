@@ -1,4 +1,7 @@
-from ast import BlockAST, ExprAST, IfAST
+from assign import AssignAST
+from block import BlockAST
+from branches import BranchAST
+from expr import ExprAST
 from loops import ParticleForAST, NeighborForAST
 from properties import Property
 from printer import printer
@@ -78,7 +81,7 @@ class ParticleSimulation:
             delta = position[i.iter()] - position[j.iter()]
             rsq = self.vector_len_sq(delta)
             yield i.iter(), j.iter(), delta, rsq
-            j.set_body(IfAST(rsq < cutoff_radius, self.produced_stmts.copy(), None))
+            j.set_body(BranchAST(rsq < cutoff_radius, self.produced_stmts.copy(), None))
 
         else:
             yield i.iter(), j.iter()

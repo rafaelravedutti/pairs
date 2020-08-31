@@ -7,5 +7,5 @@ class Property:
         self.volatile = volatile
 
     def __getitem__(self, expr_ast):
-        from ast import ExprAST
+        from expr import ExprAST
         return ExprAST(self.sim, self, expr_ast, '[]', True)
