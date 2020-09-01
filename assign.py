@@ -1,9 +1,11 @@
+from data_types import Type_Vector
+from lit import is_literal, LitAST
 from printer import printer
 
 class AssignAST:
     def __init__(self, dest, src):
         self.dest = dest
-        self.src = src
+        self.src = src if not is_literal(src) else LitAST(src)
         self.generated = False
 
     def __str__(self):
@@ -11,7 +13,7 @@ class AssignAST:
 
     def generate(self):
         if self.generated is False:
-            if self.src.expr_type == 'vector':
+            if self.dest.expr_type == Type_Vector:
                 d = self.dest.generate(True)
                 s = self.src.generate()
                 printer.print("{}[0] = {}_0;".format(d, s))

@@ -1,23 +1,19 @@
 from assign import AssignAST
+from data_types import Type_Int, Type_Float, Type_Vector
+from lit import is_literal, LitAST
 from loops import IterAST
 from printer import printer
 from properties import Property
 
 def is_expr(e):
-    return isinstance(e, ExprAST) or isinstance(e, IterAST)
+    return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, LitAST)
 
 def get_expr_type(expr):
     if expr is None:
         return None
 
-    if isinstance(expr, ExprAST):
-        return expr.expr_type
-
-    if isinstance(expr, int) or isinstance(expr, IterAST):
-        return 'integer'
-
-    if isinstance(expr, float):
-        return 'real'
+    if isinstance(expr, ExprAST) or isinstance(expr, LitAST) or isinstance(expr, IterAST):
+        return expr.type()
 
     if isinstance(expr, Property):
         return expr.prop_type
@@ -26,7 +22,7 @@ def get_expr_type(expr):
 
 def infer_expr_type(lhs_type, rhs_type, op):
     if op == 'vector_len_sq':
-        return 'real'
+        return Type_Float
 
     if op == '[]':
         return lhs_type
@@ -34,16 +30,16 @@ def infer_expr_type(lhs_type, rhs_type, op):
     if lhs_type == rhs_type:
         return lhs_type
 
-    if lhs_type == 'vector' or rhs_type == 'vector':
-        return 'vector'
+    if lhs_type == Type_Vector or rhs_type == Type_Vector:
+        return Type_Vector
 
-    if lhs_type == 'real' or rhs_type == 'real':
-        return 'real'
+    if lhs_type == Type_Float or rhs_type == Type_Float:
+        return Type_Float
 
     return None
 
 def suffixed(var_name, index, var_type):
-    if var_type != 'vector' or isinstance(var_name, str) is False:
+    if var_type != Type_Vector or isinstance(var_name, str) is False:
         return var_name
 
     if var_name[-1] == ']':
@@ -55,8 +51,8 @@ class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
         self.sim = sim
         self.expr_id = sim.new_expr()
-        self.lhs = lhs
-        self.rhs = rhs
+        self.lhs = lhs if not is_literal(lhs) else LitAST(lhs)
+        self.rhs = rhs if not is_literal(rhs) else LitAST(rhs)
         self.op = op
         self.mem = mem
         self.lhs_type = get_expr_type(lhs)
@@ -69,6 +65,9 @@ class ExprAST:
 
     def __add__(self, other):
         return ExprAST(self.sim, self, other, '+')
+
+    def __radd__(self, other):
+        return ExprAST(self.sim, other, self, '+')
 
     def __sub__(self, other):
         return ExprAST(self.sim, self, other, '-')
@@ -99,20 +98,20 @@ class ExprAST:
         assert self.mem is True, "Invalid assignment: lvalue expected!"
         self.sim.produced_stmts.append(AssignAST(self, self + other))
 
+    def type(self):
+        return self.expr_type
+
     def generate(self, mem=False):
-        if is_expr(self.lhs):
-            lvname = self.lhs.generate(mem)
-        elif isinstance(self.lhs, Property):
+        if isinstance(self.lhs, Property):
             lvname = self.lhs.prop_name
         else:
-            lvname = self.lhs
+            lvname = self.lhs.generate(mem)
 
-        if is_expr(self.rhs):
-            rvname = self.rhs.generate()
-        elif isinstance(self.rhs, Property):
-            rvname = self.rhs.prop_name
-        else:
-            rvname = self.rhs
+        if self.op != 'vector_len_sq':
+            if isinstance(self.rhs, Property):
+                rvname = self.rhs.prop_name
+            else:
+                rvname = self.rhs.generate()
 
         if self.op == '[]':
             output = "{}[{}]".format(lvname, rvname)
@@ -131,7 +130,7 @@ class ExprAST:
         vname = "v{}".format(self.expr_id)
 
         if self.generated is False:
-            if self.expr_type == 'vector':
+            if self.expr_type == Type_Vector:
                 for i in range(0, 3):
                     if self.op == '[]':
                         output = suffixed("{}[{}]".format(lvname, rvname), i, self.lhs_type)
@@ -140,7 +139,7 @@ class ExprAST:
 
                     printer.print("double {} = {};".format(suffixed(vname, i, self.expr_type), output))
             else:
-                t = 'double' if self.expr_type == 'real' else 'int'
+                t = 'double' if self.expr_type == Type_Float else 'int'
                 printer.print("{} {} = {};".format(t, vname, output))
 
             self.generated = True

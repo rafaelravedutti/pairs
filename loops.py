@@ -1,10 +1,24 @@
+from data_types import Type_Int
 from printer import printer
 
 class IterAST():
     def __init__(self, sim):
+        self.sim = sim
         self.iter_id = sim.new_iter()
 
-    def generate(self):
+    def type(self):
+        return Type_Int
+
+    def __mul__(self, other):
+        from expr import ExprAST
+        return ExprAST(self.sim, self, other, '*')
+
+    def __rmul__(self, other):
+        from expr import ExprAST
+        return ExprAST(self.sim, other, self, '*')
+
+    def generate(self, mem=False):
+        assert mem is False, "Iterator is not lvalue!"
         return f"i{self.iter_id}"
 
 class ForAST():

@@ -6,6 +6,12 @@ class Property:
         self.default_value = default_value
         self.volatile = volatile
 
+    def name(self):
+        return self.prop_name
+
+    def type(self):
+        return self.prop_type
+
     def __getitem__(self, expr_ast):
         from expr import ExprAST
         return ExprAST(self.sim, self, expr_ast, '[]', True)
