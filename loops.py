@@ -17,6 +17,9 @@ class IterAST():
         from expr import ExprAST
         return ExprAST(self.sim, other, self, '*')
 
+    def __str__(self):
+        return f"Iter <{self.iter_id}>"
+
     def generate(self, mem=False):
         assert mem is False, "Iterator is not lvalue!"
         return f"i{self.iter_id}"

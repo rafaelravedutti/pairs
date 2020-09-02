@@ -1,4 +1,4 @@
 from particle_simulation import ParticleSimulation
 
-def simulation():
-    return ParticleSimulation()
+def simulation(dims=3, timesteps=100):
+    return ParticleSimulation(dims, timesteps)

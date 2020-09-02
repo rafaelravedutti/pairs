@@ -6,24 +6,24 @@ def is_literal(a):
 class LitAST:
     def __init__(self, value):
         self.value = value
-        self.type = Type_Invalid
+        self.lit_type = Type_Invalid
 
         if isinstance(value, int):
-            self.type = Type_Int
+            self.lit_type = Type_Int
 
         if isinstance(value, float):
-            self.type = Type_Float
+            self.lit_type = Type_Float
 
         if isinstance(value, list):
-            self.type = Type_Vector
+            self.lit_type = Type_Vector
 
-        assert self.type != Type_Invalid, "Invalid literal type!"
+        assert self.lit_type != Type_Invalid, "Invalid literal type!"
 
     def __str__(self):
         return f"Lit <{self.value}>"
 
     def type(self):
-        return self.type
+        return self.lit_type
 
     def generate(self, mem=False):
         assert mem is False, "Literal is not lvalue!"

@@ -8,36 +8,6 @@ from properties import Property
 def is_expr(e):
     return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, LitAST)
 
-def get_expr_type(expr):
-    if expr is None:
-        return None
-
-    if isinstance(expr, ExprAST) or isinstance(expr, LitAST) or isinstance(expr, IterAST):
-        return expr.type()
-
-    if isinstance(expr, Property):
-        return expr.prop_type
-
-    return None
-
-def infer_expr_type(lhs_type, rhs_type, op):
-    if op == 'vector_len_sq':
-        return Type_Float
-
-    if op == '[]':
-        return lhs_type
-
-    if lhs_type == rhs_type:
-        return lhs_type
-
-    if lhs_type == Type_Vector or rhs_type == Type_Vector:
-        return Type_Vector
-
-    if lhs_type == Type_Float or rhs_type == Type_Float:
-        return Type_Float
-
-    return None
-
 def suffixed(var_name, index, var_type):
     if var_type != Type_Vector or isinstance(var_name, str) is False:
         return var_name
@@ -55,9 +25,7 @@ class ExprAST:
         self.rhs = rhs if not is_literal(rhs) else LitAST(rhs)
         self.op = op
         self.mem = mem
-        self.lhs_type = get_expr_type(lhs)
-        self.rhs_type = get_expr_type(rhs)
-        self.expr_type = infer_expr_type(self.lhs_type, self.rhs_type, self.op)
+        self.expr_type = ExprAST.infer_type(self.lhs, self.rhs, self.op)
         self.generated = False
 
     def __str__(self):
@@ -90,13 +58,41 @@ class ExprAST:
     def inv(self):
         return ExprAST(self.sim, 1.0, self, '/')
 
+    def __getitem__(self, index):
+        assert self.lhs.type() == Type_Vector, "Cannot use operator [] on specified type!"
+        return ExprAST(self.sim, self, index, '[]', True)
+
     def set(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        self.sim.produced_stmts.append(AssignAST(self, other))
+        self.sim.produced_stmts.append(AssignAST(self.sim, self, other))
 
     def add(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        self.sim.produced_stmts.append(AssignAST(self, self + other))
+        self.sim.produced_stmts.append(AssignAST(self.sim, self, self + other))
+
+    def infer_type(lhs, rhs, op):
+        lhs_type = lhs.type()
+        rhs_type = rhs.type()
+
+        if op == '[]':
+            if isinstance(lhs, Property):
+                return lhs_type
+
+            if lhs_type == Type_Vector:
+                return Type_Float
+
+            return lhs_type
+
+        if lhs_type == rhs_type:
+            return lhs_type
+
+        if lhs_type == Type_Vector or rhs_type == Type_Vector:
+            return Type_Vector
+
+        if lhs_type == Type_Float or rhs_type == Type_Float:
+            return Type_Float
+
+        return None
 
     def type(self):
         return self.expr_type
@@ -107,20 +103,13 @@ class ExprAST:
         else:
             lvname = self.lhs.generate(mem)
 
-        if self.op != 'vector_len_sq':
-            if isinstance(self.rhs, Property):
-                rvname = self.rhs.prop_name
-            else:
-                rvname = self.rhs.generate()
+        if isinstance(self.rhs, Property):
+            rvname = self.rhs.prop_name
+        else:
+            rvname = self.rhs.generate()
 
         if self.op == '[]':
             output = "{}[{}]".format(lvname, rvname)
-        elif self.op == 'vector_len_sq':
-            terms = []
-            for i in range(0, 3):
-                t = suffixed(lvname, i, self.lhs_type)
-                terms.append("{} * {}".format(t, t))
-            output = "{} + {} + {}".format(terms[0], terms[1], terms[2])
         else:
             output = "{} {} {}".format(lvname, self.op, rvname)
 
@@ -131,11 +120,11 @@ class ExprAST:
 
         if self.generated is False:
             if self.expr_type == Type_Vector:
-                for i in range(0, 3):
+                for i in range(0, self.sim.dimensions):
                     if self.op == '[]':
-                        output = suffixed("{}[{}]".format(lvname, rvname), i, self.lhs_type)
+                        output = suffixed("{}[{}]".format(lvname, rvname), i, self.lhs.type())
                     else:
-                        output = "{} {} {}".format(suffixed(lvname, i, self.lhs_type), self.op, suffixed(rvname, i, self.rhs_type))
+                        output = "{} {} {}".format(suffixed(lvname, i, self.lhs.type()), self.op, suffixed(rvname, i, self.rhs.type()))
 
                     printer.print("double {} = {};".format(suffixed(vname, i, self.expr_type), output))
             else:

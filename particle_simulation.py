@@ -8,7 +8,7 @@ from properties import Property
 from printer import printer
 
 class ParticleSimulation:
-    def __init__(self):
+    def __init__(self, dims=3, timesteps=100):
         self.properties = []
         self.defaults = {}
         self.setup = []
@@ -16,7 +16,8 @@ class ParticleSimulation:
         self.setup_blocks = []
         self.blocks = []
         self.produced_stmts = []
-        self.ntimesteps = 0
+        self.dimensions = dims
+        self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
 
@@ -66,7 +67,7 @@ class ParticleSimulation:
 
         xi.set_body(yi)
         yi.set_body(zi)
-        zi.set_body(BlockAST([AssignAST(positions[index], pos)]))
+        zi.set_body(BlockAST([AssignAST(self, positions[index], pos)]))
         self.setup_blocks.append(BlockAST([xi]))
 
     def setup_cell_lists(self, cutoff_radius):
@@ -86,7 +87,7 @@ class ParticleSimulation:
 
         if cutoff_radius is not None and position is not None:
             delta = position[i.iter()] - position[j.iter()]
-            rsq = self.vector_len_sq(delta)
+            rsq = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]
             yield i.iter(), j.iter(), delta, rsq
             j.set_body(BranchAST(rsq < cutoff_radius, self.produced_stmts.copy(), None))
 
@@ -103,9 +104,6 @@ class ParticleSimulation:
         i.set_body(BlockAST(self.produced_stmts.copy()))
         self.blocks.append(BlockAST([i]))
         #self.produced_stmts = []
-
-    def vector_len_sq(self, expr):
-        return ExprAST(self, expr, None, 'vector_len_sq')
 
     def generate_properties_decl(self):
         for p in self.properties:
@@ -127,9 +125,8 @@ class ParticleSimulation:
         for p in self.properties:
             if p.volatile is True:
                 if p.prop_type == Type_Vector:
-                    printer.print('{}[i][0] = 0.0;'.format(p.prop_name))
-                    printer.print('{}[i][1] = 0.0;'.format(p.prop_name))
-                    printer.print('{}[i][2] = 0.0;'.format(p.prop_name))
+                    for i in range(0, self.dimensions):
+                        printer.print('{}[i][{}] = 0.0;'.format(p.prop_name, i))
 
         printer.add_ind(-4)
         printer.print("}")
