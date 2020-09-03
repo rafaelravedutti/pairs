@@ -20,6 +20,7 @@ class ParticleSimulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
+        self.nparticles = 0
 
     def add_property(self, prop_name, prop_type, value, volatile):
         prop = Property(self, prop_name, prop_type, value, volatile)
@@ -49,6 +50,7 @@ class ParticleSimulation:
         assignments = []
         loops = []
         index = None
+        nparticles = 1
 
         for i in range(0, self.dimensions):
             n = int((config[i][1] - config[i][0]) / spacing[i] - 0.001) + 1
@@ -57,6 +59,7 @@ class ParticleSimulation:
                 loops[i - 1].set_body(loops[i])
 
             index = loops[i].iter() if index is None else index * n + loops[i].iter()
+            nparticles *= n
 
         for i in range(0, self.dimensions):
             pos = config[i][0] + spacing[i] * loops[i].iter()
@@ -68,6 +71,7 @@ class ParticleSimulation:
 
         loops[self.dimensions - 1].set_body(BlockAST(assignments))
         self.setup_stmts.append(loops[0])
+        self.nparticles += nparticles
 
     def setup_cell_lists(self, cutoff_radius):
         ncells = [ 
@@ -105,20 +109,18 @@ class ParticleSimulation:
         #self.produced_stmts = []
 
     def generate_properties_decl(self):
-        nparticles = len(self.setup)
         for p in self.properties:
             if p.prop_type == Type_Float:
-                printer.print(f"double {p.prop_name}[{nparticles}];")
+                printer.print(f"double {p.prop_name}[{self.nparticles}];")
             elif p.prop_type == Type_Vector:
-                printer.print(f"double {p.prop_name}[{nparticles}][3];")
+                printer.print(f"double {p.prop_name}[{self.nparticles}][3];")
             else:
                 raise Exception("Invalid property type!")
 
     def generate(self):
-        nparticles = len(self.setup)
         printer.print("int main() {")
         printer.add_ind(4)
-        printer.print(f"const int nparticles = {nparticles};")
+        printer.print(f"const int nparticles = {self.nparticles};")
         self.generate_properties_decl()
         setup_block = BlockAST(self.setup_stmts)
         setup_block.generate()
