@@ -15,3 +15,6 @@ class Property:
     def __getitem__(self, expr_ast):
         from expr import ExprAST
         return ExprAST(self.sim, self, expr_ast, '[]', True)
+
+    def generate(self, mem=False):
+        return self.prop_name

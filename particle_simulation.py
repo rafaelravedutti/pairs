@@ -45,30 +45,29 @@ class ParticleSimulation:
         self.grid_config = config
 
     def create_particle_lattice(self, config, spacing, props={}):
-        nx = int((config[0][1] - config[0][0]) / spacing[0] - 0.001) + 1 
-        ny = int((config[1][1] - config[1][0]) / spacing[1] - 0.001) + 1 
-        nz = int((config[2][1] - config[2][0]) / spacing[2] - 0.001) + 1 
+        positions = [p for p in self.properties if p.name() == 'position'][0]
+        assignments = []
+        loops = []
+        index = None
 
-        xi = ForAST(self, 0, nx)
-        yi = ForAST(self, 0, ny)
-        zi = ForAST(self, 0, nz)
+        for i in range(0, self.dimensions):
+            n = int((config[i][1] - config[i][0]) / spacing[i] - 0.001) + 1
+            loops.append(ForAST(self, 0, n))
+            if i > 0:
+                loops[i - 1].set_body(loops[i])
+
+            index = loops[i].iter() if index is None else index * n + loops[i].iter()
+
+        for i in range(0, self.dimensions):
+            pos = config[i][0] + spacing[i] * loops[i].iter()
+            assignments.append(AssignAST(self, positions[index][i], pos))
 
         particle_props = self.defaults.copy()
         for p in props:
             particle_props[p] = props[p]
 
-        positions = [p for p in self.properties if p.name() == 'position'][0]
-        index = (xi.iter() * ny + yi.iter()) * nz + zi.iter()
-        pos = [ 
-            config[0][0] + spacing[0] * xi.iter(),
-            config[1][0] + spacing[1] * yi.iter(),
-            config[2][0] + spacing[2] * zi.iter() 
-        ]
-
-        xi.set_body(yi)
-        yi.set_body(zi)
-        zi.set_body(BlockAST([AssignAST(self, positions[index], pos)]))
-        self.setup_blocks.append(BlockAST([xi]))
+        loops[self.dimensions - 1].set_body(BlockAST(assignments))
+        self.setup_blocks.append(BlockAST([loops[0]]))
 
     def setup_cell_lists(self, cutoff_radius):
         ncells = [ 

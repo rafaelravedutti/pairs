@@ -8,15 +8,6 @@ from properties import Property
 def is_expr(e):
     return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, LitAST)
 
-def suffixed(var_name, index, var_type):
-    if var_type != Type_Vector or isinstance(var_name, str) is False:
-        return var_name
-
-    if var_name[-1] == ']':
-        return var_name + '[{}]'.format(index)
-
-    return var_name + '_{}'.format(index)
-
 class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
         self.sim = sim
@@ -60,7 +51,7 @@ class ExprAST:
 
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, "Cannot use operator [] on specified type!"
-        return ExprAST(self.sim, self, index, '[]', True)
+        return ExprAST(self.sim, self, index, '[]', self.mem)
 
     def set(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
@@ -97,39 +88,29 @@ class ExprAST:
     def type(self):
         return self.expr_type
 
+    def indexed(self, index):
+        vname = self.generate()
+        if self.expr_type == Type_Vector:
+            return f"{vname}[{index}]" if self.mem else f"{vname}_{index}"
+
+        return vname
+
     def generate(self, mem=False):
-        if isinstance(self.lhs, Property):
-            lvname = self.lhs.prop_name
-        else:
-            lvname = self.lhs.generate(mem)
-
-        if isinstance(self.rhs, Property):
-            rvname = self.rhs.prop_name
-        else:
-            rvname = self.rhs.generate()
-
+        lexpr = self.lhs.generate(mem)
+        rexpr = self.rhs.generate()
         if self.op == '[]':
-            output = "{}[{}]".format(lvname, rvname)
-        else:
-            output = "{} {} {}".format(lvname, self.op, rvname)
+            return f"{lexpr}[{rexpr}]" if self.mem else f"{lexpr}_{rexpr}"
 
-        if mem:
-            return output
-
-        vname = "v{}".format(self.expr_id)
-
+        vname = f"v{self.expr_id}"
         if self.generated is False:
             if self.expr_type == Type_Vector:
                 for i in range(0, self.sim.dimensions):
-                    if self.op == '[]':
-                        output = suffixed("{}[{}]".format(lvname, rvname), i, self.lhs.type())
-                    else:
-                        output = "{} {} {}".format(suffixed(lvname, i, self.lhs.type()), self.op, suffixed(rvname, i, self.rhs.type()))
-
-                    printer.print("double {} = {};".format(suffixed(vname, i, self.expr_type), output))
+                    li = lexpr if not isinstance(self.lhs, ExprAST) else self.lhs.indexed(i)
+                    ri = rexpr if not isinstance(self.rhs, ExprAST) else self.rhs.indexed(i)
+                    printer.print("double {}_{} = {} {} {};".format(vname, i, li, self.op, ri))
             else:
                 t = 'double' if self.expr_type == Type_Float else 'int'
-                printer.print("{} {} = {};".format(t, vname, output))
+                printer.print("{} {} = {} {} {};".format(t, vname, lexpr, self.op, rexpr))
 
             self.generated = True
 
