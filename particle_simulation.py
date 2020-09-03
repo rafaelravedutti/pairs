@@ -118,17 +118,15 @@ class ParticleSimulation:
             block.generate()
 
     def generate_volatile_reset(self):
-        printer.print("for(int i = 0; i < {}; i++) {{".format(len(self.setup)))
-        printer.add_ind(4)
+        loop = ParticleForAST(self)
+        assignments = []
 
         for p in self.properties:
             if p.volatile is True:
-                if p.prop_type == Type_Vector:
-                    for i in range(0, self.dimensions):
-                        printer.print('{}[i][{}] = 0.0;'.format(p.prop_name, i))
+                assignments.append(AssignAST(self, p[loop.iter()], 0.0))
 
-        printer.add_ind(-4)
-        printer.print("}")
+        loop.set_body(BlockAST(assignments))
+        loop.generate()
 
     def generate(self):
         printer.print("int main() {")
