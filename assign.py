@@ -10,7 +10,7 @@ class AssignAST:
         self.generated = False
 
     def __str__(self):
-        return "Assign<a: {}, b: {}>".format(dest, src)
+        return f"Assign<a: {dest}, b: {src}>"
 
     def generate(self):
         if self.generated is False:

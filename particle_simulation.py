@@ -105,18 +105,20 @@ class ParticleSimulation:
         #self.produced_stmts = []
 
     def generate_properties_decl(self):
+        nparticles = len(self.setup)
         for p in self.properties:
             if p.prop_type == Type_Float:
-                printer.print("double {}[{}];".format(p.prop_name, len(self.setup)))
+                printer.print(f"double {p.prop_name}[{nparticles}];")
             elif p.prop_type == Type_Vector:
-                printer.print("double {}[{}][3];".format(p.prop_name, len(self.setup)))
+                printer.print(f"double {p.prop_name}[{nparticles}][3];")
             else:
                 raise Exception("Invalid property type!")
 
     def generate(self):
+        nparticles = len(self.setup)
         printer.print("int main() {")
         printer.add_ind(4)
-        printer.print("const int nparticles = {};".format(len(self.setup)))
+        printer.print(f"const int nparticles = {nparticles};")
         self.generate_properties_decl()
         setup_block = BlockAST(self.setup_stmts)
         setup_block.generate()

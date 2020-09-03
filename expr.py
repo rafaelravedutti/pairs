@@ -20,7 +20,7 @@ class ExprAST:
         self.generated = False
 
     def __str__(self):
-        return "Expr<a: {}, b: {}, op: {}>".format(self.lhs, self.rhs, self.op)
+        return f"Expr<a: {self.lhs}, b: {self.rhs}, op: {self.op}>"
 
     def __add__(self, other):
         return ExprAST(self.sim, self, other, '+')
