@@ -8,8 +8,7 @@ class BranchAST:
 
     def generate(self):
         cvname = self.cond.generate()
-        printer.print("if({}) {{".format(cvname))
-
+        printer.print(f"if({cvname}) {{")
         printer.add_ind(4)
         for stmt in self.block_if:
             stmt.generate()

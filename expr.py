@@ -20,7 +20,7 @@ class ExprAST:
         self.generated = False
 
     def __str__(self):
-        return "Expr <a: {}, b: {}, op: {}>".format(self.lhs, self.rhs, self.op)
+        return "Expr<a: {}, b: {}, op: {}>".format(self.lhs, self.rhs, self.op)
 
     def __add__(self, other):
         return ExprAST(self.sim, self, other, '+')
@@ -107,10 +107,10 @@ class ExprAST:
                 for i in range(0, self.sim.dimensions):
                     li = lexpr if not isinstance(self.lhs, ExprAST) else self.lhs.indexed(i)
                     ri = rexpr if not isinstance(self.rhs, ExprAST) else self.rhs.indexed(i)
-                    printer.print("double {}_{} = {} {} {};".format(vname, i, li, self.op, ri))
+                    printer.print(f"double {vname}_{i} = {li} {self.op} {ri};")
             else:
                 t = 'double' if self.expr_type == Type_Float else 'int'
-                printer.print("{} {} = {} {} {};".format(t, vname, lexpr, self.op, rexpr))
+                printer.print(f"{t} {vname} = {lexpr} {self.op} {rexpr};")
 
             self.generated = True
 

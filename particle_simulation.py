@@ -13,8 +13,8 @@ class ParticleSimulation:
         self.defaults = {}
         self.setup = []
         self.grid_config = []
-        self.setup_blocks = []
-        self.blocks = []
+        self.setup_stmts = []
+        self.timestep_stmts = []
         self.produced_stmts = []
         self.dimensions = dims
         self.ntimesteps = timesteps
@@ -67,7 +67,7 @@ class ParticleSimulation:
             particle_props[p] = props[p]
 
         loops[self.dimensions - 1].set_body(BlockAST(assignments))
-        self.setup_blocks.append(BlockAST([loops[0]]))
+        self.setup_stmts.append(loops[0])
 
     def setup_cell_lists(self, cutoff_radius):
         ncells = [ 
@@ -94,14 +94,14 @@ class ParticleSimulation:
             yield i.iter(), j.iter()
             j.set_body(self.produced_stmts.copy())
 
-        self.blocks.append(BlockAST([i]))
+        self.timestep_stmts.append(i)
         #self.produced_stmts = []
 
     def particles(self):
         i = ParticleForAST(self)
         yield i.iter()
         i.set_body(BlockAST(self.produced_stmts.copy()))
-        self.blocks.append(BlockAST([i]))
+        self.timestep_stmts.append(i)
         #self.produced_stmts = []
 
     def generate_properties_decl(self):
@@ -113,34 +113,24 @@ class ParticleSimulation:
             else:
                 raise Exception("Invalid property type!")
 
-    def generate_setup(self):
-        for block in self.setup_blocks:
-            block.generate()
-
-    def generate_volatile_reset(self):
-        loop = ParticleForAST(self)
-        assignments = []
-
-        for p in self.properties:
-            if p.volatile is True:
-                assignments.append(AssignAST(self, p[loop.iter()], 0.0))
-
-        loop.set_body(BlockAST(assignments))
-        loop.generate()
-
     def generate(self):
         printer.print("int main() {")
         printer.add_ind(4)
         printer.print("const int nparticles = {};".format(len(self.setup)))
         self.generate_properties_decl()
-        self.generate_setup()
-        printer.print("for(int t = 0; t < {}; t++) {{".format(self.ntimesteps))
-        printer.add_ind(4)
-        self.generate_volatile_reset()
-        for block in self.blocks:
-            block.generate()
-        printer.add_ind(-4)
-        printer.print("}")
+        setup_block = BlockAST(self.setup_stmts)
+        setup_block.generate()
+        reset_loop = ParticleForAST(self)
+        reset_assignments = []
+
+        for p in self.properties:
+            if p.volatile is True:
+                reset_assignments.append(AssignAST(self, p[reset_loop.iter()], 0.0))
+
+        reset_loop.set_body(BlockAST(reset_assignments))
+        self.timestep_stmts.insert(0, reset_loop)
+        timestep_block = BlockAST([ForAST(self, 0, self.ntimesteps, BlockAST(self.timestep_stmts))])
+        timestep_block.generate()
         printer.add_ind(-4)
         printer.print("}")
 

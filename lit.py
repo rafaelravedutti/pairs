@@ -20,7 +20,7 @@ class LitAST:
         assert self.lit_type != Type_Invalid, "Invalid literal type!"
 
     def __str__(self):
-        return f"Lit <{self.value}>"
+        return f"Lit<{self.value}>"
 
     def type(self):
         return self.lit_type

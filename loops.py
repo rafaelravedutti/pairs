@@ -39,7 +39,7 @@ class ForAST():
 
     def generate(self):
         it_id = self.iterator.generate()
-        printer.print(f"for(int {it_id} = {self.min}; {it_id} < {self.max}; i++) {{")
+        printer.print(f"for(int {it_id} = {self.min}; {it_id} < {self.max}; {it_id}++) {{")
         printer.add_ind(4)
         self.body.generate();
         printer.add_ind(-4)

@@ -14,14 +14,16 @@ class AssignAST:
 
     def generate(self):
         if self.generated is False:
-            if self.dest.expr_type == Type_Vector:
-                d = self.dest.generate(True)
-                s = self.src.generate()
+            d = self.dest.generate(True)
+            s = self.src.generate()
 
+            if self.dest.expr_type == Type_Vector:
                 for i in range(0, self.sim.dimensions):
-                    printer.print("{}[{}] = {}_{};".format(d, i, s, i))
+                    from expr import ExprAST
+                    si = s if not isinstance(self.src, ExprAST) else self.src.indexed(i)
+                    printer.print(f"{d}[{i}] = {si};")
 
             else:
-                printer.print("{} = {};".format(self.dest.generate(True), self.src.generate()))
+                printer.print(f"{d} = {s};")
 
             self.generated = True
