@@ -6,6 +6,9 @@ class Property:
         self.default_value = default_value
         self.volatile = volatile
 
+    def __str__(self):
+        return f"Property<{self.prop_name}>"
+
     def name(self):
         return self.prop_name
 

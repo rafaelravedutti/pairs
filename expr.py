@@ -17,6 +17,7 @@ class ExprAST:
         self.op = op
         self.mem = mem
         self.expr_type = ExprAST.infer_type(self.lhs, self.rhs, self.op)
+        self.vec_generated = []
         self.generated = False
 
     def __str__(self):
@@ -51,7 +52,11 @@ class ExprAST:
 
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, "Cannot use operator [] on specified type!"
-        return ExprAST(self.sim, self, index, '[]', self.mem)
+        index_ast = index if not is_literal(index) else LitAST(index)
+        return ExprVecAST(self.sim, self, index_ast)
+
+    def generated_vector_index(self, index):
+        return not [i for i in self.vec_generated if i == index]
 
     def set(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
@@ -88,13 +93,6 @@ class ExprAST:
     def type(self):
         return self.expr_type
 
-    def indexed(self, index):
-        vname = self.generate()
-        if self.expr_type == Type_Vector:
-            return f"{vname}[{index}]" if self.mem else f"{vname}_{index}"
-
-        return vname
-
     def generate(self, mem=False):
         lexpr = self.lhs.generate(mem)
         rexpr = self.rhs.generate()
@@ -103,15 +101,47 @@ class ExprAST:
 
         vname = f"v{self.expr_id}"
         if self.generated is False:
-            if self.expr_type == Type_Vector:
-                for i in range(0, self.sim.dimensions):
-                    li = lexpr if not isinstance(self.lhs, ExprAST) else self.lhs.indexed(i)
-                    ri = rexpr if not isinstance(self.rhs, ExprAST) else self.rhs.indexed(i)
-                    printer.print(f"double {vname}_{i} = {li} {self.op} {ri};")
-            else:
-                t = 'double' if self.expr_type == Type_Float else 'int'
-                printer.print(f"{t} {vname} = {lexpr} {self.op} {rexpr};")
-
+            assert self.expr_type != Type_Vector, "Vector code must be generated through ExprVecAST class!"
+            t = 'double' if self.expr_type == Type_Float else 'int'
+            printer.print(f"{t} {vname} = {lexpr} {self.op} {rexpr};")
             self.generated = True
+
+        return vname
+
+class ExprVecAST():
+    def __init__(self, sim, expr, index):
+        self.sim = sim
+        self.expr = expr
+        self.index = index
+        self.lhs = expr.lhs if not isinstance(expr.lhs, ExprAST) else ExprVecAST(sim, expr.lhs, index)
+        self.rhs = expr.rhs if not isinstance(expr.rhs, ExprAST) else ExprVecAST(sim, expr.rhs, index)
+
+    def __str__(self):
+        return f"ExprVecAST<a: {self.lhs}, b: {self.rhs}, op: {self.expr.op}, i: {self.index}>"
+
+    def __mul__(self, other):
+        return ExprAST(self.sim, self, other, '*')
+
+    def idx(self):
+        return self.index
+
+    def type(self):
+        return Type_Float
+
+    def generate(self, mem=False):
+        if self.expr.type() != Type_Vector:
+            return self.expr.generate()
+
+        iexpr = self.index.generate()
+        if self.expr.op == '[]':
+            expr = self.expr.generate()
+            return f"{expr}[{iexpr}]"
+
+        vname = f"v{self.expr.expr_id}[{iexpr}]" if self.expr.mem else f"v{self.expr.expr_id}_{iexpr}"
+        if self.expr.generated_vector_index(iexpr):
+            lexpr = self.lhs.generate(mem)
+            rexpr = self.rhs.generate()
+            printer.print(f"double {vname} = {lexpr} {self.expr.op} {rexpr};")
+            self.expr.vec_generated.append(iexpr)
 
         return vname

@@ -22,6 +22,15 @@ class LitAST:
     def __str__(self):
         return f"Lit<{self.value}>"
 
+    def __eq__(self, other):
+        if isinstance(other, LitAST):
+            return self.value == other.value
+
+        return self.value == other
+
+    def __req__(self, other):
+        return self.__cmp__(other)
+
     def type(self):
         return self.lit_type
 
