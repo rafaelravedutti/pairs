@@ -108,6 +108,11 @@ class ExprAST:
 
         return vname
 
+    def transform(self, fn):
+        self.lhs = self.lhs.transform(fn)
+        self.rhs = self.rhs.transform(fn)
+        return fn(self)
+
 class ExprVecAST():
     def __init__(self, sim, expr, index):
         self.sim = sim
@@ -145,3 +150,9 @@ class ExprVecAST():
             self.expr.vec_generated.append(iexpr)
 
         return vname
+
+    def transform(self, fn):
+        self.lhs = self.lhs.transform(fn)
+        self.rhs = self.rhs.transform(fn)
+        self.index = self.index.transform(fn)
+        return fn(self)

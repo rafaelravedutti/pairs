@@ -1,5 +1,5 @@
 from assign import AssignAST
-from block import BlockAST
+from block import BlockAST, Transform
 from branches import BranchAST
 from data_types import Type_Int, Type_Float, Type_Vector
 from expr import ExprAST
@@ -92,11 +92,11 @@ class ParticleSimulation:
             delta = position[i.iter()] - position[j.iter()]
             rsq = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]
             yield i.iter(), j.iter(), delta, rsq
-            j.set_body(BranchAST(rsq < cutoff_radius, self.produced_stmts.copy(), None))
+            j.set_body(BlockAST([BranchAST(rsq < cutoff_radius, BlockAST(self.produced_stmts.copy()), None)]))
 
         else:
             yield i.iter(), j.iter()
-            j.set_body(self.produced_stmts.copy())
+            j.set_body(BlockAST(self.produced_stmts.copy()))
 
         self.timestep_stmts.append(i)
         #self.produced_stmts = []
@@ -134,6 +134,7 @@ class ParticleSimulation:
         reset_loop.set_body(BlockAST(reset_assignments))
         self.timestep_stmts.insert(0, reset_loop)
         timestep_block = BlockAST([ForAST(self, 0, self.ntimesteps, BlockAST(self.timestep_stmts))])
+        timestep_block.transform(Transform.flatten)
         timestep_block.generate()
         printer.add_ind(-4)
         printer.print("}")

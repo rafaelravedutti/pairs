@@ -24,6 +24,9 @@ class IterAST():
         assert mem is False, "Iterator is not lvalue!"
         return f"i{self.iter_id}"
 
+    def transform(self, fn):
+        return fn(self)
+
 class ForAST():
     def __init__(self, sim, range_min, range_max, body=None):
         self.iterator = IterAST(sim)
@@ -44,6 +47,11 @@ class ForAST():
         self.body.generate();
         printer.add_ind(-4)
         printer.print("}")
+
+    def transform(self, fn):
+        self.iterator = self.iterator.transform(fn)
+        self.body = self.body.transform(fn)
+        return fn(self)
 
 class ParticleForAST(ForAST):
     def __init__(self, sim, body=None):

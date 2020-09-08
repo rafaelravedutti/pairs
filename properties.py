@@ -21,3 +21,6 @@ class Property:
 
     def generate(self, mem=False):
         return self.prop_name
+
+    def transform(self, fn):
+        return fn(self)

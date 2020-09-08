@@ -37,3 +37,6 @@ class LitAST:
     def generate(self, mem=False):
         assert mem is False, "Literal is not lvalue!"
         return self.value
+
+    def transform(self, fn):
+        return fn(self)

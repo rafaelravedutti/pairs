@@ -26,3 +26,8 @@ class AssignAST:
                 printer.print(f"{d} = {s};")
 
             self.generated = True
+
+    def transform(self, fn):
+        self.dest = self.dest.transform(fn)
+        self.src = self.src.transform(fn)
+        return fn(self)
