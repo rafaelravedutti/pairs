@@ -43,9 +43,7 @@ class ForAST():
     def generate(self):
         it_id = self.iterator.generate()
         printer.print(f"for(int {it_id} = {self.min}; {it_id} < {self.max}; {it_id}++) {{")
-        printer.add_ind(4)
         self.body.generate();
-        printer.add_ind(-4)
         printer.print("}")
 
     def transform(self, fn):
@@ -60,9 +58,7 @@ class ParticleForAST(ForAST):
     def generate(self):
         it_id = self.iterator.generate()
         printer.print(f"for(int {it_id} = 0; {it_id} < nparticles; {it_id}++) {{")
-        printer.add_ind(4)
         self.body.generate();
-        printer.add_ind(-4)
         printer.print("}")
 
 class NeighborForAST(ForAST):
@@ -73,8 +69,6 @@ class NeighborForAST(ForAST):
     def generate(self):
         it_id = self.iterator.generate()
         printer.print(f"for(int {it_id} = 0; {it_id} < neighbors[{self.particle_iter.generate()}]; {it_id}++) {{")
-        printer.add_ind(4)
         self.body.generate();
-        printer.add_ind(-4)
         printer.print("}")
 

@@ -5,29 +5,31 @@ from printer import printer
 class AssignAST:
     def __init__(self, sim, dest, src):
         self.sim = sim
-        self.dest = dest
-        self.src = src if not is_literal(src) else LitAST(src)
+        self.type = dest.type()
         self.generated = False
+        src = src if not is_literal(src) else LitAST(src)
+
+        if dest.type() == Type_Vector:
+            self.assignments = []
+
+            for i in range(0, sim.dimensions):
+                from expr import ExprAST
+                self.assignments.append((dest[i], src if not isinstance(src, ExprAST) or src.type() != Type_Vector else src[i]))
+        else:
+            self.assignments = [(dest, src)]
 
     def __str__(self):
         return f"Assign<a: {dest}, b: {src}>"
 
     def generate(self):
         if self.generated is False:
-            d = self.dest.generate(True)
-            if self.dest.type() == Type_Vector:
-                for i in range(0, self.sim.dimensions):
-                    from expr import ExprAST
-                    si = self.src.generate() if not isinstance(self.src, ExprAST) or self.src.type() != Type_Vector else self.src[i].generate()
-                    printer.print(f"{d}[{i}] = {si};")
-
-            else:
-                s = self.src.generate()
+            for dest, src in self.assignments:
+                d = dest.generate(True)
+                s = src.generate()
                 printer.print(f"{d} = {s};")
 
             self.generated = True
 
     def transform(self, fn):
-        self.dest = self.dest.transform(fn)
-        self.src = self.src.transform(fn)
+        self.assignments = [(self.assignments[i][0].transform(fn), self.assignments[i][1].transform(fn)) for i in range(0, len(self.assignments))]
         return fn(self)

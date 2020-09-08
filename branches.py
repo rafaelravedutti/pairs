@@ -9,15 +9,11 @@ class BranchAST:
     def generate(self):
         cvname = self.cond.generate()
         printer.print(f"if({cvname}) {{")
-        printer.add_ind(4)
         self.block_if.generate()
-        printer.add_ind(-4)
 
         if self.block_else is not None:
             printer.print("} else {")
-            printer.add_ind(4)
             self.block_else.generate()
-            printer.add_ind(-4)
 
         printer.print("}")
 

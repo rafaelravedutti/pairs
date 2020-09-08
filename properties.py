@@ -1,3 +1,5 @@
+from data_types import Type_Float, Type_Vector
+
 class Property:
     def __init__(self, sim, prop_name, prop_type, default_value, volatile):
         self.sim = sim
@@ -5,6 +7,7 @@ class Property:
         self.prop_type = prop_type
         self.default_value = default_value
         self.volatile = volatile
+        self.flattened = False
 
     def __str__(self):
         return f"Property<{self.prop_name}>"

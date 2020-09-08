@@ -1,11 +1,12 @@
 from assign import AssignAST
-from block import BlockAST, Transform
+from block import BlockAST
 from branches import BranchAST
 from data_types import Type_Int, Type_Float, Type_Vector
 from expr import ExprAST
 from loops import ForAST, ParticleForAST, NeighborForAST
 from properties import Property
 from printer import printer
+from transform import Transform
 
 class ParticleSimulation:
     def __init__(self, dims=3, timesteps=100):
@@ -56,7 +57,7 @@ class ParticleSimulation:
             n = int((config[i][1] - config[i][0]) / spacing[i] - 0.001) + 1
             loops.append(ForAST(self, 0, n))
             if i > 0:
-                loops[i - 1].set_body(loops[i])
+                loops[i - 1].set_body(BlockAST([loops[i]]))
 
             index = loops[i].iter() if index is None else index * n + loops[i].iter()
             nparticles *= n
@@ -86,7 +87,7 @@ class ParticleSimulation:
     def particle_pairs(self, cutoff_radius=None, position=None):
         i = ParticleForAST(self)
         j = NeighborForAST(self, i.iter())
-        i.set_body(j)
+        i.set_body(BlockAST([j]))
 
         if cutoff_radius is not None and position is not None:
             delta = position[i.iter()] - position[j.iter()]
@@ -99,43 +100,39 @@ class ParticleSimulation:
             j.set_body(BlockAST(self.produced_stmts.copy()))
 
         self.timestep_stmts.append(i)
-        #self.produced_stmts = []
+        self.produced_stmts = []
 
     def particles(self):
         i = ParticleForAST(self)
         yield i.iter()
         i.set_body(BlockAST(self.produced_stmts.copy()))
         self.timestep_stmts.append(i)
-        #self.produced_stmts = []
+        self.produced_stmts = []
 
     def generate_properties_decl(self):
         for p in self.properties:
             if p.prop_type == Type_Float:
-                printer.print(f"double {p.prop_name}[{self.nparticles}];")
+                printer.print(f"    double {p.prop_name}[{self.nparticles}];")
             elif p.prop_type == Type_Vector:
-                printer.print(f"double {p.prop_name}[{self.nparticles}][3];")
+                if p.flattened:
+                    printer.print(f"    double {p.prop_name}[{self.nparticles * self.dimensions}];")
+                else:
+                    printer.print(f"    double {p.prop_name}[{self.nparticles}][{self.dimensions}];")
             else:
                 raise Exception("Invalid property type!")
 
     def generate(self):
         printer.print("int main() {")
-        printer.add_ind(4)
-        printer.print(f"const int nparticles = {self.nparticles};")
-        self.generate_properties_decl()
+        printer.print(f"    const int nparticles = {self.nparticles};")
         setup_block = BlockAST(self.setup_stmts)
-        setup_block.generate()
+        setup_block.transform(Transform.flatten)
         reset_loop = ParticleForAST(self)
-        reset_assignments = []
-
-        for p in self.properties:
-            if p.volatile is True:
-                reset_assignments.append(AssignAST(self, p[reset_loop.iter()], 0.0))
-
-        reset_loop.set_body(BlockAST(reset_assignments))
+        reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties if p.volatile is True]))
         self.timestep_stmts.insert(0, reset_loop)
         timestep_block = BlockAST([ForAST(self, 0, self.ntimesteps, BlockAST(self.timestep_stmts))])
         timestep_block.transform(Transform.flatten)
+        self.generate_properties_decl()
+        setup_block.generate()
         timestep_block.generate()
-        printer.add_ind(-4)
         printer.print("}")
 
