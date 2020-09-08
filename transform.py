@@ -1,5 +1,6 @@
-from data_types import Type_Vector
+from data_types import Type_Int, Type_Vector
 from expr import ExprAST, ExprVecAST
+from lit import LitAST
 from properties import Property
 
 class Transform:
@@ -10,5 +11,24 @@ class Transform:
 
         if isinstance(ast, Property):
             ast.flattened = True
+
+        return ast
+
+    def simplify(ast):
+        if isinstance(ast, ExprAST):
+            if ast.op in ['+', '-'] and ast.rhs == 0:
+                return ast.lhs
+
+            if ast.op in ['+', '-'] and ast.lhs == 0:
+                return ast.rhs
+
+            if ast.op in ['*', '/'] and ast.rhs == 1:
+                return ast.lhs
+
+            if ast.op == '*' and ast.lhs == 1:
+                return ast.rhs
+
+            if ast.op == '*' and ast.lhs == 0:
+                return LitAST(0 if ast.type() == Type_Int else 0.0)
 
         return ast
