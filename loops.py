@@ -17,6 +17,15 @@ class IterAST():
         from expr import ExprAST
         return ExprAST(self.sim, other, self, '*')
 
+    def __eq__(self, other):
+        if isinstance(other, IterAST):
+            return self.iter_id == other.iter_id
+
+        return False
+
+    def __req__(self, other):
+        return self.__cmp__(other)
+
     def __str__(self):
         return f"Iter<{self.iter_id}>"
 
