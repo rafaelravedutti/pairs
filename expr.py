@@ -5,10 +5,6 @@ from loops import IterAST
 from printer import printer
 from properties import Property
 
-def is_expr(e):
-    from variables import Var
-    return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, LitAST) or isinstance(e, VarAST)
-
 class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
         self.sim = sim
