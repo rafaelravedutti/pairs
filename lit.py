@@ -1,7 +1,7 @@
-from data_types import Type_Invalid, Type_Int, Type_Float, Type_Vector
+from data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool, Type_Vector
 
 def is_literal(a):
-    return isinstance(a, int) or isinstance(a, float) or isinstance(a, list)
+    return isinstance(a, int) or isinstance(a, float) or isinstance(a, bool) or isinstance(a, list)
 
 class LitAST:
     def __init__(self, value):
@@ -13,6 +13,9 @@ class LitAST:
 
         if isinstance(value, float):
             self.lit_type = Type_Float
+
+        if isinstance(value, bool):
+            self.lit_type = Type_Bool
 
         if isinstance(value, list):
             self.lit_type = Type_Vector

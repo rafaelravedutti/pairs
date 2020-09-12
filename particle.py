@@ -16,7 +16,6 @@ force = psim.add_vector_property('force', volatile=True)
 grid_config = [[0.0, 4.0], [0.0, 4.0], [0.0, 4.0]]
 psim.setup_grid(grid_config)
 psim.create_particle_lattice(grid_config, spacing=[1.0, 1.0, 1.0])
-psim.setup_cell_lists(cutoff_radius + skin)
 
 for i, j, delta, rsq in psim.particle_pairs(cutoff_radius, position):
     sr2 = 1.0 / rsq

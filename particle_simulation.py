@@ -1,22 +1,29 @@
+from arrays import Array
 from assign import AssignAST
 from block import BlockAST
 from branches import BranchAST
+from cell_lists import CellLists
 from data_types import Type_Int, Type_Float, Type_Vector
 from expr import ExprAST
 from loops import ForAST, ParticleForAST, NeighborForAST
 from properties import Property
 from printer import printer
+from timestep import Timestep
 from transform import Transform
+from variables import Var
 
 class ParticleSimulation:
     def __init__(self, dims=3, timesteps=100):
         self.properties = []
+        self.vars = []
+        self.arrays = []
         self.defaults = {}
         self.setup = []
         self.grid_config = []
         self.setup_stmts = []
-        self.timestep_stmts = []
-        self.produced_stmts = []
+        self.captured_stmts = []
+        self.capture_buffer = []
+        self.capture = False
         self.dimensions = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -35,6 +42,25 @@ class ParticleSimulation:
     def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], volatile=False):
         return self.add_property(prop_name, Type_Vector, value, volatile)
 
+    def property(self, prop_name):
+        return [p for p in self.properties if p.name() == prop_name][0]
+
+    def add_array(self, array_name, array_size, array_type):
+        arr = Array(self, array_name, array_size, array_type)
+        self.arrays.append(arr)
+        return arr
+
+    def array(self, array_name):
+        return [a for a in self.arrays if a.name() == array_name][0]
+
+    def add_var(self, var_name, var_type):
+        var = Var(self, var_name, var_type)
+        self.vars.append(var)
+        return var
+
+    def var(self, var_name):
+        return [v for v in self.vars if v.name() == var_name][0]
+
     def new_expr(self):
         self.expr_id += 1
         return self.expr_id - 1
@@ -47,7 +73,7 @@ class ParticleSimulation:
         self.grid_config = config
 
     def create_particle_lattice(self, config, spacing, props={}):
-        positions = [p for p in self.properties if p.name() == 'position'][0]
+        positions = self.property('position')
         assignments = []
         loops = []
         index = None
@@ -74,16 +100,6 @@ class ParticleSimulation:
         self.setup_stmts.append(loops[0])
         self.nparticles += nparticles
 
-    def setup_cell_lists(self, cutoff_radius):
-        ncells = [ 
-            (self.grid_config[0][1] - self.grid_config[0][0]) / cutoff_radius,
-            (self.grid_config[1][1] - self.grid_config[1][0]) / cutoff_radius,
-            (self.grid_config[2][1] - self.grid_config[2][0]) / cutoff_radius
-        ]   
-
-    def set_timesteps(self, ts):
-        self.ntimesteps = ts
-
     def particle_pairs(self, cutoff_radius=None, position=None):
         i = ParticleForAST(self)
         j = NeighborForAST(self, i.iter())
@@ -92,22 +108,37 @@ class ParticleSimulation:
         if cutoff_radius is not None and position is not None:
             delta = position[i.iter()] - position[j.iter()]
             rsq = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]
+            self.start_capture()
             yield i.iter(), j.iter(), delta, rsq
-            j.set_body(BlockAST([BranchAST(rsq < cutoff_radius, BlockAST(self.produced_stmts.copy()), None)]))
+            self.stop_capture()
+            j.set_body(BlockAST([BranchAST(rsq < cutoff_radius, BlockAST(self.capture_buffer.copy()), None)]))
 
         else:
             yield i.iter(), j.iter()
-            j.set_body(BlockAST(self.produced_stmts.copy()))
+            j.set_body(BlockAST(self.capture_buffer.copy()))
 
-        self.timestep_stmts.append(i)
-        self.produced_stmts = []
+        self.captured_stmts.append(i)
 
     def particles(self):
         i = ParticleForAST(self)
+        self.start_capture()
         yield i.iter()
-        i.set_body(BlockAST(self.produced_stmts.copy()))
-        self.timestep_stmts.append(i)
-        self.produced_stmts = []
+        self.stop_capture()
+        i.set_body(BlockAST(self.capture_buffer.copy()))
+        self.captured_stmts.append(i)
+
+    def start_capture(self):
+        self.capture_buffer = []
+        self.capture = True
+
+    def stop_capture(self):
+        self.capture = False
+
+    def capture_statement(self, stmt):
+        if self.capture is True:
+            self.capture_buffer.append(stmt)
+
+        return stmt
 
     def generate_properties_decl(self):
         for p in self.properties:
@@ -125,16 +156,16 @@ class ParticleSimulation:
         printer.print("int main() {")
         printer.print(f"    const int nparticles = {self.nparticles};")
         setup_block = BlockAST(self.setup_stmts)
-        setup_block.transform(Transform.flatten)
-        setup_block.transform(Transform.simplify)
         reset_loop = ParticleForAST(self)
         reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties if p.volatile is True]))
-        self.timestep_stmts.insert(0, reset_loop)
-        timestep_block = BlockAST([ForAST(self, 0, self.ntimesteps, BlockAST(self.timestep_stmts))])
-        timestep_block.transform(Transform.flatten)
-        timestep_block.transform(Transform.simplify)
+        cell_lists = CellLists(self, 2.8)
+        timestep_loop = Timestep(self, self.ntimesteps)
+        timestep_loop.add(cell_lists.build(), 20)
+        timestep_loop.add(reset_loop)
+        timestep_loop.add(self.captured_stmts)
+        program = BlockAST.merge_blocks(setup_block, timestep_loop.as_block())
+        program.transform(Transform.flatten)
+        program.transform(Transform.simplify)
         self.generate_properties_decl()
-        setup_block.generate()
-        timestep_block.generate()
+        program.generate()
         printer.print("}")
-

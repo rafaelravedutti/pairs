@@ -1,4 +1,5 @@
 from data_types import Type_Int
+from lit import is_literal, LitAST
 from printer import printer
 
 class IterAST():
@@ -26,6 +27,10 @@ class IterAST():
     def __req__(self, other):
         return self.__cmp__(other)
 
+    def __mod__(self, other):
+        from expr import ExprAST
+        return ExprAST(self.sim, self, other, '%')
+
     def __str__(self):
         return f"Iter<{self.iter_id}>"
 
@@ -39,8 +44,8 @@ class IterAST():
 class ForAST():
     def __init__(self, sim, range_min, range_max, body=None):
         self.iterator = IterAST(sim)
-        self.min = range_min;
-        self.max = range_max;
+        self.min = LitAST(range_min) if is_literal(range_min) else range_min;
+        self.max = LitAST(range_max) if is_literal(range_max) else range_max;
         self.body = body;
 
     def iter(self):
@@ -51,7 +56,9 @@ class ForAST():
 
     def generate(self):
         it_id = self.iterator.generate()
-        printer.print(f"for(int {it_id} = {self.min}; {it_id} < {self.max}; {it_id}++) {{")
+        rmin = self.min.generate()
+        rmax = self.max.generate()
+        printer.print(f"for(int {it_id} = {rmin}; {it_id} < {rmax}; {it_id}++) {{")
         self.body.generate();
         printer.print("}")
 

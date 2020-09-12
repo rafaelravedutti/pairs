@@ -19,7 +19,7 @@ class AssignAST:
             self.assignments = [(dest, src)]
 
     def __str__(self):
-        return f"Assign<a: {dest}, b: {src}>"
+        return f"Assign<{self.assignments}>"
 
     def generate(self):
         if self.generated is False:

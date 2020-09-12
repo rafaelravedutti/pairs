@@ -6,7 +6,8 @@ from printer import printer
 from properties import Property
 
 def is_expr(e):
-    return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, LitAST)
+    from variables import Var
+    return isinstance(e, ExprAST) or isinstance(e, IterAST) or isinstance(e, LitAST) or isinstance(e, VarAST)
 
 class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
@@ -47,6 +48,18 @@ class ExprAST:
     def __lt__(self, other):
         return ExprAST(self.sim, self, other, '<')
 
+    def __le__(self, other):
+        return ExprAST(self.sim, self, other, '<=')
+
+    def __gt__(self, other):
+        return ExprAST(self.sim, self, other, '>')
+
+    def __ge__(self, other):
+        return ExprAST(self.sim, self, other, '>=')
+
+    def cmp(lhs, rhs):
+        return ExprAST(lhs.sim, lhs, rhs, '==')
+
     def inv(self):
         return ExprAST(self.sim, 1.0, self, '/')
 
@@ -60,11 +73,11 @@ class ExprAST:
 
     def set(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        self.sim.produced_stmts.append(AssignAST(self.sim, self, other))
+        return self.sim.capture_statement(AssignAST(self.sim, self, other))
 
     def add(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        self.sim.produced_stmts.append(AssignAST(self.sim, self, self + other))
+        return self.sim.capture_statement(AssignAST(self.sim, self, self + other))
 
     def infer_type(lhs, rhs, op):
         lhs_type = lhs.type()
@@ -123,6 +136,9 @@ class ExprVecAST():
 
     def __str__(self):
         return f"ExprVecAST<a: {self.lhs}, b: {self.rhs}, op: {self.expr.op}, i: {self.index}>"
+
+    def __sub__(self, other):
+        return ExprAST(self.sim, self, other, '-')
 
     def __mul__(self, other):
         return ExprAST(self.sim, self, other, '*')
