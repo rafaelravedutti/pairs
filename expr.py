@@ -1,5 +1,5 @@
 from assign import AssignAST
-from data_types import Type_Int, Type_Float, Type_Vector
+from data_types import Type_Int, Type_Float, Type_Bool, Type_Vector
 from lit import is_literal, LitAST
 from loops import IterAST
 from printer import printer
@@ -53,6 +53,9 @@ class ExprAST:
     def __ge__(self, other):
         return ExprAST(self.sim, self, other, '>=')
 
+    def and_op(self, other):
+        return ExprAST(self.sim, self, other, '&&')
+
     def cmp(lhs, rhs):
         return ExprAST(lhs.sim, lhs, rhs, '==')
 
@@ -78,6 +81,9 @@ class ExprAST:
     def infer_type(lhs, rhs, op):
         lhs_type = lhs.type()
         rhs_type = rhs.type()
+
+        if op in ['>', '<', '>=', '<=', '==', '!=']:
+            return Type_Bool
 
         if op == '[]':
             if isinstance(lhs, Property):
@@ -111,7 +117,7 @@ class ExprAST:
         ename = f"e{self.expr_id}"
         if self.generated is False:
             assert self.expr_type != Type_Vector, "Vector code must be generated through ExprVecAST class!"
-            t = 'double' if self.expr_type == Type_Float else 'int'
+            t = 'double' if self.expr_type == Type_Float else 'int' if self.expr_type == Type_Int else 'bool'
             printer.print(f"const {t} {ename} = {lexpr} {self.op} {rexpr};")
             self.generated = True
 

@@ -2,6 +2,7 @@ from assign import AssignAST
 from block import BlockAST
 from branches import BranchAST
 from data_types import Type_Int
+from expr import ExprAST
 from loops import ForAST, ParticleForAST
 
 class CellLists:
@@ -26,7 +27,7 @@ class CellLists:
             flat_index = cell_index[d] if flat_index is None else flat_index * self.ncells[d] + cell_index[d]
 
         fill_loop.set_body(BlockAST([
-            BranchAST.if_stmt(flat_index >= 0 and flat_index <= self.ncells_total, [
+            BranchAST.if_stmt(ExprAST.and_op(flat_index >= 0, flat_index <= self.ncells_total), [
                 self.cell_particles[flat_index * self.cell_capacity + self.cell_sizes[flat_index]].set(fill_loop.iter()),
                 self.cell_sizes[flat_index].set(self.cell_sizes[flat_index] + 1)
             ])
