@@ -158,7 +158,7 @@ class ParticleSimulation:
         setup_block = BlockAST(self.setup_stmts)
         reset_loop = ParticleForAST(self)
         reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties if p.volatile is True]))
-        cell_lists = CellLists(self, 2.8)
+        cell_lists = CellLists(self, 2.8, 2.8)
         timestep_loop = Timestep(self, self.ntimesteps)
         timestep_loop.add(cell_lists.build(), 20)
         timestep_loop.add(reset_loop)
