@@ -1,6 +1,7 @@
 from assign import AssignAST
 from block import BlockAST
 from branches import BranchAST
+from cast import CastAST
 from data_types import Type_Int
 from expr import ExprAST
 from loops import ForAST, ParticleForAST
@@ -21,7 +22,7 @@ class CellLists:
         reset_loop.set_body(BlockAST([self.cell_sizes[reset_loop.iter()].set(0)]))
 
         fill_loop = ParticleForAST(self.sim)
-        cell_index = [(positions[fill_loop.iter()][d] - self.sim.grid_config[d][0]) / self.spacing for d in range(0, self.sim.dimensions)]
+        cell_index = [CastAST.int((positions[fill_loop.iter()][d] - self.sim.grid_config[d][0]) / self.spacing) for d in range(0, self.sim.dimensions)]
         flat_index = None
         for d in range(0, self.sim.dimensions):
             flat_index = cell_index[d] if flat_index is None else flat_index * self.ncells[d] + cell_index[d]
