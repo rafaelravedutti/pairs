@@ -32,7 +32,6 @@ class CellLists:
         for d in range(0, self.sim.dimensions):
             flat_index = cell_index[d] if flat_index is None else flat_index * self.ncells[d] + cell_index[d]
 
-        print(flat_index)
         cell_size = self.cell_sizes[flat_index]
         fill_loop.set_body(BlockAST([
             BranchAST.if_stmt(ExprAST.and_op(flat_index >= 0, flat_index <= self.ncells_total), [
