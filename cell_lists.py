@@ -6,6 +6,7 @@ from data_types import Type_Int
 from functools import reduce
 from expr import ExprAST
 from loops import ForAST, ParticleForAST
+from resize import Resize
 import math
 
 class CellLists:
@@ -33,11 +34,14 @@ class CellLists:
             flat_index = cell_index[d] if flat_index is None else flat_index * self.ncells[d] + cell_index[d]
 
         cell_size = self.cell_sizes[flat_index]
+        resize = Resize(self.sim, self.cell_capacity, self.cell_particles, [reset_loop, fill_loop])
         fill_loop.set_body(BlockAST([
             BranchAST.if_stmt(ExprAST.and_op(flat_index >= 0, flat_index <= self.ncells_total), [
-                self.cell_particles[flat_index][cell_size].set(fill_loop.iter()),
+                resize.check(cell_size, [
+                    self.cell_particles[flat_index][cell_size].set(fill_loop.iter())
+                ]),
                 self.cell_sizes[flat_index].set(cell_size + 1)
             ])
         ]))
 
-        return BlockAST([reset_loop, fill_loop])
+        return resize.block()

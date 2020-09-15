@@ -1,7 +1,9 @@
 from assign import AssignAST
 from data_types import Type_Array
 from expr import ExprAST
+from functools import reduce
 from lit import is_literal, LitAST
+from memory import ReallocAST
 
 class ArrayND:
     def __init__(self, sim, arr_name, arr_sizes, arr_type):
@@ -13,6 +15,9 @@ class ArrayND:
 
     def __str__(self):
         return f"ArrayND<name: {self.arr_name}, sizes: {self.arr_sizes}, type: {self.arr_type}>"
+
+    def __getitem__(self, expr_ast):
+        return ArrayAccess(self.sim, self, expr_ast)
 
     def name(self):
         return self.arr_name
@@ -26,8 +31,11 @@ class ArrayND:
     def ndims(self):
         return self.arr_ndims
 
-    def __getitem__(self, expr_ast):
-        return ArrayAccess(self.sim, self, expr_ast)
+    def alloc_size(self):
+        return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])
+
+    def realloc(self):
+        return ReallocAST(self, self.alloc_size())
 
     def generate(self, mem=False):
         return self.arr_name

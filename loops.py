@@ -48,6 +48,9 @@ class ForAST():
         self.max = LitAST(range_max) if is_literal(range_max) else range_max;
         self.body = body;
 
+    def __str__(self):
+        return f"For<min: {self.min}, max: {self.max}>"
+
     def iter(self):
         return self.iterator
 
@@ -59,7 +62,7 @@ class ForAST():
         rmin = self.min.generate()
         rmax = self.max.generate()
         printer.print(f"for(int {it_id} = {rmin}; {it_id} < {rmax}; {it_id}++) {{")
-        self.body.generate();
+        self.body.generate()
         printer.print("}")
 
     def transform(self, fn):
@@ -74,7 +77,7 @@ class ParticleForAST(ForAST):
     def generate(self):
         it_id = self.iterator.generate()
         printer.print(f"for(int {it_id} = 0; {it_id} < nparticles; {it_id}++) {{")
-        self.body.generate();
+        self.body.generate()
         printer.print("}")
 
 class NeighborForAST(ForAST):
@@ -85,6 +88,24 @@ class NeighborForAST(ForAST):
     def generate(self):
         it_id = self.iterator.generate()
         printer.print(f"for(int {it_id} = 0; {it_id} < neighbors[{self.particle_iter.generate()}]; {it_id}++) {{")
-        self.body.generate();
+        self.body.generate()
         printer.print("}")
 
+class WhileAST():
+    def __init__(self, sim, cond, body=None):
+        self.sim = sim
+        self.cond = cond
+        self.body = body
+
+    def __str__(self):
+        return f"While<{self.cond}>"
+
+    def generate(self):
+        printer.print(f"while({self.cond.generate()}) {{")
+        self.body.generate()
+        printer.print("}")
+
+    def transform(self, fn):
+        self.cond = self.cond.transform(fn)
+        self.body = self.body.transform(fn)
+        return fn(self)

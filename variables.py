@@ -1,3 +1,4 @@
+from assign import AssignAST
 from expr import ExprAST
 
 class Var:
@@ -33,8 +34,17 @@ class Var:
     def __lt__(self, other):
         return ExprAST(self.sim, self, other, '<')
 
+    def __gt__(self, other):
+        return ExprAST(self.sim, self, other, '>')
+
     def inv(self):
         return ExprAST(self.sim, 1.0, self, '/')
+
+    def set(self, other):
+        return self.sim.capture_statement(AssignAST(self.sim, self, other))
+
+    def add(self, other):
+        return self.sim.capture_statement(AssignAST(self.sim, self, self + other))
 
     def name(self):
         return self.var_name

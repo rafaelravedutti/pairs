@@ -5,7 +5,7 @@ class BlockAST:
         if isinstance(stmts, BlockAST):
             self.stmts = stmts.statements()
         else:
-            self.stmts = stmts
+            self.stmts = [stmts] if not isinstance(stmts, list) else stmts
 
     def add_statement(self, stmt):
         if isinstance(stmt, list):
