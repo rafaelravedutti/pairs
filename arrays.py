@@ -24,7 +24,7 @@ class ArrayND:
         return self.arr_type
 
     def ndims(self):
-        return self.ndims
+        return self.arr_ndims
 
     def __getitem__(self, expr_ast):
         return ArrayAccess(self.sim, self, expr_ast)
