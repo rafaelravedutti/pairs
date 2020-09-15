@@ -1,4 +1,4 @@
-from arrays import Array
+from arrays import ArrayND
 from assign import AssignAST
 from block import BlockAST
 from branches import BranchAST
@@ -45,8 +45,8 @@ class ParticleSimulation:
     def property(self, prop_name):
         return [p for p in self.properties if p.name() == prop_name][0]
 
-    def add_array(self, array_name, array_size, array_type):
-        arr = Array(self, array_name, array_size, array_type)
+    def add_array(self, array_name, array_sizes, array_type):
+        arr = ArrayND(self, array_name, array_sizes, array_type)
         self.arrays.append(arr)
         return arr
 

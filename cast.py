@@ -5,6 +5,9 @@ class CastAST:
         self.expr = expr
         self.cast_type = cast_type
 
+    def __str__(self):
+        return f"Cast<expr: {self.expr}, cast_type: {self.cast_type}>"
+
     def int(expr):
         return CastAST(expr, Type_Int)
 
