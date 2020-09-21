@@ -123,6 +123,16 @@ class ExprAST:
 
         return ename
 
+    def generate_inline(self, mem=False):
+        lexpr = self.lhs.generate_inline(mem) if isinstance(self.lhs, ExprAST) else self.lhs.generate(mem)
+        rexpr = self.rhs.generate_inline() if isinstance(self.rhs, ExprAST) else self.rhs.generate()
+
+        if self.op == '[]':
+            return f"{lexpr}[{rexpr}]" if self.mem else f"{lexpr}_{rexpr}"
+
+        assert self.expr_type != Type_Vector, "Vector code must be generated through ExprVecAST class!"
+        return f"{lexpr} {self.op} {rexpr}"
+
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)
         self.rhs = self.rhs.transform(fn)

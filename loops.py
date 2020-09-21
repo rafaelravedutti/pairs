@@ -101,7 +101,9 @@ class WhileAST():
         return f"While<{self.cond}>"
 
     def generate(self):
-        printer.print(f"while({self.cond.generate()}) {{")
+        from expr import ExprAST
+        cond_gen = self.cond.generate() if not isinstance(self.cond, ExprAST) else self.cond.generate_inline()
+        printer.print(f"while({cond_gen}) {{")
         self.body.generate()
         printer.print("}")
 
