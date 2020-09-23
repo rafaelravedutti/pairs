@@ -1,5 +1,30 @@
 from data_types import Type_Float, Type_Vector
 
+class Properties:
+    def __init__(self, sim):
+        self.sim = sim
+        self.props = []
+        self.defs = {}
+        self.nprops = 0
+
+    def add(self, p_name, p_type, p_value, p_volatile):
+        p = Property(self.sim, p_name, p_type, p_value, p_volatile)
+        self.props.append(p)
+        self.defs[p_name] = p_value
+        return p
+
+    def defaults(self):
+        return self.defs
+
+    def all(self):
+        return self.props
+
+    def volatiles(self):
+        return [p for p in self.props if p.volatile is True]
+
+    def find(self, p_name):
+        return [p for p in self.props if p.name() == p_name][0]
+
 class Property:
     def __init__(self, sim, prop_name, prop_type, default_value, volatile):
         self.sim = sim

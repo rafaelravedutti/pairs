@@ -1,4 +1,4 @@
-from arrays import ArrayND
+from arrays import Arrays
 from assign import AssignAST
 from block import BlockAST
 from branches import BranchAST
@@ -6,18 +6,17 @@ from cell_lists import CellLists
 from data_types import Type_Int, Type_Float, Type_Vector
 from expr import ExprAST
 from loops import ForAST, ParticleForAST, NeighborForAST
-from properties import Property
+from properties import Properties
 from printer import printer
 from timestep import Timestep
 from transform import Transform
-from variables import Var
+from variables import Variables
 
 class ParticleSimulation:
     def __init__(self, dims=3, timesteps=100):
-        self.properties = []
-        self.vars = []
-        self.arrays = []
-        self.defaults = {}
+        self.properties = Properties(self)
+        self.vars = Variables(self)
+        self.arrays = Arrays(self)
         self.setup = []
         self.grid_config = []
         self.setup_stmts = []
@@ -30,36 +29,26 @@ class ParticleSimulation:
         self.iter_id = 0
         self.nparticles = 0
 
-    def add_property(self, prop_name, prop_type, value, volatile):
-        prop = Property(self, prop_name, prop_type, value, volatile)
-        self.properties.append(prop)
-        self.defaults[prop_name] = value
-        return prop
-
     def add_real_property(self, prop_name, value=0.0, volatile=False):
-        return self.add_property(prop_name, Type_Float, value, volatile)
+        return self.properties.add(prop_name, Type_Float, value, volatile)
 
     def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], volatile=False):
-        return self.add_property(prop_name, Type_Vector, value, volatile)
+        return self.properties.add(prop_name, Type_Vector, value, volatile)
 
     def property(self, prop_name):
-        return [p for p in self.properties if p.name() == prop_name][0]
+        return self.properties.find(prop_name)
 
     def add_array(self, array_name, array_sizes, array_type):
-        arr = ArrayND(self, array_name, array_sizes, array_type)
-        self.arrays.append(arr)
-        return arr
+        return self.arrays.add(array_name, array_sizes, array_type)
 
     def array(self, array_name):
-        return [a for a in self.arrays if a.name() == array_name][0]
+        return self.arrays.find(array_name)
 
     def add_var(self, var_name, var_type):
-        var = Var(self, var_name, var_type)
-        self.vars.append(var)
-        return var
+        return self.vars.add(var_name, var_type)
 
     def var(self, var_name):
-        return [v for v in self.vars if v.name() == var_name][0]
+        return self.vars.find(var_name)
 
     def new_expr(self):
         self.expr_id += 1
@@ -92,7 +81,7 @@ class ParticleSimulation:
             pos = config[i][0] + spacing[i] * loops[i].iter()
             assignments.append(AssignAST(self, positions[index][i], pos))
 
-        particle_props = self.defaults.copy()
+        particle_props = self.properties.defaults()
         for p in props:
             particle_props[p] = props[p]
 
@@ -141,7 +130,7 @@ class ParticleSimulation:
         return stmt
 
     def generate_properties_decl(self):
-        for p in self.properties:
+        for p in self.properties.all():
             if p.prop_type == Type_Float:
                 printer.print(f"    double {p.prop_name}[{self.nparticles}];")
             elif p.prop_type == Type_Vector:
@@ -157,7 +146,7 @@ class ParticleSimulation:
         printer.print(f"    const int nparticles = {self.nparticles};")
         setup_block = BlockAST(self.setup_stmts)
         reset_loop = ParticleForAST(self)
-        reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties if p.volatile is True]))
+        reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties.volatiles()]))
         cell_lists = CellLists(self, 2.8, 2.8)
         timestep_loop = Timestep(self, self.ntimesteps)
         timestep_loop.add(cell_lists.build(), 20)

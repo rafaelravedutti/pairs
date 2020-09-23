@@ -1,6 +1,20 @@
 from assign import AssignAST
 from expr import ExprAST
 
+class Variables:
+    def __init__(self, sim):
+        self.sim = sim
+        self.vars = []
+        self.nvars = 0
+
+    def add(self, v_name, v_type):
+        v = Var(self.sim, v_name, v_type)
+        self.vars.append(v)
+        return v
+
+    def find(self, v_name):
+        return [v for v in self.vars if v.name() == v_name][0]
+
 class Var:
     def __init__(self, sim, var_name, var_type):
         self.sim = sim

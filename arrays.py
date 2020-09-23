@@ -5,6 +5,20 @@ from functools import reduce
 from lit import is_literal, LitAST
 from memory import ReallocAST
 
+class Arrays:
+    def __init__(self, sim):
+        self.sim = sim
+        self.arrays = []
+        self.narrays = 0
+
+    def add(self, a_name, a_sizes, a_type):
+        a = ArrayND(self.sim, a_name, a_sizes, a_type)
+        self.arrays.append(a)
+        return a
+
+    def find(self, a_name):
+        return [a for a in self.arrays if a.name() == a_name][0]
+
 class ArrayND:
     def __init__(self, sim, arr_name, arr_sizes, arr_type):
         self.sim = sim
