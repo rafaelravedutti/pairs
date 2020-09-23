@@ -5,6 +5,7 @@ from branches import BranchAST
 from cell_lists import CellLists
 from data_types import Type_Int, Type_Float, Type_Vector
 from expr import ExprAST
+from lattice import ParticleLattice
 from loops import ForAST, ParticleForAST, NeighborForAST
 from properties import Properties
 from printer import printer
@@ -17,9 +18,8 @@ class ParticleSimulation:
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
-        self.setup = []
+        self.setup_blocks = []
         self.grid_config = []
-        self.setup_stmts = []
         self.captured_stmts = []
         self.capture_buffer = []
         self.capture = False
@@ -63,30 +63,8 @@ class ParticleSimulation:
 
     def create_particle_lattice(self, config, spacing, props={}):
         positions = self.property('position')
-        assignments = []
-        loops = []
-        index = None
-        nparticles = 1
-
-        for i in range(0, self.dimensions):
-            n = int((config[i][1] - config[i][0]) / spacing[i] - 0.001) + 1
-            loops.append(ForAST(self, 0, n))
-            if i > 0:
-                loops[i - 1].set_body(BlockAST([loops[i]]))
-
-            index = loops[i].iter() if index is None else index * n + loops[i].iter()
-            nparticles *= n
-
-        for i in range(0, self.dimensions):
-            pos = config[i][0] + spacing[i] * loops[i].iter()
-            assignments.append(AssignAST(self, positions[index][i], pos))
-
-        particle_props = self.properties.defaults()
-        for p in props:
-            particle_props[p] = props[p]
-
-        loops[self.dimensions - 1].set_body(BlockAST(assignments))
-        self.setup_stmts.append(loops[0])
+        block, nparticles = ParticleLattice(self, config, spacing, props, positions).lower()
+        self.setup_blocks.append(block)
         self.nparticles += nparticles
 
     def particle_pairs(self, cutoff_radius=None, position=None):
@@ -144,7 +122,6 @@ class ParticleSimulation:
     def generate(self):
         printer.print("int main() {")
         printer.print(f"    const int nparticles = {self.nparticles};")
-        setup_block = BlockAST(self.setup_stmts)
         reset_loop = ParticleForAST(self)
         reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties.volatiles()]))
         cell_lists = CellLists(self, 2.8, 2.8)
@@ -152,7 +129,7 @@ class ParticleSimulation:
         timestep_loop.add(cell_lists.build(), 20)
         timestep_loop.add(reset_loop)
         timestep_loop.add(self.captured_stmts)
-        program = BlockAST.merge_blocks(setup_block, timestep_loop.as_block())
+        program = BlockAST.merge_blocks(BlockAST.from_list(self.setup_blocks), timestep_loop.as_block())
         program.transform(Transform.flatten)
         program.transform(Transform.simplify)
         self.generate_properties_decl()

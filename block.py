@@ -32,3 +32,13 @@ class BlockAST:
         assert isinstance(block1, BlockAST), "First block type is not BlockAST!"
         assert isinstance(block2, BlockAST), "Second block type is not BlockAST!"
         return BlockAST(block1.statements() + block2.statements())
+
+    def from_list(block_list):
+        assert isinstance(block_list, list), "Passed argument is not a list!"
+        result_block = BlockAST([])
+
+        for block in block_list:
+            assert isinstance(block, BlockAST), "Element in list is not BlockAST!"
+            result_block = BlockAST.merge_blocks(result_block, block)
+
+        return result_block
