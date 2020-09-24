@@ -1,4 +1,4 @@
-from printer import printer
+from code_gen.printer import printer
 
 class BlockAST:
     def __init__(self, stmts):

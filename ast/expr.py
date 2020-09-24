@@ -1,9 +1,9 @@
-from assign import AssignAST
-from data_types import Type_Int, Type_Float, Type_Bool, Type_Vector
-from lit import is_literal, LitAST
-from loops import IterAST
-from printer import printer
-from properties import Property
+from ast.assign import AssignAST
+from ast.data_types import Type_Int, Type_Float, Type_Bool, Type_Vector
+from ast.lit import is_literal, LitAST
+from ast.loops import IterAST
+from ast.properties import Property
+from code_gen.printer import printer
 
 class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):

@@ -1,7 +1,7 @@
-from data_types import Type_Int, Type_Vector
-from expr import ExprAST, ExprVecAST
-from lit import LitAST
-from properties import Property
+from ast.data_types import Type_Int, Type_Vector
+from ast.expr import ExprAST, ExprVecAST
+from ast.lit import LitAST
+from ast.properties import Property
 
 class Transform:
     flattened_list = []

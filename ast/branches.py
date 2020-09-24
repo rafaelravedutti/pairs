@@ -1,6 +1,6 @@
-from block import BlockAST
-from lit import is_literal, LitAST
-from printer import printer
+from ast.block import BlockAST
+from ast.lit import is_literal, LitAST
+from code_gen.printer import printer
 
 class BranchAST:
     def __init__(self, cond, block_if, block_else):

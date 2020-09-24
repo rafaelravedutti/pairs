@@ -1,9 +1,9 @@
-from assign import AssignAST
-from data_types import Type_Array
-from expr import ExprAST
+from ast.assign import AssignAST
+from ast.data_types import Type_Array
+from ast.expr import ExprAST
+from ast.lit import is_literal, LitAST
+from ast.memory import ReallocAST
 from functools import reduce
-from lit import is_literal, LitAST
-from memory import ReallocAST
 
 class Arrays:
     def __init__(self, sim):

@@ -1,17 +1,17 @@
-from arrays import Arrays
-from assign import AssignAST
-from block import BlockAST
-from branches import BranchAST
-from cell_lists import CellLists
-from data_types import Type_Int, Type_Float, Type_Vector
-from expr import ExprAST
-from lattice import ParticleLattice
-from loops import ForAST, ParticleForAST, NeighborForAST
-from properties import Properties
-from printer import printer
-from timestep import Timestep
-from transform import Transform
-from variables import Variables
+from ast.arrays import Arrays
+from ast.assign import AssignAST
+from ast.block import BlockAST
+from ast.branches import BranchAST
+from ast.data_types import Type_Int, Type_Float, Type_Vector
+from ast.expr import ExprAST
+from ast.loops import ForAST, ParticleForAST, NeighborForAST
+from ast.properties import Properties
+from ast.transform import Transform
+from ast.variables import Variables
+from code_gen.printer import printer
+from sim.cell_lists import CellLists
+from sim.lattice import ParticleLattice
+from sim.timestep import Timestep
 
 class ParticleSimulation:
     def __init__(self, dims=3, timesteps=100):

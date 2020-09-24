@@ -1,12 +1,12 @@
-from assign import AssignAST
-from block import BlockAST
-from branches import BranchAST
-from cast import CastAST
-from data_types import Type_Int
+from ast.assign import AssignAST
+from ast.block import BlockAST
+from ast.branches import BranchAST
+from ast.cast import CastAST
+from ast.data_types import Type_Int
+from ast.expr import ExprAST
+from ast.loops import ForAST, ParticleForAST
 from functools import reduce
-from expr import ExprAST
-from loops import ForAST, ParticleForAST
-from resize import Resize
+from sim.resize import Resize
 import math
 
 class CellLists:

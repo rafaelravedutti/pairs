@@ -1,5 +1,5 @@
-from assign import AssignAST
-from expr import ExprAST
+from ast.assign import AssignAST
+from ast.expr import ExprAST
 
 class Variables:
     def __init__(self, sim):

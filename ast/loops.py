@@ -1,6 +1,6 @@
-from data_types import Type_Int
-from lit import is_literal, LitAST
-from printer import printer
+from ast.data_types import Type_Int
+from ast.lit import is_literal, LitAST
+from code_gen.printer import printer
 
 class IterAST():
     def __init__(self, sim):
@@ -11,11 +11,11 @@ class IterAST():
         return Type_Int
 
     def __mul__(self, other):
-        from expr import ExprAST
+        from ast.expr import ExprAST
         return ExprAST(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        from expr import ExprAST
+        from ast.expr import ExprAST
         return ExprAST(self.sim, other, self, '*')
 
     def __eq__(self, other):
@@ -28,7 +28,7 @@ class IterAST():
         return self.__cmp__(other)
 
     def __mod__(self, other):
-        from expr import ExprAST
+        from ast.expr import ExprAST
         return ExprAST(self.sim, self, other, '%')
 
     def __str__(self):
@@ -101,7 +101,7 @@ class WhileAST():
         return f"While<{self.cond}>"
 
     def generate(self):
-        from expr import ExprAST
+        from ast.expr import ExprAST
         cond_gen = self.cond.generate() if not isinstance(self.cond, ExprAST) else self.cond.generate_inline()
         printer.print(f"while({cond_gen}) {{")
         self.body.generate()

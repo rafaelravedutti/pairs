@@ -1,7 +1,7 @@
-from block import BlockAST
-from branches import BranchAST
-from data_types import Type_Int
-from loops import WhileAST
+from ast.block import BlockAST
+from ast.branches import BranchAST
+from ast.data_types import Type_Int
+from ast.loops import WhileAST
 
 class Resize:
     def __init__(self, sim, capacity_var, arrays, body, grow_fn=None):

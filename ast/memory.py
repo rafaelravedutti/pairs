@@ -1,4 +1,4 @@
-from printer import printer
+from code_gen.printer import printer
 
 class ReallocAST:
     def __init__(self, array, size):

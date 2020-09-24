@@ -1,4 +1,4 @@
-from data_types import Type_Float, Type_Vector
+from ast.data_types import Type_Float, Type_Vector
 
 class Properties:
     def __init__(self, sim):
@@ -44,7 +44,7 @@ class Property:
         return self.prop_type
 
     def __getitem__(self, expr_ast):
-        from expr import ExprAST
+        from ast.expr import ExprAST
         return ExprAST(self.sim, self, expr_ast, '[]', True)
 
     def generate(self, mem=False):

@@ -1,6 +1,6 @@
-from assign import AssignAST
-from block import BlockAST
-from loops import ForAST
+from ast.assign import AssignAST
+from ast.block import BlockAST
+from ast.loops import ForAST
 
 class ParticleLattice():
     def __init__(self, sim, config, spacing, props, positions):

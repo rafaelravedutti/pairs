@@ -1,7 +1,7 @@
-from block import BlockAST
-from expr import ExprAST
-from branches import BranchAST
-from loops import ForAST
+from ast.block import BlockAST
+from ast.expr import ExprAST
+from ast.branches import BranchAST
+from ast.loops import ForAST
 
 class Timestep:
     def __init__(self, sim, nsteps):
