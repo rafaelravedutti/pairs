@@ -11,6 +11,7 @@ from ast.variables import Variables
 from code_gen.printer import printer
 from sim.cell_lists import CellLists
 from sim.lattice import ParticleLattice
+from sim.properties_decl import PropertiesDecl
 from sim.timestep import Timestep
 
 class ParticleSimulation:
@@ -18,6 +19,7 @@ class ParticleSimulation:
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
+        self.nparticles = self.add_var('nparticles', Type_Int)
         self.setup_blocks = []
         self.grid_config = []
         self.captured_stmts = []
@@ -27,7 +29,6 @@ class ParticleSimulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
-        self.nparticles = 0
 
     def add_real_property(self, prop_name, value=0.0, volatile=False):
         return self.properties.add(prop_name, Type_Float, value, volatile)
@@ -107,21 +108,8 @@ class ParticleSimulation:
 
         return stmt
 
-    def generate_properties_decl(self):
-        for p in self.properties.all():
-            if p.prop_type == Type_Float:
-                printer.print(f"    double {p.prop_name}[{self.nparticles}];")
-            elif p.prop_type == Type_Vector:
-                if p.flattened:
-                    printer.print(f"    double {p.prop_name}[{self.nparticles * self.dimensions}];")
-                else:
-                    printer.print(f"    double {p.prop_name}[{self.nparticles}][{self.dimensions}];")
-            else:
-                raise Exception("Invalid property type!")
-
     def generate(self):
         printer.print("int main() {")
-        printer.print(f"    const int nparticles = {self.nparticles};")
         reset_loop = ParticleForAST(self)
         reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties.volatiles()]))
         cell_lists = CellLists(self, 2.8, 2.8)
@@ -129,9 +117,12 @@ class ParticleSimulation:
         timestep_loop.add(cell_lists.build(), 20)
         timestep_loop.add(reset_loop)
         timestep_loop.add(self.captured_stmts)
-        program = BlockAST.merge_blocks(BlockAST.from_list(self.setup_blocks), timestep_loop.as_block())
+
+        program = BlockAST.merge_blocks(
+            PropertiesDecl(self).lower(),
+            BlockAST.merge_blocks(BlockAST.from_list(self.setup_blocks), timestep_loop.as_block()))
+
         program.transform(Transform.flatten)
         program.transform(Transform.simplify)
-        self.generate_properties_decl()
         program.generate()
         printer.print("}")
