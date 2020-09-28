@@ -9,9 +9,9 @@ from ast.properties import Properties
 from ast.transform import Transform
 from ast.variables import Variables
 from code_gen.printer import printer
-from sim.cell_lists import CellLists
+from sim.cell_lists import CellLists, CellListsBuild
 from sim.lattice import ParticleLattice
-from sim.properties_decl import PropertiesDecl
+from sim.properties import PropertiesDecl, PropertiesResetVolatile
 from sim.timestep import Timestep
 
 class ParticleSimulation:
@@ -110,12 +110,10 @@ class ParticleSimulation:
 
     def generate(self):
         printer.print("int main() {")
-        reset_loop = ParticleForAST(self)
-        reset_loop.set_body(BlockAST([AssignAST(self, p[reset_loop.iter()], 0.0) for p in self.properties.volatiles()]))
         cell_lists = CellLists(self, 2.8, 2.8)
         timestep_loop = Timestep(self, self.ntimesteps)
-        timestep_loop.add(cell_lists.build(), 20)
-        timestep_loop.add(reset_loop)
+        timestep_loop.add(CellListsBuild(self, cell_lists).lower(), 20)
+        timestep_loop.add(PropertiesResetVolatile(self).lower())
         timestep_loop.add(self.captured_stmts)
 
         program = BlockAST.merge_blocks(

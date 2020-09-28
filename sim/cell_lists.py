@@ -22,26 +22,33 @@ class CellLists:
         self.cell_sizes = self.sim.add_array('cell_sizes', self.ncells_total, Type_Int)
         self.stencil = self.sim.add_array('stencil', self.nstencil, Type_Int)
 
-    def build(self):
+class CellListsBuild:
+    def __init__(self, sim, cell_lists):
+        self.sim = sim
+        self.cell_lists = cell_lists
+
+    def lower(self):
+        cl = self.cell_lists
         positions = self.sim.property('position')
-        reset_loop = ForAST(self.sim, 0, self.ncells_total)
-        reset_loop.set_body(BlockAST([self.cell_sizes[reset_loop.iter()].set(0)]))
+        reset_loop = ForAST(self.sim, 0, cl.ncells_total)
+        reset_loop.set_body(BlockAST([cl.cell_sizes[reset_loop.iter()].set(0)]))
 
         fill_loop = ParticleForAST(self.sim)
-        cell_index = [CastAST.int((positions[fill_loop.iter()][d] - self.sim.grid_config[d][0]) / self.spacing) for d in range(0, self.sim.dimensions)]
+        cell_index = [CastAST.int((positions[fill_loop.iter()][d] - cl.sim.grid_config[d][0]) / cl.spacing) for d in range(0, self.sim.dimensions)]
         flat_index = None
         for d in range(0, self.sim.dimensions):
-            flat_index = cell_index[d] if flat_index is None else flat_index * self.ncells[d] + cell_index[d]
+            flat_index = cell_index[d] if flat_index is None else flat_index * cl.ncells[d] + cell_index[d]
 
-        cell_size = self.cell_sizes[flat_index]
-        resize = Resize(self.sim, self.cell_capacity, self.cell_particles, [reset_loop, fill_loop])
+        cell_size = cl.cell_sizes[flat_index]
+        resize = Resize(self.sim, cl.cell_capacity, cl.cell_particles, [reset_loop, fill_loop])
         fill_loop.set_body(BlockAST([
-            BranchAST.if_stmt(ExprAST.and_op(flat_index >= 0, flat_index <= self.ncells_total), [
+            BranchAST.if_stmt(ExprAST.and_op(flat_index >= 0, flat_index <= cl.ncells_total), [
                 resize.check(cell_size, [
-                    self.cell_particles[flat_index][cell_size].set(fill_loop.iter())
+                    cl.cell_particles[flat_index][cell_size].set(fill_loop.iter())
                 ]),
-                self.cell_sizes[flat_index].set(cell_size + 1)
+                cl.cell_sizes[flat_index].set(cell_size + 1)
             ])
         ]))
 
         return resize.block()
+
