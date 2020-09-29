@@ -31,18 +31,18 @@ class CellListsBuild:
         cl = self.cell_lists
         positions = self.sim.property('position')
         reset_loop = ForAST(self.sim, 0, cl.ncells_total)
-        reset_loop.set_body(BlockAST([cl.cell_sizes[reset_loop.iter()].set(0)]))
+        reset_loop.set_body(BlockAST(self.sim, [cl.cell_sizes[reset_loop.iter()].set(0)]))
 
         fill_loop = ParticleForAST(self.sim)
-        cell_index = [CastAST.int((positions[fill_loop.iter()][d] - cl.sim.grid_config[d][0]) / cl.spacing) for d in range(0, self.sim.dimensions)]
+        cell_index = [CastAST.int(self.sim, (positions[fill_loop.iter()][d] - cl.sim.grid_config[d][0]) / cl.spacing) for d in range(0, self.sim.dimensions)]
         flat_index = None
         for d in range(0, self.sim.dimensions):
             flat_index = cell_index[d] if flat_index is None else flat_index * cl.ncells[d] + cell_index[d]
 
         cell_size = cl.cell_sizes[flat_index]
         resize = Resize(self.sim, cl.cell_capacity, cl.cell_particles, [reset_loop, fill_loop])
-        fill_loop.set_body(BlockAST([
-            BranchAST.if_stmt(ExprAST.and_op(flat_index >= 0, flat_index <= cl.ncells_total), [
+        fill_loop.set_body(BlockAST(self.sim, [
+            BranchAST.if_stmt(self.sim, ExprAST.and_op(flat_index >= 0, flat_index <= cl.ncells_total), [
                 resize.check(cell_size, [
                     cl.cell_particles[flat_index][cell_size].set(fill_loop.iter())
                 ]),

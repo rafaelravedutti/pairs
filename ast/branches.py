@@ -1,32 +1,31 @@
 from ast.block import BlockAST
 from ast.lit import is_literal, LitAST
-from code_gen.printer import printer
 
 class BranchAST:
-    def __init__(self, cond, block_if, block_else):
+    def __init__(self, sim, cond, block_if, block_else):
+        self.sim = sim
         self.cond = LitAST(cond) if is_literal(cond) else cond
         self.block_if = block_if
         self.block_else = block_else
 
-    def if_stmt(cond, body):
-        return BranchAST(cond, body if isinstance(body, BlockAST) else BlockAST(body), None)
+    def if_stmt(sim, cond, body):
+        return BranchAST(sim, cond, body if isinstance(body, BlockAST) else BlockAST(sim, body), None)
 
-    def if_else_stmt(cond, body_if, body_else):
-        return BranchAST(cond,
-            body_if if isinstance(body_if, BlockAST) else BlockAST(body_if),
-            body_else if isinstance(body_else, BlockAST) else BlockAST(body_else)
+    def if_else_stmt(sim, cond, body_if, body_else):
+        return BranchAST(sim, cond,
+            body_if if isinstance(body_if, BlockAST) else BlockAST(sim, body_if),
+            body_else if isinstance(body_else, BlockAST) else BlockAST(sim, body_else)
         )
 
     def generate(self):
-        cvname = self.cond.generate()
-        printer.print(f"if({cvname}) {{")
+        self.sim.code_gen.generate_if(self.cond.generate())
         self.block_if.generate()
 
         if self.block_else is not None:
-            printer.print("} else {")
+            self.sim.code_gen.generate_else()
             self.block_else.generate()
 
-        printer.print("}")
+        self.sim.code_gen.generate_endif()
 
     def transform(self, fn):
         self.cond = self.cond.transform(fn)

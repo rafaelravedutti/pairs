@@ -13,13 +13,13 @@ class Resize:
         self.grow_fn = grow_fn if grow_fn is not None else (lambda x: x * 2)
 
     def block(self):
-        return BlockAST([
+        return BlockAST(self.sim, [
             self.resize_var.set(1),
-            WhileAST(self.sim, self.resize_var > 0, BlockAST([self.resize_var.set(0)] + self.body + [
+            WhileAST(self.sim, self.resize_var > 0, BlockAST(self.sim, [self.resize_var.set(0)] + self.body + [
                 self.capacity_var.set(self.grow_fn(self.resize_var)),
-                BranchAST.if_stmt(self.resize_var > 0, BlockAST([a.realloc() for a in self.arrays]))
+                BranchAST.if_stmt(self.sim, self.resize_var > 0, BlockAST(self.sim, [a.realloc() for a in self.arrays]))
             ])),
         ])
 
     def check(self, size, body):
-        return BranchAST.if_else_stmt(size > self.capacity_var, self.resize_var.set(size), body)
+        return BranchAST.if_else_stmt(self.sim, size > self.capacity_var, self.resize_var.set(size), body)

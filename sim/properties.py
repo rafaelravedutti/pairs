@@ -11,7 +11,7 @@ class PropertiesDecl:
         for p in self.sim.properties.all():
             decls.append(PropertyDeclAST(self.sim, p, self.sim.nparticles))
 
-        return BlockAST(decls)
+        return BlockAST(self.sim, decls)
 
 class PropertiesResetVolatile:
     def __init__(self, sim):
@@ -24,5 +24,5 @@ class PropertiesResetVolatile:
         for p in self.sim.properties.volatiles():
             decls.append(p[reset_loop.iter()].set(0.0))
 
-        reset_loop.set_body(BlockAST(decls))
+        reset_loop.set_body(BlockAST(self.sim, decls))
         return reset_loop

@@ -1,5 +1,4 @@
 from ast.data_types import Type_Float, Type_Vector
-from code_gen.printer import printer
 
 class Properties:
     def __init__(self, sim):
@@ -63,16 +62,19 @@ class PropertyDeclAST:
         return f"PropertyDecl<{self.prop.name}>"
 
     def generate(self, mem=False):
-        nparticles = self.sim.nparticles.generate()
+        sizes = []
+
         if self.prop.prop_type == Type_Float:
-            printer.print(f"double {self.prop.prop_name}[{nparticles}]")
+            sizes = [self.sim.nparticles.generate()]
         elif self.prop.prop_type == Type_Vector:
             if self.prop.flattened:
-                printer.print(f"double {self.prop.prop_name}[{nparticles} * {self.sim.dimensions}];")
+                sizes = [(self.sim.nparticles * self.sim.dimensions).generate()]
             else:
-                printer.print(f"double {self.prop.prop_name}[{nparticles}][{self.sim.dimensions}];")
+                sizes = [self.sim.nparticles.generate(), self.sim.dimensions]
         else:
             raise Exception("Invalid property type!")
+
+        self.sim.code_gen.generate_array_decl(self.prop.prop_name, self.prop.prop_type, sizes)
 
     def transform(self, fn):
         return fn(self)

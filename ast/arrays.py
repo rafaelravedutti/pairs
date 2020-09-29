@@ -49,7 +49,7 @@ class ArrayND:
         return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])
 
     def realloc(self):
-        return ReallocAST(self, self.alloc_size())
+        return ReallocAST(self.sim, self, self.alloc_size())
 
     def generate(self, mem=False):
         return self.arr_name
@@ -92,7 +92,7 @@ class ArrayAccess:
             index = self.indexes[s] if index is None else index * sizes[s] + self.indexes[s]
 
         index = LitAST(index) if is_literal(index) else index
-        return f"{self.array.generate()}[{index.generate()}]"
+        return self.sim.code_gen.generate_array_access(self.array.generate(), index.generate())
 
     def transform(self, fn):
         self.array = self.array.transform(fn)

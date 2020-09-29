@@ -1,12 +1,11 @@
-from code_gen.printer import printer
-
 class ReallocAST:
-    def __init__(self, array, size):
+    def __init__(self, sim, array, size):
+        self.sim = sim
         self.array = array
         self.size = size
 
     def generate(self, mem=False):
-        return printer.print(f"{self.array.name()} = realloc({self.size.generate()})")
+        self.sim.code_gen.generate_realloc(self.array.generate(), self.size.generate())
 
     def transform(self, fn):
         self.array = self.array.transform(fn)

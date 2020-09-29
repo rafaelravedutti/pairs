@@ -1,7 +1,7 @@
-from code_gen.printer import printer
-
 class BlockAST:
-    def __init__(self, stmts):
+    def __init__(self, sim, stmts):
+        self.sim = sim
+
         if isinstance(stmts, BlockAST):
             self.stmts = stmts.statements()
         else:
@@ -17,10 +17,12 @@ class BlockAST:
         return self.stmts
 
     def generate(self):
-        printer.add_ind(4)
+        self.sim.code_gen.generate_block_preamble()
+
         for stmt in self.stmts:
             stmt.generate()
-        printer.add_ind(-4)
+
+        self.sim.code_gen.generate_block_epilogue()
 
     def transform(self, fn):
         for i in range(0, len(self.stmts)):
@@ -31,11 +33,11 @@ class BlockAST:
     def merge_blocks(block1, block2):
         assert isinstance(block1, BlockAST), "First block type is not BlockAST!"
         assert isinstance(block2, BlockAST), "Second block type is not BlockAST!"
-        return BlockAST(block1.statements() + block2.statements())
+        return BlockAST(block1.sim, block1.statements() + block2.statements())
 
-    def from_list(block_list):
+    def from_list(sim, block_list):
         assert isinstance(block_list, list), "Passed argument is not a list!"
-        result_block = BlockAST([])
+        result_block = BlockAST(sim, [])
 
         for block in block_list:
             assert isinstance(block, BlockAST), "Element in list is not BlockAST!"

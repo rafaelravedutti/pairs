@@ -1,6 +1,5 @@
 from ast.data_types import Type_Vector
 from ast.lit import is_literal, LitAST
-from code_gen.printer import printer
 
 class AssignAST:
     def __init__(self, sim, dest, src):
@@ -26,7 +25,7 @@ class AssignAST:
             for dest, src in self.assignments:
                 d = dest.generate(True)
                 s = src.generate()
-                printer.print(f"{d} = {s};")
+                self.sim.code_gen.generate_assignment(d, s)
 
             self.generated = True
 

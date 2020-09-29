@@ -1,6 +1,5 @@
 from ast.data_types import Type_Int
 from ast.lit import is_literal, LitAST
-from code_gen.printer import printer
 
 class IterAST():
     def __init__(self, sim):
@@ -43,6 +42,7 @@ class IterAST():
 
 class ForAST():
     def __init__(self, sim, range_min, range_max, body=None):
+        self.sim = sim
         self.iterator = IterAST(sim)
         self.min = LitAST(range_min) if is_literal(range_min) else range_min;
         self.max = LitAST(range_max) if is_literal(range_max) else range_max;
@@ -61,9 +61,9 @@ class ForAST():
         it_id = self.iterator.generate()
         rmin = self.min.generate()
         rmax = self.max.generate()
-        printer.print(f"for(int {it_id} = {rmin}; {it_id} < {rmax}; {it_id}++) {{")
+        self.sim.code_gen.generate_for_preamble(it_id, rmin, rmax)
         self.body.generate()
-        printer.print("}")
+        self.sim.code_gen.generate_for_epilogue()
 
     def transform(self, fn):
         self.iterator = self.iterator.transform(fn)
@@ -76,9 +76,9 @@ class ParticleForAST(ForAST):
 
     def generate(self):
         it_id = self.iterator.generate()
-        printer.print(f"for(int {it_id} = 0; {it_id} < nparticles; {it_id}++) {{")
+        self.sim.code_gen.generate_for_preamble(it_id, 0, self.sim.nparticles.generate())
         self.body.generate()
-        printer.print("}")
+        self.sim.code_gen.generate_for_epilogue()
 
 class NeighborForAST(ForAST):
     def __init__(self, sim, particle_iter, body=None):
@@ -87,9 +87,9 @@ class NeighborForAST(ForAST):
 
     def generate(self):
         it_id = self.iterator.generate()
-        printer.print(f"for(int {it_id} = 0; {it_id} < neighbors[{self.particle_iter.generate()}]; {it_id}++) {{")
+        self.sim.code_gen.generate_for_preamble(it_id, 0, f"neighbors[{self.particle_iter.generate()}]")
         self.body.generate()
-        printer.print("}")
+        self.sim.code_gen.generate_for_epilogue()
 
 class WhileAST():
     def __init__(self, sim, cond, body=None):
@@ -103,9 +103,9 @@ class WhileAST():
     def generate(self):
         from ast.expr import ExprAST
         cond_gen = self.cond.generate() if not isinstance(self.cond, ExprAST) else self.cond.generate_inline()
-        printer.print(f"while({cond_gen}) {{")
+        self.sim.code_gen.generate_while_preamble(cond_gen)
         self.body.generate()
-        printer.print("}")
+        self.sim.code_gen.generate_while_epilogue()
 
     def transform(self, fn):
         self.cond = self.cond.transform(fn)

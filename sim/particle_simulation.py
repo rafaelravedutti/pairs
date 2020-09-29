@@ -8,14 +8,14 @@ from ast.loops import ForAST, ParticleForAST, NeighborForAST
 from ast.properties import Properties
 from ast.transform import Transform
 from ast.variables import Variables
-from code_gen.printer import printer
 from sim.cell_lists import CellLists, CellListsBuild
 from sim.lattice import ParticleLattice
 from sim.properties import PropertiesDecl, PropertiesResetVolatile
 from sim.timestep import Timestep
 
 class ParticleSimulation:
-    def __init__(self, dims=3, timesteps=100):
+    def __init__(self, code_gen, dims=3, timesteps=100):
+        self.code_gen = code_gen
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
@@ -71,7 +71,7 @@ class ParticleSimulation:
     def particle_pairs(self, cutoff_radius=None, position=None):
         i = ParticleForAST(self)
         j = NeighborForAST(self, i.iter())
-        i.set_body(BlockAST([j]))
+        i.set_body(BlockAST(self, [j]))
 
         if cutoff_radius is not None and position is not None:
             delta = position[i.iter()] - position[j.iter()]
@@ -79,11 +79,11 @@ class ParticleSimulation:
             self.start_capture()
             yield i.iter(), j.iter(), delta, rsq
             self.stop_capture()
-            j.set_body(BlockAST([BranchAST(rsq < cutoff_radius, BlockAST(self.capture_buffer.copy()), None)]))
+            j.set_body(BlockAST(self, [BranchAST(self, rsq < cutoff_radius, BlockAST(self, self.capture_buffer.copy()), None)]))
 
         else:
             yield i.iter(), j.iter()
-            j.set_body(BlockAST(self.capture_buffer.copy()))
+            j.set_body(BlockAST(self, self.capture_buffer.copy()))
 
         self.captured_stmts.append(i)
 
@@ -92,7 +92,7 @@ class ParticleSimulation:
         self.start_capture()
         yield i.iter()
         self.stop_capture()
-        i.set_body(BlockAST(self.capture_buffer.copy()))
+        i.set_body(BlockAST(self, self.capture_buffer.copy()))
         self.captured_stmts.append(i)
 
     def start_capture(self):
@@ -109,7 +109,6 @@ class ParticleSimulation:
         return stmt
 
     def generate(self):
-        printer.print("int main() {")
         cell_lists = CellLists(self, 2.8, 2.8)
         timestep_loop = Timestep(self, self.ntimesteps)
         timestep_loop.add(CellListsBuild(self, cell_lists).lower(), 20)
@@ -118,9 +117,10 @@ class ParticleSimulation:
 
         program = BlockAST.merge_blocks(
             PropertiesDecl(self).lower(),
-            BlockAST.merge_blocks(BlockAST.from_list(self.setup_blocks), timestep_loop.as_block()))
+            BlockAST.merge_blocks(BlockAST.from_list(self, self.setup_blocks), timestep_loop.as_block()))
 
         program.transform(Transform.flatten)
         program.transform(Transform.simplify)
+        self.code_gen.generate_program_preamble()
         program.generate()
-        printer.print("}")
+        self.code_gen.generate_program_epilogue()
