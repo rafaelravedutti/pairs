@@ -1,6 +1,7 @@
 from ast.data_types import Type_Vector
 from ast.lit import is_literal, LitAST
 
+
 class AssignAST:
     def __init__(self, sim, dest, src):
         self.sim = sim
@@ -13,7 +14,11 @@ class AssignAST:
 
             for i in range(0, sim.dimensions):
                 from ast.expr import ExprAST
-                self.assignments.append((dest[i], src if not isinstance(src, ExprAST) or src.type() != Type_Vector else src[i]))
+                dsrc = (src if (not isinstance(src, ExprAST) or
+                                src.type() != Type_Vector)
+                        else src[i])
+
+                self.assignments.append((dest[i], dsrc))
         else:
             self.assignments = [(dest, src)]
 
@@ -30,5 +35,9 @@ class AssignAST:
             self.generated = True
 
     def transform(self, fn):
-        self.assignments = [(self.assignments[i][0].transform(fn), self.assignments[i][1].transform(fn)) for i in range(0, len(self.assignments))]
+        self.assignments = [(
+            self.assignments[i][0].transform(fn),
+            self.assignments[i][1].transform(fn))
+            for i in range(0, len(self.assignments))]
+
         return fn(self)

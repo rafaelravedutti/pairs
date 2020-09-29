@@ -1,6 +1,7 @@
 from ast.assign import AssignAST
 from ast.expr import ExprAST
 
+
 class Variables:
     def __init__(self, sim):
         self.sim = sim
@@ -14,6 +15,7 @@ class Variables:
 
     def find(self, v_name):
         return [v for v in self.vars if v.name() == v_name][0]
+
 
 class Var:
     def __init__(self, sim, var_name, var_type):
@@ -58,7 +60,8 @@ class Var:
         return self.sim.capture_statement(AssignAST(self.sim, self, other))
 
     def add(self, other):
-        return self.sim.capture_statement(AssignAST(self.sim, self, self + other))
+        return self.sim.capture_statement(
+            AssignAST(self.sim, self, self + other))
 
     def name(self):
         return self.var_name

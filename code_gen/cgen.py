@@ -1,6 +1,7 @@
 from ast.data_types import Type_Int, Type_Float
 from code_gen.printer import printer
 
+
 class CGen:
     def generate_program_preamble():
         printer.print("int main() {")
@@ -15,7 +16,9 @@ class CGen:
         printer.add_ind(-4)
 
     def generate_cast(ctype, expr):
-        t = 'double' if ctype == Type_Float else 'int' if ctype == Type_Int else 'bool'
+        t = ('double' if ctype == Type_Float
+             else 'int' if ctype == Type_Int else 'bool')
+
         return f"({t})({expr})"
 
     def generate_if(cond):
@@ -31,7 +34,9 @@ class CGen:
         printer.print(f"{dest} = {src};")
 
     def generate_array_decl(array, a_type, sizes):
-        t = 'double' if a_type == Type_Float else 'int' if a_type == Type_Int else 'bool'
+        t = ('double' if a_type == Type_Float
+             else 'int' if a_type == Type_Int else 'bool')
+
         gen_str = f"{t} {array}"
         for s in sizes:
             gen_str += f"[{s}]"
@@ -45,7 +50,8 @@ class CGen:
         printer.print(f"{array} = realloc({size});")
 
     def generate_for_preamble(iter_id, rmin, rmax):
-        printer.print(f"for(int {iter_id} = {rmin}; {iter_id} < {rmax}; {iter_id}++) {{")
+        printer.print(
+            f"for(int {iter_id} = {rmin}; {iter_id} < {rmax}; {iter_id}++) {{")
 
     def generate_for_epilogue():
         printer.print("}")

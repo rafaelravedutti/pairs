@@ -1,9 +1,9 @@
 from ast.assign import AssignAST
 from ast.data_types import Type_Int, Type_Float, Type_Bool, Type_Vector
 from ast.lit import is_literal, LitAST
-from ast.loops import IterAST
 from ast.properties import Property
 from code_gen.printer import printer
+
 
 class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
@@ -63,7 +63,8 @@ class ExprAST:
         return ExprAST(self.sim, 1.0, self, '/')
 
     def __getitem__(self, index):
-        assert self.lhs.type() == Type_Vector, "Cannot use operator [] on specified type!"
+        assert self.lhs.type() == Type_Vector, \
+            "Cannot use operator [] on specified type!"
         index_ast = index if not is_literal(index) else LitAST(index)
         return ExprVecAST(self.sim, self, index_ast)
 
@@ -76,7 +77,8 @@ class ExprAST:
 
     def add(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.capture_statement(AssignAST(self.sim, self, self + other))
+        return self.sim.capture_statement(
+            AssignAST(self.sim, self, self + other))
 
     def infer_type(lhs, rhs, op):
         lhs_type = lhs.type()
@@ -116,21 +118,29 @@ class ExprAST:
 
         ename = f"e{self.expr_id}"
         if self.generated is False:
-            assert self.expr_type != Type_Vector, "Vector code must be generated through ExprVecAST class!"
-            t = 'double' if self.expr_type == Type_Float else 'int' if self.expr_type == Type_Int else 'bool'
+            assert self.expr_type != Type_Vector, \
+                "Vector code must be generated through ExprVecAST class!"
+
+            t = ('double' if self.expr_type == Type_Float
+                 else 'int' if self.expr_type == Type_Int else 'bool')
+
             printer.print(f"const {t} {ename} = {lexpr} {self.op} {rexpr};")
             self.generated = True
 
         return ename
 
     def generate_inline(self, mem=False):
-        lexpr = self.lhs.generate_inline(mem) if isinstance(self.lhs, ExprAST) else self.lhs.generate(mem)
-        rexpr = self.rhs.generate_inline() if isinstance(self.rhs, ExprAST) else self.rhs.generate()
+        lexpr = (self.lhs.generate_inline(mem) if isinstance(self.lhs, ExprAST)
+                 else self.lhs.generate(mem))
+        rexpr = (self.rhs.generate_inline() if isinstance(self.rhs, ExprAST)
+                 else self.rhs.generate())
 
         if self.op == '[]':
             return f"{lexpr}[{rexpr}]" if self.mem else f"{lexpr}_{rexpr}"
 
-        assert self.expr_type != Type_Vector, "Vector code must be generated through ExprVecAST class!"
+        assert self.expr_type != Type_Vector, \
+            "Vector code must be generated through ExprVecAST class!"
+
         return f"{lexpr} {self.op} {rexpr}"
 
     def transform(self, fn):
@@ -138,16 +148,21 @@ class ExprAST:
         self.rhs = self.rhs.transform(fn)
         return fn(self)
 
+
 class ExprVecAST():
     def __init__(self, sim, expr, index):
         self.sim = sim
         self.expr = expr
         self.index = index
-        self.lhs = expr.lhs if not isinstance(expr.lhs, ExprAST) else ExprVecAST(sim, expr.lhs, index)
-        self.rhs = expr.rhs if not isinstance(expr.rhs, ExprAST) else ExprVecAST(sim, expr.rhs, index)
+        self.lhs = (expr.lhs if not isinstance(expr.lhs, ExprAST)
+                    else ExprVecAST(sim, expr.lhs, index))
+        self.rhs = (expr.rhs if not isinstance(expr.rhs, ExprAST)
+                    else ExprVecAST(sim, expr.rhs, index))
 
     def __str__(self):
-        return f"ExprVecAST<a: {self.lhs}, b: {self.rhs}, op: {self.expr.op}, i: {self.index}>"
+        return f"""ExprVecAST<
+                    a: {self.lhs}, b: {self.rhs}, op: {self.expr.op},
+                    i: {self.index}>"""
 
     def __sub__(self, other):
         return ExprAST(self.sim, self, other, '-')
@@ -170,11 +185,14 @@ class ExprVecAST():
             expr = self.expr.generate()
             return f"{expr}[{iexpr}]"
 
-        ename = f"e{self.expr.expr_id}[{iexpr}]" if self.expr.mem else f"e{self.expr.expr_id}_{iexpr}"
+        ename = (f"e{self.expr.expr_id}[{iexpr}]" if self.expr.mem
+                 else f"e{self.expr.expr_id}_{iexpr}")
+
         if self.expr.generated_vector_index(iexpr):
             lexpr = self.lhs.generate(mem)
             rexpr = self.rhs.generate()
-            printer.print(f"const double {ename} = {lexpr} {self.expr.op} {rexpr};")
+            printer.print(
+                f"const double {ename} = {lexpr} {self.expr.op} {rexpr};")
             self.expr.vec_generated.append(iexpr)
 
         return ename

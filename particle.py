@@ -11,7 +11,7 @@ psim = pt.simulation()
 mass = psim.add_real_property('mass', 1.0)
 position = psim.add_vector_property('position')
 velocity = psim.add_vector_property('velocity')
-force = psim.add_vector_property('force', volatile=True)
+force = psim.add_vector_property('force', vol=True)
 
 grid_config = [[0.0, 4.0], [0.0, 4.0], [0.0, 4.0]]
 psim.setup_grid(grid_config)

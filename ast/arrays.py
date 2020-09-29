@@ -5,6 +5,7 @@ from ast.lit import is_literal, LitAST
 from ast.memory import ReallocAST
 from functools import reduce
 
+
 class Arrays:
     def __init__(self, sim):
         self.sim = sim
@@ -19,16 +20,22 @@ class Arrays:
     def find(self, a_name):
         return [a for a in self.arrays if a.name() == a_name][0]
 
+
 class ArrayND:
     def __init__(self, sim, arr_name, arr_sizes, arr_type):
         self.sim = sim
         self.arr_name = arr_name
-        self.arr_sizes = [arr_sizes] if not isinstance(arr_sizes, list) else [LitAST(s) if is_literal(s) else s for s in arr_sizes]
+        self.arr_sizes = ([arr_sizes] if not isinstance(arr_sizes, list)
+                          else [LitAST(s) if is_literal(s) else s
+                                for s in arr_sizes])
         self.arr_type = arr_type
         self.arr_ndims = len(self.arr_sizes)
 
     def __str__(self):
-        return f"ArrayND<name: {self.arr_name}, sizes: {self.arr_sizes}, type: {self.arr_type}>"
+        return f"""ArrayND<
+                    name: {self.arr_name},
+                    sizes: {self.arr_sizes},
+                    type: {self.arr_type}>"""
 
     def __getitem__(self, expr_ast):
         return ArrayAccess(self.sim, self, expr_ast)
@@ -57,6 +64,7 @@ class ArrayND:
     def transform(self, fn):
         return fn(self)
 
+
 class ArrayAccess:
     def __init__(self, sim, array, index):
         self.sim = sim
@@ -80,19 +88,23 @@ class ArrayAccess:
         return self.sim.capture_statement(AssignAST(self.sim, self, other))
 
     def add(self, other):
-        return self.sim.capture_statement(AssignAST(self.sim, self, self + other))
+        return self.sim.capture_statement(
+            AssignAST(self.sim, self, self + other))
 
     def type(self):
-        return self.array.type() if len(self.indexes) == self.array.ndims() else Type_Array
+        return (self.array.type() if len(self.indexes) == self.array.ndims()
+                else Type_Array)
 
     def generate(self, mem=False):
         index = None
         sizes = self.array.sizes()
-        for s in range(0, len(sizes)): 
-            index = self.indexes[s] if index is None else index * sizes[s] + self.indexes[s]
+        for s in range(0, len(sizes)):
+            index = (self.indexes[s] if index is None
+                     else index * sizes[s] + self.indexes[s])
 
         index = LitAST(index) if is_literal(index) else index
-        return self.sim.code_gen.generate_array_access(self.array.generate(), index.generate())
+        return self.sim.code_gen.generate_array_access(
+            self.array.generate(), index.generate())
 
     def transform(self, fn):
         self.array = self.array.transform(fn)

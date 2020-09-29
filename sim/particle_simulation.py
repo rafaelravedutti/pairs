@@ -1,10 +1,8 @@
 from ast.arrays import Arrays
-from ast.assign import AssignAST
 from ast.block import BlockAST
 from ast.branches import BranchAST
 from ast.data_types import Type_Int, Type_Float, Type_Vector
-from ast.expr import ExprAST
-from ast.loops import ForAST, ParticleForAST, NeighborForAST
+from ast.loops import ParticleForAST, NeighborForAST
 from ast.properties import Properties
 from ast.transform import Transform
 from ast.variables import Variables
@@ -12,6 +10,7 @@ from sim.cell_lists import CellLists, CellListsBuild
 from sim.lattice import ParticleLattice
 from sim.properties import PropertiesDecl, PropertiesResetVolatile
 from sim.timestep import Timestep
+
 
 class ParticleSimulation:
     def __init__(self, code_gen, dims=3, timesteps=100):
@@ -30,11 +29,11 @@ class ParticleSimulation:
         self.expr_id = 0
         self.iter_id = 0
 
-    def add_real_property(self, prop_name, value=0.0, volatile=False):
-        return self.properties.add(prop_name, Type_Float, value, volatile)
+    def add_real_property(self, prop_name, value=0.0, vol=False):
+        return self.properties.add(prop_name, Type_Float, value, vol)
 
-    def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], volatile=False):
-        return self.properties.add(prop_name, Type_Vector, value, volatile)
+    def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False):
+        return self.properties.add(prop_name, Type_Vector, value, vol)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
@@ -64,7 +63,8 @@ class ParticleSimulation:
 
     def create_particle_lattice(self, config, spacing, props={}):
         positions = self.property('position')
-        block, nparticles = ParticleLattice(self, config, spacing, props, positions).lower()
+        block, nparticles = ParticleLattice(
+            self, config, spacing, props, positions).lower()
         self.setup_blocks.append(block)
         self.nparticles += nparticles
 
@@ -74,12 +74,14 @@ class ParticleSimulation:
         i.set_body(BlockAST(self, [j]))
 
         if cutoff_radius is not None and position is not None:
-            delta = position[i.iter()] - position[j.iter()]
-            rsq = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]
+            dp = position[i.iter()] - position[j.iter()]
+            rsq = dp[0] * dp[0] + dp[1] * dp[1] + dp[2] * dp[2]
             self.start_capture()
-            yield i.iter(), j.iter(), delta, rsq
+            yield i.iter(), j.iter(), dp, rsq
             self.stop_capture()
-            j.set_body(BlockAST(self, [BranchAST(self, rsq < cutoff_radius, BlockAST(self, self.capture_buffer.copy()), None)]))
+            j.set_body(BlockAST(self, [
+                BranchAST(self, rsq < cutoff_radius,
+                          BlockAST(self, self.capture_buffer.copy()), None)]))
 
         else:
             yield i.iter(), j.iter()
@@ -117,7 +119,9 @@ class ParticleSimulation:
 
         program = BlockAST.merge_blocks(
             PropertiesDecl(self).lower(),
-            BlockAST.merge_blocks(BlockAST.from_list(self, self.setup_blocks), timestep_loop.as_block()))
+            BlockAST.merge_blocks(
+                BlockAST.from_list(self, self.setup_blocks),
+                timestep_loop.as_block()))
 
         program.transform(Transform.flatten)
         program.transform(Transform.simplify)

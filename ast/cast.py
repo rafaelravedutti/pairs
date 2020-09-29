@@ -1,5 +1,6 @@
 from ast.data_types import Type_Int, Type_Float
 
+
 class CastAST:
     def __init__(self, sim, expr, cast_type):
         self.sim = sim

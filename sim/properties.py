@@ -2,6 +2,7 @@ from ast.block import BlockAST
 from ast.properties import PropertyDeclAST
 from ast.loops import ParticleForAST
 
+
 class PropertiesDecl:
     def __init__(self, sim):
         self.sim = sim
@@ -12,6 +13,7 @@ class PropertiesDecl:
             decls.append(PropertyDeclAST(self.sim, p, self.sim.nparticles))
 
         return BlockAST(self.sim, decls)
+
 
 class PropertiesResetVolatile:
     def __init__(self, sim):

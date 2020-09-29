@@ -5,7 +5,8 @@ class ReallocAST:
         self.size = size
 
     def generate(self, mem=False):
-        self.sim.code_gen.generate_realloc(self.array.generate(), self.size.generate())
+        self.sim.code_gen.generate_realloc(
+            self.array.generate(), self.size.generate())
 
     def transform(self, fn):
         self.array = self.array.transform(fn)
