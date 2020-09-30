@@ -126,10 +126,12 @@ class ExprAST:
 
         return self.sim.code_gen.generate_expr_ref(self.expr_id)
 
-    def generate_inline(self, mem=False):
-        lexpr = (self.lhs.generate_inline(mem) if isinstance(self.lhs, ExprAST)
+    def generate_inline(self, mem=False, recursive=False):
+        inline_lexpr = recursive and isinstance(self.lhs, ExprAST)
+        inline_rexpr = recursive and isinstance(self.rhs, ExprAST)
+        lexpr = (self.lhs.generate_inline(recursive, mem) if inline_lexpr
                  else self.lhs.generate(mem))
-        rexpr = (self.rhs.generate_inline() if isinstance(self.rhs, ExprAST)
+        rexpr = (self.rhs.generate_inline(recursive) if inline_rexpr
                  else self.rhs.generate())
 
         if self.op == '[]':
@@ -158,9 +160,8 @@ class ExprVecAST():
                     else ExprVecAST(sim, expr.rhs, index))
 
     def __str__(self):
-        return f"""ExprVecAST<
-                    a: {self.lhs}, b: {self.rhs}, op: {self.expr.op},
-                    i: {self.index}>"""
+        return (f"ExprVecAST<a: {self.lhs}, b: {self.rhs}, " +
+                f"op: {self.expr.op} i: {self.index}>")
 
     def __sub__(self, other):
         return ExprAST(self.sim, self, other, '-')
@@ -195,7 +196,7 @@ class ExprVecAST():
             self.expr.vec_generated.append(iexpr)
 
         return self.sim.code_gen.generate_vec_expr_ref(
-            self.expr.expr_id, self.expr.expr_type, self.expr.mem)
+            self.expr.expr_id, iexpr, self.expr.mem)
 
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)

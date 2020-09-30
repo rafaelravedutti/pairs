@@ -83,4 +83,4 @@ class CGen:
         printer.print(f"const double {ref} = {lhs} {op} {rhs};")
 
     def generate_inline_expr(lhs, rhs, op):
-        printer.print(f"{lhs} {op} {rhs};")
+        return f"{lhs} {op} {rhs}"

@@ -32,10 +32,8 @@ class ArrayND:
         self.arr_ndims = len(self.arr_sizes)
 
     def __str__(self):
-        return f"""ArrayND<
-                    name: {self.arr_name},
-                    sizes: {self.arr_sizes},
-                    type: {self.arr_type}>"""
+        return (f"ArrayND<name: {self.arr_name}, sizes: {self.arr_sizes}, " +
+                f"type: {self.arr_type}>")
 
     def __getitem__(self, expr_ast):
         return ArrayAccess(self.sim, self, expr_ast)
