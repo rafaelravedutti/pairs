@@ -6,7 +6,7 @@ from ast.loops import ParticleForAST, NeighborForAST
 from ast.properties import Properties
 from ast.transform import Transform
 from ast.variables import Variables
-from sim.cell_lists import CellLists, CellListsBuild
+from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from sim.lattice import ParticleLattice
 from sim.properties import PropertiesDecl, PropertiesResetVolatile
 from sim.timestep import Timestep
@@ -118,7 +118,9 @@ class ParticleSimulation:
         timestep_loop.add(self.captured_stmts)
 
         program = BlockAST.merge_blocks(
-            PropertiesDecl(self).lower(),
+            BlockAST.merge_blocks(
+                PropertiesDecl(self).lower(),
+                CellListsStencilBuild(self, cell_lists).lower()),
             BlockAST.merge_blocks(
                 BlockAST.from_list(self, self.setup_blocks),
                 timestep_loop.as_block()))

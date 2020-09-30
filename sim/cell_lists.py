@@ -20,7 +20,8 @@ class CellLists:
                 else spacing[d]))
             for d in range(0, sim.dimensions)]
 
-        self.nstencil = reduce((lambda x, y: x * y), [
+        self.nstencil = self.sim.add_var('nstencil', Type_Int)
+        self.nstencil_max = reduce((lambda x, y: x * y), [
             self.nneighbor_cells[d] * 2 + 1 for d in range(0, sim.dimensions)])
 
         self.ncells_all = self.sim.add_var('ncells_all', Type_Int)
@@ -31,7 +32,37 @@ class CellLists:
             'cell_particles', [self.ncells_all, self.cell_capacity], Type_Int)
         self.cell_sizes = self.sim.add_array(
             'cell_sizes', self.ncells_all, Type_Int)
-        self.stencil = self.sim.add_array('stencil', self.nstencil, Type_Int)
+        self.stencil = self.sim.add_array(
+            'stencil', self.nstencil_max, Type_Int)
+
+
+class CellListsStencilBuild:
+    def __init__(self, sim, cell_lists):
+        self.sim = sim
+        self.cell_lists = cell_lists
+
+    def lower(self):
+        dims = self.sim.dimensions
+        cl = self.cell_lists
+        loops = []
+        index = None
+
+        for d in range(0, dims):
+            nneigh = cl.nneighbor_cells[d]
+            loops.append(ForAST(self.sim, -nneigh, nneigh + 1))
+
+            if d > 0:
+                loops[d - 1].set_body(BlockAST(self.sim, [loops[d]]))
+
+            index = (loops[d].iter() if index is None
+                     else index * cl.ncells[d - 1] + loops[d].iter())
+
+        loops[dims - 1].set_body(
+            BlockAST(self.sim, [
+                cl.stencil[cl.nstencil].set(index),
+                cl.nstencil.set(cl.nstencil + 1)]))
+
+        return BlockAST(self.sim, [cl.nstencil.set(0), loops[0]])
 
 
 class CellListsBuild:
