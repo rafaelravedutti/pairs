@@ -1,6 +1,3 @@
-from ast.data_types import Type_Float, Type_Vector
-
-
 class Properties:
     def __init__(self, sim):
         self.sim = sim
@@ -51,35 +48,6 @@ class Property:
 
     def generate(self, mem=False):
         return self.prop_name
-
-    def transform(self, fn):
-        return fn(self)
-
-
-class PropertyDeclAST:
-    def __init__(self, sim, prop, size):
-        self.sim = sim
-        self.prop = prop
-
-    def __str__(self):
-        return f"PropertyDecl<{self.prop.name}>"
-
-    def generate(self, mem=False):
-        nparticles = self.sim.nparticles
-        sizes = []
-
-        if self.prop.prop_type == Type_Float:
-            sizes = [nparticles.generate()]
-        elif self.prop.prop_type == Type_Vector:
-            if self.prop.flattened:
-                sizes = [(nparticles * self.sim.dimensions).generate()]
-            else:
-                sizes = [nparticles.generate(), self.sim.dimensions]
-        else:
-            raise Exception("Invalid property type!")
-
-        self.sim.code_gen.generate_array_decl(
-            self.prop.prop_name, self.prop.prop_type, sizes)
 
     def transform(self, fn):
         return fn(self)

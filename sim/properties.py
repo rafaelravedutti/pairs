@@ -1,16 +1,29 @@
 from ast.block import BlockAST
-from ast.properties import PropertyDeclAST
+from ast.data_types import Type_Float, Type_Vector
 from ast.loops import ParticleForAST
-
+from ast.memory import MallocAST
 
 class PropertiesDecl:
     def __init__(self, sim):
         self.sim = sim
 
     def lower(self):
+        nparticles = self.sim.nparticles
         decls = []
+
         for p in self.sim.properties.all():
-            decls.append(PropertyDeclAST(self.sim, p, self.sim.nparticles))
+            sizes = []
+            if p.type() == Type_Float:
+                sizes = [nparticles]
+            elif p.type() == Type_Vector:
+                if p.flattened:
+                    sizes = [nparticles * self.sim.dimensions]
+                else:
+                    sizes = [nparticles, self.sim.dimensions]
+            else:
+                raise Exception("Invalid property type!")
+
+            decls.append(MallocAST(self.sim, p, p.type(), sizes, True))
 
         return BlockAST(self.sim, decls)
 

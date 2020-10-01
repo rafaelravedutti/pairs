@@ -63,10 +63,8 @@ class ParticleSimulation:
 
     def create_particle_lattice(self, config, spacing, props={}):
         positions = self.property('position')
-        block, nparticles = ParticleLattice(
-            self, config, spacing, props, positions).lower()
-        self.setup_blocks.append(block)
-        self.nparticles += nparticles
+        block = ParticleLattice(self, config, spacing, props, positions)
+        self.setup_blocks.append(block.lower())
 
     def particle_pairs(self, cutoff_radius=None, position=None):
         i = ParticleForAST(self)

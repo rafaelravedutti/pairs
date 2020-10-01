@@ -1,4 +1,4 @@
-from ast.data_types import Type_Int, Type_Float
+from ast.data_types import Type_Int, Type_Float, Type_Vector
 from code_gen.printer import printer
 
 
@@ -46,8 +46,21 @@ class CGen:
     def generate_array_access(array, index):
         return f"{array}[{index}]"
 
+    def generate_malloc(array, a_type, size, decl):
+        if decl:
+            t = ('double' if a_type == Type_Float or a_type == Type_Vector
+                 else 'int' if a_type == Type_Int else 'bool')
+            printer.print(f"{t} *{array} = malloc({size});")
+        else:
+            printer.print(f"{array} = malloc({size});")
+
     def generate_realloc(array, size):
         printer.print(f"{array} = realloc({size});")
+
+    def generate_sizeof(data_type):
+        t = ('double' if data_type == Type_Float or data_type == Type_Vector
+             else 'int' if data_type == Type_Int else 'bool')
+        return f"sizeof({t})"
 
     def generate_for_preamble(iter_id, rmin, rmax):
         printer.print(

@@ -6,7 +6,6 @@ from ast.loops import ForAST
 class ParticleLattice():
     def __init__(self, sim, config, spacing, props, positions):
         self.sim = sim
-        self.nparticles = 0
         self.config = config
         self.spacing = spacing
         self.props = props
@@ -17,7 +16,6 @@ class ParticleLattice():
         assignments = []
         loops = []
         index = None
-        nparticles = 1
 
         for i in range(0, dims):
             dim_cfg = self.config[i]
@@ -28,7 +26,6 @@ class ParticleLattice():
 
             index = (loops[i].iter() if index is None
                      else index * n + loops[i].iter())
-            nparticles *= n
 
         for i in range(0, dims):
             pos = self.config[i][0] + self.spacing[i] * loops[i].iter()
@@ -39,5 +36,6 @@ class ParticleLattice():
         for p in self.props:
             particle_props[p] = self.props[p]
 
+        assignments.append(self.sim.nparticles.set(self.sim.nparticles + 1))
         loops[dims - 1].set_body(BlockAST(self.sim, assignments))
-        return (BlockAST(self.sim, loops[0]), nparticles)
+        return BlockAST(self.sim, loops[0])
