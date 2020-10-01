@@ -28,6 +28,7 @@ class ParticleSimulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
+        self.cell_lists = CellLists(self, 2.8, 2.8)
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
         return self.properties.add(prop_name, Type_Float, value, vol)
@@ -109,13 +110,12 @@ class ParticleSimulation:
         return stmt
 
     def generate(self):
-        cell_lists = CellLists(self, 2.8, 2.8)
         program = BlockAST.from_list(self, [
             PropertiesDecl(self).lower(),
-            CellListsStencilBuild(self, cell_lists).lower(),
+            CellListsStencilBuild(self, self.cell_lists).lower(),
             BlockAST.from_list(self, self.setup_blocks),
             Timestep(self, self.ntimesteps, [
-                (CellListsBuild(self, cell_lists).lower(), 20),
+                (CellListsBuild(self, self.cell_lists).lower(), 20),
                 PropertiesResetVolatile(self).lower(),
                 self.captured_stmts
             ]).as_block()
@@ -123,6 +123,7 @@ class ParticleSimulation:
 
         program.transform(Transform.flatten)
         program.transform(Transform.simplify)
+
         self.code_gen.generate_program_preamble()
         program.generate()
         self.code_gen.generate_program_epilogue()

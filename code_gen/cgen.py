@@ -50,7 +50,7 @@ class CGen:
         if decl:
             t = ('double' if a_type == Type_Float or a_type == Type_Vector
                  else 'int' if a_type == Type_Int else 'bool')
-            printer.print(f"{t} *{array} = malloc({size});")
+            printer.print(f"{t} *{array} = ({t} *) malloc({size});")
         else:
             printer.print(f"{array} = malloc({size});")
 
