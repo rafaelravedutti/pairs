@@ -110,18 +110,16 @@ class ParticleSimulation:
 
     def generate(self):
         cell_lists = CellLists(self, 2.8, 2.8)
-        timestep_loop = Timestep(self, self.ntimesteps)
-        timestep_loop.add(CellListsBuild(self, cell_lists).lower(), 20)
-        timestep_loop.add(PropertiesResetVolatile(self).lower())
-        timestep_loop.add(self.captured_stmts)
-
-        program = BlockAST.merge_blocks(
-            BlockAST.merge_blocks(
-                PropertiesDecl(self).lower(),
-                CellListsStencilBuild(self, cell_lists).lower()),
-            BlockAST.merge_blocks(
-                BlockAST.from_list(self, self.setup_blocks),
-                timestep_loop.as_block()))
+        program = BlockAST.from_list(self, [
+            PropertiesDecl(self).lower(),
+            CellListsStencilBuild(self, cell_lists).lower(),
+            BlockAST.from_list(self, self.setup_blocks),
+            Timestep(self, self.ntimesteps, [
+                (CellListsBuild(self, cell_lists).lower(), 20),
+                PropertiesResetVolatile(self).lower(),
+                self.captured_stmts
+            ]).as_block()
+        ])
 
         program.transform(Transform.flatten)
         program.transform(Transform.simplify)
