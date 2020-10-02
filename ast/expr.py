@@ -58,6 +58,9 @@ class ExprAST:
     def cmp(lhs, rhs):
         return ExprAST(lhs.sim, lhs, rhs, '==')
 
+    def neq(lhs, rhs):
+        return ExprAST(lhs.sim, lhs, rhs, '!=')
+
     def inv(self):
         return ExprAST(self.sim, 1.0, self, '/')
 

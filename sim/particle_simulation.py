@@ -69,8 +69,8 @@ class ParticleSimulation:
 
     def particle_pairs(self, cutoff_radius=None, position=None):
         i = ParticleForAST(self)
-        j = NeighborForAST(self, i.iter())
-        i.set_body(BlockAST(self, [j]))
+        j = NeighborForAST(self, i.iter(), self.cell_lists)
+        i.set_body(j.block)
 
         if cutoff_radius is not None and position is not None:
             dp = position[i.iter()] - position[j.iter()]

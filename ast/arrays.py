@@ -75,6 +75,9 @@ class ArrayAccess:
     def __add__(self, other):
         return ExprAST(self.sim, self, other, '+')
 
+    def __mul__(self, other):
+        return ExprAST(self.sim, self, other, '*')
+
     def __rmul__(self, other):
         return ExprAST(self.sim, other, self, '*')
 

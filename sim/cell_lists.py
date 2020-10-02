@@ -34,6 +34,8 @@ class CellLists:
             'cell_sizes', self.ncells_all, Type_Int)
         self.stencil = self.sim.add_array(
             'stencil', self.nstencil_max, Type_Int)
+        self.particle_cell = self.sim.add_array(
+            'particle_cell', self.sim.nparticles, Type_Int)
 
 
 class CellListsStencilBuild:
@@ -99,7 +101,8 @@ class CellListsBuild:
                 flat_index >= 0, flat_index <= cl.ncells_all), [
                     resize.check(cell_size, [
                         cl.cell_particles[flat_index][cell_size].set(
-                            fill_loop.iter())]),
+                            fill_loop.iter()),
+                        cl.particle_cell[fill_loop.iter()].set(flat_index)]),
                     cl.cell_sizes[flat_index].set(cell_size + 1)])]))
 
         return resize.block()

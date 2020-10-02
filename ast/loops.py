@@ -1,4 +1,7 @@
+from ast.block import BlockAST
+from ast.branches import BranchAST
 from ast.data_types import Type_Int
+from ast.expr import ExprAST
 from ast.lit import is_literal, LitAST
 
 
@@ -77,25 +80,49 @@ class ParticleForAST(ForAST):
     def __init__(self, sim, body=None):
         super().__init__(sim, 0, 0, body)
 
+    def __str__(self):
+        return f"ParticleFor<>"
+
     def generate(self):
-        it_id = self.iterator.generate()
         self.sim.code_gen.generate_for_preamble(
-            it_id, 0, self.sim.nparticles.generate())
+            self.iterator.generate(), 0, self.sim.nparticles.generate())
         self.body.generate()
         self.sim.code_gen.generate_for_epilogue()
 
 
 class NeighborForAST(ForAST):
-    def __init__(self, sim, particle_iter, body=None):
-        super().__init__(sim, 0, 0, body)
-        self.particle_iter = particle_iter
+    def __init__(self, sim, particle, cell_lists, body=None):
+        super().__init__(sim, 0, 0, None)
+        self.stencil_loop = ForAST(sim, 0, cell_lists.nstencil)
+        neigh_cell = (cell_lists.particle_cell[particle] +
+                      cell_lists.stencil[self.stencil_loop.iter()])
+        self.nc_loop = ForAST(sim, 0, cell_lists.cell_sizes[neigh_cell])
+        self.iterator = \
+            cell_lists.cell_particles[neigh_cell][self.nc_loop.iter()]
+        self.particle = particle
+        self.stencil_loop.set_body(BlockAST(sim, [self.nc_loop]))
+        self.set_body(body)
+        self.block = BlockAST(sim, [self.stencil_loop])
+
+    def __str__(self):
+        return f"NeighborFor<particle: {self.particle}>"
+
+    def iter(self):
+        return self.iterator
+    
+    def set_body(self, body):
+        if body is not None:
+            self.nc_loop.set_body(BlockAST(self.sim, [
+                BranchAST.if_stmt(
+                    self.sim,
+                    ExprAST.neq(self.iterator, self.particle),
+                    body)]))
 
     def generate(self):
-        it_id = self.iterator.generate()
-        self.sim.code_gen.generate_for_preamble(
-            it_id, 0, f"neighbors[{self.particle_iter.generate()}]")
-        self.body.generate()
-        self.sim.code_gen.generate_for_epilogue()
+        self.block.generate()
+
+    def transform(self, fn):
+        self.block = self.block.transform(fn)
 
 
 class WhileAST():
