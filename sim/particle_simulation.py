@@ -21,6 +21,8 @@ class ParticleSimulation:
         self.nparticles = self.add_var('nparticles', Type_Int)
         self.grid_config = []
         self.scope = []
+        self.nested_count = 0
+        self.nest = False
         self.block = BlockAST(self, [])
         self.setups = []
         self.kernels = BlockAST(self, [])
@@ -97,11 +99,22 @@ class ParticleSimulation:
 
         return stmt
 
+    def nest_mode(self):
+        self.nested_count = 0
+        self.nest = True
+        yield
+        self.nest = False
+        for _ in range(0, self.nested_count):
+            self.scope.pop()
+
     def enter_scope(self, scope):
         self.scope.append(scope)
 
     def leave_scope(self):
-        self.scope.pop()
+        if not self.nest:
+            self.scope.pop()
+        else:
+            self.nested_count += 1
 
     def generate(self):
         program = BlockAST.from_list(self, [

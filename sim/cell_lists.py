@@ -47,16 +47,17 @@ class CellListsStencilBuild:
         index = None
 
         self.sim.clear_block()
-        cl.nstencil.set(0)
-        for d in range(0, self.sim.dimensions):
-            nneigh = cl.nneighbor_cells[d]
-            for d_idx in ForAST(self.sim, -nneigh, nneigh + 1):
-                index = (d_idx if index is None
-                         else index * cl.ncells[d - 1] + d_idx)
+        for _ in self.sim.nest_mode():
+            cl.nstencil.set(0)
+            for d in range(0, self.sim.dimensions):
+                nneigh = cl.nneighbor_cells[d]
+                for d_idx in ForAST(self.sim, -nneigh, nneigh + 1):
+                    index = (d_idx if index is None
+                             else index * cl.ncells[d - 1] + d_idx)
 
-                if d == self.sim.dimensions - 1:
-                    cl.stencil[cl.nstencil].set(index)
-                    cl.nstencil.set(cl.nstencil + 1)
+                    if d == self.sim.dimensions - 1:
+                        cl.stencil[cl.nstencil].set(index)
+                        cl.nstencil.set(cl.nstencil + 1)
 
         return self.sim.block
 
@@ -69,7 +70,7 @@ class CellListsBuild:
     def lower(self):
         cl = self.cell_lists
         cfg = cl.sim.grid_config
-        sp = cl.spacing
+        spc = cl.spacing
         positions = self.sim.property('position')
 
         self.sim.clear_block()
@@ -79,7 +80,7 @@ class CellListsBuild:
 
             for i in ParticleForAST(self.sim):
                 cell_index = [
-                    CastAST.int(self.sim, (positions[i][d] - cfg[d][0]) / sp)
+                    CastAST.int(self.sim, (positions[i][d] - cfg[d][0]) / spc)
                     for d in range(0, self.sim.dimensions)]
 
                 flat_idx = None
