@@ -25,13 +25,12 @@ class Timestep:
                       else item.statements())
 
         ts = self.timestep_loop.iter()
-
         if exec_every > 0:
             self.block.add_statement(
                 BranchAST(
                         self.sim,
                         ExprAST.cmp(ts % exec_every, 0),
-                        statements, None))
+                        True, BlockAST(self.sim, statements), None))
         else:
             self.block.add_statement(statements)
 

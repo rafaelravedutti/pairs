@@ -2,6 +2,7 @@ from ast.sizeof import SizeofAST
 from functools import reduce
 import operator
 
+
 class MallocAST:
     def __init__(self, sim, array, a_type, sizes, decl=False):
         self.sim = sim

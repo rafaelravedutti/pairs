@@ -7,12 +7,13 @@ class BranchAST:
     def __init__(self, sim, cond, one_way=False, blk_if=None, blk_else=None):
         self.sim = sim
         self.cond = LitAST(cond) if is_literal(cond) else cond
+        self.switch = True
         self.block_if = BlockAST(sim, []) if blk_if is None else blk_if
         self.block_else = BlockAST(sim, []) if not one_way else None
-        self.block_else = None if one_way \
-                          else BlockAST(sim, []) if blk_else is None \
-                          else blk_else
-        self.switch = True
+        self.block_else = \
+            None if one_way \
+            else BlockAST(sim, []) if blk_else is None \
+            else blk_else
 
     def __iter__(self):
         self.sim.add_statement(self)
@@ -50,6 +51,7 @@ class BranchAST:
         self.block_else = (None if self.block_else is None
                            else self.block_else.transform(fn))
         return fn(self)
+
 
 class FilterAST(BranchAST):
     def __init__(self, sim, cond):

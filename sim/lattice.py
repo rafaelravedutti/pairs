@@ -19,8 +19,7 @@ class ParticleLattice():
             n = int((dim_cfg[1] - dim_cfg[0]) / self.spacing[d] - 0.001) + 1
 
             for d_idx in ForAST(self.sim, 0, n):
-                index = (d_idx if index is None
-                         else index * n + d_idx)
+                index = (d_idx if index is None else index * n + d_idx)
                 loop_indexes.append(d_idx)
 
                 if d == self.sim.dimensions - 1:

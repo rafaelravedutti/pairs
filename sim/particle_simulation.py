@@ -23,7 +23,7 @@ class ParticleSimulation:
         self.scope = []
         self.block = BlockAST(self, [])
         self.setups = []
-        self.kernels = []
+        self.kernels = BlockAST(self, [])
         self.dimensions = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -80,7 +80,7 @@ class ParticleSimulation:
                 else:
                     yield i, j
 
-        self.kernels.append(self.block)
+        self.kernels = BlockAST.merge_blocks(self.kernels, self.block)
 
     def particles(self):
         for i in ParticleForAST(self):
@@ -102,7 +102,7 @@ class ParticleSimulation:
 
     def leave_scope(self):
         self.scope.pop()
-    
+
     def generate(self):
         program = BlockAST.from_list(self, [
             PropertiesDecl(self).lower(),

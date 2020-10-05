@@ -16,7 +16,7 @@ class Resize:
         for _ in WhileAST(self.sim, self.resize_var > 0):
             self.resize_var.set(0)
             yield self.capacity_var, self.resize_var
-            self.capacity_var.set(self.grow_fn(self.resize_var))
             for _ in FilterAST(self.sim, self.resize_var > 0):
+                self.capacity_var.set(self.grow_fn(self.resize_var))
                 for a in self.arrays:
                     a.realloc()

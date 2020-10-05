@@ -60,6 +60,7 @@ class CellListsStencilBuild:
 
         return self.sim.block
 
+
 class CellListsBuild:
     def __init__(self, sim, cell_lists):
         self.sim = sim
@@ -84,7 +85,7 @@ class CellListsBuild:
                 flat_idx = None
                 for d in range(0, self.sim.dimensions):
                     flat_idx = (cell_index[d] if flat_idx is None
-                               else flat_idx * cl.ncells[d] + cell_index[d])
+                                else flat_idx * cl.ncells[d] + cell_index[d])
 
                 cell_size = cl.cell_sizes[flat_idx]
                 for _ in FilterAST(self.sim,
