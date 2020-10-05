@@ -1,5 +1,4 @@
-from ast.block import BlockAST
-from ast.branches import BranchAST
+from ast.branches import BranchAST, FilterAST
 from ast.cast import CastAST
 from ast.data_types import Type_Int
 from ast.expr import ExprAST
@@ -44,28 +43,22 @@ class CellListsStencilBuild:
         self.cell_lists = cell_lists
 
     def lower(self):
-        dims = self.sim.dimensions
         cl = self.cell_lists
-        loops = []
         index = None
 
-        for d in range(0, dims):
+        self.sim.clear_block()
+        cl.nstencil.set(0)
+        for d in range(0, self.sim.dimensions):
             nneigh = cl.nneighbor_cells[d]
-            loops.append(ForAST(self.sim, -nneigh, nneigh + 1))
+            for d_idx in ForAST(self.sim, -nneigh, nneigh + 1):
+                index = (d_idx if index is None
+                         else index * cl.ncells[d - 1] + d_idx)
 
-            if d > 0:
-                loops[d - 1].set_body(BlockAST(self.sim, [loops[d]]))
+                if d == self.sim.dimensions - 1:
+                    cl.stencil[cl.nstencil].set(index)
+                    cl.nstencil.set(cl.nstencil + 1)
 
-            index = (loops[d].iter() if index is None
-                     else index * cl.ncells[d - 1] + loops[d].iter())
-
-        loops[dims - 1].set_body(
-            BlockAST(self.sim, [
-                cl.stencil[cl.nstencil].set(index),
-                cl.nstencil.set(cl.nstencil + 1)]))
-
-        return BlockAST(self.sim, [cl.nstencil.set(0), loops[0]])
-
+        return self.sim.block
 
 class CellListsBuild:
     def __init__(self, sim, cell_lists):
@@ -75,34 +68,35 @@ class CellListsBuild:
     def lower(self):
         cl = self.cell_lists
         cfg = cl.sim.grid_config
+        sp = cl.spacing
         positions = self.sim.property('position')
-        reset_loop = ForAST(self.sim, 0, cl.ncells_all)
-        reset_loop.set_body(BlockAST(self.sim,
-                            [cl.cell_sizes[reset_loop.iter()].set(0)]))
 
-        fill_loop = ParticleForAST(self.sim)
-        cell_index = [
-            CastAST.int(self.sim,
-                        (positions[fill_loop.iter()][d] - cfg[d][0]) /
-                        cl.spacing)
-            for d in range(0, self.sim.dimensions)]
+        self.sim.clear_block()
+        for cap, rsz in Resize(self.sim, cl.cell_capacity, cl.cell_particles):
+            for c in ForAST(self.sim, 0, cl.ncells_all):
+                cl.cell_sizes[c].set(0)
 
-        flat_index = None
-        for d in range(0, self.sim.dimensions):
-            flat_index = (cell_index[d] if flat_index is None
-                          else flat_index * cl.ncells[d] + cell_index[d])
+            for i in ParticleForAST(self.sim):
+                cell_index = [
+                    CastAST.int(self.sim, (positions[i][d] - cfg[d][0]) / sp)
+                    for d in range(0, self.sim.dimensions)]
 
-        cell_size = cl.cell_sizes[flat_index]
-        resize = Resize(self.sim, cl.cell_capacity, cl.cell_particles,
-                        [reset_loop, fill_loop])
+                flat_idx = None
+                for d in range(0, self.sim.dimensions):
+                    flat_idx = (cell_index[d] if flat_idx is None
+                               else flat_idx * cl.ncells[d] + cell_index[d])
 
-        fill_loop.set_body(BlockAST(self.sim, [
-            BranchAST.if_stmt(self.sim, ExprAST.and_op(
-                flat_index >= 0, flat_index <= cl.ncells_all), [
-                    resize.check(cell_size, [
-                        cl.cell_particles[flat_index][cell_size].set(
-                            fill_loop.iter()),
-                        cl.particle_cell[fill_loop.iter()].set(flat_index)]),
-                    cl.cell_sizes[flat_index].set(cell_size + 1)])]))
+                cell_size = cl.cell_sizes[flat_idx]
+                for _ in FilterAST(self.sim,
+                                   ExprAST.and_op(flat_idx >= 0,
+                                                  flat_idx <= cl.ncells_all)):
+                    for cond in BranchAST(self.sim, cell_size > cap):
+                        if cond:
+                            rsz.set(cell_size)
+                        else:
+                            cl.cell_particles[flat_idx][cell_size].set(i)
+                            cl.particle_cell[i].set(flat_idx)
 
-        return resize.block()
+                    cl.cell_sizes[flat_idx].set(cell_size + 1)
+
+        return self.sim.block

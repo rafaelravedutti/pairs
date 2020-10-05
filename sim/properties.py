@@ -1,4 +1,3 @@
-from ast.block import BlockAST
 from ast.data_types import Type_Float, Type_Vector
 from ast.loops import ParticleForAST
 from ast.memory import MallocAST
@@ -9,8 +8,8 @@ class PropertiesDecl:
 
     def lower(self):
         nparticles = self.sim.nparticles
-        decls = []
 
+        self.sim.clear_block()
         for p in self.sim.properties.all():
             sizes = []
             if p.type() == Type_Float:
@@ -23,21 +22,18 @@ class PropertiesDecl:
             else:
                 raise Exception("Invalid property type!")
 
-            decls.append(MallocAST(self.sim, p, p.type(), sizes, True))
+            MallocAST(self.sim, p, p.type(), sizes, True)
 
-        return BlockAST(self.sim, decls)
-
+        return self.sim.block
 
 class PropertiesResetVolatile:
     def __init__(self, sim):
         self.sim = sim
 
     def lower(self):
-        decls = []
-        reset_loop = ParticleForAST(self.sim)
+        self.sim.clear_block()
+        for i in ParticleForAST(self.sim):
+            for p in self.sim.properties.volatiles():
+                p[i].set(0.0)
 
-        for p in self.sim.properties.volatiles():
-            decls.append(p[reset_loop.iter()].set(0.0))
-
-        reset_loop.set_body(BlockAST(self.sim, decls))
-        return reset_loop
+        return self.sim.block

@@ -1,5 +1,3 @@
-from ast.assign import AssignAST
-from ast.block import BlockAST
 from ast.loops import ForAST
 
 
@@ -12,30 +10,25 @@ class ParticleLattice():
         self.positions = positions
 
     def lower(self):
-        dims = self.sim.dimensions
-        assignments = []
-        loops = []
         index = None
+        loop_indexes = []
 
-        for i in range(0, dims):
-            dim_cfg = self.config[i]
-            n = int((dim_cfg[1] - dim_cfg[0]) / self.spacing[i] - 0.001) + 1
-            loops.append(ForAST(self.sim, 0, n))
-            if i > 0:
-                loops[i - 1].set_body(BlockAST(self.sim, [loops[i]]))
+        self.sim.clear_block()
+        for d in range(0, self.sim.dimensions):
+            dim_cfg = self.config[d]
+            n = int((dim_cfg[1] - dim_cfg[0]) / self.spacing[d] - 0.001) + 1
 
-            index = (loops[i].iter() if index is None
-                     else index * n + loops[i].iter())
+            for d_idx in ForAST(self.sim, 0, n):
+                index = (d_idx if index is None
+                         else index * n + d_idx)
+                loop_indexes.append(d_idx)
 
-        for i in range(0, dims):
-            pos = self.config[i][0] + self.spacing[i] * loops[i].iter()
-            assignments.append(
-                AssignAST(self.sim, self.positions[index][i], pos))
+                if d == self.sim.dimensions - 1:
+                    for d_ in range(0, self.sim.dimensions):
+                        pos = self.config[d_][0] + \
+                              self.spacing[d_] * loop_indexes[d_]
+                        self.positions[index][d_].set(pos)
 
-        particle_props = self.sim.properties.defaults()
-        for p in self.props:
-            particle_props[p] = self.props[p]
+                    self.sim.nparticles.set(self.sim.nparticles + 1)
 
-        assignments.append(self.sim.nparticles.set(self.sim.nparticles + 1))
-        loops[dims - 1].set_body(BlockAST(self.sim, assignments))
-        return BlockAST(self.sim, loops[0])
+        return self.sim.block

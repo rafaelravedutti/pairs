@@ -86,11 +86,10 @@ class ArrayAccess:
         return self
 
     def set(self, other):
-        return self.sim.capture_statement(AssignAST(self.sim, self, other))
+        return self.sim.add_statement(AssignAST(self.sim, self, other))
 
     def add(self, other):
-        return self.sim.capture_statement(
-            AssignAST(self.sim, self, self + other))
+        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
 
     def type(self):
         return (self.array.type() if len(self.indexes) == self.array.ndims()

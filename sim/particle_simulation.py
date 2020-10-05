@@ -1,6 +1,6 @@
 from ast.arrays import Arrays
 from ast.block import BlockAST
-from ast.branches import BranchAST
+from ast.branches import FilterAST
 from ast.data_types import Type_Int, Type_Float, Type_Vector
 from ast.loops import ParticleForAST, NeighborForAST
 from ast.properties import Properties
@@ -19,11 +19,11 @@ class ParticleSimulation:
         self.vars = Variables(self)
         self.arrays = Arrays(self)
         self.nparticles = self.add_var('nparticles', Type_Int)
-        self.setup_blocks = []
         self.grid_config = []
-        self.captured_stmts = []
-        self.capture_buffer = []
-        self.capture = False
+        self.scope = []
+        self.block = BlockAST(self, [])
+        self.setups = []
+        self.kernels = []
         self.dimensions = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -64,60 +64,54 @@ class ParticleSimulation:
 
     def create_particle_lattice(self, config, spacing, props={}):
         positions = self.property('position')
-        block = ParticleLattice(self, config, spacing, props, positions)
-        self.setup_blocks.append(block.lower())
+        lattice = ParticleLattice(self, config, spacing, props, positions)
+        self.setups.append(lattice.lower())
 
     def particle_pairs(self, cutoff_radius=None, position=None):
-        i = ParticleForAST(self)
-        j = NeighborForAST(self, i.iter(), self.cell_lists)
-        i.set_body(j.block)
+        self.clear_block()
+        for i in ParticleForAST(self):
+            for j in NeighborForAST(self, i, self.cell_lists):
+                if cutoff_radius is not None and position is not None:
+                    dp = position[i] - position[j]
+                    rsq = dp[0] * dp[0] + dp[1] * dp[1] + dp[2] * dp[2]
+                    for _ in FilterAST(self, rsq < cutoff_radius):
+                        yield i, j, dp, rsq
 
-        if cutoff_radius is not None and position is not None:
-            dp = position[i.iter()] - position[j.iter()]
-            rsq = dp[0] * dp[0] + dp[1] * dp[1] + dp[2] * dp[2]
-            self.start_capture()
-            yield i.iter(), j.iter(), dp, rsq
-            self.stop_capture()
-            j.set_body(BlockAST(self, [
-                BranchAST(self, rsq < cutoff_radius,
-                          BlockAST(self, self.capture_buffer.copy()), None)]))
+                else:
+                    yield i, j
 
-        else:
-            yield i.iter(), j.iter()
-            j.set_body(BlockAST(self, self.capture_buffer.copy()))
-
-        self.captured_stmts.append(i)
+        self.kernels.append(self.block)
 
     def particles(self):
-        i = ParticleForAST(self)
-        self.start_capture()
-        yield i.iter()
-        self.stop_capture()
-        i.set_body(BlockAST(self, self.capture_buffer.copy()))
-        self.captured_stmts.append(i)
+        for i in ParticleForAST(self):
+            yield i
 
-    def start_capture(self):
-        self.capture_buffer = []
-        self.capture = True
+    def clear_block(self):
+        self.block = BlockAST(self, [])
 
-    def stop_capture(self):
-        self.capture = False
-
-    def capture_statement(self, stmt):
-        if self.capture is True:
-            self.capture_buffer.append(stmt)
+    def add_statement(self, stmt):
+        if not self.scope:
+            self.block.add_statement(stmt)
+        else:
+            self.scope[-1].add_statement(stmt)
 
         return stmt
 
+    def enter_scope(self, scope):
+        self.scope.append(scope)
+
+    def leave_scope(self):
+        self.scope.pop()
+    
     def generate(self):
         program = BlockAST.from_list(self, [
             PropertiesDecl(self).lower(),
             CellListsStencilBuild(self, self.cell_lists).lower(),
-            BlockAST.from_list(self, self.setup_blocks),
+            BlockAST.from_list(self, self.setups),
             Timestep(self, self.ntimesteps, [
                 (CellListsBuild(self, self.cell_lists).lower(), 20),
                 PropertiesResetVolatile(self).lower(),
-                self.captured_stmts
+                self.kernels
             ]).as_block()
         ])
 

@@ -1,5 +1,5 @@
 from ast.block import BlockAST
-from ast.branches import BranchAST
+from ast.branches import FilterAST
 from ast.data_types import Type_Int
 from ast.expr import ExprAST
 from ast.lit import is_literal, LitAST
@@ -46,12 +46,12 @@ class IterAST():
 
 
 class ForAST():
-    def __init__(self, sim, range_min, range_max, body=None):
+    def __init__(self, sim, range_min, range_max, block=None):
         self.sim = sim
         self.iterator = IterAST(sim)
         self.min = LitAST(range_min) if is_literal(range_min) else range_min
         self.max = LitAST(range_max) if is_literal(range_max) else range_max
-        self.body = body
+        self.block = BlockAST(sim, []) if block is None else block
 
     def __str__(self):
         return f"For<min: {self.min}, max: {self.max}>"
@@ -59,26 +59,32 @@ class ForAST():
     def iter(self):
         return self.iterator
 
-    def set_body(self, body):
-        self.body = body
+    def __iter__(self):
+        self.sim.add_statement(self)
+        self.sim.enter_scope(self)
+        yield self.iterator
+        self.sim.leave_scope()
+
+    def add_statement(self, stmt):
+        self.block.add_statement(stmt)
 
     def generate(self):
         it_id = self.iterator.generate()
         rmin = self.min.generate()
         rmax = self.max.generate()
         self.sim.code_gen.generate_for_preamble(it_id, rmin, rmax)
-        self.body.generate()
+        self.block.generate()
         self.sim.code_gen.generate_for_epilogue()
 
     def transform(self, fn):
         self.iterator = self.iterator.transform(fn)
-        self.body = self.body.transform(fn)
+        self.block = self.block.transform(fn)
         return fn(self)
 
 
 class ParticleForAST(ForAST):
-    def __init__(self, sim, body=None):
-        super().__init__(sim, 0, 0, body)
+    def __init__(self, sim, block=None):
+        super().__init__(sim, 0, 0, block)
 
     def __str__(self):
         return f"ParticleFor<>"
@@ -86,63 +92,56 @@ class ParticleForAST(ForAST):
     def generate(self):
         self.sim.code_gen.generate_for_preamble(
             self.iterator.generate(), 0, self.sim.nparticles.generate())
-        self.body.generate()
+        self.block.generate()
         self.sim.code_gen.generate_for_epilogue()
 
 
-class NeighborForAST(ForAST):
-    def __init__(self, sim, particle, cell_lists, body=None):
-        super().__init__(sim, 0, 0, None)
-        self.stencil_loop = ForAST(sim, 0, cell_lists.nstencil)
-        neigh_cell = (cell_lists.particle_cell[particle] +
-                      cell_lists.stencil[self.stencil_loop.iter()])
-        self.nc_loop = ForAST(sim, 0, cell_lists.cell_sizes[neigh_cell])
-        self.iterator = \
-            cell_lists.cell_particles[neigh_cell][self.nc_loop.iter()]
-        self.particle = particle
-        self.stencil_loop.set_body(BlockAST(sim, [self.nc_loop]))
-        self.set_body(body)
-        self.block = BlockAST(sim, [self.stencil_loop])
-
-    def __str__(self):
-        return f"NeighborFor<particle: {self.particle}>"
-
-    def iter(self):
-        return self.iterator
-    
-    def set_body(self, body):
-        if body is not None:
-            self.nc_loop.set_body(BlockAST(self.sim, [
-                BranchAST.if_stmt(
-                    self.sim,
-                    ExprAST.neq(self.iterator, self.particle),
-                    body)]))
-
-    def generate(self):
-        self.block.generate()
-
-    def transform(self, fn):
-        self.block = self.block.transform(fn)
-
-
 class WhileAST():
-    def __init__(self, sim, cond, body=None):
+    def __init__(self, sim, cond, block=None):
         self.sim = sim
         self.cond = cond
-        self.body = body
+        self.block = BlockAST(sim, []) if block is None else block
 
     def __str__(self):
         return f"While<{self.cond}>"
+
+    def __iter__(self):
+        self.sim.add_statement(self)
+        self.sim.enter_scope(self)
+        yield
+        self.sim.leave_scope()
+
+    def add_statement(self, stmt):
+        self.block.add_statement(stmt)
 
     def generate(self):
         from ast.expr import ExprAST
         cond_gen = (self.cond.generate() if not isinstance(self.cond, ExprAST)
                     else self.cond.generate_inline())
         self.sim.code_gen.generate_while_preamble(cond_gen)
-        self.body.generate()
+        self.block.generate()
         self.sim.code_gen.generate_while_epilogue()
 
     def transform(self, fn):
         self.cond = self.cond.transform(fn)
-        self.body = self.body.transform(fn)
+        self.block = self.block.transform(fn)
         return fn(self)
+
+
+class NeighborForAST():
+    def __init__(self, sim, particle, cell_lists):
+        self.sim = sim
+        self.particle = particle
+        self.cell_lists = cell_lists
+
+    def __str__(self):
+        return f"NeighborFor<particle: {self.particle}>"
+
+    def __iter__(self):
+        cl = self.cell_lists
+        for s in ForAST(self.sim, 0, cl.nstencil):
+            neigh_cell = cl.particle_cell[self.particle] + cl.stencil[s]
+            for nc in ForAST(self.sim, 0, cl.cell_sizes[neigh_cell]):
+                it = cl.cell_particles[neigh_cell][nc]
+                for _ in FilterAST(self.sim, ExprAST.neq(it, self.particle)):
+                    yield it

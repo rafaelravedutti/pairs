@@ -75,12 +75,11 @@ class ExprAST:
 
     def set(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.capture_statement(AssignAST(self.sim, self, other))
+        return self.sim.add_statement(AssignAST(self.sim, self, other))
 
     def add(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.capture_statement(
-            AssignAST(self.sim, self, self + other))
+        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
 
     def infer_type(lhs, rhs, op):
         lhs_type = lhs.type()
@@ -171,6 +170,12 @@ class ExprVecAST():
 
     def __mul__(self, other):
         return ExprAST(self.sim, self, other, '*')
+
+    def set(self, other):
+        return self.sim.add_statement(AssignAST(self.sim, self, other))
+
+    def add(self, other):
+        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
 
     def idx(self):
         return self.index

@@ -28,8 +28,10 @@ class Timestep:
 
         if exec_every > 0:
             self.block.add_statement(
-                BranchAST.if_stmt(
-                    self.sim, ExprAST.cmp(ts % exec_every, 0), statements))
+                BranchAST(
+                        self.sim,
+                        ExprAST.cmp(ts % exec_every, 0),
+                        statements, None))
         else:
             self.block.add_statement(statements)
 

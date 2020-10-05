@@ -57,11 +57,10 @@ class Var:
         return ExprAST(self.sim, 1.0, self, '/')
 
     def set(self, other):
-        return self.sim.capture_statement(AssignAST(self.sim, self, other))
+        return self.sim.add_statement(AssignAST(self.sim, self, other))
 
     def add(self, other):
-        return self.sim.capture_statement(
-            AssignAST(self.sim, self, self + other))
+        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
 
     def name(self):
         return self.var_name
