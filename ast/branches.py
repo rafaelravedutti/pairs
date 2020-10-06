@@ -1,12 +1,12 @@
 from ast.block import BlockAST
 from ast.expr import ExprAST
-from ast.lit import is_literal, LitAST
+from ast.lit import as_lit_ast
 
 
 class BranchAST:
     def __init__(self, sim, cond, one_way=False, blk_if=None, blk_else=None):
         self.sim = sim
-        self.cond = LitAST(cond) if is_literal(cond) else cond
+        self.cond = as_lit_ast(cond)
         self.switch = True
         self.block_if = BlockAST(sim, []) if blk_if is None else blk_if
         self.block_else = BlockAST(sim, []) if not one_way else None

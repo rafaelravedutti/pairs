@@ -9,6 +9,10 @@ def is_literal(a):
             isinstance(a, list))
 
 
+def as_lit_ast(a):
+    return LitAST(a) if is_literal(a) else a
+
+
 class LitAST:
     def __init__(self, value):
         self.value = value

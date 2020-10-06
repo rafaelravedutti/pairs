@@ -2,7 +2,7 @@ from ast.block import BlockAST
 from ast.branches import FilterAST
 from ast.data_types import Type_Int
 from ast.expr import ExprAST
-from ast.lit import is_literal, LitAST
+from ast.lit import as_lit_ast
 
 
 class IterAST():
@@ -49,8 +49,8 @@ class ForAST():
     def __init__(self, sim, range_min, range_max, block=None):
         self.sim = sim
         self.iterator = IterAST(sim)
-        self.min = LitAST(range_min) if is_literal(range_min) else range_min
-        self.max = LitAST(range_max) if is_literal(range_max) else range_max
+        self.min = as_lit_ast(range_min)
+        self.max = as_lit_ast(range_max)
         self.block = BlockAST(sim, []) if block is None else block
 
     def __str__(self):

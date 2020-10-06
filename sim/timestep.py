@@ -21,18 +21,17 @@ class Timestep:
         assert exec_every >= 0, \
             "exec_every parameter must be higher or equal than zero!"
 
-        statements = (item if not isinstance(item, BlockAST)
-                      else item.statements())
+        stmts = (item if not isinstance(item, BlockAST)
+                 else item.statements())
 
         ts = self.timestep_loop.iter()
         if exec_every > 0:
             self.block.add_statement(
-                BranchAST(
-                        self.sim,
-                        ExprAST.cmp(ts % exec_every, 0),
-                        True, BlockAST(self.sim, statements), None))
+                BranchAST(self.sim,
+                          ExprAST.cmp(ts % exec_every, 0),
+                          True, BlockAST(self.sim, stmts), None))
         else:
-            self.block.add_statement(statements)
+            self.block.add_statement(stmts)
 
     def as_block(self):
         return BlockAST(self.sim, [self.timestep_loop])

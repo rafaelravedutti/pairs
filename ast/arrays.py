@@ -1,7 +1,7 @@
 from ast.assign import AssignAST
 from ast.data_types import Type_Array
 from ast.expr import ExprAST
-from ast.lit import is_literal, LitAST
+from ast.lit import as_lit_ast
 from ast.memory import ReallocAST
 from functools import reduce
 
@@ -25,9 +25,9 @@ class ArrayND:
     def __init__(self, sim, arr_name, arr_sizes, arr_type):
         self.sim = sim
         self.arr_name = arr_name
-        self.arr_sizes = ([arr_sizes] if not isinstance(arr_sizes, list)
-                          else [LitAST(s) if is_literal(s) else s
-                                for s in arr_sizes])
+        self.arr_sizes = \
+            [arr_sizes] if not isinstance(arr_sizes, list) \
+            else [as_lit_ast(s) for s in arr_sizes]
         self.arr_type = arr_type
         self.arr_ndims = len(self.arr_sizes)
 
@@ -102,7 +102,7 @@ class ArrayAccess:
             index = (self.indexes[s] if index is None
                      else index * sizes[s] + self.indexes[s])
 
-        index = LitAST(index) if is_literal(index) else index
+        index = as_lit_ast(index)
         return self.sim.code_gen.generate_array_access(
             self.array.generate(), index.generate())
 

@@ -1,5 +1,5 @@
 from ast.data_types import Type_Vector
-from ast.lit import is_literal, LitAST
+from ast.lit import as_lit_ast
 
 
 class AssignAST:
@@ -7,7 +7,7 @@ class AssignAST:
         self.sim = sim
         self.type = dest.type()
         self.generated = False
-        src = src if not is_literal(src) else LitAST(src)
+        src = as_lit_ast(src)
 
         if dest.type() == Type_Vector:
             self.assignments = []

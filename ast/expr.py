@@ -1,6 +1,6 @@
 from ast.assign import AssignAST
 from ast.data_types import Type_Float, Type_Bool, Type_Vector
-from ast.lit import is_literal, LitAST
+from ast.lit import as_lit_ast
 from ast.properties import Property
 
 
@@ -8,8 +8,8 @@ class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
         self.sim = sim
         self.expr_id = sim.new_expr()
-        self.lhs = lhs if not is_literal(lhs) else LitAST(lhs)
-        self.rhs = rhs if not is_literal(rhs) else LitAST(rhs)
+        self.lhs = as_lit_ast(lhs)
+        self.rhs = as_lit_ast(rhs)
         self.op = op
         self.mem = mem
         self.expr_type = ExprAST.infer_type(self.lhs, self.rhs, self.op)
@@ -67,7 +67,7 @@ class ExprAST:
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, \
             "Cannot use operator [] on specified type!"
-        index_ast = index if not is_literal(index) else LitAST(index)
+        index_ast = as_lit_ast(index)
         return ExprVecAST(self.sim, self, index_ast)
 
     def generated_vector_index(self, index):
