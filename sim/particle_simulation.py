@@ -128,8 +128,10 @@ class ParticleSimulation:
             ]).as_block()
         ])
 
-        program.transform(Transform.flatten)
-        program.transform(Transform.simplify)
+        Transform.apply(program, Transform.flatten)
+        Transform.apply(program, Transform.simplify)
+        Transform.apply(program, Transform.reuse_index_expressions)
+        Transform.apply(program, Transform.reuse_expr_expressions)
 
         self.code_gen.generate_program_preamble()
         program.generate()

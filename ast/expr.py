@@ -64,6 +64,11 @@ class ExprAST:
     def inv(self):
         return ExprAST(self.sim, 1.0, self, '/')
 
+    def match(self, expr):
+        return self.lhs == expr.lhs and \
+               self.rhs == expr.rhs and \
+               self.op == expr.op
+
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, \
             "Cannot use operator [] on specified type!"
