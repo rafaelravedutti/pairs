@@ -43,8 +43,19 @@ class CGen:
 
         printer.print(gen_str)
 
-    def generate_array_access(array, index):
-        return f"{array}[{index}]"
+    def generate_array_access_ref(acc_id, array, index, mem=False):
+        if mem:
+            return f"{array}[{index}]"
+
+        return f"a{acc_id}"
+
+    def generate_array_access(acc_id, acc_type, array, index):
+        ref = CGen.generate_array_access_ref(acc_id, array, index)
+        t = ('double' if acc_type == Type_Float
+             else 'int' if acc_type == Type_Int else 'bool')
+
+        acc = f"const {t} {ref} = {array}[{index}];"
+        printer.print(acc)
 
     def generate_malloc(array, a_type, size, decl):
         if decl:

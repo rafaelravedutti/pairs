@@ -64,10 +64,20 @@ class ArrayND:
 
 
 class ArrayAccess:
+    last_acc = 0
+
+    def new_id():
+        ArrayAccess.last_acc += 1
+        return ArrayAccess.last_acc - 1
+
     def __init__(self, sim, array, index):
         self.sim = sim
+        self.acc_id = ArrayAccess.new_id()
         self.array = array
         self.indexes = [index]
+        self.index = None
+        self.generated = False
+        self.check_and_set_index()
 
     def __str__(self):
         return f"ArrayAccess<array: {self.array}, indexes: {self.indexes}>"
@@ -82,8 +92,20 @@ class ArrayAccess:
         return ExprAST(self.sim, other, self, '*')
 
     def __getitem__(self, expr_ast):
+        assert self.index is None, \
+            "Number of indexes higher than array dimension!"
         self.indexes.append(expr_ast)
+        self.check_and_set_index()
         return self
+
+    def check_and_set_index(self):
+        if len(self.indexes) == self.array.ndims():
+            sizes = self.array.sizes()
+            for s in range(0, len(sizes)):
+                self.index = (self.indexes[s] if self.index is None
+                              else self.index * sizes[s] + self.indexes[s])
+
+            self.index = as_lit_ast(self.index)
 
     def set(self, other):
         return self.sim.add_statement(AssignAST(self.sim, self, other))
@@ -92,19 +114,18 @@ class ArrayAccess:
         return self.sim.add_statement(AssignAST(self.sim, self, self + other))
 
     def type(self):
-        return (self.array.type() if len(self.indexes) == self.array.ndims()
-                else Type_Array)
+        return self.array.type() if self.index is None else Type_Array
 
     def generate(self, mem=False):
-        index = None
-        sizes = self.array.sizes()
-        for s in range(0, len(sizes)):
-            index = (self.indexes[s] if index is None
-                     else index * sizes[s] + self.indexes[s])
+        agen = self.array.generate()
+        igen = self.index.generate()
+        if mem is False and self.generated is False:
+            self.sim.code_gen.generate_array_access(
+                self.acc_id, self.array.type(), agen, igen)
+            self.generated = True
 
-        index = as_lit_ast(index)
-        return self.sim.code_gen.generate_array_access(
-            self.array.generate(), index.generate())
+        return self.sim.code_gen.generate_array_access_ref(
+            self.acc_id, agen, igen, mem)
 
     def transform(self, fn):
         self.array = self.array.transform(fn)

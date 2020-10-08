@@ -6,9 +6,15 @@ from ast.lit import as_lit_ast
 
 
 class IterAST():
+    last_iter = 0
+
+    def new_id():
+        IterAST.last_iter += 1
+        return IterAST.last_iter - 1
+
     def __init__(self, sim):
         self.sim = sim
-        self.iter_id = sim.new_iter()
+        self.iter_id = IterAST.new_id()
 
     def type(self):
         return Type_Int

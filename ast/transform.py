@@ -1,3 +1,4 @@
+from ast.arrays import ArrayAccess
 from ast.data_types import Type_Int, Type_Vector
 from ast.expr import ExprAST, ExprVecAST
 from ast.lit import LitAST
@@ -102,5 +103,29 @@ class Transform:
                     Transform.reuse_expressions[expr_id] = []
 
                 Transform.reuse_expressions[expr_id].append(ast)
+
+        return ast
+
+    def reuse_array_access_expressions(ast):
+        if isinstance(ast, ExprAST):
+            acc_id = None
+
+            if isinstance(ast.lhs, ArrayAccess):
+                acc_id = ast.lhs.acc_id
+
+            if isinstance(ast.rhs, ArrayAccess):
+                acc_id = ast.rhs.acc_id
+
+            if acc_id is not None:
+                if acc_id in Transform.reuse_expressions:
+                    item = [e for e in Transform.reuse_expressions[acc_id]
+                            if ast.match(e)]
+                    if item:
+                        return item[0]
+
+                else:
+                    Transform.reuse_expressions[acc_id] = []
+
+                Transform.reuse_expressions[acc_id].append(ast)
 
         return ast

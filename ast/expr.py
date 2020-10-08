@@ -5,9 +5,15 @@ from ast.properties import Property
 
 
 class ExprAST:
+    last_expr = 0
+
+    def new_id():
+        ExprAST.last_expr += 1
+        return ExprAST.last_expr - 1
+
     def __init__(self, sim, lhs, rhs, op, mem=False):
         self.sim = sim
-        self.expr_id = sim.new_expr()
+        self.expr_id = ExprAST.new_id()
         self.lhs = as_lit_ast(lhs)
         self.rhs = as_lit_ast(rhs)
         self.op = op

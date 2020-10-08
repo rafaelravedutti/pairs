@@ -53,14 +53,6 @@ class ParticleSimulation:
     def var(self, var_name):
         return self.vars.find(var_name)
 
-    def new_expr(self):
-        self.expr_id += 1
-        return self.expr_id - 1
-
-    def new_iter(self):
-        self.iter_id += 1
-        return self.iter_id - 1
-
     def setup_grid(self, config):
         self.grid_config = config
 
@@ -132,6 +124,7 @@ class ParticleSimulation:
         Transform.apply(program, Transform.simplify)
         Transform.apply(program, Transform.reuse_index_expressions)
         Transform.apply(program, Transform.reuse_expr_expressions)
+        Transform.apply(program, Transform.reuse_array_access_expressions)
 
         self.code_gen.generate_program_preamble()
         program.generate()
