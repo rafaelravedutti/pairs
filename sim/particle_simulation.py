@@ -77,8 +77,11 @@ class ParticleSimulation:
         self.kernels = BlockAST.merge_blocks(self.kernels, self.block)
 
     def particles(self):
+        self.clear_block()
         for i in ParticleForAST(self):
             yield i
+
+        self.kernels = BlockAST.merge_blocks(self.kernels, self.block)
 
     def clear_block(self):
         self.block = BlockAST(self, [])
