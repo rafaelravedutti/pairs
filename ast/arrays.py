@@ -74,7 +74,7 @@ class ArrayAccess:
         self.sim = sim
         self.acc_id = ArrayAccess.new_id()
         self.array = array
-        self.indexes = [index]
+        self.indexes = [as_lit_ast(index)]
         self.index = None
         self.generated = False
         self.check_and_set_index()
@@ -91,10 +91,10 @@ class ArrayAccess:
     def __rmul__(self, other):
         return ExprAST(self.sim, other, self, '*')
 
-    def __getitem__(self, expr_ast):
+    def __getitem__(self, index):
         assert self.index is None, \
             "Number of indexes higher than array dimension!"
-        self.indexes.append(expr_ast)
+        self.indexes.append(as_lit_ast(index))
         self.check_and_set_index()
         return self
 
@@ -129,4 +129,5 @@ class ArrayAccess:
 
     def transform(self, fn):
         self.array = self.array.transform(fn)
+        self.indexes = [i.transform(fn) for i in self.indexes]
         return fn(self)

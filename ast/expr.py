@@ -78,8 +78,7 @@ class ExprAST:
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, \
             "Cannot use operator [] on specified type!"
-        index_ast = as_lit_ast(index)
-        return ExprVecAST(self.sim, self, index_ast)
+        return ExprVecAST(self.sim, self, as_lit_ast(index))
 
     def generated_vector_index(self, index):
         return not [i for i in self.vec_generated if i == index]
@@ -221,4 +220,5 @@ class ExprVecAST():
         self.lhs = self.lhs.transform(fn)
         self.rhs = self.rhs.transform(fn)
         self.index = self.index.transform(fn)
+        self.expr = self.expr.transform(fn)
         return fn(self)

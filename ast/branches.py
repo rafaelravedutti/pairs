@@ -9,7 +9,6 @@ class BranchAST:
         self.cond = as_lit_ast(cond)
         self.switch = True
         self.block_if = BlockAST(sim, []) if blk_if is None else blk_if
-        self.block_else = BlockAST(sim, []) if not one_way else None
         self.block_else = \
             None if one_way \
             else BlockAST(sim, []) if blk_else is None \
@@ -48,8 +47,8 @@ class BranchAST:
     def transform(self, fn):
         self.cond = self.cond.transform(fn)
         self.block_if = self.block_if.transform(fn)
-        self.block_else = (None if self.block_else is None
-                           else self.block_else.transform(fn))
+        self.block_else = None if self.block_else is None \
+                          else self.block_else.transform(fn)
         return fn(self)
 
 
