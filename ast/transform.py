@@ -19,7 +19,7 @@ class Transform:
         if isinstance(ast, ExprVecAST):
             if ast.expr.op == '[]' and ast.expr.type() == Type_Vector:
                 item = [f for f in Transform.flattened_list
-                        if f[0] == ast.index and f[1] == ast.expr.rhs]
+                        if f[0] == ast.expr.lhs and f[1] == ast.index and f[2] == ast.expr.rhs]
                 if item:
                     return item[0][2]
 
@@ -31,7 +31,7 @@ class Transform:
                     ast.expr.mem)
 
                 Transform.flattened_list.append(
-                    (ast.index, ast.expr.rhs, new_expr))
+                    (ast.expr.lhs, ast.index, ast.expr.rhs, new_expr))
                 return new_expr
 
         if isinstance(ast, Property):
