@@ -9,12 +9,13 @@ def is_literal(a):
             isinstance(a, list))
 
 
-def as_lit_ast(a):
-    return LitAST(a) if is_literal(a) else a
+def as_lit_ast(sim, a):
+    return LitAST(sim, a) if is_literal(a) else a
 
 
 class LitAST:
-    def __init__(self, value):
+    def __init__(self, sim, value):
+        self.sim = sim
         self.value = value
         self.lit_type = Type_Invalid
 
@@ -46,6 +47,9 @@ class LitAST:
 
     def type(self):
         return self.lit_type
+
+    def scope(self):
+        return self.sim.global_scope
 
     def generate(self, mem=False):
         assert mem is False, "Literal is not lvalue!"

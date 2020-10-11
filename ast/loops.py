@@ -3,6 +3,7 @@ from ast.branches import FilterAST
 from ast.data_types import Type_Int
 from ast.expr import ExprAST
 from ast.lit import as_lit_ast
+from ast.scope import Scope
 
 
 class IterAST():
@@ -12,12 +13,16 @@ class IterAST():
         IterAST.last_iter += 1
         return IterAST.last_iter - 1
 
-    def __init__(self, sim):
+    def __init__(self, sim, loop):
         self.sim = sim
+        self.loop = loop
         self.iter_id = IterAST.new_id()
 
     def type(self):
         return Type_Int
+
+    def scope(self):
+        return Scope(self.loop.block)
 
     def __mul__(self, other):
         from ast.expr import ExprAST
@@ -54,9 +59,10 @@ class IterAST():
 class ForAST():
     def __init__(self, sim, range_min, range_max, block=None):
         self.sim = sim
-        self.iterator = IterAST(sim)
-        self.min = as_lit_ast(range_min)
-        self.max = as_lit_ast(range_max)
+        self.iterator = IterAST(sim, self)
+        self.min = as_lit_ast(sim, range_min)
+        self.max = as_lit_ast(sim, range_max)
+        self.parent_block = None
         self.block = BlockAST(sim, []) if block is None else block
 
     def __str__(self):
@@ -105,6 +111,7 @@ class ParticleForAST(ForAST):
 class WhileAST():
     def __init__(self, sim, cond, block=None):
         self.sim = sim
+        self.parent_block = None
         self.cond = cond
         self.block = BlockAST(sim, []) if block is None else block
 
@@ -137,6 +144,7 @@ class WhileAST():
 class NeighborForAST():
     def __init__(self, sim, particle, cell_lists):
         self.sim = sim
+        self.parent_block = None
         self.particle = particle
         self.cell_lists = cell_lists
 

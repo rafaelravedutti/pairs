@@ -14,8 +14,8 @@ class ExprAST:
     def __init__(self, sim, lhs, rhs, op, mem=False):
         self.sim = sim
         self.expr_id = ExprAST.new_id()
-        self.lhs = as_lit_ast(lhs)
-        self.rhs = as_lit_ast(rhs)
+        self.lhs = as_lit_ast(sim, lhs)
+        self.rhs = as_lit_ast(sim, rhs)
         self.op = op
         self.mem = mem
         self.expr_type = ExprAST.infer_type(self.lhs, self.rhs, self.op)
@@ -78,7 +78,7 @@ class ExprAST:
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, \
             "Cannot use operator [] on specified type!"
-        return ExprVecAST(self.sim, self, as_lit_ast(index))
+        return ExprVecAST(self.sim, self, as_lit_ast(self.sim, index))
 
     def generated_vector_index(self, index):
         return not [i for i in self.vec_generated if i == index]
@@ -120,6 +120,11 @@ class ExprAST:
 
     def type(self):
         return self.expr_type
+
+    def scope(self):
+        lscp = self.lhs.scope()
+        rscp = self.rhs.scope()
+        return lscp if lscp > rscp else rscp
 
     def generate(self, mem=False):
         lexpr = self.lhs.generate(mem)
@@ -187,11 +192,13 @@ class ExprVecAST():
     def add(self, other):
         return self.sim.add_statement(AssignAST(self.sim, self, self + other))
 
-    def idx(self):
-        return self.index
-
     def type(self):
         return Type_Float
+
+    def scope(self):
+        escp = self.expr.scope()
+        iscp = self.index.scope()
+        return escp if escp > iscp else iscp
 
     def generate(self, mem=False):
         if self.expr.type() != Type_Vector:

@@ -1,6 +1,8 @@
 class BlockAST:
     def __init__(self, sim, stmts):
         self.sim = sim
+        self.level = 0
+        self.expressions = []
 
         if isinstance(stmts, BlockAST):
             self.stmts = stmts.statements()
@@ -9,18 +11,32 @@ class BlockAST:
 
     def add_statement(self, stmt):
         if isinstance(stmt, list):
+            for s in stmt:
+                s.parent_block = self
+
             self.stmts = self.stmts + stmt
+
         else:
+            stmt.parent_block = self
             self.stmts.append(stmt)
 
     def statements(self):
         return self.stmts
+
+    def add_expression(self, expr):
+        if isinstance(expr, list):
+            self.expressions = self.expressions + expr
+        else:
+            self.expressions.append(expr)
 
     def generate(self):
         self.sim.code_gen.generate_block_preamble()
 
         for stmt in self.stmts:
             stmt.generate()
+
+        for expr in self.expressions:
+            expr.generate()
 
         self.sim.code_gen.generate_block_epilogue()
 

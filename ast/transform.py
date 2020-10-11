@@ -18,8 +18,10 @@ class Transform:
     def flatten(ast):
         if isinstance(ast, ExprVecAST):
             if ast.expr.op == '[]' and ast.expr.type() == Type_Vector:
-                item = [f for f in Transform.flattened_list
-                        if f[0] == ast.expr.lhs and f[1] == ast.index and f[2] == ast.expr.rhs]
+                item = [f for f in Transform.flattened_list if
+                        f[0] == ast.expr.lhs and
+                        f[1] == ast.index and
+                        f[2] == ast.expr.rhs]
                 if item:
                     return item[0][3]
 
@@ -41,6 +43,8 @@ class Transform:
 
     def simplify(ast):
         if isinstance(ast, ExprAST):
+            sim = ast.lhs.sim
+
             if ast.op in ['+', '-'] and ast.rhs == 0:
                 return ast.lhs
 
@@ -54,7 +58,7 @@ class Transform:
                 return ast.rhs
 
             if ast.op == '*' and ast.lhs == 0:
-                return LitAST(0 if ast.type() == Type_Int else 0.0)
+                return LitAST(sim, 0 if ast.type() == Type_Int else 0.0)
 
         return ast
 
@@ -127,5 +131,11 @@ class Transform:
                     Transform.reuse_expressions[acc_id] = []
 
                 Transform.reuse_expressions[acc_id].append(ast)
+
+        return ast
+
+    def move_loop_invariant_expressions(ast):
+        if isinstance(ast, ExprAST):
+            ast.scope().block.add_expression(ast)
 
         return ast

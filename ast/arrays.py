@@ -27,7 +27,7 @@ class ArrayND:
         self.arr_name = arr_name
         self.arr_sizes = \
             [arr_sizes] if not isinstance(arr_sizes, list) \
-            else [as_lit_ast(s) for s in arr_sizes]
+            else [as_lit_ast(sim, s) for s in arr_sizes]
         self.arr_type = arr_type
         self.arr_ndims = len(self.arr_sizes)
 
@@ -74,7 +74,7 @@ class ArrayAccess:
         self.sim = sim
         self.acc_id = ArrayAccess.new_id()
         self.array = array
-        self.indexes = [as_lit_ast(index)]
+        self.indexes = [as_lit_ast(sim, index)]
         self.index = None
         self.generated = False
         self.check_and_set_index()
@@ -94,7 +94,7 @@ class ArrayAccess:
     def __getitem__(self, index):
         assert self.index is None, \
             "Number of indexes higher than array dimension!"
-        self.indexes.append(as_lit_ast(index))
+        self.indexes.append(as_lit_ast(self.sim, index))
         self.check_and_set_index()
         return self
 
@@ -105,7 +105,7 @@ class ArrayAccess:
                 self.index = (self.indexes[s] if self.index is None
                               else self.index * sizes[s] + self.indexes[s])
 
-            self.index = as_lit_ast(self.index)
+            self.index = as_lit_ast(self.sim, self.index)
 
     def set(self, other):
         return self.sim.add_statement(AssignAST(self.sim, self, other))
@@ -115,6 +115,18 @@ class ArrayAccess:
 
     def type(self):
         return self.array.type() if self.index is None else Type_Array
+
+    def scope(self):
+        if self.index is None:
+            scope = None
+            for i in self.indexes:
+                iscp = i.scope()
+                if scope is None or iscp > scope:
+                    scope = iscp
+
+            return scope
+        else:
+            return self.index.scope()
 
     def generate(self, mem=False):
         agen = self.array.generate()

@@ -6,7 +6,8 @@ from ast.lit import as_lit_ast
 class BranchAST:
     def __init__(self, sim, cond, one_way=False, blk_if=None, blk_else=None):
         self.sim = sim
-        self.cond = as_lit_ast(cond)
+        self.parent_block = None
+        self.cond = as_lit_ast(sim, cond)
         self.switch = True
         self.block_if = BlockAST(sim, []) if blk_if is None else blk_if
         self.block_else = \
@@ -47,8 +48,9 @@ class BranchAST:
     def transform(self, fn):
         self.cond = self.cond.transform(fn)
         self.block_if = self.block_if.transform(fn)
-        self.block_else = None if self.block_else is None \
-                          else self.block_else.transform(fn)
+        self.block_else = \
+            None if self.block_else is None \
+            else self.block_else.transform(fn)
         return fn(self)
 
 

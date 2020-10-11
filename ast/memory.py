@@ -6,6 +6,7 @@ import operator
 class MallocAST:
     def __init__(self, sim, array, a_type, sizes, decl=False):
         self.sim = sim
+        self.parent_block = None
         self.array = array
         self.array_type = a_type
         self.decl = decl
@@ -29,6 +30,7 @@ class MallocAST:
 class ReallocAST:
     def __init__(self, sim, array, size):
         self.sim = sim
+        self.parent_block = None
         self.array = array
         self.size = size
         self.sim.add_statement(self)

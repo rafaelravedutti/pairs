@@ -5,9 +5,10 @@ from ast.lit import as_lit_ast
 class AssignAST:
     def __init__(self, sim, dest, src):
         self.sim = sim
+        self.parent_block = None
         self.type = dest.type()
         self.generated = False
-        src = as_lit_ast(src)
+        src = as_lit_ast(sim, src)
 
         if dest.type() == Type_Vector:
             self.assignments = []
