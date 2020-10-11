@@ -21,7 +21,7 @@ class Transform:
                 item = [f for f in Transform.flattened_list
                         if f[0] == ast.expr.lhs and f[1] == ast.index and f[2] == ast.expr.rhs]
                 if item:
-                    return item[0][2]
+                    return item[0][3]
 
                 new_expr = ExprAST(
                     ast.expr.sim,
