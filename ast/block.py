@@ -40,11 +40,11 @@ class BlockAST:
     def generate(self):
         self.sim.code_gen.generate_block_preamble()
 
-        for stmt in self.stmts:
-            stmt.generate()
-
         for expr in self.expressions:
             expr.generate()
+
+        for stmt in self.stmts:
+            stmt.generate()
 
         self.sim.code_gen.generate_block_epilogue()
 
