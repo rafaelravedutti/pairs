@@ -47,6 +47,9 @@ class ArrayND:
     def type(self):
         return self.arr_type
 
+    def scope(self):
+        return self.sim.global_scope
+
     def ndims(self):
         return self.arr_ndims
 
@@ -55,6 +58,9 @@ class ArrayND:
 
     def realloc(self):
         return ReallocAST(self.sim, self, self.alloc_size())
+
+    def children(self):
+        return []
 
     def generate(self, mem=False):
         return self.arr_name
@@ -125,8 +131,11 @@ class ArrayAccess:
                     scope = iscp
 
             return scope
-        else:
-            return self.index.scope()
+
+        return self.index.scope()
+
+    def children(self):
+        return [self.array] + self.indexes
 
     def generate(self, mem=False):
         agen = self.array.generate()

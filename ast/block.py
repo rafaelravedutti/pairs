@@ -1,3 +1,5 @@
+from ast.visitor import Visitor
+
 class BlockAST:
     def __init__(self, sim, stmts):
         self.sim = sim
@@ -8,6 +10,9 @@ class BlockAST:
             self.stmts = stmts.statements()
         else:
             self.stmts = [stmts] if not isinstance(stmts, list) else stmts
+
+    def set_level(self, level):
+        self.level = level
 
     def add_statement(self, stmt):
         if isinstance(stmt, list):
@@ -28,6 +33,9 @@ class BlockAST:
             self.expressions = self.expressions + expr
         else:
             self.expressions.append(expr)
+
+    def children(self):
+        return self.stmts
 
     def generate(self):
         self.sim.code_gen.generate_block_preamble()
@@ -63,3 +71,17 @@ class BlockAST:
             result_block = BlockAST.merge_blocks(result_block, block)
 
         return result_block
+
+    def set_block_levels(ast):
+        BlockAST.level = 0
+
+        def enter(ast):
+            if isinstance(ast, BlockAST):
+                ast.set_level(BlockAST.level)
+                BlockAST.level += 1
+
+        def leave(ast):
+            if isinstance(ast, BlockAST):
+                BlockAST.level -= 1
+
+        Visitor(ast, enter, leave).visit()

@@ -14,6 +14,9 @@ class MallocAST:
         self.size = reduce(operator.mul, sizes) * self.prim_size
         self.sim.add_statement(self)
 
+    def children(self):
+        return [self.array, self.size]
+
     def generate(self, mem=False):
         self.sim.code_gen.generate_malloc(
             self.array.generate(),
@@ -34,6 +37,9 @@ class ReallocAST:
         self.array = array
         self.size = size
         self.sim.add_statement(self)
+
+    def children(self):
+        return [self.array, self.size]
 
     def generate(self, mem=False):
         self.sim.code_gen.generate_realloc(

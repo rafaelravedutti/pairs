@@ -126,6 +126,9 @@ class ExprAST:
         rscp = self.rhs.scope()
         return lscp if lscp > rscp else rscp
 
+    def children(self):
+        return [self.lhs, self.rhs]
+
     def generate(self, mem=False):
         lexpr = self.lhs.generate(mem)
         rexpr = self.rhs.generate()
@@ -157,14 +160,12 @@ class ExprAST:
 
         assert self.expr_type != Type_Vector, \
             "Vector code must be generated through ExprVecAST class!"
-
         return self.sim.code_gen.generate_inline_expr(lexpr, rexpr, self.op)
 
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)
         self.rhs = self.rhs.transform(fn)
         return fn(self)
-
 
 class ExprVecAST():
     def __init__(self, sim, expr, index):
@@ -200,6 +201,9 @@ class ExprVecAST():
         iscp = self.index.scope()
         return escp if escp > iscp else iscp
 
+    def children(self):
+        return [self.lhs, self.rhs, self.index]
+
     def generate(self, mem=False):
         if self.expr.type() != Type_Vector:
             return self.expr.generate()
@@ -227,5 +231,4 @@ class ExprVecAST():
         self.lhs = self.lhs.transform(fn)
         self.rhs = self.rhs.transform(fn)
         self.index = self.index.transform(fn)
-        self.expr = self.expr.transform(fn)
         return fn(self)

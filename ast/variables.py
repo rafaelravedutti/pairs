@@ -68,6 +68,12 @@ class Var:
     def type(self):
         return self.var_type
 
+    def scope(self):
+        return self.sim.global_scope
+
+    def children(self):
+        return []
+
     def generate(self, mem=False):
         return self.var_name
 

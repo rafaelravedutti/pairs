@@ -42,9 +42,15 @@ class Property:
     def type(self):
         return self.prop_type
 
+    def scope(self):
+        return self.sim.global_scope
+
     def __getitem__(self, expr_ast):
         from ast.expr import ExprAST
         return ExprAST(self.sim, self, expr_ast, '[]', True)
+
+    def children(self):
+        return []
 
     def generate(self, mem=False):
         return self.prop_name

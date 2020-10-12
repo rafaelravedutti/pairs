@@ -19,6 +19,12 @@ class CastAST:
     def type(self):
         return self.cast_type
 
+    def scope(self):
+        return self.expr.scope()
+
+    def children(self):
+        return [self.expr]
+
     def generate(self, mem=False):
         return self.sim.code_gen.generate_cast(
             self.cast_type, self.expr.generate())

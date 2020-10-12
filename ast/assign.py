@@ -1,5 +1,6 @@
 from ast.data_types import Type_Vector
 from ast.lit import as_lit_ast
+from functools import reduce
 
 
 class AssignAST:
@@ -25,6 +26,11 @@ class AssignAST:
 
     def __str__(self):
         return f"Assign<{self.assignments}>"
+
+    def children(self):
+        return reduce((lambda x, y: x + y), [
+                      [self.assignments[i][0], self.assignments[i][1]]
+                      for i in range(0, len(self.assignments))])
 
     def generate(self):
         if self.generated is False:

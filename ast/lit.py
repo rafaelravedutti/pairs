@@ -51,6 +51,9 @@ class LitAST:
     def scope(self):
         return self.sim.global_scope
 
+    def children(self):
+        return []
+
     def generate(self, mem=False):
         assert mem is False, "Literal is not lvalue!"
         return self.value

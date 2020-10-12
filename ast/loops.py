@@ -48,6 +48,9 @@ class IterAST():
     def __str__(self):
         return f"Iter<{self.iter_id}>"
 
+    def children(self):
+        return []
+
     def generate(self, mem=False):
         assert mem is False, "Iterator is not lvalue!"
         return f"i{self.iter_id}"
@@ -79,6 +82,9 @@ class ForAST():
 
     def add_statement(self, stmt):
         self.block.add_statement(stmt)
+
+    def children(self):
+        return [self.iterator, self.block]
 
     def generate(self):
         it_id = self.iterator.generate()
@@ -126,6 +132,9 @@ class WhileAST():
 
     def add_statement(self, stmt):
         self.block.add_statement(stmt)
+
+    def children(self):
+        return [self.cond, self.block]
 
     def generate(self):
         from ast.expr import ExprAST

@@ -126,11 +126,13 @@ class ParticleSimulation:
         ])
 
         self.global_scope = Scope(program)
+        BlockAST.set_block_levels(program)
         Transform.apply(program, Transform.flatten)
         Transform.apply(program, Transform.simplify)
         Transform.apply(program, Transform.reuse_index_expressions)
         Transform.apply(program, Transform.reuse_expr_expressions)
         Transform.apply(program, Transform.reuse_array_access_expressions)
+        Transform.apply(program, Transform.move_loop_invariant_expressions)
 
         self.code_gen.generate_program_preamble()
         program.generate()

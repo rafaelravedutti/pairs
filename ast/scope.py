@@ -13,3 +13,6 @@ class Scope:
 
     def __ge__(self, other):
         return self.block.level >= other.block.level
+
+    def level(self):
+        return self.block.level

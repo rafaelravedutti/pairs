@@ -1,5 +1,4 @@
 from ast.block import BlockAST
-from ast.expr import ExprAST
 from ast.lit import as_lit_ast
 
 
@@ -33,9 +32,12 @@ class BranchAST:
         else:
             self.block_else.add_statement(stmt)
 
+    def children(self):
+        return [self.cond, self.block_if] + \
+               ([] if self.block_else is None else [self.block_else])
+
     def generate(self):
-        cond_gen = (self.cond.generate() if not isinstance(self.cond, ExprAST)
-                    else self.cond.generate_inline())
+        cond_gen = self.cond.generate()
         self.sim.code_gen.generate_if(cond_gen)
         self.block_if.generate()
 

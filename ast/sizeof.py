@@ -8,6 +8,12 @@ class SizeofAST:
     def type(self):
         return Type_Int
 
+    def scope(self):
+        return self.sim.global_scope
+
+    def children(self):
+        return []
+
     def generate(self, mem=False):
         return self.sim.code_gen.generate_sizeof(self.data_type)
 
