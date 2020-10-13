@@ -113,6 +113,7 @@ class ArrayAccess:
         if len(self.indexes) == self.array.ndims():
             sizes = self.array.sizes()
             layout = self.array.layout()
+
             if layout == Layout_AoS:
                 for s in range(0, len(sizes)):
                     self.index = (self.indexes[s] if self.index is None

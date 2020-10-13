@@ -1,3 +1,6 @@
+from ast.layouts import Layout_AoS
+
+
 class Properties:
     def __init__(self, sim):
         self.sim = sim
@@ -5,8 +8,8 @@ class Properties:
         self.defs = {}
         self.nprops = 0
 
-    def add(self, p_name, p_type, p_value, p_volatile):
-        p = Property(self.sim, p_name, p_type, p_value, p_volatile)
+    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layout_AoS):
+        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout)
         self.props.append(p)
         self.defs[p_name] = p_value
         return p
@@ -25,11 +28,12 @@ class Properties:
 
 
 class Property:
-    def __init__(self, sim, prop_name, prop_type, default_value, volatile):
+    def __init__(self, sim, name, dtype, default, volatile, layout=Layout_AoS):
         self.sim = sim
-        self.prop_name = prop_name
-        self.prop_type = prop_type
-        self.default_value = default_value
+        self.prop_name = name
+        self.prop_type = dtype
+        self.prop_layout = layout
+        self.default_value = default
         self.volatile = volatile
         self.flattened = False
 
@@ -41,6 +45,9 @@ class Property:
 
     def type(self):
         return self.prop_type
+
+    def layout(self):
+        return self.prop_layout
 
     def scope(self):
         return self.sim.global_scope

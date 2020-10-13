@@ -1,4 +1,5 @@
 import part_prot as pt
+from ast.layouts import Layout_SoA
 
 dt = 0.005
 cutoff_radius = 2.5
@@ -9,7 +10,7 @@ sigma6 = sigma ** 6
 
 psim = pt.simulation()
 mass = psim.add_real_property('mass', 1.0)
-position = psim.add_vector_property('position')
+position = psim.add_vector_property('position', layout=Layout_SoA)
 velocity = psim.add_vector_property('velocity')
 force = psim.add_vector_property('force', vol=True)
 

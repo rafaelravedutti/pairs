@@ -1,6 +1,7 @@
 from ast.arrays import ArrayAccess
 from ast.data_types import Type_Int, Type_Vector
 from ast.expr import Expr, ExprVec
+from ast.layouts import Layout_AoS, Layout_SoA
 from ast.lit import Lit
 from ast.loops import Iter
 from ast.properties import Property
@@ -25,15 +26,24 @@ class Transform:
                 if item:
                     return item[0][3]
 
-                new_expr = Expr(
-                    ast.expr.sim,
-                    ast.expr.lhs,
-                    ast.expr.rhs * ast.expr.sim.dimensions + ast.index,
-                    '[]',
-                    ast.expr.mem)
+                layout = ast.lhs.layout()
+                flat_index = None
 
-                Transform.flattened_list.append(
-                    (ast.expr.lhs, ast.index, ast.expr.rhs, new_expr))
+                if layout == Layout_AoS:
+                    flat_index = \
+                        ast.expr.rhs * ast.expr.sim.dimensions + ast.index
+
+                elif layout == Layout_SoA:
+                    flat_index = \
+                        ast.index * ast.expr.sim.nparticles + ast.expr.rhs
+
+                else:
+                    raise Exception("Invalid property layout!")
+
+                new_expr = Expr(ast.expr.sim,ast.expr.lhs, flat_index, '[]',
+                                ast.expr.mem)
+                Transform.flattened_list.append((ast.expr.lhs, ast.index,
+                                                 ast.expr.rhs, new_expr))
                 return new_expr
 
         if isinstance(ast, Property):

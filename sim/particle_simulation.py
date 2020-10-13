@@ -37,8 +37,10 @@ class ParticleSimulation:
     def add_real_property(self, prop_name, value=0.0, vol=False):
         return self.properties.add(prop_name, Type_Float, value, vol)
 
-    def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False):
-        return self.properties.add(prop_name, Type_Vector, value, vol)
+    def add_vector_property(
+            self, prop_name, value=[0.0, 0.0, 0.0],
+            vol=False, layout=Layout_AoS):
+        return self.properties.add(prop_name, Type_Vector, value, vol, layout)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
