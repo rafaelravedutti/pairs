@@ -57,7 +57,7 @@ class ArrayND:
         return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])
 
     def realloc(self):
-        return Realloc(self.sim, self, self.alloc_size())
+        return Realloc(self.sim, self, self.arr_type, self.alloc_size())
 
     def children(self):
         return []

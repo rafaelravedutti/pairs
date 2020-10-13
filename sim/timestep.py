@@ -28,8 +28,8 @@ class Timestep:
         if exec_every > 0:
             self.block.add_statement(
                 Branch(self.sim,
-                          Expr.cmp(ts % exec_every, 0),
-                          True, Block(self.sim, stmts), None))
+                       Expr.cmp(ts % exec_every, 0),
+                       True, Block(self.sim, stmts), None))
         else:
             self.block.add_statement(stmts)
 

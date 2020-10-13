@@ -31,10 +31,11 @@ class Malloc:
 
 
 class Realloc:
-    def __init__(self, sim, array, size):
+    def __init__(self, sim, array, a_type, size):
         self.sim = sim
         self.parent_block = None
         self.array = array
+        self.array_type = a_type
         self.size = size
         self.sim.add_statement(self)
 
@@ -43,7 +44,7 @@ class Realloc:
 
     def generate(self, mem=False):
         self.sim.code_gen.generate_realloc(
-            self.array.generate(), self.size.generate())
+            self.array.generate(), self.array_type, self.size.generate())
 
     def transform(self, fn):
         self.array = self.array.transform(fn)
