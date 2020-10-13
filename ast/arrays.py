@@ -1,6 +1,7 @@
 from ast.assign import Assign
 from ast.data_types import Type_Array
 from ast.expr import Expr
+from ast.layouts import Layout_AoS, Layout_SoA
 from ast.lit import as_lit_ast
 from ast.memory import Realloc
 from functools import reduce
@@ -12,8 +13,8 @@ class Arrays:
         self.arrays = []
         self.narrays = 0
 
-    def add(self, a_name, a_sizes, a_type):
-        a = ArrayND(self.sim, a_name, a_sizes, a_type)
+    def add(self, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+        a = ArrayND(self.sim, a_name, a_sizes, a_type, a_layout)
         self.arrays.append(a)
         return a
 
@@ -22,13 +23,14 @@ class Arrays:
 
 
 class ArrayND:
-    def __init__(self, sim, arr_name, arr_sizes, arr_type):
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
         self.sim = sim
-        self.arr_name = arr_name
+        self.arr_name = a_name
         self.arr_sizes = \
-            [arr_sizes] if not isinstance(arr_sizes, list) \
-            else [as_lit_ast(sim, s) for s in arr_sizes]
-        self.arr_type = arr_type
+            [a_sizes] if not isinstance(a_sizes, list) \
+            else [as_lit_ast(sim, s) for s in a_sizes]
+        self.arr_type = a_type
+        self.arr_layout = a_layout
         self.arr_ndims = len(self.arr_sizes)
 
     def __str__(self):
@@ -46,6 +48,9 @@ class ArrayND:
 
     def type(self):
         return self.arr_type
+
+    def layout(self):
+        return self.arr_layout
 
     def scope(self):
         return self.sim.global_scope
@@ -107,9 +112,19 @@ class ArrayAccess:
     def check_and_set_index(self):
         if len(self.indexes) == self.array.ndims():
             sizes = self.array.sizes()
-            for s in range(0, len(sizes)):
-                self.index = (self.indexes[s] if self.index is None
-                              else self.index * sizes[s] + self.indexes[s])
+            layout = self.array.layout()
+            if layout == Layout_AoS:
+                for s in range(0, len(sizes)):
+                    self.index = (self.indexes[s] if self.index is None
+                                  else self.index * sizes[s] + self.indexes[s])
+
+            elif layout == Layout_SoA:
+                for s in reversed(range(0, len(sizes))):
+                    self.index = (self.indexes[s] if self.index is None
+                                  else self.index * sizes[s] + self.indexes[s])
+
+            else:
+                raise Exception("Invalid data layout!")
 
             self.index = as_lit_ast(self.sim, self.index)
 
@@ -126,9 +141,9 @@ class ArrayAccess:
         if self.index is None:
             scope = None
             for i in self.indexes:
-                iscp = i.scope()
-                if scope is None or iscp > scope:
-                    scope = iscp
+                index_scp = i.scope()
+                if scope is None or index_scp > scope:
+                    scope = index_scp
 
             return scope
 

@@ -150,9 +150,9 @@ class Expr:
         inline_lhs_expr = recursive and isinstance(self.lhs, Expr)
         inline_rhs_expr = recursive and isinstance(self.rhs, Expr)
         lhs_expr = (self.lhs.generate_inline(recursive, mem) if inline_lhs_expr
-                   else self.lhs.generate(mem))
+                    else self.lhs.generate(mem))
         rhs_expr = (self.rhs.generate_inline(recursive) if inline_rhs_expr
-                   else self.rhs.generate())
+                    else self.rhs.generate())
 
         if self.op == '[]':
             return self.sim.code_gen.generate_expr_access(
@@ -209,24 +209,24 @@ class ExprVec():
         if self.expr.type() != Type_Vector:
             return self.expr.generate()
 
-        iexpr = self.index.generate()
+        index_expr = self.index.generate()
         if self.expr.op == '[]':
             return self.sim.code_gen.generate_expr_access(
-                self.expr.generate(), iexpr, True)
+                self.expr.generate(), index_expr, True)
 
-        if self.expr.generated_vector_index(iexpr):
+        if self.expr.generated_vector_index(index_expr):
             self.sim.code_gen.generate_vec_expr(
                 self.expr.expr_id,
-                iexpr,
+                index_expr,
                 self.lhs.generate(mem),
                 self.rhs.generate(),
                 self.expr.op,
                 self.expr.mem)
 
-            self.expr.vec_generated.append(iexpr)
+            self.expr.vec_generated.append(index_expr)
 
         return self.sim.code_gen.generate_vec_expr_ref(
-            self.expr.expr_id, iexpr, self.expr.mem)
+            self.expr.expr_id, index_expr, self.expr.mem)
 
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)

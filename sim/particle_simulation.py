@@ -2,6 +2,7 @@ from ast.arrays import Arrays
 from ast.block import Block
 from ast.branches import Filter
 from ast.data_types import Type_Int, Type_Float, Type_Vector
+from ast.layouts import Layout_AoS
 from ast.loops import ParticleFor, NeighborFor
 from ast.properties import Properties
 from ast.scope import Scope
@@ -43,11 +44,11 @@ class ParticleSimulation:
     def property(self, prop_name):
         return self.properties.find(prop_name)
 
-    def add_array(self, array_name, array_sizes, array_type):
-        return self.arrays.add(array_name, array_sizes, array_type)
+    def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
+        return self.arrays.add(arr_name, arr_sizes, arr_type, arr_layout)
 
-    def array(self, array_name):
-        return self.arrays.find(array_name)
+    def array(self, arr_name):
+        return self.arrays.find(arr_name)
 
     def add_var(self, var_name, var_type):
         return self.vars.add(var_name, var_type)

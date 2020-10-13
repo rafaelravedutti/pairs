@@ -2,6 +2,7 @@ from ast.branches import Branch, Filter
 from ast.cast import Cast
 from ast.data_types import Type_Int
 from ast.expr import Expr
+from ast.layouts import Layout_SoA
 from ast.loops import For, ParticleFor
 from functools import reduce
 from sim.resize import Resize
@@ -90,8 +91,8 @@ class CellListsBuild:
 
                 cell_size = cl.cell_sizes[flat_idx]
                 for _ in Filter(self.sim,
-                                   Expr.and_op(flat_idx >= 0,
-                                                  flat_idx <= cl.ncells_all)):
+                                Expr.and_op(flat_idx >= 0,
+                                            flat_idx <= cl.ncells_all)):
                     for cond in Branch(self.sim, cell_size > cap):
                         if cond:
                             rsz.set(cell_size)
