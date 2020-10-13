@@ -5,7 +5,6 @@ from ast.data_types import Type_Int, Type_Float, Type_Vector
 from ast.layouts import Layout_AoS
 from ast.loops import ParticleFor, NeighborFor
 from ast.properties import Properties
-from ast.scope import Scope
 from ast.transform import Transform
 from ast.variables import Variables
 from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
@@ -126,7 +125,7 @@ class ParticleSimulation:
             ]).as_block()
         ])
 
-        self.global_scope = Scope(program)
+        self.global_scope = program
         Block.set_block_levels(program)
         Transform.apply(program, Transform.flatten)
         Transform.apply(program, Transform.simplify)

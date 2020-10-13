@@ -3,7 +3,6 @@ from ast.branches import Filter
 from ast.data_types import Type_Int
 from ast.expr import Expr
 from ast.lit import as_lit_ast
-from ast.scope import Scope
 
 
 class Iter():
@@ -22,7 +21,7 @@ class Iter():
         return Type_Int
 
     def scope(self):
-        return Scope(self.loop.block)
+        return self.loop.block
 
     def __mul__(self, other):
         from ast.expr import Expr

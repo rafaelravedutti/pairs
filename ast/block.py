@@ -11,6 +11,18 @@ class Block:
         else:
             self.stmts = [stmts] if not isinstance(stmts, list) else stmts
 
+    def __lt__(self, other):
+        return self.level < other.level
+
+    def __le__(self, other):
+        return self.level <= other.level
+
+    def __gt__(self, other):
+        return self.level > other.level
+
+    def __ge__(self, other):
+        return self.level >= other.level
+
     def set_level(self, level):
         self.level = level
 

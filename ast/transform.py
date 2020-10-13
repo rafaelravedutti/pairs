@@ -137,7 +137,7 @@ class Transform:
     def move_loop_invariant_expressions(ast):
         if isinstance(ast, Expr):
             scope = ast.scope()
-            if scope.level() > 0:
-                scope.block.add_expression(ast)
+            if scope.level > 0:
+                scope.add_expression(ast)
 
         return ast
