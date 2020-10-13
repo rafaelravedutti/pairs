@@ -1,14 +1,14 @@
-from ast.block import BlockAST
-from ast.expr import ExprAST
-from ast.branches import BranchAST
-from ast.loops import ForAST
+from ast.block import Block
+from ast.expr import Expr
+from ast.branches import Branch
+from ast.loops import For
 
 
 class Timestep:
     def __init__(self, sim, nsteps, item_list=None):
         self.sim = sim
-        self.block = BlockAST(sim, [])
-        self.timestep_loop = ForAST(sim, 0, nsteps, self.block)
+        self.block = Block(sim, [])
+        self.timestep_loop = For(sim, 0, nsteps, self.block)
 
         if item_list is not None:
             for item in item_list:
@@ -21,20 +21,20 @@ class Timestep:
         assert exec_every >= 0, \
             "exec_every parameter must be higher or equal than zero!"
 
-        stmts = (item if not isinstance(item, BlockAST)
+        stmts = (item if not isinstance(item, Block)
                  else item.statements())
 
         ts = self.timestep_loop.iter()
         if exec_every > 0:
             self.block.add_statement(
-                BranchAST(self.sim,
-                          ExprAST.cmp(ts % exec_every, 0),
-                          True, BlockAST(self.sim, stmts), None))
+                Branch(self.sim,
+                          Expr.cmp(ts % exec_every, 0),
+                          True, Block(self.sim, stmts), None))
         else:
             self.block.add_statement(stmts)
 
     def as_block(self):
-        return BlockAST(self.sim, [self.timestep_loop])
+        return Block(self.sim, [self.timestep_loop])
 
     def generate(self):
         self.block.generate()

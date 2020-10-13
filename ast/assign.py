@@ -3,7 +3,7 @@ from ast.lit import as_lit_ast
 from functools import reduce
 
 
-class AssignAST:
+class Assign:
     def __init__(self, sim, dest, src):
         self.sim = sim
         self.parent_block = None
@@ -15,8 +15,8 @@ class AssignAST:
             self.assignments = []
 
             for i in range(0, sim.dimensions):
-                from ast.expr import ExprAST
-                dsrc = (src if (not isinstance(src, ExprAST) or
+                from ast.expr import Expr
+                dsrc = (src if (not isinstance(src, Expr) or
                                 src.type() != Type_Vector)
                         else src[i])
 

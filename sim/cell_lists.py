@@ -1,8 +1,8 @@
-from ast.branches import BranchAST, FilterAST
-from ast.cast import CastAST
+from ast.branches import Branch, Filter
+from ast.cast import Cast
 from ast.data_types import Type_Int
-from ast.expr import ExprAST
-from ast.loops import ForAST, ParticleForAST
+from ast.expr import Expr
+from ast.loops import For, ParticleFor
 from functools import reduce
 from sim.resize import Resize
 import math
@@ -51,7 +51,7 @@ class CellListsStencilBuild:
             cl.nstencil.set(0)
             for d in range(0, self.sim.dimensions):
                 nneigh = cl.nneighbor_cells[d]
-                for d_idx in ForAST(self.sim, -nneigh, nneigh + 1):
+                for d_idx in For(self.sim, -nneigh, nneigh + 1):
                     index = (d_idx if index is None
                              else index * cl.ncells[d - 1] + d_idx)
 
@@ -75,12 +75,12 @@ class CellListsBuild:
 
         self.sim.clear_block()
         for cap, rsz in Resize(self.sim, cl.cell_capacity, cl.cell_particles):
-            for c in ForAST(self.sim, 0, cl.ncells_all):
+            for c in For(self.sim, 0, cl.ncells_all):
                 cl.cell_sizes[c].set(0)
 
-            for i in ParticleForAST(self.sim):
+            for i in ParticleFor(self.sim):
                 cell_index = [
-                    CastAST.int(self.sim, (positions[i][d] - cfg[d][0]) / spc)
+                    Cast.int(self.sim, (positions[i][d] - cfg[d][0]) / spc)
                     for d in range(0, self.sim.dimensions)]
 
                 flat_idx = None
@@ -89,10 +89,10 @@ class CellListsBuild:
                                 else flat_idx * cl.ncells[d] + cell_index[d])
 
                 cell_size = cl.cell_sizes[flat_idx]
-                for _ in FilterAST(self.sim,
-                                   ExprAST.and_op(flat_idx >= 0,
+                for _ in Filter(self.sim,
+                                   Expr.and_op(flat_idx >= 0,
                                                   flat_idx <= cl.ncells_all)):
-                    for cond in BranchAST(self.sim, cell_size > cap):
+                    for cond in Branch(self.sim, cell_size > cap):
                         if cond:
                             rsz.set(cell_size)
                         else:

@@ -1,5 +1,5 @@
-from ast.assign import AssignAST
-from ast.expr import ExprAST
+from ast.assign import Assign
+from ast.expr import Expr
 
 
 class Variables:
@@ -27,40 +27,40 @@ class Var:
         return f"Var<name: {self.var_name}, type: {self.var_type}>"
 
     def __add__(self, other):
-        return ExprAST(self.sim, self, other, '+')
+        return Expr(self.sim, self, other, '+')
 
     def __radd__(self, other):
-        return ExprAST(self.sim, other, self, '+')
+        return Expr(self.sim, other, self, '+')
 
     def __sub__(self, other):
-        return ExprAST(self.sim, self, other, '-')
+        return Expr(self.sim, self, other, '-')
 
     def __mul__(self, other):
-        return ExprAST(self.sim, self, other, '*')
+        return Expr(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        return ExprAST(self.sim, other, self, '*')
+        return Expr(self.sim, other, self, '*')
 
     def __truediv__(self, other):
-        return ExprAST(self.sim, self, other, '/')
+        return Expr(self.sim, self, other, '/')
 
     def __rtruediv__(self, other):
-        return ExprAST(self.sim, other, self, '/')
+        return Expr(self.sim, other, self, '/')
 
     def __lt__(self, other):
-        return ExprAST(self.sim, self, other, '<')
+        return Expr(self.sim, self, other, '<')
 
     def __gt__(self, other):
-        return ExprAST(self.sim, self, other, '>')
+        return Expr(self.sim, self, other, '>')
 
     def inv(self):
-        return ExprAST(self.sim, 1.0, self, '/')
+        return Expr(self.sim, 1.0, self, '/')
 
     def set(self, other):
-        return self.sim.add_statement(AssignAST(self.sim, self, other))
+        return self.sim.add_statement(Assign(self.sim, self, other))
 
     def add(self, other):
-        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
+        return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def name(self):
         return self.var_name

@@ -1,7 +1,7 @@
 from ast.data_types import Type_Int, Type_Float
 
 
-class CastAST:
+class Cast:
     def __init__(self, sim, expr, cast_type):
         self.sim = sim
         self.expr = expr
@@ -11,10 +11,10 @@ class CastAST:
         return f"Cast<expr: {self.expr}, cast_type: {self.cast_type}>"
 
     def int(sim, expr):
-        return CastAST(sim, expr, Type_Int)
+        return Cast(sim, expr, Type_Int)
 
     def float(sim, expr):
-        return CastAST(sim, expr, Type_Float)
+        return Cast(sim, expr, Type_Float)
 
     def type(self):
         return self.cast_type

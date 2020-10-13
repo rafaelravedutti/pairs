@@ -1,8 +1,8 @@
 from ast.arrays import ArrayAccess
 from ast.data_types import Type_Int, Type_Vector
-from ast.expr import ExprAST, ExprVecAST
-from ast.lit import LitAST
-from ast.loops import IterAST
+from ast.expr import Expr, ExprVec
+from ast.lit import Lit
+from ast.loops import Iter
 from ast.properties import Property
 
 
@@ -16,7 +16,7 @@ class Transform:
         Transform.reuse_expressions = {}
 
     def flatten(ast):
-        if isinstance(ast, ExprVecAST):
+        if isinstance(ast, ExprVec):
             if ast.expr.op == '[]' and ast.expr.type() == Type_Vector:
                 item = [f for f in Transform.flattened_list if
                         f[0] == ast.expr.lhs and
@@ -25,7 +25,7 @@ class Transform:
                 if item:
                     return item[0][3]
 
-                new_expr = ExprAST(
+                new_expr = Expr(
                     ast.expr.sim,
                     ast.expr.lhs,
                     ast.expr.rhs * ast.expr.sim.dimensions + ast.index,
@@ -42,7 +42,7 @@ class Transform:
         return ast
 
     def simplify(ast):
-        if isinstance(ast, ExprAST):
+        if isinstance(ast, Expr):
             sim = ast.lhs.sim
 
             if ast.op in ['+', '-'] and ast.rhs == 0:
@@ -58,18 +58,18 @@ class Transform:
                 return ast.rhs
 
             if ast.op == '*' and ast.lhs == 0:
-                return LitAST(sim, 0 if ast.type() == Type_Int else 0.0)
+                return Lit(sim, 0 if ast.type() == Type_Int else 0.0)
 
         return ast
 
     def reuse_index_expressions(ast):
-        if isinstance(ast, ExprAST):
+        if isinstance(ast, Expr):
             iter_id = None
 
-            if isinstance(ast.lhs, IterAST):
+            if isinstance(ast.lhs, Iter):
                 iter_id = ast.lhs.iter_id
 
-            if isinstance(ast.rhs, IterAST):
+            if isinstance(ast.rhs, Iter):
                 iter_id = ast.rhs.iter_id
 
             if iter_id is not None:
@@ -87,13 +87,13 @@ class Transform:
         return ast
 
     def reuse_expr_expressions(ast):
-        if isinstance(ast, ExprAST):
+        if isinstance(ast, Expr):
             expr_id = None
 
-            if isinstance(ast.lhs, ExprAST):
+            if isinstance(ast.lhs, Expr):
                 expr_id = ast.lhs.expr_id
 
-            if isinstance(ast.rhs, ExprAST):
+            if isinstance(ast.rhs, Expr):
                 expr_id = ast.rhs.expr_id
 
             if expr_id is not None:
@@ -111,7 +111,7 @@ class Transform:
         return ast
 
     def reuse_array_access_expressions(ast):
-        if isinstance(ast, ExprAST):
+        if isinstance(ast, Expr):
             acc_id = None
 
             if isinstance(ast.lhs, ArrayAccess):
@@ -135,7 +135,7 @@ class Transform:
         return ast
 
     def move_loop_invariant_expressions(ast):
-        if isinstance(ast, ExprAST):
+        if isinstance(ast, Expr):
             scope = ast.scope()
             if scope.level() > 0:
                 scope.block.add_expression(ast)

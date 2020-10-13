@@ -1,24 +1,24 @@
-from ast.assign import AssignAST
+from ast.assign import Assign
 from ast.data_types import Type_Float, Type_Bool, Type_Vector
 from ast.lit import as_lit_ast
 from ast.properties import Property
 
 
-class ExprAST:
+class Expr:
     last_expr = 0
 
     def new_id():
-        ExprAST.last_expr += 1
-        return ExprAST.last_expr - 1
+        Expr.last_expr += 1
+        return Expr.last_expr - 1
 
     def __init__(self, sim, lhs, rhs, op, mem=False):
         self.sim = sim
-        self.expr_id = ExprAST.new_id()
+        self.expr_id = Expr.new_id()
         self.lhs = as_lit_ast(sim, lhs)
         self.rhs = as_lit_ast(sim, rhs)
         self.op = op
         self.mem = mem
-        self.expr_type = ExprAST.infer_type(self.lhs, self.rhs, self.op)
+        self.expr_type = Expr.infer_type(self.lhs, self.rhs, self.op)
         self.vec_generated = []
         self.generated = False
 
@@ -26,49 +26,49 @@ class ExprAST:
         return f"Expr<a: {self.lhs}, b: {self.rhs}, op: {self.op}>"
 
     def __add__(self, other):
-        return ExprAST(self.sim, self, other, '+')
+        return Expr(self.sim, self, other, '+')
 
     def __radd__(self, other):
-        return ExprAST(self.sim, other, self, '+')
+        return Expr(self.sim, other, self, '+')
 
     def __sub__(self, other):
-        return ExprAST(self.sim, self, other, '-')
+        return Expr(self.sim, self, other, '-')
 
     def __mul__(self, other):
-        return ExprAST(self.sim, self, other, '*')
+        return Expr(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        return ExprAST(self.sim, other, self, '*')
+        return Expr(self.sim, other, self, '*')
 
     def __truediv__(self, other):
-        return ExprAST(self.sim, self, other, '/')
+        return Expr(self.sim, self, other, '/')
 
     def __rtruediv__(self, other):
-        return ExprAST(self.sim, other, self, '/')
+        return Expr(self.sim, other, self, '/')
 
     def __lt__(self, other):
-        return ExprAST(self.sim, self, other, '<')
+        return Expr(self.sim, self, other, '<')
 
     def __le__(self, other):
-        return ExprAST(self.sim, self, other, '<=')
+        return Expr(self.sim, self, other, '<=')
 
     def __gt__(self, other):
-        return ExprAST(self.sim, self, other, '>')
+        return Expr(self.sim, self, other, '>')
 
     def __ge__(self, other):
-        return ExprAST(self.sim, self, other, '>=')
+        return Expr(self.sim, self, other, '>=')
 
     def and_op(self, other):
-        return ExprAST(self.sim, self, other, '&&')
+        return Expr(self.sim, self, other, '&&')
 
     def cmp(lhs, rhs):
-        return ExprAST(lhs.sim, lhs, rhs, '==')
+        return Expr(lhs.sim, lhs, rhs, '==')
 
     def neq(lhs, rhs):
-        return ExprAST(lhs.sim, lhs, rhs, '!=')
+        return Expr(lhs.sim, lhs, rhs, '!=')
 
     def inv(self):
-        return ExprAST(self.sim, 1.0, self, '/')
+        return Expr(self.sim, 1.0, self, '/')
 
     def match(self, expr):
         return self.lhs == expr.lhs and \
@@ -78,18 +78,18 @@ class ExprAST:
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, \
             "Cannot use operator [] on specified type!"
-        return ExprVecAST(self.sim, self, as_lit_ast(self.sim, index))
+        return ExprVec(self.sim, self, as_lit_ast(self.sim, index))
 
     def generated_vector_index(self, index):
         return not [i for i in self.vec_generated if i == index]
 
     def set(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(AssignAST(self.sim, self, other))
+        return self.sim.add_statement(Assign(self.sim, self, other))
 
     def add(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
+        return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def infer_type(lhs, rhs, op):
         lhs_type = lhs.type()
@@ -122,84 +122,85 @@ class ExprAST:
         return self.expr_type
 
     def scope(self):
-        lscp = self.lhs.scope()
-        rscp = self.rhs.scope()
-        return lscp if lscp > rscp else rscp
+        lhs_scp = self.lhs.scope()
+        rhs_scp = self.rhs.scope()
+        return lhs_scp if lhs_scp > rhs_scp else rhs_scp
 
     def children(self):
         return [self.lhs, self.rhs]
 
     def generate(self, mem=False):
-        lexpr = self.lhs.generate(mem)
-        rexpr = self.rhs.generate()
+        lhs_expr = self.lhs.generate(mem)
+        rhs_expr = self.rhs.generate()
         if self.op == '[]':
             return self.sim.code_gen.generate_expr_access(
-                lexpr, rexpr, self.mem)
+                lhs_expr, rhs_expr, self.mem)
 
         if self.generated is False:
             assert self.expr_type != Type_Vector, \
-                "Vector code must be generated through ExprVecAST class!"
+                "Vector code must be generated through ExprVec class!"
 
             self.sim.code_gen.generate_expr(
-                self.expr_id, self.expr_type, lexpr, rexpr, self.op)
+                self.expr_id, self.expr_type, lhs_expr, rhs_expr, self.op)
             self.generated = True
 
         return self.sim.code_gen.generate_expr_ref(self.expr_id)
 
     def generate_inline(self, mem=False, recursive=False):
-        inline_lexpr = recursive and isinstance(self.lhs, ExprAST)
-        inline_rexpr = recursive and isinstance(self.rhs, ExprAST)
-        lexpr = (self.lhs.generate_inline(recursive, mem) if inline_lexpr
-                 else self.lhs.generate(mem))
-        rexpr = (self.rhs.generate_inline(recursive) if inline_rexpr
-                 else self.rhs.generate())
+        inline_lhs_expr = recursive and isinstance(self.lhs, Expr)
+        inline_rhs_expr = recursive and isinstance(self.rhs, Expr)
+        lhs_expr = (self.lhs.generate_inline(recursive, mem) if inline_lhs_expr
+                   else self.lhs.generate(mem))
+        rhs_expr = (self.rhs.generate_inline(recursive) if inline_rhs_expr
+                   else self.rhs.generate())
 
         if self.op == '[]':
             return self.sim.code_gen.generate_expr_access(
-                lexpr, rexpr, self.mem)
+                lhs_expr, rhs_expr, self.mem)
 
         assert self.expr_type != Type_Vector, \
-            "Vector code must be generated through ExprVecAST class!"
-        return self.sim.code_gen.generate_inline_expr(lexpr, rexpr, self.op)
+            "Vector code must be generated through ExprVec class!"
+        return self.sim.code_gen.generate_inline_expr(
+                lhs_expr, rhs_expr, self.op)
 
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)
         self.rhs = self.rhs.transform(fn)
         return fn(self)
 
-class ExprVecAST():
+class ExprVec():
     def __init__(self, sim, expr, index):
         self.sim = sim
         self.expr = expr
         self.index = index
-        self.lhs = (expr.lhs if not isinstance(expr.lhs, ExprAST)
-                    else ExprVecAST(sim, expr.lhs, index))
-        self.rhs = (expr.rhs if not isinstance(expr.rhs, ExprAST)
-                    else ExprVecAST(sim, expr.rhs, index))
+        self.lhs = (expr.lhs if not isinstance(expr.lhs, Expr)
+                    else ExprVec(sim, expr.lhs, index))
+        self.rhs = (expr.rhs if not isinstance(expr.rhs, Expr)
+                    else ExprVec(sim, expr.rhs, index))
 
     def __str__(self):
-        return (f"ExprVecAST<a: {self.lhs}, b: {self.rhs}, " +
+        return (f"ExprVec<a: {self.lhs}, b: {self.rhs}, " +
                 f"op: {self.expr.op} i: {self.index}>")
 
     def __sub__(self, other):
-        return ExprAST(self.sim, self, other, '-')
+        return Expr(self.sim, self, other, '-')
 
     def __mul__(self, other):
-        return ExprAST(self.sim, self, other, '*')
+        return Expr(self.sim, self, other, '*')
 
     def set(self, other):
-        return self.sim.add_statement(AssignAST(self.sim, self, other))
+        return self.sim.add_statement(Assign(self.sim, self, other))
 
     def add(self, other):
-        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
+        return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def type(self):
         return Type_Float
 
     def scope(self):
-        escp = self.expr.scope()
-        iscp = self.index.scope()
-        return escp if escp > iscp else iscp
+        expr_scp = self.expr.scope()
+        index_scp = self.index.scope()
+        return expr_scp if expr_scp > index_scp else index_scp
 
     def children(self):
         return [self.lhs, self.rhs, self.index]

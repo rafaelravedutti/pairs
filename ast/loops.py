@@ -1,22 +1,22 @@
-from ast.block import BlockAST
-from ast.branches import FilterAST
+from ast.block import Block
+from ast.branches import Filter
 from ast.data_types import Type_Int
-from ast.expr import ExprAST
+from ast.expr import Expr
 from ast.lit import as_lit_ast
 from ast.scope import Scope
 
 
-class IterAST():
+class Iter():
     last_iter = 0
 
     def new_id():
-        IterAST.last_iter += 1
-        return IterAST.last_iter - 1
+        Iter.last_iter += 1
+        return Iter.last_iter - 1
 
     def __init__(self, sim, loop):
         self.sim = sim
         self.loop = loop
-        self.iter_id = IterAST.new_id()
+        self.iter_id = Iter.new_id()
 
     def type(self):
         return Type_Int
@@ -25,15 +25,15 @@ class IterAST():
         return Scope(self.loop.block)
 
     def __mul__(self, other):
-        from ast.expr import ExprAST
-        return ExprAST(self.sim, self, other, '*')
+        from ast.expr import Expr
+        return Expr(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        from ast.expr import ExprAST
-        return ExprAST(self.sim, other, self, '*')
+        from ast.expr import Expr
+        return Expr(self.sim, other, self, '*')
 
     def __eq__(self, other):
-        if isinstance(other, IterAST):
+        if isinstance(other, Iter):
             return self.iter_id == other.iter_id
 
         return False
@@ -42,8 +42,8 @@ class IterAST():
         return self.__cmp__(other)
 
     def __mod__(self, other):
-        from ast.expr import ExprAST
-        return ExprAST(self.sim, self, other, '%')
+        from ast.expr import Expr
+        return Expr(self.sim, self, other, '%')
 
     def __str__(self):
         return f"Iter<{self.iter_id}>"
@@ -59,14 +59,14 @@ class IterAST():
         return fn(self)
 
 
-class ForAST():
+class For():
     def __init__(self, sim, range_min, range_max, block=None):
         self.sim = sim
-        self.iterator = IterAST(sim, self)
+        self.iterator = Iter(sim, self)
         self.min = as_lit_ast(sim, range_min)
         self.max = as_lit_ast(sim, range_max)
         self.parent_block = None
-        self.block = BlockAST(sim, []) if block is None else block
+        self.block = Block(sim, []) if block is None else block
 
     def __str__(self):
         return f"For<min: {self.min}, max: {self.max}>"
@@ -100,7 +100,7 @@ class ForAST():
         return fn(self)
 
 
-class ParticleForAST(ForAST):
+class ParticleFor(For):
     def __init__(self, sim, block=None):
         super().__init__(sim, 0, 0, block)
 
@@ -114,12 +114,12 @@ class ParticleForAST(ForAST):
         self.sim.code_gen.generate_for_epilogue()
 
 
-class WhileAST():
+class While():
     def __init__(self, sim, cond, block=None):
         self.sim = sim
         self.parent_block = None
         self.cond = cond
-        self.block = BlockAST(sim, []) if block is None else block
+        self.block = Block(sim, []) if block is None else block
 
     def __str__(self):
         return f"While<{self.cond}>"
@@ -137,8 +137,8 @@ class WhileAST():
         return [self.cond, self.block]
 
     def generate(self):
-        from ast.expr import ExprAST
-        cond_gen = (self.cond.generate() if not isinstance(self.cond, ExprAST)
+        from ast.expr import Expr
+        cond_gen = (self.cond.generate() if not isinstance(self.cond, Expr)
                     else self.cond.generate_inline())
         self.sim.code_gen.generate_while_preamble(cond_gen)
         self.block.generate()
@@ -150,7 +150,7 @@ class WhileAST():
         return fn(self)
 
 
-class NeighborForAST():
+class NeighborFor():
     def __init__(self, sim, particle, cell_lists):
         self.sim = sim
         self.parent_block = None
@@ -162,9 +162,9 @@ class NeighborForAST():
 
     def __iter__(self):
         cl = self.cell_lists
-        for s in ForAST(self.sim, 0, cl.nstencil):
+        for s in For(self.sim, 0, cl.nstencil):
             neigh_cell = cl.particle_cell[self.particle] + cl.stencil[s]
-            for nc in ForAST(self.sim, 0, cl.cell_sizes[neigh_cell]):
+            for nc in For(self.sim, 0, cl.cell_sizes[neigh_cell]):
                 it = cl.cell_particles[neigh_cell][nc]
-                for _ in FilterAST(self.sim, ExprAST.neq(it, self.particle)):
+                for _ in Filter(self.sim, Expr.neq(it, self.particle)):
                     yield it

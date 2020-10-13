@@ -1,17 +1,17 @@
-from ast.block import BlockAST
+from ast.block import Block
 from ast.lit import as_lit_ast
 
 
-class BranchAST:
+class Branch:
     def __init__(self, sim, cond, one_way=False, blk_if=None, blk_else=None):
         self.sim = sim
         self.parent_block = None
         self.cond = as_lit_ast(sim, cond)
         self.switch = True
-        self.block_if = BlockAST(sim, []) if blk_if is None else blk_if
+        self.block_if = Block(sim, []) if blk_if is None else blk_if
         self.block_else = \
             None if one_way \
-            else BlockAST(sim, []) if blk_else is None \
+            else Block(sim, []) if blk_else is None \
             else blk_else
 
     def __iter__(self):
@@ -56,7 +56,7 @@ class BranchAST:
         return fn(self)
 
 
-class FilterAST(BranchAST):
+class Filter(Branch):
     def __init__(self, sim, cond):
         super().__init__(sim, cond, True)
 

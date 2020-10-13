@@ -1,8 +1,8 @@
 from ast.arrays import Arrays
-from ast.block import BlockAST
-from ast.branches import FilterAST
+from ast.block import Block
+from ast.branches import Filter
 from ast.data_types import Type_Int, Type_Float, Type_Vector
-from ast.loops import ParticleForAST, NeighborForAST
+from ast.loops import ParticleFor, NeighborFor
 from ast.properties import Properties
 from ast.scope import Scope
 from ast.transform import Transform
@@ -25,9 +25,9 @@ class ParticleSimulation:
         self.scope = []
         self.nested_count = 0
         self.nest = False
-        self.block = BlockAST(self, [])
+        self.block = Block(self, [])
         self.setups = []
-        self.kernels = BlockAST(self, [])
+        self.kernels = Block(self, [])
         self.dimensions = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -65,28 +65,28 @@ class ParticleSimulation:
 
     def particle_pairs(self, cutoff_radius=None, position=None):
         self.clear_block()
-        for i in ParticleForAST(self):
-            for j in NeighborForAST(self, i, self.cell_lists):
+        for i in ParticleFor(self):
+            for j in NeighborFor(self, i, self.cell_lists):
                 if cutoff_radius is not None and position is not None:
                     dp = position[i] - position[j]
                     rsq = dp[0] * dp[0] + dp[1] * dp[1] + dp[2] * dp[2]
-                    for _ in FilterAST(self, rsq < cutoff_radius):
+                    for _ in Filter(self, rsq < cutoff_radius):
                         yield i, j, dp, rsq
 
                 else:
                     yield i, j
 
-        self.kernels = BlockAST.merge_blocks(self.kernels, self.block)
+        self.kernels = Block.merge_blocks(self.kernels, self.block)
 
     def particles(self):
         self.clear_block()
-        for i in ParticleForAST(self):
+        for i in ParticleFor(self):
             yield i
 
-        self.kernels = BlockAST.merge_blocks(self.kernels, self.block)
+        self.kernels = Block.merge_blocks(self.kernels, self.block)
 
     def clear_block(self):
-        self.block = BlockAST(self, [])
+        self.block = Block(self, [])
 
     def add_statement(self, stmt):
         if not self.scope:
@@ -114,10 +114,10 @@ class ParticleSimulation:
             self.nested_count += 1
 
     def generate(self):
-        program = BlockAST.from_list(self, [
+        program = Block.from_list(self, [
             PropertiesDecl(self).lower(),
             CellListsStencilBuild(self, self.cell_lists).lower(),
-            BlockAST.from_list(self, self.setups),
+            Block.from_list(self, self.setups),
             Timestep(self, self.ntimesteps, [
                 (CellListsBuild(self, self.cell_lists).lower(), 20),
                 PropertiesResetVolatile(self).lower(),
@@ -126,7 +126,7 @@ class ParticleSimulation:
         ])
 
         self.global_scope = Scope(program)
-        BlockAST.set_block_levels(program)
+        Block.set_block_levels(program)
         Transform.apply(program, Transform.flatten)
         Transform.apply(program, Transform.simplify)
         Transform.apply(program, Transform.reuse_index_expressions)

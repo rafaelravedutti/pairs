@@ -46,8 +46,8 @@ class Property:
         return self.sim.global_scope
 
     def __getitem__(self, expr_ast):
-        from ast.expr import ExprAST
-        return ExprAST(self.sim, self, expr_ast, '[]', True)
+        from ast.expr import Expr
+        return Expr(self.sim, self, expr_ast, '[]', True)
 
     def children(self):
         return []

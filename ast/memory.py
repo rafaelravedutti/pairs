@@ -1,16 +1,16 @@
-from ast.sizeof import SizeofAST
+from ast.sizeof import Sizeof
 from functools import reduce
 import operator
 
 
-class MallocAST:
+class Malloc:
     def __init__(self, sim, array, a_type, sizes, decl=False):
         self.sim = sim
         self.parent_block = None
         self.array = array
         self.array_type = a_type
         self.decl = decl
-        self.prim_size = SizeofAST(sim, a_type)
+        self.prim_size = Sizeof(sim, a_type)
         self.size = reduce(operator.mul, sizes) * self.prim_size
         self.sim.add_statement(self)
 
@@ -30,7 +30,7 @@ class MallocAST:
         return fn(self)
 
 
-class ReallocAST:
+class Realloc:
     def __init__(self, sim, array, size):
         self.sim = sim
         self.parent_block = None

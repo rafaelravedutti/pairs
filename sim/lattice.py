@@ -1,4 +1,4 @@
-from ast.loops import ForAST
+from ast.loops import For
 
 
 class ParticleLattice():
@@ -19,7 +19,7 @@ class ParticleLattice():
                 d_cfg = self.config[d]
                 n = int((d_cfg[1] - d_cfg[0]) / self.spacing[d] - 0.001) + 1
 
-                for d_idx in ForAST(self.sim, 0, n):
+                for d_idx in For(self.sim, 0, n):
                     index = (d_idx if index is None else index * n + d_idx)
                     loop_indexes.append(d_idx)
 

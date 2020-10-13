@@ -1,6 +1,6 @@
 from ast.data_types import Type_Int
 
-class SizeofAST:
+class Sizeof:
     def __init__(self, sim, data_type):
         self.sim = sim
         self.data_type = data_type

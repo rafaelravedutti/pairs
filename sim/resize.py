@@ -1,6 +1,6 @@
-from ast.branches import FilterAST
+from ast.branches import Filter
 from ast.data_types import Type_Int
-from ast.loops import WhileAST
+from ast.loops import While
 
 
 class Resize:
@@ -13,10 +13,10 @@ class Resize:
 
     def __iter__(self):
         self.resize_var.set(1)
-        for _ in WhileAST(self.sim, self.resize_var > 0):
+        for _ in While(self.sim, self.resize_var > 0):
             self.resize_var.set(0)
             yield self.capacity_var, self.resize_var
-            for _ in FilterAST(self.sim, self.resize_var > 0):
+            for _ in Filter(self.sim, self.resize_var > 0):
                 self.capacity_var.set(self.grow_fn(self.resize_var))
                 for a in self.arrays:
                     a.realloc()

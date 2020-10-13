@@ -1,8 +1,8 @@
-from ast.assign import AssignAST
+from ast.assign import Assign
 from ast.data_types import Type_Array
-from ast.expr import ExprAST
+from ast.expr import Expr
 from ast.lit import as_lit_ast
-from ast.memory import ReallocAST
+from ast.memory import Realloc
 from functools import reduce
 
 
@@ -57,7 +57,7 @@ class ArrayND:
         return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])
 
     def realloc(self):
-        return ReallocAST(self.sim, self, self.alloc_size())
+        return Realloc(self.sim, self, self.alloc_size())
 
     def children(self):
         return []
@@ -89,13 +89,13 @@ class ArrayAccess:
         return f"ArrayAccess<array: {self.array}, indexes: {self.indexes}>"
 
     def __add__(self, other):
-        return ExprAST(self.sim, self, other, '+')
+        return Expr(self.sim, self, other, '+')
 
     def __mul__(self, other):
-        return ExprAST(self.sim, self, other, '*')
+        return Expr(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        return ExprAST(self.sim, other, self, '*')
+        return Expr(self.sim, other, self, '*')
 
     def __getitem__(self, index):
         assert self.index is None, \
@@ -114,10 +114,10 @@ class ArrayAccess:
             self.index = as_lit_ast(self.sim, self.index)
 
     def set(self, other):
-        return self.sim.add_statement(AssignAST(self.sim, self, other))
+        return self.sim.add_statement(Assign(self.sim, self, other))
 
     def add(self, other):
-        return self.sim.add_statement(AssignAST(self.sim, self, self + other))
+        return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def type(self):
         return self.array.type() if self.index is None else Type_Array
