@@ -19,6 +19,7 @@ class Expr:
         self.op = op
         self.mem = mem
         self.expr_type = Expr.infer_type(self.lhs, self.rhs, self.op)
+        self.expr_scope = None
         self.vec_generated = []
         self.generated = False
 
@@ -122,9 +123,12 @@ class Expr:
         return self.expr_type
 
     def scope(self):
-        lhs_scp = self.lhs.scope()
-        rhs_scp = self.rhs.scope()
-        return lhs_scp if lhs_scp > rhs_scp else rhs_scp
+        if self.expr_scope is None:
+            lhs_scp = self.lhs.scope()
+            rhs_scp = self.rhs.scope()
+            self.expr_scope = lhs_scp if lhs_scp > rhs_scp else rhs_scp
+
+        return self.expr_scope
 
     def children(self):
         return [self.lhs, self.rhs]
@@ -173,6 +177,7 @@ class ExprVec():
         self.sim = sim
         self.expr = expr
         self.index = index
+        self.expr_scope = None
         self.lhs = (expr.lhs if not isinstance(expr.lhs, Expr)
                     else ExprVec(sim, expr.lhs, index))
         self.rhs = (expr.rhs if not isinstance(expr.rhs, Expr)
@@ -198,9 +203,12 @@ class ExprVec():
         return Type_Float
 
     def scope(self):
-        expr_scp = self.expr.scope()
-        index_scp = self.index.scope()
-        return expr_scp if expr_scp > index_scp else index_scp
+        if self.expr_scope is None:
+            expr_scp = self.expr.scope()
+            index_scp = self.index.scope()
+            self.expr_scope = expr_scp if expr_scp > index_scp else index_scp
+
+        return self.expr_scope
 
     def children(self):
         return [self.lhs, self.rhs, self.index]
