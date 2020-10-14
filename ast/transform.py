@@ -40,7 +40,7 @@ class Transform:
                 else:
                     raise Exception("Invalid property layout!")
 
-                new_expr = Expr(ast.expr.sim,ast.expr.lhs, flat_index, '[]',
+                new_expr = Expr(ast.expr.sim, ast.expr.lhs, flat_index, '[]',
                                 ast.expr.mem)
                 Transform.flattened_list.append((ast.expr.lhs, ast.index,
                                                  ast.expr.rhs, new_expr))

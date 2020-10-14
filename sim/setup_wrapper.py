@@ -1,5 +1,6 @@
 from ast.block import Block
 
+
 class SetupWrapper():
     def __init__(self):
         self.setups = Block(self, [])
@@ -9,4 +10,3 @@ class SetupWrapper():
 
     def lower(self):
         return self.setups
-

@@ -1,5 +1,6 @@
 from ast.visitor import Visitor
 
+
 class Block:
     def __init__(self, sim, stmts):
         self.sim = sim

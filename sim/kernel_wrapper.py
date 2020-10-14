@@ -1,5 +1,6 @@
 from ast.block import Block
 
+
 class KernelWrapper():
     def __init__(self):
         self.kernels = Block(self, [])
@@ -9,4 +10,3 @@ class KernelWrapper():
 
     def lower(self):
         return self.kernels
-

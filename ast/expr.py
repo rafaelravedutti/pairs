@@ -172,6 +172,7 @@ class Expr:
         self.rhs = self.rhs.transform(fn)
         return fn(self)
 
+
 class ExprVec():
     def __init__(self, sim, expr, index):
         self.sim = sim

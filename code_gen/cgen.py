@@ -63,7 +63,7 @@ class CGen:
 
     def generate_malloc(array, a_type, size, decl):
         t = ('double' if a_type == Type_Float or a_type == Type_Vector
-            else 'int' if a_type == Type_Int else 'bool')
+             else 'int' if a_type == Type_Int else 'bool')
 
         if decl:
             printer.print(f"{t} *{array} = ({t} *) malloc({size});")
@@ -72,7 +72,7 @@ class CGen:
 
     def generate_realloc(array, a_type, size):
         t = ('double' if a_type == Type_Float or a_type == Type_Vector
-            else 'int' if a_type == Type_Int else 'bool')
+             else 'int' if a_type == Type_Int else 'bool')
         printer.print(f"{array} = ({t} *) realloc({array}, {size});")
 
     def generate_sizeof(data_type):
@@ -118,5 +118,5 @@ class CGen:
 
     def generate_var_decl(v_name, v_type, v_value):
         t = ('double' if v_type == Type_Float
-            else 'int' if v_type == Type_Int else 'bool')
+             else 'int' if v_type == Type_Int else 'bool')
         printer.print(f"{t} {v_name} = {v_value};")
