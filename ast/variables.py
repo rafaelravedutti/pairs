@@ -8,20 +8,24 @@ class Variables:
         self.vars = []
         self.nvars = 0
 
-    def add(self, v_name, v_type):
+    def add(self, v_name, v_type, v_value=0):
         v = Var(self.sim, v_name, v_type)
         self.vars.append(v)
         return v
+
+    def all(self):
+        return self.vars
 
     def find(self, v_name):
         return [v for v in self.vars if v.name() == v_name][0]
 
 
 class Var:
-    def __init__(self, sim, var_name, var_type):
+    def __init__(self, sim, var_name, var_type, init_value=0):
         self.sim = sim
         self.var_name = var_name
         self.var_type = var_type
+        self.var_init_value = init_value
 
     def __str__(self):
         return f"Var<name: {self.var_name}, type: {self.var_type}>"
@@ -68,6 +72,9 @@ class Var:
     def type(self):
         return self.var_type
 
+    def init_value(self):
+        return self.var_init_value
+
     def scope(self):
         return self.sim.global_scope
 
@@ -76,6 +83,23 @@ class Var:
 
     def generate(self, mem=False):
         return self.var_name
+
+    def transform(self, fn):
+        return fn(self)
+
+
+class VarDecl:
+    def __init__(self, sim, var):
+        self.sim = sim
+        self.var = var
+        self.sim.add_statement(self)
+
+    def children(self):
+        return []
+
+    def generate(self, mem=False):
+        self.sim.code_gen.generate_var_decl(
+            self.var.name(), self.var.type(), self.var.init_value())
 
     def transform(self, fn):
         return fn(self)

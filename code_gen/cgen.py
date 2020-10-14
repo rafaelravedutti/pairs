@@ -111,3 +111,8 @@ class CGen:
 
     def generate_inline_expr(lhs, rhs, op):
         return f"{lhs} {op} {rhs}"
+
+    def generate_var_decl(v_name, v_type, v_value):
+        t = ('double' if v_type == Type_Float
+            else 'int' if v_type == Type_Int else 'bool')
+        printer.print(f"{t} {v_name} = {v_value};")

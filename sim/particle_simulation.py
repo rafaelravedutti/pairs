@@ -13,6 +13,7 @@ from sim.lattice import ParticleLattice
 from sim.properties import PropertiesDecl, PropertiesResetVolatile
 from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
+from sim.variables import VariablesDecl
 
 
 class ParticleSimulation:
@@ -53,8 +54,8 @@ class ParticleSimulation:
     def array(self, arr_name):
         return self.arrays.find(arr_name)
 
-    def add_var(self, var_name, var_type):
-        return self.vars.add(var_name, var_type)
+    def add_var(self, var_name, var_type, init_value=0):
+        return self.vars.add(var_name, var_type, init_value)
 
     def var(self, var_name):
         return self.vars.find(var_name)
@@ -119,6 +120,7 @@ class ParticleSimulation:
 
     def generate(self):
         program = Block.from_list(self, [
+            VariablesDecl(self).lower(),
             PropertiesDecl(self).lower(),
             CellListsStencilBuild(self, self.cell_lists).lower(),
             self.setups.lower(),

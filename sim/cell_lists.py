@@ -2,7 +2,6 @@ from ast.branches import Branch, Filter
 from ast.cast import Cast
 from ast.data_types import Type_Int
 from ast.expr import Expr
-from ast.layouts import Layout_SoA
 from ast.loops import For, ParticleFor
 from functools import reduce
 from sim.resize import Resize
