@@ -58,5 +58,9 @@ class Lit:
         assert mem is False, "Literal is not lvalue!"
         return self.value
 
+    def generate_inline(self, mem=False, recursive=False):
+        assert mem is False, "Literal is not lvalue!"
+        return self.value
+
     def transform(self, fn):
         return fn(self)

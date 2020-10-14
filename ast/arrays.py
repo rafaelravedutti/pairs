@@ -18,6 +18,9 @@ class Arrays:
         self.arrays.append(a)
         return a
 
+    def all(self):
+        return self.arrays
+
     def find(self, a_name):
         return [a for a in self.arrays if a.name() == a_name][0]
 
@@ -27,7 +30,7 @@ class ArrayND:
         self.sim = sim
         self.arr_name = a_name
         self.arr_sizes = \
-            [a_sizes] if not isinstance(a_sizes, list) \
+            [as_lit_ast(sim, a_sizes)] if not isinstance(a_sizes, list) \
             else [as_lit_ast(sim, s) for s in a_sizes]
         self.arr_type = a_type
         self.arr_layout = a_layout
@@ -167,4 +170,23 @@ class ArrayAccess:
     def transform(self, fn):
         self.array = self.array.transform(fn)
         self.indexes = [i.transform(fn) for i in self.indexes]
+        return fn(self)
+
+
+# TODO: Use this class to declare static arrays as oppose to Malloc
+class ArrayDecl:
+    def __init__(self, sim, array):
+        self.sim = sim
+        self.array = array
+        self.sim.add_statement(self)
+
+    def children(self):
+        return []
+
+    def generate(self, mem=False):
+        self.sim.code_gen.generate_array_decl(
+            self.array.name(), self.array.type(),
+            self.array.alloc_size().generate_inline(recursive=True))
+
+    def transform(self, fn):
         return fn(self)

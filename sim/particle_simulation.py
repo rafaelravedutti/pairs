@@ -7,6 +7,7 @@ from ast.loops import ParticleFor, NeighborFor
 from ast.properties import Properties
 from ast.transform import Transform
 from ast.variables import Variables
+from sim.arrays import ArraysDecl
 from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from sim.kernel_wrapper import KernelWrapper
 from sim.lattice import ParticleLattice
@@ -121,6 +122,7 @@ class ParticleSimulation:
     def generate(self):
         program = Block.from_list(self, [
             VariablesDecl(self).lower(),
+            ArraysDecl(self).lower(),
             PropertiesDecl(self).lower(),
             CellListsStencilBuild(self, self.cell_lists).lower(),
             self.setups.lower(),

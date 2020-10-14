@@ -11,7 +11,8 @@ class Malloc:
         self.array_type = a_type
         self.decl = decl
         self.prim_size = Sizeof(sim, a_type)
-        self.size = reduce(operator.mul, sizes) * self.prim_size
+        self.size = self.prim_size * (
+            reduce(operator.mul, sizes) if isinstance(sizes, list) else sizes)
         self.sim.add_statement(self)
 
     def children(self):
