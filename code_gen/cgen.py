@@ -4,6 +4,10 @@ from code_gen.printer import printer
 
 class CGen:
     def generate_program_preamble():
+        printer.print("#include <stdio.h>")
+        printer.print("#include <stdlib.h>")
+        printer.print("#include <stdbool.h>")
+        printer.print("")
         printer.print("int main() {")
 
     def generate_program_epilogue():
@@ -69,7 +73,7 @@ class CGen:
     def generate_realloc(array, a_type, size):
         t = ('double' if a_type == Type_Float or a_type == Type_Vector
             else 'int' if a_type == Type_Int else 'bool')
-        printer.print(f"{array} = ({t} *) realloc({size});")
+        printer.print(f"{array} = ({t} *) realloc({array}, {size});")
 
     def generate_sizeof(data_type):
         t = ('double' if data_type == Type_Float or data_type == Type_Vector
