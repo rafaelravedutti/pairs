@@ -8,8 +8,10 @@ from ast.properties import Properties
 from ast.transform import Transform
 from ast.variables import Variables
 from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
+from sim.kernel_wrapper import KernelWrapper
 from sim.lattice import ParticleLattice
 from sim.properties import PropertiesDecl, PropertiesResetVolatile
+from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
 
 
@@ -26,8 +28,8 @@ class ParticleSimulation:
         self.nested_count = 0
         self.nest = False
         self.block = Block(self, [])
-        self.setups = []
-        self.kernels = Block(self, [])
+        self.setups = SetupWrapper()
+        self.kernels = KernelWrapper()
         self.dimensions = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -63,7 +65,7 @@ class ParticleSimulation:
     def create_particle_lattice(self, config, spacing, props={}):
         positions = self.property('position')
         lattice = ParticleLattice(self, config, spacing, props, positions)
-        self.setups.append(lattice.lower())
+        self.setups.add_setup_block(lattice.lower())
 
     def particle_pairs(self, cutoff_radius=None, position=None):
         self.clear_block()
@@ -78,14 +80,14 @@ class ParticleSimulation:
                 else:
                     yield i, j
 
-        self.kernels = Block.merge_blocks(self.kernels, self.block)
+        self.kernels.add_kernel_block(self.block)
 
     def particles(self):
         self.clear_block()
         for i in ParticleFor(self):
             yield i
 
-        self.kernels = Block.merge_blocks(self.kernels, self.block)
+        self.kernels.add_kernel_block(self.block)
 
     def clear_block(self):
         self.block = Block(self, [])
@@ -119,11 +121,11 @@ class ParticleSimulation:
         program = Block.from_list(self, [
             PropertiesDecl(self).lower(),
             CellListsStencilBuild(self, self.cell_lists).lower(),
-            Block.from_list(self, self.setups),
+            self.setups.lower(),
             Timestep(self, self.ntimesteps, [
                 (CellListsBuild(self, self.cell_lists).lower(), 20),
                 PropertiesResetVolatile(self).lower(),
-                self.kernels
+                self.kernels.lower()
             ]).as_block()
         ])
 
