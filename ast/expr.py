@@ -76,6 +76,15 @@ class Expr:
                self.rhs == expr.rhs and \
                self.op == expr.op
 
+    def x(self):
+        return self.__getitem__(0)
+
+    def y(self):
+        return self.__getitem__(1)
+
+    def z(self):
+        return self.__getitem__(2)
+
     def __getitem__(self, index):
         assert self.lhs.type() == Type_Vector, \
             "Cannot use operator [] on specified type!"

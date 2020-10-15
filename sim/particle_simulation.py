@@ -75,7 +75,7 @@ class ParticleSimulation:
             for j in NeighborFor(self, i, self.cell_lists):
                 if cutoff_radius is not None and position is not None:
                     dp = position[i] - position[j]
-                    rsq = dp[0] * dp[0] + dp[1] * dp[1] + dp[2] * dp[2]
+                    rsq = dp.x() * dp.x() + dp.y() * dp.y() + dp.z() * dp.z()
                     for _ in Filter(self, rsq < cutoff_radius):
                         yield i, j, dp, rsq
 
