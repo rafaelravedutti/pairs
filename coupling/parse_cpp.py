@@ -21,11 +21,16 @@ def find_typerefs(node):
     for c in node.get_children():
         find_typerefs(c)
 
-path = "/home/rzlin/az16ahoq/repositories/walberla/src/mesa_pd/kernel"
+walberla_path = "/home/rzlin/az16ahoq/repositories/walberla"
+walberla_src = f"{walberla_path}/src"
+walberla_build_src = f"{walberla_path}/build/src"
+mesapd_path = f"{walberla_src}/mesa_pd"
 file = "SpringDashpot.h"
 typename = "SpringDashpot"
 index = clang.cindex.Index.create()
-tu = index.parse(f"{path}/{file}")
+tu = index.parse(
+    f"{mesapd_path}/kernel/{file}",
+    args=["-Wall", f"-I{walberla_src}", f"-I{walberla_build_src}"])
 
 diagnostics = tu.diagnostics
 for i in range(0, len(diagnostics)):
