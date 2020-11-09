@@ -3,13 +3,14 @@ from clang.cindex import CursorKind as kind
 
 
 def print_tree(node, indent=0):
-    spaces = ' ' * indent
-    line = node.location.line
-    column = node.location.column
-    print(f"{spaces}{line}:{column}> {node.spelling} ({node.kind})")
+    if node is not None:
+        spaces = ' ' * indent
+        line = node.location.line
+        column = node.location.column
+        print(f"{spaces}{line}:{column}> {node.spelling} ({node.kind})")
 
-    for c in node.get_children():
-        print_tree(c, indent + 2)
+        for c in node.get_children():
+            print_tree(c, indent + 2)
 
 
 def get_subtree(node, ref):
@@ -35,10 +36,29 @@ def get_subtree(node, ref):
 
         if cond_namespace or cond_func:
             if remaining is None:
-                print_tree(c)
-            else:
-                get_subtree(c, remaining)
+                return c
 
+            subtree_res = get_subtree(c, remaining)
+            if subtree_res is not None:
+                return subtree_res
+
+    return None
+
+def get_class_method(node, class_ref, function_name):
+    class_ref_ = class_ref if class_ref.startswith("class ") \
+                 else "class " + class_ref
+    for c in node.get_children():
+        if  c.spelling == function_name and \
+            (c.kind == kind.CXX_METHOD or c.kind == kind.FUNCTION_TEMPLATE):
+            for cc in c.get_children():
+                if cc.kind == kind.TYPE_REF and cc.spelling == class_ref_:
+                    return c
+
+        c_res = get_class_method(c, class_ref, function_name)
+        if c_res is not None:
+            return c_res
+
+    return None
 
 walberla_path = "/home/rzlin/az16ahoq/repositories/walberla"
 walberla_src = f"{walberla_path}/src"
@@ -64,5 +84,11 @@ for i in range(0, len(diagnostics)):
     print(diagnostics[i])
 
 print(f"Translation unit: {tu.spelling}")
-# print_kernel(tu.cursor, "walberla::mesa_pd::kernel::SpringDashpot")
-get_subtree(tu.cursor, "walberla::mesa_pd::kernel")
+subtree = get_subtree(tu.cursor, "walberla::mesa_pd::kernel")
+print_tree(subtree)
+
+kernel = get_class_method(
+        tu.cursor,
+        "walberla::mesa_pd::kernel::SpringDashpot",
+        "operator()")
+print_tree(kernel)
