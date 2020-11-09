@@ -1,25 +1,44 @@
 import clang.cindex
+from clang.cindex import CursorKind as kind
 
 
-def find_typerefs(node):
-    print(node)
-    print(node.kind)
+def print_tree(node, indent=0):
+    spaces = ' ' * indent
+    line = node.location.line
+    column = node.location.column
+    print(f"{spaces}{line}:{column}> {node.spelling} ({node.kind})")
 
     for c in node.get_children():
-        print(c)
+        print_tree(c, indent + 2)
 
-    #for t in node.get_tokens():
-    #    print(t.spelling, ' ... ', t.kind, ' ... ', t.cursor.kind)
 
-    if node.kind.is_reference():
-        ref_node = clang.cindex.Cursor_ref(node)
-        line = node.location.line
-        column = node.location.column
-        print(f"Found {ref_node.spelling} [line={line}, col={column}]")
+def get_subtree(node, ref):
+    splitted_ref = ref.split("::", 1)
+    if len(splitted_ref) == 2:
+        look_for, remaining = splitted_ref
+    else:
+        look_for = splitted_ref[0]
+        remaining = None
 
-    # Recurse for children of this node
     for c in node.get_children():
-        find_typerefs(c)
+        cond_namespace = remaining is not None and \
+                         (c.kind == kind.NAMESPACE or
+                          c.kind == kind.CLASS_DECL) and \
+                         c.spelling == look_for
+
+        cond_func = remaining is None and \
+                    (c.kind == kind.FUNCTION_TEMPLATE or \
+                     c.kind == kind.CXX_METHOD or \
+                     c.kind == kind.NAMESPACE or \
+                     c.kind == kind.CLASS_DECL) and \
+                    c.spelling == look_for
+
+        if cond_namespace or cond_func:
+            if remaining is None:
+                print_tree(c)
+            else:
+                get_subtree(c, remaining)
+
 
 walberla_path = "/home/rzlin/az16ahoq/repositories/walberla"
 walberla_src = f"{walberla_path}/src"
@@ -28,15 +47,22 @@ clang_include_path = "/software/anydsl/llvm_build/lib/clang/7.0.1/include"
 mpi_include_path = "/software/openmpi/4.0.0-llvm/include"
 mesapd_path = f"{walberla_src}/mesa_pd"
 filename = "SpringDashpot.hpp"
-typename = "SpringDashpot"
 index = clang.cindex.Index.create()
 tu = index.parse(
     f"{mesapd_path}/kernel/{filename}",
-    args=["-Wall", f"-I{walberla_src}", f"-I{walberla_build_src}", f"-I{clang_include_path}", f"-I{mpi_include_path}"])
+    args = [
+        "-Wall",
+        f"-I{walberla_src}",
+        f"-I{walberla_build_src}",
+        f"-I{clang_include_path}",
+        f"-I{mpi_include_path}"
+    ]
+)
 
 diagnostics = tu.diagnostics
 for i in range(0, len(diagnostics)):
     print(diagnostics[i])
 
 print(f"Translation unit: {tu.spelling}")
-find_typerefs(tu.cursor)
+# print_kernel(tu.cursor, "walberla::mesa_pd::kernel::SpringDashpot")
+get_subtree(tu.cursor, "walberla::mesa_pd::kernel")
