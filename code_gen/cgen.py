@@ -120,3 +120,10 @@ class CGen:
         t = ('double' if v_type == Type_Float
              else 'int' if v_type == Type_Int else 'bool')
         printer.print(f"{t} {v_name} = {v_value};")
+
+    def generate_sqrt(expr):
+        return f"sqrt({expr})"
+
+    def generate_select(cond, expr_if, expr_else):
+        return f"({cond}) ? ({expr_if}) : ({expr_else})"
+
