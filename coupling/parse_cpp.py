@@ -10,6 +10,7 @@ from clang.cindex import CursorKind as kind
 def print_tree(node, indent=0):
     if node is not None:
         spaces = ' ' * indent
+        tokens = node.get_tokens()
         line = node.location.line
         column = node.location.column
         print(f"{spaces}{line}:{column}> {node.spelling} ({node.kind})")
@@ -87,8 +88,31 @@ def addForceAtWFPosAtomic(sim, params):
     torque[p_idx].add((wf_pt - position[p_idx]) * f)
 
 def getType(sim, params):
-    p_idx = params[0]
-    return sim.property('type')[p_idx]
+    return sim.property('type')[params[0]]
+
+def getStiffness(sim, params):
+    type_a = params[0]
+    type_b = params[1]
+    ntypes = sim.var('ntypes')
+    return sim.array('stiffness')[type_a * ntypes + type_b]
+
+def getDampingN(sim, params):
+    type_a = params[0]
+    type_b = params[1]
+    ntypes = sim.var('ntypes')
+    return sim.array('damping_n')[type_a * ntypes + type_b]
+
+def getDampingT(sim, params):
+    type_a = params[0]
+    type_b = params[1]
+    ntypes = sim.var('ntypes')
+    return sim.array('damping_t')[type_a * ntypes + type_b]
+
+def getFriction(sim, params):
+    type_a = params[0]
+    type_b = params[1]
+    ntypes = sim.var('ntypes')
+    return sim.array('friction')[type_a * ntypes + type_b]
 
 def getNormalizedOrZero(sim, params):
     vec = params[0]
@@ -97,11 +121,15 @@ def getNormalizedOrZero(sim, params):
     epsilon = 1e-8 if double_prec else 1e-4
     return Select(sqr_length < epsilon * epsilon, vec, vec * (1.0 / Sqrt(sqr_length)))
 
+def length(sim, params):
+    vec = params[0]
+    return Sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2])
+
 def dot(sim, params):
     vec1 = params[0]
     vec2 = params[1]
     return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2]
- 
+
 def map_kernel_to_simulation(sim, node):
     contactPoint = sim.add_var('contactPoint', Type_Vector)
     contactNormal = sim.add_var('contactNormal', Type_Vector)
@@ -121,6 +149,11 @@ def map_kernel_to_simulation(sim, node):
                 'getVelocityAtWFPoint': getVelocityAtWFPoint,
                 'getType': getType,
                 'getNormalizedOrZero': getNormalizedOrZero,
+                'getStiffness': getStiffness,
+                'getDampingN': getDampingN,
+                'getDampingT': getDampingT,
+                'getFriction': getFriction,
+                'length': length,
                 'math::dot': dot
             }
         })
