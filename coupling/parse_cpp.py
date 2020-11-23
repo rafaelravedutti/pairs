@@ -10,14 +10,12 @@ from clang.cindex import CursorKind as kind
 def print_tree(node, indent=0):
     if node is not None:
         spaces = ' ' * indent
-        tokens = node.get_tokens()
         line = node.location.line
         column = node.location.column
         print(f"{spaces}{line}:{column}> {node.spelling} ({node.kind})")
 
         for child in node.get_children():
             print_tree(child, indent + 2)
-
 
 def get_subtree(node, ref):
     splitted_ref = ref.split("::", 1)
@@ -56,9 +54,11 @@ def get_class_method(node, class_ref, function_name):
 
     for child in node.get_children():
         if child.spelling == function_name and \
-           (child.kind == kind.CXX_METHOD or child.kind == kind.FUNCTION_TEMPLATE):
+           (child.kind == kind.CXX_METHOD or \
+            child.kind == kind.FUNCTION_TEMPLATE):
             for grandchild in child.get_children():
-                if grandchild.kind == kind.TYPE_REF and grandchild.spelling == class_ref_:
+                if grandchild.kind == kind.TYPE_REF and \
+                   grandchild.spelling == class_ref_:
                     return child
 
         child_res = get_class_method(child, class_ref, function_name)
@@ -69,7 +69,7 @@ def get_class_method(node, class_ref, function_name):
 
 def getVelocityAtWFPoint(sim, params):
     p_idx = params[0]
-    ac    = params[1]
+    #ac    = params[1]
     wf_pt = params[2]
     lin_vel = sim.property('velocity')
     ang_vel = sim.property('angular_velocity')
@@ -78,7 +78,7 @@ def getVelocityAtWFPoint(sim, params):
 
 def addForceAtWFPosAtomic(sim, params):
     p_idx = params[0]
-    ac    = params[1]
+    #ac    = params[1]
     f     = params[2]
     wf_pt = params[3]
     force = sim.property('force')
@@ -119,7 +119,9 @@ def getNormalizedOrZero(sim, params):
     sqr_length = vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2]
     double_prec = True
     epsilon = 1e-8 if double_prec else 1e-4
-    return Select(sqr_length < epsilon * epsilon, vec, vec * (1.0 / Sqrt(sqr_length)))
+    return Select(
+        sqr_length < epsilon * epsilon,
+        vec, vec * (1.0 / Sqrt(sqr_length)))
 
 def length(sim, params):
     vec = params[0]
@@ -168,7 +170,7 @@ def map_method_tree(sim, node, assignments={}, mappings={}):
                         "Expected type reference!"
 
                 if child.kind == kind.COMPOUND_STMT:
-                    return map_method_tree(sim, c, assignments, mappings)
+                    return map_method_tree(sim, child, assignments, mappings)
 
         if node.kind == kind.COMPOUND_STMT:
             block = Block([])
@@ -182,15 +184,18 @@ def map_method_tree(sim, node, assignments={}, mappings={}):
         if node.kind == kind.DECL_STMT:
             child = node.get_children()[0]
             if child.kind == kind.VAR_DECL:
-                decl_type = child.get_children()[0]
+                #decl_type = child.get_children()[0]
                 decl_expr = child.get_children()[1]
-                assignments[child.spelling] = map_expression(sim, decl_expr, assignments, mappings)
+                assignments[child.spelling] = \
+                    map_expression(sim, decl_expr, assignments, mappings)
 
             return None
 
         if node.kind == kind.IF_STMT:
-            cond = map_expression(sim, node.get_children()[0], assignments, mappings)
-            block_if_stmt = map_method_tree(sim, node.get_children()[0], assignments, mappings)
+            cond = map_expression(
+                sim, node.get_children()[0], assignments, mappings)
+            block_if_stmt = map_method_tree(
+                sim, node.get_children()[0], assignments, mappings)
             return Branch(sim, cond, True, block_if_stmt, None)
 
         if node.kind == kind.RETURN_STMT:
@@ -213,7 +218,8 @@ def map_call(sim, node, assignments, mappings):
                         else f"{namespace}::{grandchild.spelling}"
 
         if child.kind == kind.MEMBER_REF_EXPR:
-            params.append(map_expression(sim, child.get_children()[0], assignments, mappings))
+            params.append(map_expression(
+                    sim, child.get_children()[0], assignments, mappings))
 
         else:
             params.append(map_expression(sim, child, assignments, mappings))
@@ -228,7 +234,8 @@ def map_namespace(node):
     while children is not None and len(children) > 0:
         child = children[0]
         if child.kind == kind.NAMESPACE_REF:
-            namespace = child.spelling if namespace is None else f"{child.spelling}::{namespace}"
+            namespace = child.spelling if namespace is None \
+                        else f"{child.spelling}::{namespace}"
 
         children = child.get_children()
 
@@ -236,7 +243,8 @@ def map_namespace(node):
 
 def map_expression(sim, node, assignments, mappings):
     if node.kind == kind.UNEXPOSED_EXPR:
-        return map_expression(sim, node.get_children()[0], assignments, mappings)
+        return map_expression(
+            sim, node.get_children()[0], assignments, mappings)
 
     if node.kind == kind.DECL_REF_EXPR:
         if node.spelling in assignments:
@@ -250,35 +258,28 @@ def map_expression(sim, node, assignments, mappings):
 
     return None
 
-walberla_path = "/home/rzlin/az16ahoq/repositories/walberla"
-walberla_src = f"{walberla_path}/src"
-walberla_build_src = f"{walberla_path}/build/src"
-clang_include_path = "/software/anydsl/llvm_build/lib/clang/7.0.1/include"
-mpi_include_path = "/software/openmpi/4.0.0-llvm/include"
-mesapd_path = f"{walberla_src}/mesa_pd"
-filename = "SpringDashpot.hpp"
-index = clang.cindex.Index.create()
-tu = index.parse(
-    f"{mesapd_path}/kernel/{filename}",
-    args = [
-        "-Wall",
-        f"-I{walberla_src}",
-        f"-I{walberla_build_src}",
-        f"-I{clang_include_path}",
-        f"-I{mpi_include_path}"
-    ]
-)
+def parse_walberla_file(filename):
+    walberla_path = "/home/rzlin/az16ahoq/repositories/walberla"
+    walberla_src = f"{walberla_path}/src"
+    walberla_build_src = f"{walberla_path}/build/src"
+    clang_include_path = "/software/anydsl/llvm_build/lib/clang/7.0.1/include"
+    mpi_include_path = "/software/openmpi/4.0.0-llvm/include"
+    
+    index = clang.cindex.Index.create()
+    tu = index.parse(
+        f"{walberla_src}/{filename}",
+        args = [
+            "-Wall",
+            f"-I{walberla_src}",
+            f"-I{walberla_build_src}",
+            f"-I{clang_include_path}",
+            f"-I{mpi_include_path}"
+        ]
+    )
 
-diagnostics = tu.diagnostics
-for i in range(0, len(diagnostics)):
-    print(diagnostics[i])
+    diagnostics = tu.diagnostics
+    for i in range(0, len(diagnostics)):
+        print(diagnostics[i])
 
-print(f"Translation unit: {tu.spelling}")
-#subtree = get_subtree(tu.cursor, "walberla::mesa_pd::kernel")
-#print_tree(subtree)
-
-kernel = get_class_method(
-        tu.cursor,
-        "walberla::mesa_pd::kernel::SpringDashpot",
-        "operator()")
-print_tree(kernel)
+    print(f"Translation unit: {tu.spelling}")
+    return tu
