@@ -120,10 +120,7 @@ class ParticleSimulation:
             self.nested_count += 1
 
     def generate(self):
-        program = Block.from_list(self, [
-            VariablesDecl(self).lower(),
-            ArraysDecl(self).lower(),
-            PropertiesDecl(self).lower(),
+        body = Block.from_list(self, [
             CellListsStencilBuild(self, self.cell_lists).lower(),
             self.setups.lower(),
             Timestep(self, self.ntimesteps, [
@@ -133,6 +130,13 @@ class ParticleSimulation:
             ]).as_block()
         ])
 
+        decls = Block.from_list(self, [
+            VariablesDecl(self).lower(),
+            ArraysDecl(self).lower(),
+            PropertiesDecl(self).lower(),
+        ])
+
+        program = Block.merge_blocks(decls, body)
         self.global_scope = program
         Block.set_block_levels(program)
         Transform.apply(program, Transform.flatten)

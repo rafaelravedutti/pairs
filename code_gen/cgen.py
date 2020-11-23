@@ -126,4 +126,3 @@ class CGen:
 
     def generate_select(cond, expr_if, expr_else):
         return f"({cond}) ? ({expr_if}) : ({expr_else})"
-
