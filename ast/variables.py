@@ -9,7 +9,7 @@ class Variables:
         self.nvars = 0
 
     def add(self, v_name, v_type, v_value=0):
-        v = Var(self.sim, v_name, v_type)
+        v = Var(self.sim, v_name, v_type, v_value)
         self.vars.append(v)
         return v
 
@@ -71,6 +71,9 @@ class Var:
 
     def type(self):
         return self.var_type
+
+    def set_initial_value(self, value):
+        self.var_init_value = value
 
     def init_value(self):
         return self.var_init_value

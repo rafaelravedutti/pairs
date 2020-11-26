@@ -25,7 +25,7 @@ class CellLists:
             self.nneighbor_cells[d] * 2 + 1 for d in range(0, sim.dimensions)])
 
         self.ncells_all = self.sim.add_var('ncells_all', Type_Int)
-        self.cell_capacity = self.sim.add_var('cell_capacity', Type_Int)
+        self.cell_capacity = self.sim.add_var('cell_capacity', Type_Int, 20)
         self.ncells = self.sim.add_static_array(
             'ncells', self.sim.dimensions, Type_Int)
         self.cell_particles = self.sim.add_array(
@@ -45,9 +45,17 @@ class CellListsStencilBuild:
 
     def lower(self):
         cl = self.cell_lists
+        ncells = self.sim.grid.get_ncells_for_spacing(cl.spacing)
         index = None
 
         self.sim.clear_block()
+        nall = 1
+        for d in range(0, self.sim.dimensions):
+            cl.ncells[d].set(ncells[d])
+            nall *= ncells[d]
+
+        cl.ncells_all.set_initial_value(nall)
+
         for _ in self.sim.nest_mode():
             cl.nstencil.set(0)
             for d in range(0, self.sim.dimensions):

@@ -4,9 +4,6 @@ class Grid:
         self.ndims = len(config)
         self.config = config
 
-    def ndims(self):
-        return self.ndims
-
     def range(self, dim):
         return self.config[dim]
 
@@ -35,8 +32,8 @@ class Grid:
         return self.max(2)
 
     def get_ncells_for_spacing(self, spacing):
-        return [(self.max(d) - self.min(d) / spacing[d])
-                for d in range(0, self.ndims())]
+        return [int(self.max(d) - self.min(d) / spacing)
+                for d in range(0, self.ndims)]
 
 
 class Grid2D(Grid):
