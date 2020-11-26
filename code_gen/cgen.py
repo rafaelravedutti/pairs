@@ -3,6 +3,13 @@ from code_gen.printer import printer
 
 
 class CGen:
+    def type2keyword(type_):
+        return (
+            'double' if type_ == Type_Float or type_ == Type_Vector
+            else 'int' if type_ == Type_Int
+            else 'bool'
+        )
+
     def generate_program_preamble():
         printer.print("#include <stdio.h>")
         printer.print("#include <stdlib.h>")
@@ -20,10 +27,8 @@ class CGen:
         printer.add_ind(-4)
 
     def generate_cast(ctype, expr):
-        t = ('double' if ctype == Type_Float
-             else 'int' if ctype == Type_Int else 'bool')
-
-        return f"({t})({expr})"
+        tkw = CGen.type2keyword(ctype)
+        return f"({tkw})({expr})"
 
     def generate_if(cond):
         printer.print(f"if({cond}) {{")
@@ -38,10 +43,8 @@ class CGen:
         printer.print(f"{dest} = {src};")
 
     def generate_array_decl(array, a_type, size):
-        t = ('double' if a_type == Type_Float
-             else 'int' if a_type == Type_Int else 'bool')
-
-        printer.print(f"{t} {array}[{size}];")
+        tkw = CGen.type2keyword(a_type)
+        printer.print(f"{tkw} {array}[{size}];")
 
     def generate_array_access_ref(acc_id, array, index, mem=False):
         if mem:
@@ -51,30 +54,24 @@ class CGen:
 
     def generate_array_access(acc_id, acc_type, array, index):
         ref = CGen.generate_array_access_ref(acc_id, array, index)
-        t = ('double' if acc_type == Type_Float
-             else 'int' if acc_type == Type_Int else 'bool')
-
-        acc = f"const {t} {ref} = {array}[{index}];"
+        tkw = CGen.type2keyword(acc_type)
+        acc = f"const {tkw} {ref} = {array}[{index}];"
         printer.print(acc)
 
     def generate_malloc(array, a_type, size, decl):
-        t = ('double' if a_type == Type_Float or a_type == Type_Vector
-             else 'int' if a_type == Type_Int else 'bool')
-
+        tkw = CGen.type2keyword(a_type)
         if decl:
-            printer.print(f"{t} *{array} = ({t} *) malloc({size});")
+            printer.print(f"{tkw} *{array} = ({tkw} *) malloc({size});")
         else:
-            printer.print(f"{array} = ({t} *) malloc({size});")
+            printer.print(f"{array} = ({tkw} *) malloc({size});")
 
     def generate_realloc(array, a_type, size):
-        t = ('double' if a_type == Type_Float or a_type == Type_Vector
-             else 'int' if a_type == Type_Int else 'bool')
-        printer.print(f"{array} = ({t} *) realloc({array}, {size});")
+        tkw = CGen.type2keyword(a_type)
+        printer.print(f"{array} = ({tkw} *) realloc({array}, {size});")
 
     def generate_sizeof(data_type):
-        t = ('double' if data_type == Type_Float or data_type == Type_Vector
-             else 'int' if data_type == Type_Int else 'bool')
-        return f"sizeof({t})"
+        tkw = CGen.type2keyword(data_type)
+        return f"sizeof({tkw})"
 
     def generate_for_preamble(iter_id, rmin, rmax):
         printer.print(
@@ -94,10 +91,8 @@ class CGen:
 
     def generate_expr(expr_id, expr_type, lhs, rhs, op):
         ref = CGen.generate_expr_ref(expr_id)
-        t = ('double' if expr_type == Type_Float
-             else 'int' if expr_type == Type_Int else 'bool')
-
-        printer.print(f"const {t} {ref} = {lhs} {op} {rhs};")
+        tkw = CGen.type2keyword(expr_type)
+        printer.print(f"const {tkw} {ref} = {lhs} {op} {rhs};")
 
     def generate_expr_access(lhs, rhs, mem):
         return f"{lhs}[{rhs}]" if mem else f"{lhs}_{rhs}"
@@ -113,9 +108,8 @@ class CGen:
         return f"{lhs} {op} {rhs}"
 
     def generate_var_decl(v_name, v_type, v_value):
-        t = ('double' if v_type == Type_Float
-             else 'int' if v_type == Type_Int else 'bool')
-        printer.print(f"{t} {v_name} = {v_value};")
+        tkw = CGen.type2keyword(v_type)
+        printer.print(f"{tkw} {v_name} = {v_value};")
 
     def generate_sqrt(expr):
         return f"sqrt({expr})"
