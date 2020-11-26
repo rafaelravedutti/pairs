@@ -9,8 +9,9 @@ import math
 
 
 class CellLists:
-    def __init__(self, sim, spacing, cutoff_radius):
+    def __init__(self, sim, grid, spacing, cutoff_radius):
         self.sim = sim
+        self.grid = grid
         self.spacing = spacing
 
         self.nneighbor_cells = [
@@ -25,7 +26,7 @@ class CellLists:
 
         self.ncells_all = self.sim.add_var('ncells_all', Type_Int)
         self.cell_capacity = self.sim.add_var('cell_capacity', Type_Int)
-        self.ncells = self.sim.add_array(
+        self.ncells = self.sim.add_static_array(
             'ncells', self.sim.dimensions, Type_Int)
         self.cell_particles = self.sim.add_array(
             'cell_particles', [self.ncells_all, self.cell_capacity], Type_Int)
@@ -69,7 +70,7 @@ class CellListsBuild:
 
     def lower(self):
         cl = self.cell_lists
-        cfg = cl.sim.grid_config
+        grid = self.sim.grid
         spc = cl.spacing
         positions = self.sim.property('position')
 
@@ -80,7 +81,7 @@ class CellListsBuild:
 
             for i in ParticleFor(self.sim):
                 cell_index = [
-                    Cast.int(self.sim, (positions[i][d] - cfg[d][0]) / spc)
+                    Cast.int(self.sim, (positions[i][d] - grid.min(d)) / spc)
                     for d in range(0, self.sim.dimensions)]
 
                 flat_idx = None

@@ -37,15 +37,11 @@ class CGen:
     def generate_assignment(dest, src):
         printer.print(f"{dest} = {src};")
 
-    def generate_array_decl(array, a_type, sizes):
+    def generate_array_decl(array, a_type, size):
         t = ('double' if a_type == Type_Float
              else 'int' if a_type == Type_Int else 'bool')
 
-        gen_str = f"{t} {array}"
-        for s in sizes:
-            gen_str += f"[{s}]"
-
-        printer.print(gen_str)
+        printer.print(f"{t} {array}[{size}];")
 
     def generate_array_access_ref(acc_id, array, index, mem=False):
         if mem:

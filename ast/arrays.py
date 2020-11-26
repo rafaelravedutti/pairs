@@ -14,9 +14,14 @@ class Arrays:
         self.narrays = 0
 
     def add(self, a_name, a_sizes, a_type, a_layout=Layout_AoS):
-        a = ArrayND(self.sim, a_name, a_sizes, a_type, a_layout)
-        self.arrays.append(a)
-        return a
+        array = ArrayND(self.sim, a_name, a_sizes, a_type, a_layout)
+        self.arrays.append(array)
+        return array
+
+    def add_static(self, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+        array = ArrayStatic(self.sim, a_name, a_sizes, a_type, a_layout)
+        self.arrays.append(array)
+        return array
 
     def all(self):
         return self.arrays
@@ -25,7 +30,7 @@ class Arrays:
         return [a for a in self.arrays if a.name() == a_name][0]
 
 
-class ArrayND:
+class Array:
     def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
         self.sim = sim
         self.arr_name = a_name
@@ -35,10 +40,7 @@ class ArrayND:
         self.arr_type = a_type
         self.arr_layout = a_layout
         self.arr_ndims = len(self.arr_sizes)
-
-    def __str__(self):
-        return (f"ArrayND<name: {self.arr_name}, sizes: {self.arr_sizes}, " +
-                f"type: {self.arr_type}>")
+        self.static = False
 
     def __getitem__(self, expr_ast):
         return ArrayAccess(self.sim, self, expr_ast)
@@ -61,11 +63,11 @@ class ArrayND:
     def ndims(self):
         return self.arr_ndims
 
+    def is_static(self):
+        return self.static
+
     def alloc_size(self):
         return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])
-
-    def realloc(self):
-        return Realloc(self.sim, self, self.arr_type, self.alloc_size())
 
     def children(self):
         return []
@@ -75,6 +77,32 @@ class ArrayND:
 
     def transform(self, fn):
         return fn(self)
+
+
+class ArrayStatic(Array):
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+        super().__init__(sim, a_name, a_sizes, a_type, a_layout)
+        self.static = True
+
+    def __str__(self):
+        return (f"ArrayStatic<name: {self.arr_name}, " +
+                f"sizes: {self.arr_sizes}, " +
+                f"type: {self.arr_type}>")
+
+    def realloc(self):
+        raise Exception("Static array cannot be reallocated!")
+
+
+class ArrayND(Array):
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+        super().__init__(sim, a_name, a_sizes, a_type, a_layout)
+
+    def __str__(self):
+        return (f"ArrayND<name: {self.arr_name}, sizes: {self.arr_sizes}, " +
+                f"type: {self.arr_type}>")
+
+    def realloc(self):
+        return Realloc(self.sim, self, self.arr_type, self.alloc_size())
 
 
 class ArrayAccess:
@@ -173,7 +201,6 @@ class ArrayAccess:
         return fn(self)
 
 
-# TODO: Use this class to declare static arrays as oppose to Malloc
 class ArrayDecl:
     def __init__(self, sim, array):
         self.sim = sim

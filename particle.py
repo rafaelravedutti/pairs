@@ -14,9 +14,9 @@ position = psim.add_vector_property('position', layout=Layout_SoA)
 velocity = psim.add_vector_property('velocity')
 force = psim.add_vector_property('force', vol=True)
 
-grid_config = [[0.0, 4.0], [0.0, 4.0], [0.0, 4.0]]
-psim.setup_grid(grid_config)
-psim.create_particle_lattice(grid_config, spacing=[1.0, 1.0, 1.0])
+grid = psim.grid_3d(0.0, 4.0, 0.0, 4.0, 0.0, 4.0)
+psim.create_particle_lattice(grid, spacing=[1.0, 1.0, 1.0])
+psim.create_cell_lists(grid, 2.8, 2.8)
 
 for i, j, delta, rsq in psim.particle_pairs(cutoff_radius, position):
     sr2 = 1.0 / rsq

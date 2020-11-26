@@ -9,6 +9,7 @@ from ast.transform import Transform
 from ast.variables import Variables
 from sim.arrays import ArraysDecl
 from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
+from sim.grid import Grid2D, Grid3D
 from sim.kernel_wrapper import KernelWrapper
 from sim.lattice import ParticleLattice
 from sim.properties import PropertiesDecl, PropertiesResetVolatile
@@ -25,7 +26,8 @@ class ParticleSimulation:
         self.vars = Variables(self)
         self.arrays = Arrays(self)
         self.nparticles = self.add_var('nparticles', Type_Int)
-        self.grid_config = []
+        self.grid = None
+        self.cell_lists = None
         self.scope = []
         self.nested_count = 0
         self.nest = False
@@ -36,7 +38,6 @@ class ParticleSimulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
-        self.cell_lists = CellLists(self, 2.8, 2.8)
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
         return self.properties.add(prop_name, Type_Float, value, vol)
@@ -52,6 +53,11 @@ class ParticleSimulation:
     def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
         return self.arrays.add(arr_name, arr_sizes, arr_type, arr_layout)
 
+    def add_static_array(self, arr_name, arr_sizes,
+                         arr_type, arr_layout=Layout_AoS):
+        return self.arrays.add_static(
+            arr_name, arr_sizes, arr_type, arr_layout)
+
     def array(self, arr_name):
         return self.arrays.find(arr_name)
 
@@ -61,13 +67,22 @@ class ParticleSimulation:
     def var(self, var_name):
         return self.vars.find(var_name)
 
-    def setup_grid(self, config):
-        self.grid_config = config
+    def grid_2d(self, xmin, xmax, ymin, ymax):
+        self.grid = Grid2D(self, xmin, xmax, ymin, ymax)
+        return self.grid
 
-    def create_particle_lattice(self, config, spacing, props={}):
+    def grid_3d(self, xmin, xmax, ymin, ymax, zmin, zmax):
+        self.grid = Grid3D(self, xmin, xmax, ymin, ymax, zmin, zmax)
+        return self.grid
+
+    def create_particle_lattice(self, grid, spacing, props={}):
         positions = self.property('position')
-        lattice = ParticleLattice(self, config, spacing, props, positions)
+        lattice = ParticleLattice(self, grid, spacing, props, positions)
         self.setups.add_setup_block(lattice.lower())
+
+    def create_cell_lists(self, grid, spacing, cutoff_radius):
+        self.cell_lists = CellLists(self, grid, spacing, cutoff_radius)
+        return self.cell_lists
 
     def particle_pairs(self, cutoff_radius=None, position=None):
         self.clear_block()

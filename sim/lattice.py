@@ -2,9 +2,9 @@ from ast.loops import For
 
 
 class ParticleLattice():
-    def __init__(self, sim, config, spacing, props, positions):
+    def __init__(self, sim, grid, spacing, props, positions):
         self.sim = sim
-        self.config = config
+        self.grid = grid
         self.spacing = spacing
         self.props = props
         self.positions = positions
@@ -16,8 +16,8 @@ class ParticleLattice():
         self.sim.clear_block()
         for _ in self.sim.nest_mode():
             for d in range(0, self.sim.dimensions):
-                d_cfg = self.config[d]
-                n = int((d_cfg[1] - d_cfg[0]) / self.spacing[d] - 0.001) + 1
+                d_min, d_max = self.grid.range(d)
+                n = int((d_max - d_min) / self.spacing[d] - 0.001) + 1
 
                 for d_idx in For(self.sim, 0, n):
                     index = (d_idx if index is None else index * n + d_idx)
@@ -25,7 +25,7 @@ class ParticleLattice():
 
                     if d == self.sim.dimensions - 1:
                         for d_ in range(0, self.sim.dimensions):
-                            pos = self.config[d_][0] + \
+                            pos = self.grid.min(d_) + \
                                   self.spacing[d_] * loop_indexes[d_]
                             self.positions[index][d_].set(pos)
 

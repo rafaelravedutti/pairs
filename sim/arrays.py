@@ -1,4 +1,5 @@
 from ast.memory import Malloc
+from ast.arrays import ArrayDecl
 
 
 class ArraysDecl:
@@ -8,6 +9,9 @@ class ArraysDecl:
     def lower(self):
         self.sim.clear_block()
         for a in self.sim.arrays.all():
-            Malloc(self.sim, a, a.type(), a.alloc_size(), True)
+            if a.is_static():
+                ArrayDecl(self.sim, a)
+            else:
+                Malloc(self.sim, a, a.type(), a.alloc_size(), True)
 
         return self.sim.block
