@@ -17,6 +17,7 @@ def print_tree(node, indent=0):
         for child in node.get_children():
             print_tree(child, indent + 2)
 
+
 def get_subtree(node, ref):
     splitted_ref = ref.split("::", 1)
     if len(splitted_ref) == 2:
@@ -32,11 +33,11 @@ def get_subtree(node, ref):
                          child.spelling == look_for
 
         cond_func = remaining is None and \
-                    (child.kind == kind.FUNCTION_TEMPLATE or \
-                     child.kind == kind.CXX_METHOD or \
-                     child.kind == kind.NAMESPACE or \
-                     child.kind == kind.CLASS_DECL) and \
-                    child.spelling == look_for
+            (child.kind == kind.FUNCTION_TEMPLATE or
+             child.kind == kind.CXX_METHOD or
+             child.kind == kind.NAMESPACE or
+             child.kind == kind.CLASS_DECL) and \
+            child.spelling == look_for
 
         if cond_namespace or cond_func:
             if remaining is None:
@@ -48,14 +49,15 @@ def get_subtree(node, ref):
 
     return None
 
+
 def get_class_method(node, class_ref, function_name):
     class_ref_ = class_ref if class_ref.startswith("class ") \
                  else "class " + class_ref
 
     for child in node.get_children():
         if child.spelling == function_name and \
-           (child.kind == kind.CXX_METHOD or \
-            child.kind == kind.FUNCTION_TEMPLATE):
+            (child.kind == kind.CXX_METHOD or
+             child.kind == kind.FUNCTION_TEMPLATE):
             for grandchild in child.get_children():
                 if grandchild.kind == kind.TYPE_REF and \
                    grandchild.spelling == class_ref_:
@@ -67,19 +69,21 @@ def get_class_method(node, class_ref, function_name):
 
     return None
 
+
 def getVelocityAtWFPoint(sim, params):
     p_idx = params[0]
-    #ac    = params[1]
+    # ac    = params[1]
     wf_pt = params[2]
     lin_vel = sim.property('velocity')
     ang_vel = sim.property('angular_velocity')
     position = sim.property('position')
     return lin_vel[p_idx] + ang_vel[p_idx] * (wf_pt - position[p_idx])
 
+
 def addForceAtWFPosAtomic(sim, params):
     p_idx = params[0]
-    #ac    = params[1]
-    f     = params[2]
+    # ac    = params[1]
+    f = params[2]
     wf_pt = params[3]
     force = sim.property('force')
     torque = sim.property('torque')
@@ -87,8 +91,10 @@ def addForceAtWFPosAtomic(sim, params):
     force[p_idx].add(f)
     torque[p_idx].add((wf_pt - position[p_idx]) * f)
 
+
 def getType(sim, params):
     return sim.property('type')[params[0]]
+
 
 def getStiffness(sim, params):
     type_a = params[0]
@@ -96,11 +102,13 @@ def getStiffness(sim, params):
     ntypes = sim.var('ntypes')
     return sim.array('stiffness')[type_a * ntypes + type_b]
 
+
 def getDampingN(sim, params):
     type_a = params[0]
     type_b = params[1]
     ntypes = sim.var('ntypes')
     return sim.array('damping_n')[type_a * ntypes + type_b]
+
 
 def getDampingT(sim, params):
     type_a = params[0]
@@ -108,11 +116,13 @@ def getDampingT(sim, params):
     ntypes = sim.var('ntypes')
     return sim.array('damping_t')[type_a * ntypes + type_b]
 
+
 def getFriction(sim, params):
     type_a = params[0]
     type_b = params[1]
     ntypes = sim.var('ntypes')
     return sim.array('friction')[type_a * ntypes + type_b]
+
 
 def getNormalizedOrZero(sim, params):
     vec = params[0]
@@ -123,14 +133,17 @@ def getNormalizedOrZero(sim, params):
         sqr_length < epsilon * epsilon,
         vec, vec * (1.0 / Sqrt(sqr_length)))
 
+
 def length(sim, params):
     vec = params[0]
     return Sqrt(vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2])
+
 
 def dot(sim, params):
     vec1 = params[0]
     vec2 = params[1]
     return vec1[0] * vec2[0] + vec1[1] * vec2[1] + vec1[2] * vec2[2]
+
 
 def map_kernel_to_simulation(sim, node):
     contactPoint = sim.add_var('contactPoint', Type_Vector)
@@ -160,6 +173,7 @@ def map_kernel_to_simulation(sim, node):
             }
         })
 
+
 def map_method_tree(sim, node, assignments={}, mappings={}):
     if node is not None:
         if node.kind == kind.FUNCTION_TEMPLATE:
@@ -184,7 +198,7 @@ def map_method_tree(sim, node, assignments={}, mappings={}):
         if node.kind == kind.DECL_STMT:
             child = node.get_children()[0]
             if child.kind == kind.VAR_DECL:
-                #decl_type = child.get_children()[0]
+                # decl_type = child.get_children()[0]
                 decl_expr = child.get_children()[1]
                 assignments[child.spelling] = \
                     map_expression(sim, decl_expr, assignments, mappings)
@@ -206,6 +220,7 @@ def map_method_tree(sim, node, assignments={}, mappings={}):
 
     return None
 
+
 def map_call(sim, node, assignments, mappings):
     func_name = None
     params = []
@@ -214,8 +229,9 @@ def map_call(sim, node, assignments, mappings):
         if child.kind == kind.DECL_REF_EXPR:
             grandchild = child.get_children()[0]
             namespace = map_namespace(grandchild)
-            func_name = grandchild.spelling if namespace is None \
-                        else f"{namespace}::{grandchild.spelling}"
+            func_name = \
+                grandchild.spelling if namespace is None \
+                else f"{namespace}::{grandchild.spelling}"
 
         if child.kind == kind.MEMBER_REF_EXPR:
             params.append(map_expression(
@@ -227,6 +243,7 @@ def map_call(sim, node, assignments, mappings):
     assert func_name in mappings['function_mappings'], \
         f"No mapping for function: {func_name}"
     return mappings['function_mappings'][func_name](sim, params)
+
 
 def map_namespace(node):
     namespace = None
@@ -240,6 +257,7 @@ def map_namespace(node):
         children = child.get_children()
 
     return namespace
+
 
 def map_expression(sim, node, assignments, mappings):
     if node.kind == kind.UNEXPOSED_EXPR:
@@ -258,17 +276,18 @@ def map_expression(sim, node, assignments, mappings):
 
     return None
 
+
 def parse_walberla_file(filename):
     walberla_path = "/home/rzlin/az16ahoq/repositories/walberla"
     walberla_src = f"{walberla_path}/src"
     walberla_build_src = f"{walberla_path}/build/src"
     clang_include_path = "/software/anydsl/llvm_build/lib/clang/7.0.1/include"
     mpi_include_path = "/software/openmpi/4.0.0-llvm/include"
-    
+
     index = clang.cindex.Index.create()
     tu = index.parse(
         f"{walberla_src}/{filename}",
-        args = [
+        args=[
             "-Wall",
             f"-I{walberla_src}",
             f"-I{walberla_build_src}",
