@@ -136,10 +136,10 @@ class ParticleSimulation:
 
     def generate(self):
         body = Block.from_list(self, [
-            CellListsStencilBuild(self, self.cell_lists).lower(),
+            CellListsStencilBuild(self.cell_lists).lower(),
             self.setups.lower(),
             Timestep(self, self.ntimesteps, [
-                (CellListsBuild(self, self.cell_lists).lower(), 20),
+                (CellListsBuild(self.cell_lists).lower(), 20),
                 PropertiesResetVolatile(self).lower(),
                 self.kernels.lower()
             ]).as_block()

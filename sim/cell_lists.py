@@ -39,69 +39,67 @@ class CellLists:
 
 
 class CellListsStencilBuild:
-    def __init__(self, sim, cell_lists):
-        self.sim = sim
+    def __init__(self, cell_lists):
         self.cell_lists = cell_lists
 
     def lower(self):
         cl = self.cell_lists
-        ncells = self.sim.grid.get_ncells_for_spacing(cl.spacing)
+        ncells = cl.sim.grid.get_ncells_for_spacing(cl.spacing)
         index = None
 
-        self.sim.clear_block()
+        cl.sim.clear_block()
         nall = 1
-        for d in range(0, self.sim.dimensions):
+        for d in range(0, cl.sim.dimensions):
             cl.ncells[d].set(ncells[d])
             nall *= ncells[d]
 
         cl.ncells_all.set_initial_value(nall)
 
-        for _ in self.sim.nest_mode():
+        for _ in cl.sim.nest_mode():
             cl.nstencil.set(0)
-            for d in range(0, self.sim.dimensions):
+            for d in range(0, cl.sim.dimensions):
                 nneigh = cl.nneighbor_cells[d]
-                for d_idx in For(self.sim, -nneigh, nneigh + 1):
+                for d_idx in For(cl.sim, -nneigh, nneigh + 1):
                     index = (d_idx if index is None
                              else index * cl.ncells[d - 1] + d_idx)
 
-                    if d == self.sim.dimensions - 1:
+                    if d == cl.sim.dimensions - 1:
                         cl.stencil[cl.nstencil].set(index)
                         cl.nstencil.set(cl.nstencil + 1)
 
-        return self.sim.block
+        return cl.sim.block
 
 
 class CellListsBuild:
-    def __init__(self, sim, cell_lists):
-        self.sim = sim
+    def __init__(self, cell_lists):
         self.cell_lists = cell_lists
 
     def lower(self):
         cl = self.cell_lists
-        grid = self.sim.grid
+        grid = cl.sim.grid
         spc = cl.spacing
-        positions = self.sim.property('position')
+        positions = cl.sim.property('position')
 
-        self.sim.clear_block()
-        for cap, rsz in Resize(self.sim, cl.cell_capacity, cl.cell_particles):
-            for c in For(self.sim, 0, cl.ncells_all):
+        cl.sim.clear_block()
+        for cap, rsz in Resize(cl.sim, cl.cell_capacity, cl.cell_particles):
+            for c in For(cl.sim, 0, cl.ncells_all):
                 cl.cell_sizes[c].set(0)
 
-            for i in ParticleFor(self.sim):
+            for i in ParticleFor(cl.sim):
                 cell_index = [
-                    Cast.int(self.sim, (positions[i][d] - grid.min(d)) / spc)
-                    for d in range(0, self.sim.dimensions)]
+                    Cast.int(cl.sim, (positions[i][d] - grid.min(d)) / spc)
+                    for d in range(0, cl.sim.dimensions)]
 
                 flat_idx = None
-                for d in range(0, self.sim.dimensions):
+                for d in range(0, cl.sim.dimensions):
                     flat_idx = (cell_index[d] if flat_idx is None
                                 else flat_idx * cl.ncells[d] + cell_index[d])
 
                 cell_size = cl.cell_sizes[flat_idx]
-                for _ in Filter(self.sim,
+                for _ in Filter(cl.sim,
                                 Expr.and_op(flat_idx >= 0,
                                             flat_idx <= cl.ncells_all)):
-                    for cond in Branch(self.sim, cell_size > cap):
+                    for cond in Branch(cl.sim, cell_size > cap):
                         if cond:
                             rsz.set(cell_size)
                         else:
@@ -110,4 +108,4 @@ class CellListsBuild:
 
                     cl.cell_sizes[flat_idx].set(cell_size + 1)
 
-        return self.sim.block
+        return cl.sim.block

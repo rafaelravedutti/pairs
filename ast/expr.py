@@ -209,6 +209,9 @@ class ExprVec():
     def add(self, other):
         return self.sim.add_statement(Assign(self.sim, self, self + other))
 
+    def sub(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, self - other))
+
     def type(self):
         return Type_Float
 

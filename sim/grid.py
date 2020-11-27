@@ -31,6 +31,9 @@ class Grid:
     def zmax(self, dim):
         return self.max(2)
 
+    def length(self, dim):
+        return self.max(dim) - self.min(dim)
+
     def get_ncells_for_spacing(self, spacing):
         return [int(self.max(d) - self.min(d) / spacing)
                 for d in range(0, self.ndims)]
