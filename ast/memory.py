@@ -11,8 +11,7 @@ class Malloc:
         self.array_type = a_type
         self.decl = decl
         self.prim_size = Sizeof(sim, a_type)
-        self.size = self.prim_size * (
-            reduce(operator.mul, sizes) if isinstance(sizes, list) else sizes)
+        self.size = self.prim_size * (reduce(operator.mul, sizes) if isinstance(sizes, list) else sizes)
         self.sim.add_statement(self)
 
     def children(self):
@@ -20,10 +19,7 @@ class Malloc:
 
     def generate(self, mem=False):
         self.sim.code_gen.generate_malloc(
-            self.array.generate(),
-            self.array_type,
-            self.size.generate_inline(recursive=True),
-            self.decl)
+            self.array.generate(), self.array_type, self.size.generate_inline(recursive=True), self.decl)
 
     def transform(self, fn):
         self.array = self.array.transform(fn)
@@ -37,7 +33,8 @@ class Realloc:
         self.parent_block = None
         self.array = array
         self.array_type = a_type
-        self.size = size
+        self.prim_size = Sizeof(sim, a_type)
+        self.size = self.prim_size * size
         self.sim.add_statement(self)
 
     def children(self):
@@ -45,7 +42,7 @@ class Realloc:
 
     def generate(self, mem=False):
         self.sim.code_gen.generate_realloc(
-            self.array.generate(), self.array_type, self.size.generate())
+            self.array.generate(), self.array_type, self.size.generate_inline(recursive=True))
 
     def transform(self, fn):
         self.array = self.array.transform(fn)
