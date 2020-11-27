@@ -57,8 +57,14 @@ class Var:
     def __lt__(self, other):
         return Expr(self.sim, self, other, '<')
 
+    def __le__(self, other):
+        return Expr(self.sim, self, other, '<=')
+
     def __gt__(self, other):
         return Expr(self.sim, self, other, '>')
+
+    def __ge__(self, other):
+        return Expr(self.sim, self, other, '>=')
 
     def inv(self):
         return Expr(self.sim, 1.0, self, '/')
