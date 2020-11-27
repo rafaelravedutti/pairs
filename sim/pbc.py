@@ -30,7 +30,9 @@ class UpdatePBC:
             for d in range(0, pbc.sim.dimensions):
                 positions[nlocal + i][d].set(
                     positions[pbc.pbc_map[i]][d] +
-                    pbc.pbc.mult[d] * pbc.grid.length(d))
+                    pbc.pbc_mult[i][d] * pbc.grid.length(d))
+
+        return pbc.sim.block
 
 
 class EnforcePBC:
@@ -49,6 +51,8 @@ class EnforcePBC:
 
                 for _ in Filter(pbc.sim, positions[i][d] > pbc.grid.max(d)):
                     positions[i][d].sub(pbc.grid.length(d))
+
+        return pbc.sim.block
 
 
 class SetupPBC:
@@ -100,3 +104,5 @@ class SetupPBC:
                                         pbc.pbc_mult[i - nlocal][d_])
 
                     pbc.npbc.add(1)
+
+        return pbc.sim.block

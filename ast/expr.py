@@ -197,11 +197,29 @@ class ExprVec():
         return (f"ExprVec<a: {self.lhs}, b: {self.rhs}, " +
                 f"op: {self.expr.op} i: {self.index}>")
 
+    def __add__(self, other):
+        return Expr(self.sim, self, other, '+')
+
+    def __radd__(self, other):
+        return Expr(self.sim, other, self, '+')
+
     def __sub__(self, other):
         return Expr(self.sim, self, other, '-')
 
     def __mul__(self, other):
         return Expr(self.sim, self, other, '*')
+
+    def __lt__(self, other):
+        return Expr(self.sim, self, other, '<')
+
+    def __le__(self, other):
+        return Expr(self.sim, self, other, '<=')
+
+    def __gt__(self, other):
+        return Expr(self.sim, self, other, '>')
+
+    def __ge__(self, other):
+        return Expr(self.sim, self, other, '>=')
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))

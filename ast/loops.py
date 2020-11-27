@@ -23,6 +23,9 @@ class Iter():
     def scope(self):
         return self.loop.block
 
+    def __sub__(self, other):
+        return Expr(self.sim, self, other, '-')
+
     def __mul__(self, other):
         from ast.expr import Expr
         return Expr(self.sim, self, other, '*')

@@ -12,6 +12,7 @@ from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from sim.grid import Grid2D, Grid3D
 from sim.kernel_wrapper import KernelWrapper
 from sim.lattice import ParticleLattice
+from sim.pbc import PBC, UpdatePBC, EnforcePBC, SetupPBC
 from sim.properties import PropertiesDecl, PropertiesResetVolatile
 from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
@@ -84,6 +85,10 @@ class ParticleSimulation:
         self.cell_lists = CellLists(self, grid, spacing, cutoff_radius)
         return self.cell_lists
 
+    def periodic(self, cutneigh, flags=[1, 1, 1]):
+        self.pbc = PBC(self, self.grid, cutneigh, flags)
+        return self.pbc
+
     def particle_pairs(self, cutoff_radius=None, position=None):
         self.clear_block()
         for i in ParticleFor(self):
@@ -139,7 +144,10 @@ class ParticleSimulation:
             CellListsStencilBuild(self.cell_lists).lower(),
             self.setups.lower(),
             Timestep(self, self.ntimesteps, [
+                (EnforcePBC(self.pbc).lower(), 20),
+                (SetupPBC(self.pbc).lower(), 20),
                 (CellListsBuild(self.cell_lists).lower(), 20),
+                UpdatePBC(self.pbc).lower(),
                 PropertiesResetVolatile(self).lower(),
                 self.kernels.lower()
             ]).as_block()
