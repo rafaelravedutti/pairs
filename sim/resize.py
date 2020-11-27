@@ -8,7 +8,7 @@ class Resize:
         self.sim = sim
         self.capacity_var = capacity_var
         self.arrays = [arrays] if not isinstance(arrays, list) else arrays
-        self.resize_var = self.sim.add_var('resize', Type_Int)
+        self.resize_var = self.sim.add_or_reuse_var('resize', Type_Int)
         self.grow_fn = grow_fn if grow_fn is not None else (lambda x: x * 2)
 
     def __iter__(self):

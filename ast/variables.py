@@ -17,8 +17,11 @@ class Variables:
         return self.vars
 
     def find(self, v_name):
-        return [v for v in self.vars if v.name() == v_name][0]
+        var = [v for v in self.vars if v.name() == v_name]
+        if var:
+            return var[0]
 
+        return None
 
 class Var:
     def __init__(self, sim, var_name, var_type, init_value=0):

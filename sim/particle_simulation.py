@@ -41,28 +41,43 @@ class ParticleSimulation:
         self.iter_id = 0
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
+        assert self.property(prop_name) is None, \
+            f"add_real_property(): Property already defined: {prop_name}"
         return self.properties.add(prop_name, Type_Float, value, vol)
 
-    def add_vector_property(
-            self, prop_name, value=[0.0, 0.0, 0.0],
-            vol=False, layout=Layout_AoS):
+    def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layout_AoS):
+        assert self.property(prop_name) is None, \
+            f"add_vector_property(): Property already defined: {prop_name}"
         return self.properties.add(prop_name, Type_Vector, value, vol, layout)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
 
     def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
+        assert self.array(arr_name) is None, \
+            f"add_array(): Array already defined: {arr_name}"
         return self.arrays.add(arr_name, arr_sizes, arr_type, arr_layout)
 
-    def add_static_array(self, arr_name, arr_sizes,
-                         arr_type, arr_layout=Layout_AoS):
-        return self.arrays.add_static(
-            arr_name, arr_sizes, arr_type, arr_layout)
+    def add_static_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
+        assert self.array(arr_name) is None, \
+            f"add_static_array(): Array already defined: {arr_name}"
+        return self.arrays.add_static(arr_name, arr_sizes, arr_type, arr_layout)
 
     def array(self, arr_name):
         return self.arrays.find(arr_name)
 
     def add_var(self, var_name, var_type, init_value=0):
+        assert self.var(var_name) is None, \
+            f"add_var(): Variable already defined: {var_name}"
+        return self.vars.add(var_name, var_type, init_value)
+
+    def add_or_reuse_var(self, var_name, var_type, init_value=0):
+        existing_var = self.var(var_name)
+        if existing_var is not None:
+            assert existing_var.type() == var_type, \
+                f"add_or_reuse_var(): Cannot reuse variable {var_name}: types differ!"
+            return existing_var
+
         return self.vars.add(var_name, var_type, init_value)
 
     def var(self, var_name):

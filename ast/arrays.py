@@ -27,7 +27,11 @@ class Arrays:
         return self.arrays
 
     def find(self, a_name):
-        return [a for a in self.arrays if a.name() == a_name][0]
+        arr = [a for a in self.arrays if a.name() == a_name]
+        if arr:
+            return arr[0]
+
+        return None
 
 
 class Array:

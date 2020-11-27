@@ -1,7 +1,7 @@
 from ast.branches import Branch, Filter
 from ast.data_types import Type_Int
 from ast.loops import For, ParticleFor
-
+from sim.resize import Resize
 
 class PBC:
     def __init__(self, sim, grid, cutneigh, pbc_flags=[1, 1, 1]):
@@ -10,10 +10,9 @@ class PBC:
         self.cutneigh = cutneigh
         self.pbc_flags = pbc_flags
         self.npbc = sim.add_var('npbc', Type_Int)
-        self.pbc_capacity = sim.add_var('pbc_capacity', Type_Int, 20)
+        self.pbc_capacity = sim.add_var('pbc_capacity', Type_Int, 200)
         self.pbc_map = sim.add_array('pbc_map', [self.pbc_capacity], Type_Int)
-        self.pbc_mult = sim.add_array(
-            'pbc_mult', [self.pbc_capacity, sim.dimensions], Type_Int)
+        self.pbc_mult = sim.add_array('pbc_mult', [self.pbc_capacity, sim.dimensions], Type_Int)
 
 
 class UpdatePBC:
@@ -21,18 +20,23 @@ class UpdatePBC:
         self.pbc = pbc
 
     def lower(self):
-        pbc = self.pbc
-        positions = pbc.sim.property('position')
-        nlocal = pbc.sim.nparticles
+        sim = self.pbc.sim
+        ndims = sim.dimensions
+        grid = self.pbc.grid
+        npbc = self.pbc.npbc
+        pbc_map = self.pbc.pbc_map
+        pbc_mult = self.pbc.pbc_mult
+        positions = self.pbc.sim.property('position')
+        nlocal = self.pbc.sim.nparticles
 
-        pbc.sim.clear_block()
-        for i in For(pbc.sim, 0, pbc.npbc):
-            for d in range(0, pbc.sim.dimensions):
-                positions[nlocal + i][d].set(
-                    positions[pbc.pbc_map[i]][d] +
-                    pbc.pbc_mult[i][d] * pbc.grid.length(d))
+        sim.clear_block()
+        for i in For(sim, 0, npbc):
+            # TODO: allow syntax:
+            # positions[nlocal + i].set(positions[pbc_map[i]] + pbc_mult[i] * grid.length)
+            for d in range(0, ndims):
+                positions[nlocal + i][d].set(positions[pbc_map[i]][d] + pbc_mult[i][d] * grid.length(d))
 
-        return pbc.sim.block
+        return sim.block
 
 
 class EnforcePBC:
@@ -40,19 +44,22 @@ class EnforcePBC:
         self.pbc = pbc
 
     def lower(self):
-        pbc = self.pbc
-        positions = pbc.sim.property('position')
+        sim = self.pbc.sim
+        ndims = sim.dimensions
+        grid = self.pbc.grid
+        positions = sim.property('position')
 
-        pbc.sim.clear_block()
-        for i in ParticleFor(pbc.sim):
-            for d in range(0, pbc.sim.dimensions):
-                for _ in Filter(pbc.sim, positions[i][d] < pbc.grid.min(d)):
-                    positions[i][d].add(pbc.grid.length(d))
+        sim.clear_block()
+        for i in ParticleFor(sim):
+            # TODO: VecFilter?
+            for d in range(0, ndims):
+                for _ in Filter(sim, positions[i][d] < grid.min(d)):
+                    positions[i][d].add(grid.length(d))
 
-                for _ in Filter(pbc.sim, positions[i][d] > pbc.grid.max(d)):
-                    positions[i][d].sub(pbc.grid.length(d))
+                for _ in Filter(sim, positions[i][d] > grid.max(d)):
+                    positions[i][d].sub(grid.length(d))
 
-        return pbc.sim.block
+        return sim.block
 
 
 class SetupPBC:
@@ -60,49 +67,48 @@ class SetupPBC:
         self.pbc = pbc
 
     def lower(self):
-        pbc = self.pbc
-        positions = pbc.sim.property('position')
-        nlocal = pbc.sim.nparticles
+        sim = self.pbc.sim
+        ndims = sim.dimensions
+        grid = self.pbc.grid
+        cutneigh = self.pbc.cutneigh
+        npbc = self.pbc.npbc
+        pbc_capacity = self.pbc.pbc_capacity
+        pbc_map = self.pbc.pbc_map
+        pbc_mult = self.pbc.pbc_mult
+        positions = self.pbc.sim.property('position')
+        nlocal = self.pbc.sim.nparticles
 
-        pbc.sim.clear_block()
-        pbc.npbc.set(0)
-        for d in range(0, pbc.sim.dimensions):
-            for i in For(pbc.sim, 0, nlocal + pbc.npbc):
-                lower_cond = positions[i][d] < pbc.grid.min(d) + pbc.cutneigh
-                upper_cond = positions[i][d] > pbc.grid.max(d) - pbc.cutneigh
+        sim.clear_block()
+        npbc.set(0)
+        for capacity, resize in Resize(sim, pbc_capacity, [pbc_map, pbc_mult]):
+            for d in range(0, ndims):
+                for i in For(sim, 0, nlocal + npbc):
+                    # TODO: VecFilter?
+                    for _ in Filter(sim, positions[i][d] < grid.min(d) + cutneigh):
+                        pbc_map[npbc].set(i)
+                        pbc_mult[npbc][d].set(1)
 
-                for _ in Filter(pbc.sim, lower_cond):
-                    pbc.pbc_map[pbc.npbc].set(i)
-                    pbc.pbc_mult[pbc.npbc][d].set(1)
+                        for cond in Branch(sim, i < nlocal):
+                            # TODO: VecFilter.others generator?
+                            for d_ in [x for x in range(0, ndims) if x != d]:
+                                if cond:
+                                    pbc_mult[npbc][d_].set(0)
+                                else:
+                                    pbc_mult[npbc][d_].set(pbc_mult[i - nlocal][d_])
 
-                    for cond in Branch(pbc.sim, i < nlocal):
-                        if cond:
-                            for d_ in range(0, pbc.sim.dimensions):
-                                if d_ != d:
-                                    pbc.pbc_mult[pbc.npbc][d_].set(0)
-                        else:
-                            for d_ in range(0, pbc.sim.dimensions):
-                                if d_ != d:
-                                    pbc.pbc_mult[pbc.npbc][d_].set(
-                                        pbc.pbc_mult[i - nlocal][d_])
+                        npbc.add(1)
 
-                    pbc.npbc.add(1)
+                    for _ in Filter(sim, positions[i][d] > grid.max(d) - cutneigh):
+                        pbc_map[npbc].set(i)
+                        pbc_mult[npbc][d].set(-1)
 
-                for _ in Filter(pbc.sim, upper_cond):
-                    pbc.pbc_map[pbc.npbc].set(i)
-                    pbc.pbc_mult[pbc.npbc][d].set(-1)
+                        for cond in Branch(sim, i < nlocal):
+                            for d_ in [x for x in range(0, ndims) if x != d]:
+                                if cond:
+                                    pbc_mult[npbc][d_].set(0)
+                                else:
+                                    pbc_mult[npbc][d_].set(pbc_mult[i - nlocal][d_])
 
-                    for cond in Branch(pbc.sim, i < nlocal):
-                        if cond:
-                            for d_ in range(0, pbc.sim.dimensions):
-                                if d_ != d:
-                                    pbc.pbc_mult[pbc.npbc][d_].set(0)
-                        else:
-                            for d_ in range(0, pbc.sim.dimensions):
-                                if d_ != d:
-                                    pbc.pbc_mult[pbc.npbc][d_].set(
-                                        pbc.pbc_mult[i - nlocal][d_])
+                        npbc.add(1)
 
-                    pbc.npbc.add(1)
-
-        return pbc.sim.block
+        return sim.block

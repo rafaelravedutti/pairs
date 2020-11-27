@@ -24,7 +24,11 @@ class Properties:
         return [p for p in self.props if p.volatile is True]
 
     def find(self, p_name):
-        return [p for p in self.props if p.name() == p_name][0]
+        prop = [p for p in self.props if p.name() == p_name]
+        if prop:
+            return prop[0]
+
+        return None
 
 
 class Property:
