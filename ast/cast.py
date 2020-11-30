@@ -26,8 +26,7 @@ class Cast:
         return [self.expr]
 
     def generate(self, mem=False):
-        return self.sim.code_gen.generate_cast(
-            self.cast_type, self.expr.generate())
+        return self.sim.code_gen.generate_cast(self.cast_type, self.expr.generate())
 
     def transform(self, fn):
         self.expr = self.expr.transform(fn)

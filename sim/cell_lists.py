@@ -30,7 +30,7 @@ class CellLists:
         self.cell_particles = self.sim.add_array('cell_particles', [self.ncells_all, self.cell_capacity], Type_Int)
         self.cell_sizes = self.sim.add_array('cell_sizes', self.ncells_all, Type_Int)
         self.stencil = self.sim.add_array('stencil', self.nstencil_max, Type_Int)
-        self.particle_cell = self.sim.add_array('particle_cell', self.sim.nparticles, Type_Int)
+        self.particle_cell = self.sim.add_array('particle_cell', self.sim.particle_capacity, Type_Int)
 
 
 class CellListsStencilBuild:

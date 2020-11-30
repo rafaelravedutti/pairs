@@ -4,6 +4,7 @@ from ast.loops import For, ParticleFor
 from ast.select import Select
 from sim.resize import Resize
 
+
 class PBC:
     def __init__(self, sim, grid, cutneigh, pbc_flags=[1, 1, 1]):
         self.sim = sim
@@ -28,7 +29,7 @@ class UpdatePBC:
         pbc_map = self.pbc.pbc_map
         pbc_mult = self.pbc.pbc_mult
         positions = self.pbc.sim.property('position')
-        nlocal = self.pbc.sim.nparticles
+        nlocal = self.pbc.sim.nlocal
 
         sim.clear_block()
         for i in For(sim, 0, npbc):
@@ -77,7 +78,7 @@ class SetupPBC:
         pbc_map = self.pbc.pbc_map
         pbc_mult = self.pbc.pbc_mult
         positions = self.pbc.sim.property('position')
-        nlocal = self.pbc.sim.nparticles
+        nlocal = self.pbc.sim.nlocal
 
         sim.clear_block()
         for capacity, resize in Resize(sim, pbc_capacity, [pbc_map, pbc_mult]):

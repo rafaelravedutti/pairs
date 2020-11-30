@@ -110,8 +110,7 @@ class ParticleFor(For):
         return f"ParticleFor<>"
 
     def generate(self):
-        self.sim.code_gen.generate_for_preamble(
-            self.iterator.generate(), 0, self.sim.nparticles.generate())
+        self.sim.code_gen.generate_for_preamble(self.iterator.generate(), 0, self.sim.nlocal.generate())
         self.block.generate()
         self.sim.code_gen.generate_for_epilogue()
 

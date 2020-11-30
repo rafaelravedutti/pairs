@@ -86,8 +86,7 @@ class Expr:
         return self.__getitem__(2)
 
     def __getitem__(self, index):
-        assert self.lhs.type() == Type_Vector, \
-            "Cannot use operator [] on specified type!"
+        assert self.lhs.type() == Type_Vector, "Cannot use operator [] on specified type!"
         return ExprVec(self.sim, self, as_lit_ast(self.sim, index))
 
     def generated_vector_index(self, index):
@@ -126,6 +125,7 @@ class Expr:
         if lhs_type == Type_Float or rhs_type == Type_Float:
             return Type_Float
 
+        print(f"{lhs} ({lhs_type}) -- {rhs} ({rhs_type})\n")
         return None
 
     def type(self):
@@ -146,15 +146,13 @@ class Expr:
         lhs_expr = self.lhs.generate(mem)
         rhs_expr = self.rhs.generate()
         if self.op == '[]':
-            return self.sim.code_gen.generate_expr_access(
-                lhs_expr, rhs_expr, self.mem)
+            return self.sim.code_gen.generate_expr_access(lhs_expr, rhs_expr, self.mem)
 
         if self.generated is False:
             assert self.expr_type != Type_Vector, \
                 "Vector code must be generated through ExprVec class!"
 
-            self.sim.code_gen.generate_expr(
-                self.expr_id, self.expr_type, lhs_expr, rhs_expr, self.op)
+            self.sim.code_gen.generate_expr(self.expr_id, self.expr_type, lhs_expr, rhs_expr, self.op)
             self.generated = True
 
         return self.sim.code_gen.generate_expr_ref(self.expr_id)
@@ -162,19 +160,19 @@ class Expr:
     def generate_inline(self, mem=False, recursive=False):
         inline_lhs_expr = recursive and isinstance(self.lhs, Expr)
         inline_rhs_expr = recursive and isinstance(self.rhs, Expr)
-        lhs_expr = (self.lhs.generate_inline(recursive, mem) if inline_lhs_expr
-                    else self.lhs.generate(mem))
-        rhs_expr = (self.rhs.generate_inline(recursive) if inline_rhs_expr
-                    else self.rhs.generate())
+        lhs_expr = \
+            self.lhs.generate_inline(recursive, mem) if inline_lhs_expr \
+            else self.lhs.generate(mem)
+        rhs_expr = \
+            self.rhs.generate_inline(recursive) if inline_rhs_expr \
+            else self.rhs.generate()
 
         if self.op == '[]':
-            return self.sim.code_gen.generate_expr_access(
-                lhs_expr, rhs_expr, self.mem)
+            return self.sim.code_gen.generate_expr_access(lhs_expr, rhs_expr, self.mem)
 
         assert self.expr_type != Type_Vector, \
             "Vector code must be generated through ExprVec class!"
-        return self.sim.code_gen.generate_inline_expr(
-                lhs_expr, rhs_expr, self.op)
+        return self.sim.code_gen.generate_inline_expr(lhs_expr, rhs_expr, self.op)
 
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)
@@ -250,8 +248,7 @@ class ExprVec():
 
         index_expr = self.index.generate()
         if self.expr.op == '[]':
-            return self.sim.code_gen.generate_expr_access(
-                self.expr.generate(), index_expr, True)
+            return self.sim.code_gen.generate_expr_access(self.expr.generate(), index_expr, True)
 
         if self.expr.generated_vector_index(index_expr):
             self.sim.code_gen.generate_vec_expr(
@@ -264,8 +261,7 @@ class ExprVec():
 
             self.expr.vec_generated.append(index_expr)
 
-        return self.sim.code_gen.generate_vec_expr_ref(
-            self.expr.expr_id, index_expr, self.expr.mem)
+        return self.sim.code_gen.generate_vec_expr_ref(self.expr.expr_id, index_expr, self.expr.mem)
 
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)

@@ -1,3 +1,4 @@
+from ast.data_types import Type_Vector
 from ast.loops import For
 
 
@@ -20,15 +21,25 @@ class ParticleLattice():
                 n = int((d_max - d_min) / self.spacing[d] - 0.001) + 1
 
                 for d_idx in For(self.sim, 0, n):
-                    index = (d_idx if index is None else index * n + d_idx)
+                    # index = (d_idx if index is None else index * n + d_idx)
                     loop_indexes.append(d_idx)
 
                     if d == self.sim.dimensions - 1:
+                        index = self.sim.nlocal
+
                         for d_ in range(0, self.sim.dimensions):
-                            pos = self.grid.min(d_) + \
-                                  self.spacing[d_] * loop_indexes[d_]
+                            pos = self.grid.min(d_) + self.spacing[d_] * loop_indexes[d_]
                             self.positions[index][d_].set(pos)
 
-                        self.sim.nparticles.set(self.sim.nparticles + 1)
+                        for prop in [p for p in self.sim.properties.all()
+                                     if p.volatile is False and p.name() != self.positions.name()]:
+                            if prop.type() == Type_Vector:
+                                for d_ in range(0, self.sim.dimensions):
+                                    prop[index][d_].set(prop.default()[d_])
+
+                            else:
+                                prop[index].set(prop.default())
+
+                        self.sim.nlocal.set(self.sim.nlocal + 1)
 
         return self.sim.block

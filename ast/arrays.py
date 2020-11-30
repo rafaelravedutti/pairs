@@ -27,9 +27,9 @@ class Arrays:
         return self.arrays
 
     def find(self, a_name):
-        arr = [a for a in self.arrays if a.name() == a_name]
-        if arr:
-            return arr[0]
+        array = [a for a in self.arrays if a.name() == a_name]
+        if array:
+            return array[0]
 
         return None
 
@@ -138,8 +138,7 @@ class ArrayAccess:
         return Expr(self.sim, other, self, '*')
 
     def __getitem__(self, index):
-        assert self.index is None, \
-            "Number of indexes higher than array dimension!"
+        assert self.index is None, "Number of indexes higher than array dimension!"
         self.indexes.append(as_lit_ast(self.sim, index))
         self.check_and_set_index()
         return self
@@ -171,7 +170,8 @@ class ArrayAccess:
         return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def type(self):
-        return self.array.type() if self.index is None else Type_Array
+        return self.array.type()
+        # return self.array.type() if self.index is None else Type_Array
 
     def scope(self):
         if self.index is None:
@@ -192,12 +192,10 @@ class ArrayAccess:
         agen = self.array.generate()
         igen = self.index.generate()
         if mem is False and self.generated is False:
-            self.sim.code_gen.generate_array_access(
-                self.acc_id, self.array.type(), agen, igen)
+            self.sim.code_gen.generate_array_access(self.acc_id, self.array.type(), agen, igen)
             self.generated = True
 
-        return self.sim.code_gen.generate_array_access_ref(
-            self.acc_id, agen, igen, mem)
+        return self.sim.code_gen.generate_array_access_ref(self.acc_id, agen, igen, mem)
 
     def transform(self, fn):
         self.array = self.array.transform(fn)

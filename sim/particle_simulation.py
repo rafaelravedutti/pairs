@@ -26,7 +26,10 @@ class ParticleSimulation:
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
-        self.nparticles = self.add_var('nparticles', Type_Int)
+        self.particle_capacity = self.add_var('particle_capacity', Type_Int, 100)
+        self.nlocal = self.add_var('nlocal', Type_Int)
+        self.nghost = self.add_var('nghost', Type_Int)
+        self.nparticles = self.nlocal + self.nghost
         self.grid = None
         self.cell_lists = None
         self.scope = []
@@ -159,10 +162,10 @@ class ParticleSimulation:
             CellListsStencilBuild(self.cell_lists).lower(),
             self.setups.lower(),
             Timestep(self, self.ntimesteps, [
-                (EnforcePBC(self.pbc).lower(), 20),
-                (SetupPBC(self.pbc).lower(), 20),
+                #(EnforcePBC(self.pbc).lower(), 20),
+                #(SetupPBC(self.pbc).lower(), 20),
                 (CellListsBuild(self.cell_lists).lower(), 20),
-                UpdatePBC(self.pbc).lower(),
+                #UpdatePBC(self.pbc).lower(),
                 PropertiesResetVolatile(self).lower(),
                 self.kernels.lower()
             ]).as_block()
