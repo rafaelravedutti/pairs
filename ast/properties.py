@@ -53,6 +53,9 @@ class Property:
     def layout(self):
         return self.prop_layout
 
+    def default(self):
+        return self.default_value
+
     def scope(self):
         return self.sim.global_scope
 

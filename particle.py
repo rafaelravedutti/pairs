@@ -10,7 +10,7 @@ sigma6 = sigma ** 6
 
 psim = pt.simulation()
 mass = psim.add_real_property('mass', 1.0)
-position = psim.add_vector_property('position', layout=Layout_SoA)
+position = psim.add_vector_property('position')
 velocity = psim.add_vector_property('velocity')
 force = psim.add_vector_property('force', vol=True)
 

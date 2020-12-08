@@ -35,7 +35,7 @@ class Transform:
 
                 elif layout == Layout_SoA:
                     flat_index = \
-                        ast.index * ast.expr.sim.nparticles + ast.expr.rhs
+                        ast.index * ast.expr.sim.particle_capacity + ast.expr.rhs
 
                 else:
                     raise Exception("Invalid property layout!")

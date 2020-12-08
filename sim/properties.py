@@ -8,18 +8,18 @@ class PropertiesDecl:
         self.sim = sim
 
     def lower(self):
-        nparticles = self.sim.nparticles
+        particle_capacity = self.sim.particle_capacity
 
         self.sim.clear_block()
         for p in self.sim.properties.all():
             sizes = []
             if p.type() == Type_Float:
-                sizes = [nparticles]
+                sizes = [particle_capacity]
             elif p.type() == Type_Vector:
                 if p.flattened:
-                    sizes = [nparticles * self.sim.dimensions]
+                    sizes = [particle_capacity * self.sim.dimensions]
                 else:
-                    sizes = [nparticles, self.sim.dimensions]
+                    sizes = [particle_capacity, self.sim.dimensions]
             else:
                 raise Exception("Invalid property type!")
 

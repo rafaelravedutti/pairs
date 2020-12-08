@@ -74,8 +74,7 @@ class CGen:
         return f"sizeof({tkw})"
 
     def generate_for_preamble(iter_id, rmin, rmax):
-        printer.print(
-            f"for(int {iter_id} = {rmin}; {iter_id} < {rmax}; {iter_id}++) {{")
+        printer.print(f"for(int {iter_id} = {rmin}; {iter_id} < {rmax}; {iter_id}++) {{")
 
     def generate_for_epilogue():
         printer.print("}")
@@ -98,7 +97,7 @@ class CGen:
         return f"{lhs}[{rhs}]" if mem else f"{lhs}_{rhs}"
 
     def generate_vec_expr_ref(expr_id, index, mem):
-        return (f"e{expr_id}[{index}]" if mem else f"e{expr_id}_{index}")
+        return f"e{expr_id}[{index}]" if mem else f"e{expr_id}_{index}"
 
     def generate_vec_expr(expr_id, index, lhs, rhs, op, mem):
         ref = CGen.generate_vec_expr_ref(expr_id, index, mem)

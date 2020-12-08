@@ -110,8 +110,7 @@ class ParticleFor(For):
         return f"ParticleFor<>"
 
     def generate(self):
-        self.sim.code_gen.generate_for_preamble(
-            self.iterator.generate(), 0, self.sim.nparticles.generate())
+        self.sim.code_gen.generate_for_preamble(self.iterator.generate(), 0, self.sim.nlocal.generate())
         self.block.generate()
         self.sim.code_gen.generate_for_epilogue()
 
@@ -166,7 +165,10 @@ class NeighborFor():
         cl = self.cell_lists
         for s in For(self.sim, 0, cl.nstencil):
             neigh_cell = cl.particle_cell[self.particle] + cl.stencil[s]
-            for nc in For(self.sim, 0, cl.cell_sizes[neigh_cell]):
-                it = cl.cell_particles[neigh_cell][nc]
-                for _ in Filter(self.sim, Expr.neq(it, self.particle)):
-                    yield it
+            for _ in Filter(self.sim,
+                            Expr.and_op(neigh_cell >= 0,
+                                        neigh_cell <= cl.ncells_all)):
+                for nc in For(self.sim, 0, cl.cell_sizes[neigh_cell]):
+                    it = cl.cell_particles[neigh_cell][nc]
+                    for _ in Filter(self.sim, Expr.neq(it, self.particle)):
+                            yield it
