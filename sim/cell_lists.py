@@ -3,6 +3,7 @@ from ast.cast import Cast
 from ast.data_types import Type_Int
 from ast.expr import Expr
 from ast.loops import For, ParticleFor
+from ast.utils import Print
 from functools import reduce
 from sim.resize import Resize
 import math
@@ -43,6 +44,8 @@ class CellListsStencilBuild:
         index = None
 
         cl.sim.clear_block()
+        cl.sim.add_statement(Print(cl.sim, "CellListsStencilBuild"))
+
         nall = 1
         for d in range(0, cl.sim.dimensions):
             cl.ncells[d].set(ncells[d])
@@ -76,6 +79,7 @@ class CellListsBuild:
         positions = cl.sim.property('position')
 
         cl.sim.clear_block()
+        cl.sim.add_statement(Print(cl.sim, "CellListsBuild"))
         for capacity, resize in \
             Resize(cl.sim, cl.cell_capacity, cl.cell_particles):
             for c in For(cl.sim, 0, cl.ncells_all):

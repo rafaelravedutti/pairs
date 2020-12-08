@@ -116,3 +116,6 @@ class CGen:
 
     def generate_select(cond, expr_if, expr_else):
         return f"({cond}) ? ({expr_if}) : ({expr_else})"
+
+    def generate_print(string):
+        printer.print(f"fprintf(stdout, \"{string}\\n\");")
