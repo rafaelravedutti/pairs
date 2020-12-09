@@ -13,7 +13,7 @@ from sim.grid import Grid2D, Grid3D
 from sim.kernel_wrapper import KernelWrapper
 from sim.lattice import ParticleLattice
 from sim.pbc import PBC, UpdatePBC, EnforcePBC, SetupPBC
-from sim.properties import PropertiesDecl, PropertiesResetVolatile
+from sim.properties import PropertiesAlloc, PropertiesResetVolatile
 from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
 from sim.variables import VariablesDecl
@@ -32,6 +32,7 @@ class ParticleSimulation:
         self.nparticles = self.nlocal + self.nghost
         self.grid = None
         self.cell_lists = None
+        self.pbc = None
         self.scope = []
         self.nested_count = 0
         self.nest = False
@@ -42,6 +43,7 @@ class ParticleSimulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
+        self.properties.add_capacity(self.particle_capacity)
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
         assert self.property(prop_name) is None, \
@@ -105,6 +107,7 @@ class ParticleSimulation:
 
     def periodic(self, cutneigh, flags=[1, 1, 1]):
         self.pbc = PBC(self, self.grid, cutneigh, flags)
+        self.properties.add_capacity(self.pbc.pbc_capacity)
         return self.pbc
 
     def particle_pairs(self, cutoff_radius=None, position=None):
@@ -165,7 +168,7 @@ class ParticleSimulation:
                 (EnforcePBC(self.pbc).lower(), 20),
                 (SetupPBC(self.pbc).lower(), 20),
                 (CellListsBuild(self.cell_lists).lower(), 20),
-                #UpdatePBC(self.pbc).lower(),
+                UpdatePBC(self.pbc).lower(),
                 PropertiesResetVolatile(self).lower(),
                 self.kernels.lower()
             ]).as_block()
@@ -174,7 +177,7 @@ class ParticleSimulation:
         decls = Block.from_list(self, [
             VariablesDecl(self).lower(),
             ArraysDecl(self).lower(),
-            PropertiesDecl(self).lower(),
+            PropertiesAlloc(self).lower(),
         ])
 
         program = Block.merge_blocks(decls, body)
@@ -182,10 +185,10 @@ class ParticleSimulation:
         Block.set_block_levels(program)
         Transform.apply(program, Transform.flatten)
         Transform.apply(program, Transform.simplify)
-        Transform.apply(program, Transform.reuse_index_expressions)
-        Transform.apply(program, Transform.reuse_expr_expressions)
-        Transform.apply(program, Transform.reuse_array_access_expressions)
-        Transform.apply(program, Transform.move_loop_invariant_expressions)
+        #Transform.apply(program, Transform.reuse_index_expressions)
+        #Transform.apply(program, Transform.reuse_expr_expressions)
+        #Transform.apply(program, Transform.reuse_array_access_expressions)
+        #Transform.apply(program, Transform.move_loop_invariant_expressions)
 
         self.code_gen.generate_program_preamble()
         program.generate()

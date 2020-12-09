@@ -30,20 +30,16 @@ class Transform:
                 flat_index = None
 
                 if layout == Layout_AoS:
-                    flat_index = \
-                        ast.expr.rhs * ast.expr.sim.dimensions + ast.index
+                    flat_index = ast.expr.rhs * ast.expr.sim.dimensions + ast.index
 
                 elif layout == Layout_SoA:
-                    flat_index = \
-                        ast.index * ast.expr.sim.particle_capacity + ast.expr.rhs
+                    flat_index = ast.index * ast.expr.sim.particle_capacity + ast.expr.rhs
 
                 else:
                     raise Exception("Invalid property layout!")
 
-                new_expr = Expr(ast.expr.sim, ast.expr.lhs, flat_index, '[]',
-                                ast.expr.mem)
-                Transform.flattened_list.append((ast.expr.lhs, ast.index,
-                                                 ast.expr.rhs, new_expr))
+                new_expr = Expr(ast.expr.sim, ast.expr.lhs, flat_index, '[]', ast.expr.mem)
+                Transform.flattened_list.append((ast.expr.lhs, ast.index, ast.expr.rhs, new_expr))
                 return new_expr
 
         if isinstance(ast, Property):

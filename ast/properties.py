@@ -5,6 +5,7 @@ class Properties:
     def __init__(self, sim):
         self.sim = sim
         self.props = []
+        self.capacities = []
         self.defs = {}
         self.nprops = 0
 
@@ -13,6 +14,12 @@ class Properties:
         self.props.append(p)
         self.defs[p_name] = p_value
         return p
+
+    def add_capacity(self, var):
+        self.capacities.append(var)
+
+    def is_capacity(self, var):
+        return var in self.capacities
 
     def defaults(self):
         return self.defs

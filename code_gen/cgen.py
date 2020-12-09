@@ -104,7 +104,7 @@ class CGen:
         printer.print(f"const double {ref} = {lhs} {op} {rhs};")
 
     def generate_inline_expr(lhs, rhs, op):
-        return f"{lhs} {op} {rhs}"
+        return f"({lhs} {op} {rhs})"
 
     def generate_var_decl(v_name, v_type, v_value):
         tkw = CGen.type2keyword(v_type)

@@ -1,30 +1,34 @@
 from ast.data_types import Type_Float, Type_Vector
 from ast.loops import ParticleFor
-from ast.memory import Malloc
+from ast.memory import Malloc, Realloc
 from ast.utils import Print
 
 
-class PropertiesDecl:
-    def __init__(self, sim):
+class PropertiesAlloc:
+    def __init__(self, sim, realloc=False):
         self.sim = sim
+        self.realloc = realloc
 
     def lower(self):
-        particle_capacity = self.sim.particle_capacity
+        capacity = sum(self.sim.properties.capacities)
 
         self.sim.clear_block()
         for p in self.sim.properties.all():
             sizes = []
             if p.type() == Type_Float:
-                sizes = [particle_capacity]
+                sizes = [capacity]
             elif p.type() == Type_Vector:
                 if p.flattened:
-                    sizes = [particle_capacity * self.sim.dimensions]
+                    sizes = [capacity * self.sim.dimensions]
                 else:
-                    sizes = [particle_capacity, self.sim.dimensions]
+                    sizes = [capacity, self.sim.dimensions]
             else:
                 raise Exception("Invalid property type!")
 
-            Malloc(self.sim, p, p.type(), sizes, True)
+            if self.realloc:
+                Realloc(self.sim, p, p.type(), sizes)
+            else:
+                Malloc(self.sim, p, p.type(), sizes, True)
 
         return self.sim.block
 
