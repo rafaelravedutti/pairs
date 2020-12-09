@@ -76,8 +76,7 @@ class CellListsBuild:
         positions = cl.sim.property('position')
 
         cl.sim.clear_block()
-        for capacity, resize in \
-            Resize(cl.sim, cl.cell_capacity, cl.cell_particles):
+        for resize in Resize(cl.sim, cl.cell_capacity):
             for c in For(cl.sim, 0, cl.ncells_all):
                 cl.cell_sizes[c].set(0)
 
@@ -95,7 +94,7 @@ class CellListsBuild:
                 for _ in Filter(cl.sim,
                                 Expr.and_op(flat_idx >= 0,
                                             flat_idx <= cl.ncells_all)):
-                    for cond in Branch(cl.sim, cell_size > capacity):
+                    for cond in Branch(cl.sim, cell_size >= cl.cell_capacity):
                         if cond:
                             resize.set(cell_size)
                         else:

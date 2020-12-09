@@ -165,7 +165,7 @@ class ParticleSimulation:
                 (EnforcePBC(self.pbc).lower(), 20),
                 (SetupPBC(self.pbc).lower(), 20),
                 (CellListsBuild(self.cell_lists).lower(), 20),
-                UpdatePBC(self.pbc).lower(),
+                #UpdatePBC(self.pbc).lower(),
                 PropertiesResetVolatile(self).lower(),
                 self.kernels.lower()
             ]).as_block()

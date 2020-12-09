@@ -29,6 +29,7 @@ class Var:
         self.var_name = var_name
         self.var_type = var_type
         self.var_init_value = init_value
+        self.var_bonded_arrays = []
 
     def __str__(self):
         return f"Var<name: {self.var_name}, type: {self.var_type}>"
@@ -86,6 +87,12 @@ class Var:
 
     def init_value(self):
         return self.var_init_value
+
+    def add_bonded_array(self, array):
+        self.var_bonded_arrays.append(array)
+
+    def bonded_arrays(self):
+        return self.var_bonded_arrays
 
     def scope(self):
         return self.sim.global_scope

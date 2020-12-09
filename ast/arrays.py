@@ -4,6 +4,7 @@ from ast.expr import Expr
 from ast.layouts import Layout_AoS, Layout_SoA
 from ast.lit import as_lit_ast
 from ast.memory import Realloc
+from ast.variables import Var
 from functools import reduce
 
 
@@ -45,6 +46,9 @@ class Array:
         self.arr_layout = a_layout
         self.arr_ndims = len(self.arr_sizes)
         self.static = False
+        for var in [s for s in self.arr_sizes if isinstance(s, Var)]:
+            var.add_bonded_array(self)
+
 
     def __getitem__(self, expr_ast):
         return ArrayAccess(self.sim, self, expr_ast)
