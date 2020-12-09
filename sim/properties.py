@@ -1,6 +1,7 @@
 from ast.data_types import Type_Float, Type_Vector
 from ast.loops import ParticleFor
 from ast.memory import Malloc
+from ast.utils import Print
 
 
 class PropertiesDecl:
@@ -34,6 +35,7 @@ class PropertiesResetVolatile:
 
     def lower(self):
         self.sim.clear_block()
+        self.sim.add_statement(Print(self.sim, "PropertiesResetVolatile"))
         for i in ParticleFor(self.sim):
             for p in self.sim.properties.volatiles():
                 p[i].set(0.0)

@@ -1,6 +1,7 @@
 from ast.branches import Branch, Filter
 from ast.data_types import Type_Int
 from ast.loops import For, ParticleFor
+from ast.utils import Print
 from ast.select import Select
 from sim.resize import Resize
 
@@ -32,6 +33,7 @@ class UpdatePBC:
         nlocal = self.pbc.sim.nlocal
 
         sim.clear_block()
+        sim.add_statement(Print(sim, "UpdatePBC"))
         for i in For(sim, 0, npbc):
             # TODO: allow syntax:
             # positions[nlocal + i].set(positions[pbc_map[i]] + pbc_mult[i] * grid.length)
@@ -52,6 +54,7 @@ class EnforcePBC:
         positions = sim.property('position')
 
         sim.clear_block()
+        sim.add_statement(Print(sim, "EnforcePBC"))
         for i in ParticleFor(sim):
             # TODO: VecFilter?
             for d in range(0, ndims):
@@ -81,6 +84,7 @@ class SetupPBC:
         nlocal = self.pbc.sim.nlocal
 
         sim.clear_block()
+        sim.add_statement(Print(sim, "SetupPBC"))
         for resize in Resize(sim, pbc_capacity):
             npbc.set(0)
             for d in range(0, ndims):
