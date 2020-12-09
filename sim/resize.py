@@ -1,6 +1,7 @@
 from ast.branches import Filter
 from ast.data_types import Type_Int
 from ast.loops import While
+from ast.utils import Print
 
 
 class Resize:
@@ -17,6 +18,7 @@ class Resize:
             self.resize_var.set(0)
             yield self.capacity_var, self.resize_var
             for _ in Filter(self.sim, self.resize_var > 0):
+                self.sim.add_statement(Print(self.sim, f"Resize {self.capacity_var.name()}"))
                 self.capacity_var.set(self.grow_fn(self.resize_var))
                 for a in self.arrays:
                     a.realloc()

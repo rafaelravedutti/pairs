@@ -117,4 +117,4 @@ class CGen:
         return f"({cond}) ? ({expr_if}) : ({expr_else})"
 
     def generate_print(string):
-        printer.print(f"fprintf(stdout, \"{string}\\n\");")
+        printer.print(f"fprintf(stdout, \"{string}\\n\"); fflush(stdout);")
