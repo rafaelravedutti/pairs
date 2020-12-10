@@ -26,7 +26,7 @@ class ParticleSimulation:
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
-        self.particle_capacity = self.add_var('particle_capacity', Type_Int, 100)
+        self.particle_capacity = self.add_var('particle_capacity', Type_Int, 10000)
         self.nlocal = self.add_var('nlocal', Type_Int)
         self.nghost = self.add_var('nghost', Type_Int)
         self.nparticles = self.nlocal + self.nghost
@@ -167,8 +167,8 @@ class ParticleSimulation:
             Timestep(self, self.ntimesteps, [
                 (EnforcePBC(self.pbc).lower(), 20),
                 (SetupPBC(self.pbc).lower(), 20),
-                (CellListsBuild(self.cell_lists).lower(), 20),
                 UpdatePBC(self.pbc).lower(),
+                (CellListsBuild(self.cell_lists).lower(), 20),
                 PropertiesResetVolatile(self).lower(),
                 self.kernels.lower()
             ]).as_block()

@@ -14,8 +14,8 @@ position = psim.add_vector_property('position')
 velocity = psim.add_vector_property('velocity')
 force = psim.add_vector_property('force', vol=True)
 
-grid = psim.grid_3d(0.0, 4.0, 0.0, 4.0, 0.0, 4.0)
-psim.create_particle_lattice(grid, spacing=[1.0, 1.0, 1.0])
+grid = psim.grid_3d(0.0, 16.0, 0.0, 16.0, 0.0, 16.0)
+psim.create_particle_lattice(grid, spacing=[1.2, 1.2, 1.2])
 psim.create_cell_lists(grid, 2.8, 2.8)
 psim.periodic(2.8)
 
