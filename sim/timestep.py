@@ -17,6 +17,9 @@ class Timestep:
                 else:
                     self.add(item)
 
+    def timestep(self):
+        return self.timestep_loop.iter()
+
     def add(self, item, exec_every=0):
         assert exec_every >= 0, \
             "exec_every parameter must be higher or equal than zero!"

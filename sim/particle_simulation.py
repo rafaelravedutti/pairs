@@ -17,6 +17,7 @@ from sim.properties import PropertiesAlloc, PropertiesResetVolatile
 from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
 from sim.variables import VariablesDecl
+from sim.vtk import VTKWrite
 
 
 class ParticleSimulation:
@@ -43,6 +44,7 @@ class ParticleSimulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
+        self.vtk_file = None
         self.properties.add_capacity(self.particle_capacity)
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
@@ -160,18 +162,26 @@ class ParticleSimulation:
         else:
             self.nested_count += 1
 
+    def vtk_output(self, filename):
+        self.vtk_file = filename
+
     def generate(self):
+        timestep = Timestep(self, self.ntimesteps, [
+            (EnforcePBC(self.pbc).lower(), 20),
+            (SetupPBC(self.pbc).lower(), 20),
+            UpdatePBC(self.pbc).lower(),
+            (CellListsBuild(self.cell_lists).lower(), 20),
+            PropertiesResetVolatile(self).lower(),
+            self.kernels.lower()
+        ])
+
+        timestep.add(Block(self, VTKWrite(self, self.vtk_file, timestep.timestep())))
+
         body = Block.from_list(self, [
             CellListsStencilBuild(self.cell_lists).lower(),
             self.setups.lower(),
-            Timestep(self, self.ntimesteps, [
-                (EnforcePBC(self.pbc).lower(), 20),
-                (SetupPBC(self.pbc).lower(), 20),
-                UpdatePBC(self.pbc).lower(),
-                (CellListsBuild(self.cell_lists).lower(), 20),
-                PropertiesResetVolatile(self).lower(),
-                self.kernels.lower()
-            ]).as_block()
+            Block(self, VTKWrite(self, self.vtk_file, 0)),
+            timestep.as_block()
         ])
 
         decls = Block.from_list(self, [

@@ -118,3 +118,59 @@ class CGen:
 
     def generate_print(string):
         printer.print(f"fprintf(stdout, \"{string}\\n\"); fflush(stdout);")
+
+    def generate_vtk_writing(id, filename, start, n, timestep):
+        # TODO: Do this in a more elegant way, without hard coded stuff
+        header = "# vtk DataFile Version 2.0\n" \
+                 "Particle data\n" \
+                 "ASCII\n" \
+                 "DATASET UNSTRUCTURED_GRID\n"
+
+        filename_var = f"filename{id}"
+        filehandle_var = f"vtk{id}"
+        printer.print(f"char {filename_var}[128];")
+        printer.print(f"snprintf({filename_var}, sizeof {filename_var}, \"{filename}_%d.vtk\", {timestep.generate()});")
+        printer.print(f"FILE *{filehandle_var} = fopen({filename_var}, \"w\");")
+        for line in header.split('\n'):
+            if len(line) > 0:
+                printer.print(f"fwrite(\"{line}\\n\", 1, {len(line) + 1}, {filehandle_var});")
+
+        # Write positions
+        printer.print(f"fprintf({filehandle_var}, \"POINTS %d double\\n\", {n.generate()});")
+        CGen.generate_for_preamble("i", start, n.generate())
+        printer.add_ind(4)
+        printer.print(f"fprintf({filehandle_var}, \"%.4f %.4f %.4f\\n\", position[i * 3], position[i * 3 + 1], position[i * 3 + 2]);")
+        printer.add_ind(-4)
+        CGen.generate_for_epilogue()
+        printer.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
+
+        # Write cells
+        printer.print(f"fprintf({filehandle_var}, \"CELLS %d %d\\n\", {n.generate()}, {n.generate()} * 2);")
+        CGen.generate_for_preamble("i", start, n.generate())
+        printer.add_ind(4)
+        printer.print(f"fprintf({filehandle_var}, \"1 %d\\n\", i);")
+        printer.add_ind(-4)
+        CGen.generate_for_epilogue()
+        printer.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
+
+        # Write cell types
+        printer.print(f"fprintf({filehandle_var}, \"CELL TYPES %d\\n\", {n.generate()});")
+        CGen.generate_for_preamble("i", start, n.generate())
+        printer.add_ind(4)
+        printer.print(f"fwrite(\"1\\n\", 1, 2, {filehandle_var});")
+        printer.add_ind(-4)
+        CGen.generate_for_epilogue()
+        printer.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
+
+        # Write masses
+        printer.print(f"fprintf({filehandle_var}, \"POINT_DATA %d\\n\", {n.generate()});")
+        printer.print(f"fprintf({filehandle_var}, \"SCALARS mass double\\n\");")
+        printer.print(f"fprintf({filehandle_var}, \"LOOKUP_TABLE default\\n\");")
+        CGen.generate_for_preamble("i", start, n.generate())
+        printer.add_ind(4)
+        printer.print(f"fprintf({filehandle_var}, \"%4.f\\n\", mass[i]);")
+        printer.add_ind(-4)
+        CGen.generate_for_epilogue()
+        printer.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
+
+        printer.print(f"fclose({filehandle_var});")
