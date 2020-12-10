@@ -154,7 +154,7 @@ class CGen:
         printer.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
 
         # Write cell types
-        printer.print(f"fprintf({filehandle_var}, \"CELL TYPES %d\\n\", {n.generate()});")
+        printer.print(f"fprintf({filehandle_var}, \"CELL_TYPES %d\\n\", {n.generate()});")
         CGen.generate_for_preamble("i", start, n.generate())
         printer.add_ind(4)
         printer.print(f"fwrite(\"1\\n\", 1, 2, {filehandle_var});")
