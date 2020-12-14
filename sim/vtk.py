@@ -12,7 +12,14 @@ class VTKWrite:
         return []
 
     def generate(self):
-        self.sim.code_gen.generate_vtk_writing(VTKWrite.vtk_id, self.filename, 0, self.sim.nlocal, self.timestep)
+        self.sim.code_gen.generate_vtk_writing(
+            VTKWrite.vtk_id * 2, f"{self.filename}_local",
+            as_lit_ast(self.sim, 0), self.sim.nlocal, self.timestep)
+
+        self.sim.code_gen.generate_vtk_writing(
+            VTKWrite.vtk_id * 2 + 1, f"{self.filename}_pbc",
+            self.sim.nlocal, self.sim.pbc.npbc, self.timestep)
+
         VTKWrite.vtk_id += 1
 
     def transform(self, fn):

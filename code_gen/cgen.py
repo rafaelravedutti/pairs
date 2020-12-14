@@ -126,6 +126,7 @@ class CGen:
                  "ASCII\n" \
                  "DATASET UNSTRUCTURED_GRID\n"
 
+        end = start + n
         filename_var = f"filename{id}"
         filehandle_var = f"vtk{id}"
         printer.print(f"char {filename_var}[128];")
@@ -137,7 +138,7 @@ class CGen:
 
         # Write positions
         printer.print(f"fprintf({filehandle_var}, \"POINTS %d double\\n\", {n.generate()});")
-        CGen.generate_for_preamble("i", start, n.generate())
+        CGen.generate_for_preamble("i", start.generate(), end.generate())
         printer.add_ind(4)
         printer.print(f"fprintf({filehandle_var}, \"%.4f %.4f %.4f\\n\", position[i * 3], position[i * 3 + 1], position[i * 3 + 2]);")
         printer.add_ind(-4)
@@ -146,16 +147,16 @@ class CGen:
 
         # Write cells
         printer.print(f"fprintf({filehandle_var}, \"CELLS %d %d\\n\", {n.generate()}, {n.generate()} * 2);")
-        CGen.generate_for_preamble("i", start, n.generate())
+        CGen.generate_for_preamble("i", start.generate(), end.generate())
         printer.add_ind(4)
-        printer.print(f"fprintf({filehandle_var}, \"1 %d\\n\", i);")
+        printer.print(f"fprintf({filehandle_var}, \"1 %d\\n\", i - {start.generate()});")
         printer.add_ind(-4)
         CGen.generate_for_epilogue()
         printer.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
 
         # Write cell types
         printer.print(f"fprintf({filehandle_var}, \"CELL_TYPES %d\\n\", {n.generate()});")
-        CGen.generate_for_preamble("i", start, n.generate())
+        CGen.generate_for_preamble("i", start.generate(), end.generate())
         printer.add_ind(4)
         printer.print(f"fwrite(\"1\\n\", 1, 2, {filehandle_var});")
         printer.add_ind(-4)
@@ -166,9 +167,10 @@ class CGen:
         printer.print(f"fprintf({filehandle_var}, \"POINT_DATA %d\\n\", {n.generate()});")
         printer.print(f"fprintf({filehandle_var}, \"SCALARS mass double\\n\");")
         printer.print(f"fprintf({filehandle_var}, \"LOOKUP_TABLE default\\n\");")
-        CGen.generate_for_preamble("i", start, n.generate())
+        CGen.generate_for_preamble("i", start.generate(), end.generate())
         printer.add_ind(4)
-        printer.print(f"fprintf({filehandle_var}, \"%4.f\\n\", mass[i]);")
+        #printer.print(f"fprintf({filehandle_var}, \"%4.f\\n\", mass[i]);")
+        printer.print(f"fprintf({filehandle_var}, \"1.0\\n\");")
         printer.add_ind(-4)
         CGen.generate_for_epilogue()
         printer.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
