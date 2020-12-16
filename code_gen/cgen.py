@@ -117,7 +117,8 @@ class CGen:
         return f"({cond}) ? ({expr_if}) : ({expr_else})"
 
     def generate_print(string):
-        printer.print(f"fprintf(stdout, \"{string}\\n\"); fflush(stdout);")
+        printer.print(f"fprintf(stdout, \"{string}\\n\");")
+        printer.print(f"fflush(stdout);")
 
     def generate_vtk_writing(id, filename, start, n, timestep):
         # TODO: Do this in a more elegant way, without hard coded stuff
