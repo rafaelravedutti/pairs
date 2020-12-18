@@ -106,14 +106,16 @@ class For():
 
 
 class ParticleFor(For):
-    def __init__(self, sim, block=None):
+    def __init__(self, sim, block=None, local_only=True):
         super().__init__(sim, 0, 0, block)
+        self.local_only = local_only
 
     def __str__(self):
         return f"ParticleFor<>"
 
     def generate(self):
-        self.sim.code_gen.generate_for_preamble(self.iterator.generate(), 0, self.sim.nlocal.generate())
+        upper_range = self.sim.nlocal if self.local_only else self.sim.nlocal + self.sim.pbc.npbc
+        self.sim.code_gen.generate_for_preamble(self.iterator.generate(), 0, upper_range.generate())
         self.block.generate()
         self.sim.code_gen.generate_for_epilogue()
 

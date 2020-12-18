@@ -84,7 +84,7 @@ class CellListsBuild:
             for c in For(cl.sim, 0, cl.ncells_all):
                 cl.cell_sizes[c].set(0)
 
-            for i in ParticleFor(cl.sim):
+            for i in ParticleFor(cl.sim, local_only=False):
                 cell_index = [
                     Cast.int(cl.sim, (positions[i][d] - grid.min(d)) / spc)
                     for d in range(0, cl.sim.dimensions)]
@@ -95,9 +95,7 @@ class CellListsBuild:
                                 else flat_idx * cl.ncells[d] + cell_index[d])
 
                 cell_size = cl.cell_sizes[flat_idx]
-                for _ in Filter(cl.sim,
-                                Expr.and_op(flat_idx >= 0,
-                                            flat_idx <= cl.ncells_all)):
+                for _ in Filter(cl.sim, Expr.and_op(flat_idx >= 0, flat_idx <= cl.ncells_all)):
                     for cond in Branch(cl.sim, cell_size >= cl.cell_capacity):
                         if cond:
                             resize.set(cell_size)
