@@ -14,6 +14,7 @@ from sim.kernel_wrapper import KernelWrapper
 from sim.lattice import ParticleLattice
 from sim.pbc import PBC, UpdatePBC, EnforcePBC, SetupPBC
 from sim.properties import PropertiesAlloc, PropertiesResetVolatile
+from sim.read_from_file import ReadFromFile
 from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
 from sim.variables import VariablesDecl
@@ -103,8 +104,14 @@ class ParticleSimulation:
         lattice = ParticleLattice(self, grid, spacing, props, positions)
         self.setups.add_setup_block(lattice.lower())
 
-    def create_cell_lists(self, grid, spacing, cutoff_radius):
-        self.cell_lists = CellLists(self, grid, spacing, cutoff_radius)
+    def from_file(self, filename, prop_names):
+        props = [self.property(prop_name) for prop_name in prop_names]
+        read_object = ReadFromFile(self, filename, props)
+        self.setups.add_setup_block(read_object.lower())
+        self.grid = read_object.grid
+
+    def create_cell_lists(self, spacing, cutoff_radius):
+        self.cell_lists = CellLists(self, self.grid, spacing, cutoff_radius)
         return self.cell_lists
 
     def periodic(self, cutneigh, flags=[1, 1, 1]):
@@ -168,8 +175,8 @@ class ParticleSimulation:
     def generate(self):
         timestep = Timestep(self, self.ntimesteps, [
             (EnforcePBC(self.pbc).lower(), 20),
-            (SetupPBC(self.pbc).lower(), 20),
-            UpdatePBC(self.pbc).lower(),
+            #(SetupPBC(self.pbc).lower(), 20),
+            #UpdatePBC(self.pbc).lower(),
             (CellListsBuild(self.cell_lists).lower(), 20),
             PropertiesResetVolatile(self).lower(),
             self.kernels.lower()
@@ -180,6 +187,10 @@ class ParticleSimulation:
         body = Block.from_list(self, [
             CellListsStencilBuild(self.cell_lists).lower(),
             self.setups.lower(),
+            EnforcePBC(self.pbc).lower(),
+            #SetupPBC(self.pbc).lower(),
+            #UpdatePBC(self.pbc).lower(),
+            CellListsBuild(self.cell_lists).lower(),
             Block(self, VTKWrite(self, self.vtk_file, 0)),
             timestep.as_block()
         ])

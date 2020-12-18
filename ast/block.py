@@ -68,10 +68,8 @@ class Block:
         return fn(self)
 
     def merge_blocks(block1, block2):
-        assert isinstance(block1, Block), \
-            "First block type is not Block!"
-        assert isinstance(block2, Block), \
-            "Second block type is not Block!"
+        assert isinstance(block1, Block), "First block type is not Block!"
+        assert isinstance(block2, Block), "Second block type is not Block!"
         return Block(block1.sim, block1.statements() + block2.statements())
 
     def from_list(sim, block_list):
@@ -79,8 +77,7 @@ class Block:
         result_block = Block(sim, [])
 
         for block in block_list:
-            assert isinstance(block, Block), \
-                "Element in list is not Block!"
+            assert isinstance(block, Block), "Element in list is not Block!"
             result_block = Block.merge_blocks(result_block, block)
 
         return result_block

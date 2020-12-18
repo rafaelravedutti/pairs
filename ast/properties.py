@@ -46,6 +46,7 @@ class Property:
         self.prop_layout = layout
         self.default_value = default
         self.volatile = volatile
+        self.mutable = True
         self.flattened = False
 
     def __str__(self):
@@ -62,6 +63,9 @@ class Property:
 
     def default(self):
         return self.default_value
+
+    def is_mutable(self):
+        return self.mutable
 
     def scope(self):
         return self.sim.global_scope

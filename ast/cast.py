@@ -19,6 +19,9 @@ class Cast:
     def type(self):
         return self.cast_type
 
+    def is_mutable(self):
+        return self.expr.is_mutable()
+
     def scope(self):
         return self.expr.scope()
 

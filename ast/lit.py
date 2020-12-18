@@ -48,6 +48,9 @@ class Lit:
     def type(self):
         return self.lit_type
 
+    def is_mutable(self):
+        return False
+
     def scope(self):
         return self.sim.global_scope
 

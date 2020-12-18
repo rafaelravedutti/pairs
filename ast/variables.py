@@ -29,6 +29,7 @@ class Var:
         self.var_name = var_name
         self.var_type = var_type
         self.var_init_value = init_value
+        self.mutable = True
         self.var_bonded_arrays = []
 
     def __str__(self):
@@ -93,6 +94,9 @@ class Var:
 
     def bonded_arrays(self):
         return self.var_bonded_arrays
+
+    def is_mutable(self):
+        return self.mutable
 
     def scope(self):
         return self.sim.global_scope

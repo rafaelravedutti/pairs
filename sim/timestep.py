@@ -8,7 +8,7 @@ class Timestep:
     def __init__(self, sim, nsteps, item_list=None):
         self.sim = sim
         self.block = Block(sim, [])
-        self.timestep_loop = For(sim, 0, nsteps, self.block)
+        self.timestep_loop = For(sim, 1, nsteps + 1, self.block)
 
         if item_list is not None:
             for item in item_list:
@@ -24,9 +24,7 @@ class Timestep:
         assert exec_every >= 0, \
             "exec_every parameter must be higher or equal than zero!"
 
-        stmts = (item if not isinstance(item, Block)
-                 else item.statements())
-
+        stmts = item if not isinstance(item, Block) else item.statements()
         ts = self.timestep_loop.iter()
         if exec_every > 0:
             self.block.add_statement(

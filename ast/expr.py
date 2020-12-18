@@ -21,6 +21,7 @@ class Expr:
         self.expr_type = Expr.infer_type(self.lhs, self.rhs, self.op)
         self.expr_scope = None
         self.vec_generated = []
+        self.mutable = self.lhs.is_mutable() or self.rhs.is_mutable() # Value can change accross references
         self.generated = False
 
     def __str__(self):
@@ -131,6 +132,9 @@ class Expr:
     def type(self):
         return self.expr_type
 
+    def is_mutable(self):
+        return self.mutable
+
     def scope(self):
         if self.expr_scope is None:
             lhs_scp = self.lhs.scope()
@@ -186,6 +190,7 @@ class ExprVec():
         self.expr = expr
         self.index = index
         self.expr_scope = None
+        self.mutable = self.expr.is_mutable() or self.index.is_mutable()
         self.lhs = (expr.lhs if not isinstance(expr.lhs, Expr)
                     else ExprVec(sim, expr.lhs, index))
         self.rhs = (expr.rhs if not isinstance(expr.rhs, Expr)
@@ -230,6 +235,9 @@ class ExprVec():
 
     def type(self):
         return Type_Float
+
+    def is_mutable(self):
+        return self.mutable
 
     def scope(self):
         if self.expr_scope is None:

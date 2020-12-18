@@ -13,6 +13,9 @@ class Sizeof:
     def type(self):
         return Type_Int
 
+    def is_mutable(self):
+        return False
+
     def scope(self):
         return self.sim.global_scope
 

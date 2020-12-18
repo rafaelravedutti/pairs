@@ -14,9 +14,10 @@ position = psim.add_vector_property('position')
 velocity = psim.add_vector_property('velocity')
 force = psim.add_vector_property('force', vol=True)
 
-grid = psim.grid_3d(0.0, 16.0, 0.0, 16.0, 0.0, 16.0)
-psim.create_particle_lattice(grid, spacing=[1.2, 1.2, 1.2])
-psim.create_cell_lists(grid, 2.8, 2.8)
+#grid = psim.grid_3d(0.0, 4.0, 0.0, 4.0, 0.0, 4.0)
+#psim.create_particle_lattice(grid, spacing=[0.82323, 0.82323, 0.82323])
+psim.from_file("data/minimd_setup_4x4x4.input", ['mass', 'position', 'velocity'])
+psim.create_cell_lists(2.8, 2.8)
 psim.periodic(2.8)
 psim.vtk_output("output/test")
 

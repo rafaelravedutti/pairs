@@ -20,6 +20,9 @@ class Iter():
     def type(self):
         return Type_Int
 
+    def is_mutable(self):
+        return False
+
     def scope(self):
         return self.loop.block
 

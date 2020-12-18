@@ -126,6 +126,7 @@ class ArrayAccess:
         self.array = array
         self.indexes = [as_lit_ast(sim, index)]
         self.index = None
+        self.mutable = True
         self.generated = False
         self.check_and_set_index()
 
@@ -176,6 +177,9 @@ class ArrayAccess:
     def type(self):
         return self.array.type()
         # return self.array.type() if self.index is None else Type_Array
+
+    def is_mutable(self):
+        return self.mutable
 
     def scope(self):
         if self.index is None:
