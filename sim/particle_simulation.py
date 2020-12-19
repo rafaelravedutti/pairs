@@ -175,22 +175,17 @@ class ParticleSimulation:
     def generate(self):
         timestep = Timestep(self, self.ntimesteps, [
             (EnforcePBC(self.pbc).lower(), 20),
-            (SetupPBC(self.pbc).lower(), 20),
-            UpdatePBC(self.pbc).lower(),
+            (SetupPBC(self.pbc).lower(), UpdatePBC(self.pbc).lower(), 20),
             (CellListsBuild(self.cell_lists).lower(), 20),
             PropertiesResetVolatile(self).lower(),
             self.kernels.lower()
         ])
 
-        timestep.add(Block(self, VTKWrite(self, self.vtk_file, timestep.timestep())))
+        timestep.add(Block(self, VTKWrite(self, self.vtk_file, timestep.timestep() + 1)))
 
         body = Block.from_list(self, [
             CellListsStencilBuild(self.cell_lists).lower(),
             self.setups.lower(),
-            EnforcePBC(self.pbc).lower(),
-            SetupPBC(self.pbc).lower(),
-            UpdatePBC(self.pbc).lower(),
-            CellListsBuild(self.cell_lists).lower(),
             Block(self, VTKWrite(self, self.vtk_file, 0)),
             timestep.as_block()
         ])

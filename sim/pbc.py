@@ -95,20 +95,13 @@ class SetupPBC:
                             if capacity_exceeded:
                                 resize.set(Select(sim, resize > npbc, resize + 1, npbc))
                             else:
+                                pbc_map[npbc].set(i)
                                 pbc_mult[npbc][d].set(1)
+                                positions[nlocal + npbc][d].set(positions[i][d] + grid.length(d))
 
-                                for is_local in Branch(sim, i < nlocal):
-                                    # TODO: VecFilter.others generator?
-                                    if is_local:
-                                        pbc_map[npbc].set(i)
-                                    else:
-                                        pbc_map[npbc].set(pbc_map[i - nlocal])
-
-                                    for d_ in [x for x in range(0, ndims) if x != d]:
-                                        if is_local:
-                                            pbc_mult[npbc][d_].set(0)
-                                        else:
-                                            pbc_mult[npbc][d_].set(pbc_mult[i - nlocal][d_])
+                                for d_ in [x for x in range(0, ndims) if x != d]:
+                                    pbc_mult[npbc][d_].set(0)
+                                    positions[nlocal + npbc][d_].set(positions[i][d_])
 
                                 npbc.add(1)
 
@@ -117,18 +110,13 @@ class SetupPBC:
                             if capacity_exceeded:
                                 resize.set(Select(sim, resize > npbc, resize + 1, npbc))
                             else:
+                                pbc_map[npbc].set(i)
                                 pbc_mult[npbc][d].set(-1)
-                                for is_local in Branch(sim, i < nlocal):
-                                    if is_local:
-                                        pbc_map[npbc].set(i)
-                                    else:
-                                        pbc_map[npbc].set(pbc_map[i - nlocal])
+                                positions[nlocal + npbc][d].set(positions[i][d] - grid.length(d))
 
-                                    for d_ in [x for x in range(0, ndims) if x != d]:
-                                        if is_local:
-                                            pbc_mult[npbc][d_].set(0)
-                                        else:
-                                            pbc_mult[npbc][d_].set(pbc_mult[i - nlocal][d_])
+                                for d_ in [x for x in range(0, ndims) if x != d]:
+                                    pbc_mult[npbc][d_].set(0)
+                                    positions[nlocal + npbc][d_].set(positions[i][d_])
 
                                 npbc.add(1)
 
