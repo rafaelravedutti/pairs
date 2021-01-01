@@ -1,5 +1,5 @@
 from ast.block import Block
-from ast.expr import Expr
+from ast.expr import BinOp
 from ast.branches import Branch
 from ast.loops import For
 
@@ -34,7 +34,7 @@ class Timestep:
 
         if exec_every > 0:
             self.block.add_statement(
-                Branch(self.sim, Expr.cmp(ts % exec_every, 0), True if stmts_else is None else False,
+                Branch(self.sim, BinOp.cmp(ts % exec_every, 0), True if stmts_else is None else False,
                 Block(self.sim, stmts), None if stmts_else is None else Block(self.sim, stmts_else)))
         else:
             self.block.add_statement(stmts)

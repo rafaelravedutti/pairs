@@ -1,7 +1,7 @@
 from ast.branches import Branch, Filter
 from ast.cast import Cast
 from ast.data_types import Type_Int
-from ast.expr import Expr
+from ast.expr import BinOp
 from ast.loops import For, ParticleFor
 from ast.utils import Print
 from functools import reduce
@@ -95,7 +95,7 @@ class CellListsBuild:
                                 else flat_idx * cl.ncells[d] + cell_index[d])
 
                 cell_size = cl.cell_sizes[flat_idx]
-                for _ in Filter(cl.sim, Expr.and_op(flat_idx >= 0, flat_idx <= cl.ncells_all)):
+                for _ in Filter(cl.sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells_all)):
                     for cond in Branch(cl.sim, cell_size >= cl.cell_capacity):
                         if cond:
                             resize.set(cell_size)

@@ -57,11 +57,7 @@ class Lit:
     def children(self):
         return []
 
-    def generate(self, mem=False):
-        assert mem is False, "Literal is not lvalue!"
-        return self.value
-
-    def generate_inline(self, mem=False, recursive=False):
+    def generate(self, mem=False, index=None):
         assert mem is False, "Literal is not lvalue!"
         return self.value
 

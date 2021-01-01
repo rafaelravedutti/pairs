@@ -71,13 +71,13 @@ class Property:
         return self.sim.global_scope
 
     def __getitem__(self, expr_ast):
-        from ast.expr import Expr
-        return Expr(self.sim, self, expr_ast, '[]', True)
+        from ast.expr import BinOp
+        return BinOp(self.sim, self, expr_ast, '[]', True)
 
     def children(self):
         return []
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         return self.prop_name
 
     def transform(self, fn):

@@ -1,7 +1,7 @@
 from ast.block import Block
 from ast.branches import Filter
 from ast.data_types import Type_Int
-from ast.expr import Expr
+from ast.expr import BinOp
 from ast.lit import as_lit_ast
 
 
@@ -30,18 +30,18 @@ class Iter():
         return self.loop.block
 
     def __add__(self, other):
-        return Expr(self.sim, self, other, '+')
+        return BinOp(self.sim, self, other, '+')
 
     def __sub__(self, other):
-        return Expr(self.sim, self, other, '-')
+        return BinOp(self.sim, self, other, '-')
 
     def __mul__(self, other):
-        from ast.expr import Expr
-        return Expr(self.sim, self, other, '*')
+        from ast.expr import BinOp
+        return BinOp(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        from ast.expr import Expr
-        return Expr(self.sim, other, self, '*')
+        from ast.expr import BinOp
+        return BinOp(self.sim, other, self, '*')
 
     def __eq__(self, other):
         if isinstance(other, Iter):
@@ -53,8 +53,8 @@ class Iter():
         return self.__cmp__(other)
 
     def __mod__(self, other):
-        from ast.expr import Expr
-        return Expr(self.sim, self, other, '%')
+        from ast.expr import BinOp
+        return BinOp(self.sim, self, other, '%')
 
     def __str__(self):
         return f"Iter<{self.iter_id}>"
@@ -62,7 +62,7 @@ class Iter():
     def children(self):
         return []
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         assert mem is False, "Iterator is not lvalue!"
         return f"i{self.iter_id}"
 
@@ -128,9 +128,10 @@ class ParticleFor(For):
 
 class While():
     def __init__(self, sim, cond, block=None):
+        from ast.expr import BinOp
         self.sim = sim
         self.parent_block = None
-        self.cond = cond
+        self.cond = BinOp.inline(cond)
         self.block = Block(sim, []) if block is None else block
 
     def __str__(self):
@@ -149,10 +150,7 @@ class While():
         return [self.cond, self.block]
 
     def generate(self):
-        from ast.expr import Expr
-        cond_gen = (self.cond.generate() if not isinstance(self.cond, Expr)
-                    else self.cond.generate_inline())
-        self.sim.code_gen.generate_while_preamble(cond_gen)
+        self.sim.code_gen.generate_while_preamble(self.cond.generate())
         self.block.generate()
         self.sim.code_gen.generate_while_epilogue()
 
@@ -177,9 +175,9 @@ class NeighborFor():
         for s in For(self.sim, 0, cl.nstencil):
             neigh_cell = cl.particle_cell[self.particle] + cl.stencil[s]
             for _ in Filter(self.sim,
-                            Expr.and_op(neigh_cell >= 0,
-                                        neigh_cell <= cl.ncells_all)):
+                            BinOp.and_op(neigh_cell >= 0,
+                                         neigh_cell <= cl.ncells_all)):
                 for nc in For(self.sim, 0, cl.cell_sizes[neigh_cell]):
                     it = cl.cell_particles[neigh_cell][nc]
-                    for _ in Filter(self.sim, Expr.neq(it, self.particle)):
+                    for _ in Filter(self.sim, BinOp.neq(it, self.particle)):
                             yield it

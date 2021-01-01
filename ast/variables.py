@@ -1,5 +1,5 @@
 from ast.assign import Assign
-from ast.expr import Expr
+from ast.expr import BinOp
 
 
 class Variables:
@@ -36,40 +36,40 @@ class Var:
         return f"Var<name: {self.var_name}, type: {self.var_type}>"
 
     def __add__(self, other):
-        return Expr(self.sim, self, other, '+')
+        return BinOp(self.sim, self, other, '+')
 
     def __radd__(self, other):
-        return Expr(self.sim, other, self, '+')
+        return BinOp(self.sim, other, self, '+')
 
     def __sub__(self, other):
-        return Expr(self.sim, self, other, '-')
+        return BinOp(self.sim, self, other, '-')
 
     def __mul__(self, other):
-        return Expr(self.sim, self, other, '*')
+        return BinOp(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        return Expr(self.sim, other, self, '*')
+        return BinOp(self.sim, other, self, '*')
 
     def __truediv__(self, other):
-        return Expr(self.sim, self, other, '/')
+        return BinOp(self.sim, self, other, '/')
 
     def __rtruediv__(self, other):
-        return Expr(self.sim, other, self, '/')
+        return BinOp(self.sim, other, self, '/')
 
     def __lt__(self, other):
-        return Expr(self.sim, self, other, '<')
+        return BinOp(self.sim, self, other, '<')
 
     def __le__(self, other):
-        return Expr(self.sim, self, other, '<=')
+        return BinOp(self.sim, self, other, '<=')
 
     def __gt__(self, other):
-        return Expr(self.sim, self, other, '>')
+        return BinOp(self.sim, self, other, '>')
 
     def __ge__(self, other):
-        return Expr(self.sim, self, other, '>=')
+        return BinOp(self.sim, self, other, '>=')
 
     def inv(self):
-        return Expr(self.sim, 1.0, self, '/')
+        return BinOp(self.sim, 1.0, self, '/')
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
@@ -104,7 +104,7 @@ class Var:
     def children(self):
         return []
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         return self.var_name
 
     def transform(self, fn):
@@ -120,7 +120,7 @@ class VarDecl:
     def children(self):
         return []
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         self.sim.code_gen.generate_var_decl(
             self.var.name(), self.var.type(), self.var.init_value())
 

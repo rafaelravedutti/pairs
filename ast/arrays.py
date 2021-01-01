@@ -1,6 +1,6 @@
 from ast.assign import Assign
 from ast.data_types import Type_Array
-from ast.expr import Expr
+from ast.expr import BinOp
 from ast.layouts import Layout_AoS, Layout_SoA
 from ast.lit import as_lit_ast
 from ast.memory import Realloc
@@ -80,7 +80,7 @@ class Array:
     def children(self):
         return []
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         return self.arr_name
 
     def transform(self, fn):
@@ -134,13 +134,13 @@ class ArrayAccess:
         return f"ArrayAccess<array: {self.array}, indexes: {self.indexes}>"
 
     def __add__(self, other):
-        return Expr(self.sim, self, other, '+')
+        return BinOp(self.sim, self, other, '+')
 
     def __mul__(self, other):
-        return Expr(self.sim, self, other, '*')
+        return BinOp(self.sim, self, other, '*')
 
     def __rmul__(self, other):
-        return Expr(self.sim, other, self, '*')
+        return BinOp(self.sim, other, self, '*')
 
     def __getitem__(self, index):
         assert self.index is None, "Number of indexes higher than array dimension!"
@@ -196,7 +196,7 @@ class ArrayAccess:
     def children(self):
         return [self.array] + self.indexes
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         agen = self.array.generate()
         igen = self.index.generate()
         if mem is False and self.generated is False:
@@ -220,10 +220,8 @@ class ArrayDecl:
     def children(self):
         return []
 
-    def generate(self, mem=False):
-        self.sim.code_gen.generate_array_decl(
-            self.array.name(), self.array.type(),
-            self.array.alloc_size().generate_inline(recursive=True))
+    def generate(self, mem=False, index=None):
+        self.sim.code_gen.generate_array_decl(self.array.name(), self.array.type(), BinOp.inline(self.array.alloc_size()).generate())
 
     def transform(self, fn):
         return fn(self)

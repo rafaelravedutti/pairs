@@ -1,5 +1,5 @@
 from ast.data_types import Type_Int
-from ast.expr import Expr
+from ast.expr import BinOp
 
 
 class Sizeof:
@@ -8,7 +8,7 @@ class Sizeof:
         self.data_type = data_type
 
     def __mul__(self, other):
-        return Expr(self.sim, self, other, '*')
+        return BinOp(self.sim, self, other, '*')
 
     def type(self):
         return Type_Int
@@ -22,7 +22,7 @@ class Sizeof:
     def children(self):
         return []
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         return self.sim.code_gen.generate_sizeof(self.data_type)
 
     def transform(self, fn):

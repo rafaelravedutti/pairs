@@ -1,6 +1,6 @@
 from ast.arrays import ArrayAccess
 from ast.data_types import Type_Int, Type_Vector
-from ast.expr import Expr, ExprVec
+from ast.expr import BinOp
 from ast.layouts import Layout_AoS, Layout_SoA
 from ast.lit import Lit
 from ast.loops import Iter
@@ -8,40 +8,30 @@ from ast.properties import Property
 
 
 class Transform:
-    flattened_list = []
     reuse_expressions = {}
 
     def apply(ast, fn):
         ast.transform(fn)
-        Transform.flattened_list = []
         Transform.reuse_expressions = {}
 
     def flatten(ast):
-        if isinstance(ast, ExprVec):
-            if ast.expr.op == '[]' and ast.expr.type() == Type_Vector:
-                item = [f for f in Transform.flattened_list if
-                        f[0] == ast.expr.lhs and
-                        f[1] == ast.index and
-                        f[2] == ast.expr.rhs and
-                        not ast.expr.rhs.is_mutable()]
-                if item:
-                    return item[0][3]
-
+        if isinstance(ast, BinOp):
+            if ast.is_vector_property_access():
                 layout = ast.lhs.layout()
-                flat_index = None
 
-                if layout == Layout_AoS:
-                    flat_index = ast.expr.rhs * ast.expr.sim.dimensions + ast.index
+                for i in ast.vector_indexes():
+                    flat_index = None
 
-                elif layout == Layout_SoA:
-                    flat_index = ast.index * ast.expr.sim.particle_capacity + ast.expr.rhs
+                    if layout == Layout_AoS:
+                        flat_index = ast.rhs * ast.sim.dimensions + i
 
-                else:
-                    raise Exception("Invalid property layout!")
+                    elif layout == Layout_SoA:
+                        flat_index = i * ast.sim.particle_capacity + ast.rhs
 
-                new_expr = Expr(ast.expr.sim, ast.expr.lhs, flat_index, '[]', ast.expr.mem)
-                Transform.flattened_list.append((ast.expr.lhs, ast.index, ast.expr.rhs, new_expr))
-                return new_expr
+                    else:
+                        raise Exception("Invalid property layout!")
+
+                    ast.map_vector_index(i, flat_index)
 
         if isinstance(ast, Property):
             ast.flattened = True
@@ -49,13 +39,13 @@ class Transform:
         return ast
 
     def simplify(ast):
-        if isinstance(ast, Expr):
+        if isinstance(ast, BinOp):
             sim = ast.lhs.sim
 
             if ast.op in ['+', '-'] and ast.rhs == 0:
                 return ast.lhs
 
-            if ast.op in ['+', '-'] and ast.lhs == 0:
+            if ast.op in ['+'] and ast.lhs == 0:
                 return ast.rhs
 
             if ast.op in ['*', '/'] and ast.rhs == 1:
@@ -70,7 +60,7 @@ class Transform:
         return ast
 
     def reuse_index_expressions(ast):
-        if isinstance(ast, Expr):
+        if isinstance(ast, BinOp):
             iter_id = None
 
             if isinstance(ast.lhs, Iter):
@@ -94,13 +84,13 @@ class Transform:
         return ast
 
     def reuse_expr_expressions(ast):
-        if isinstance(ast, Expr):
+        if isinstance(ast, BinOp):
             expr_id = None
 
-            if isinstance(ast.lhs, Expr):
+            if isinstance(ast.lhs, BinOp):
                 expr_id = ast.lhs.expr_id
 
-            if isinstance(ast.rhs, Expr):
+            if isinstance(ast.rhs, BinOp):
                 expr_id = ast.rhs.expr_id
 
             if expr_id is not None:
@@ -118,7 +108,7 @@ class Transform:
         return ast
 
     def reuse_array_access_expressions(ast):
-        if isinstance(ast, Expr):
+        if isinstance(ast, BinOp):
             acc_id = None
 
             if isinstance(ast.lhs, ArrayAccess):
@@ -142,7 +132,7 @@ class Transform:
         return ast
 
     def move_loop_invariant_expressions(ast):
-        if isinstance(ast, Expr):
+        if isinstance(ast, BinOp):
             scope = ast.scope()
             if scope.level > 0:
                 scope.add_expression(ast)

@@ -21,7 +21,7 @@ class Sqrt:
     def children(self):
         return [self.expr]
 
-    def generate(self, mem=False):
+    def generate(self, mem=False, index=None):
         return self.sim.code_gen.generate_sqrt(self.expr.generate())
 
     def transform(self, fn):

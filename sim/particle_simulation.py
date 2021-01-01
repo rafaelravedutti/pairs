@@ -31,7 +31,6 @@ class ParticleSimulation:
         self.particle_capacity = self.add_var('particle_capacity', Type_Int, 10000)
         self.nlocal = self.add_var('nlocal', Type_Int)
         self.nghost = self.add_var('nghost', Type_Int)
-        self.nparticles = self.nlocal + self.nghost
         self.grid = None
         self.cell_lists = None
         self.pbc = None
@@ -46,44 +45,39 @@ class ParticleSimulation:
         self.expr_id = 0
         self.iter_id = 0
         self.vtk_file = None
+        self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
-        assert self.property(prop_name) is None, \
-            f"add_real_property(): Property already defined: {prop_name}"
+        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
         return self.properties.add(prop_name, Type_Float, value, vol)
 
     def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layout_AoS):
-        assert self.property(prop_name) is None, \
-            f"add_vector_property(): Property already defined: {prop_name}"
+        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
         return self.properties.add(prop_name, Type_Vector, value, vol, layout)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
 
     def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
-        assert self.array(arr_name) is None, \
-            f"add_array(): Array already defined: {arr_name}"
+        assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
         return self.arrays.add(arr_name, arr_sizes, arr_type, arr_layout)
 
     def add_static_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
-        assert self.array(arr_name) is None, \
-            f"add_static_array(): Array already defined: {arr_name}"
+        assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
         return self.arrays.add_static(arr_name, arr_sizes, arr_type, arr_layout)
 
     def array(self, arr_name):
         return self.arrays.find(arr_name)
 
     def add_var(self, var_name, var_type, init_value=0):
-        assert self.var(var_name) is None, \
-            f"add_var(): Variable already defined: {var_name}"
+        assert self.var(var_name) is None, f"Variable already defined: {var_name}"
         return self.vars.add(var_name, var_type, init_value)
 
     def add_or_reuse_var(self, var_name, var_type, init_value=0):
         existing_var = self.var(var_name)
         if existing_var is not None:
-            assert existing_var.type() == var_type, \
-                f"add_or_reuse_var(): Cannot reuse variable {var_name}: types differ!"
+            assert existing_var.type() == var_type, f"Cannot reuse variable {var_name}: types differ!"
             return existing_var
 
         return self.vars.add(var_name, var_type, init_value)
@@ -200,7 +194,7 @@ class ParticleSimulation:
         self.global_scope = program
         Block.set_block_levels(program)
         Transform.apply(program, Transform.flatten)
-        Transform.apply(program, Transform.simplify)
+        #Transform.apply(program, Transform.simplify)
         #Transform.apply(program, Transform.reuse_index_expressions)
         #Transform.apply(program, Transform.reuse_expr_expressions)
         #Transform.apply(program, Transform.reuse_array_access_expressions)

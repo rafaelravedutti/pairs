@@ -15,8 +15,8 @@ class Assign:
             self.assignments = []
 
             for i in range(0, sim.dimensions):
-                from ast.expr import Expr
-                dsrc = (src if (not isinstance(src, Expr) or
+                from ast.expr import BinOp
+                dsrc = (src if (not isinstance(src, BinOp) or
                                 src.type() != Type_Vector)
                         else src[i])
 

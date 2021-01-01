@@ -89,6 +89,7 @@ class SetupPBC:
             npbc.set(0)
             for d in range(0, ndims):
                 for i in For(sim, 0, nlocal + npbc):
+                    last_id = nlocal + npbc
                     # TODO: VecFilter?
                     for _ in Filter(sim, positions[i][d] < grid.min(d) + cutneigh):
                         for capacity_exceeded in Branch(sim, npbc >= pbc_capacity):
@@ -97,11 +98,11 @@ class SetupPBC:
                             else:
                                 pbc_map[npbc].set(i)
                                 pbc_mult[npbc][d].set(1)
-                                positions[nlocal + npbc][d].set(positions[i][d] + grid.length(d))
+                                positions[last_id][d].set(positions[i][d] + grid.length(d))
 
                                 for d_ in [x for x in range(0, ndims) if x != d]:
                                     pbc_mult[npbc][d_].set(0)
-                                    positions[nlocal + npbc][d_].set(positions[i][d_])
+                                    positions[last_id][d_].set(positions[i][d_])
 
                                 npbc.add(1)
 
@@ -112,11 +113,11 @@ class SetupPBC:
                             else:
                                 pbc_map[npbc].set(i)
                                 pbc_mult[npbc][d].set(-1)
-                                positions[nlocal + npbc][d].set(positions[i][d] - grid.length(d))
+                                positions[last_id][d].set(positions[i][d] - grid.length(d))
 
                                 for d_ in [x for x in range(0, ndims) if x != d]:
                                     pbc_mult[npbc][d_].set(0)
-                                    positions[nlocal + npbc][d_].set(positions[i][d_])
+                                    positions[last_id][d_].set(positions[i][d_])
 
                                 npbc.add(1)
 
