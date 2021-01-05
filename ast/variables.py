@@ -104,9 +104,6 @@ class Var:
     def children(self):
         return []
 
-    def generate(self, mem=False, index=None):
-        return self.var_name
-
     def transform(self, fn):
         return fn(self)
 
@@ -119,10 +116,6 @@ class VarDecl:
 
     def children(self):
         return []
-
-    def generate(self, mem=False, index=None):
-        self.sim.code_gen.generate_var_decl(
-            self.var.name(), self.var.type(), self.var.init_value())
 
     def transform(self, fn):
         return fn(self)

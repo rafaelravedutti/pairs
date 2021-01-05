@@ -15,29 +15,6 @@ class BinOpDef:
     def children(self):
         return [self.bin_op]
 
-    def generate(self, mem=False):
-        bin_op = self.bin_op
-
-        if not isinstance(bin_op, BinOp):
-            return None
-
-        if bin_op.inlined is False and bin_op.operator() != '[]' and bin_op.generated is False:
-            if bin_op.kind() == BinOp.Kind_Scalar:
-                lhs = bin_op.lhs.generate(bin_op.mem)
-                rhs = bin_op.rhs.generate()
-                bin_op.sim.code_gen.generate_expr(bin_op.id(), bin_op.type(), lhs, rhs, bin_op.op)
-
-            elif bin_op.kind() == BinOp.Kind_Vector:
-                for i in bin_op.vector_indexes():
-                    lhs = bin_op.lhs.generate(bin_op.mem, index=i)
-                    rhs = bin_op.rhs.generate(index=i)
-                    bin_op.sim.code_gen.generate_vec_expr(bin_op.id(), i, lhs, rhs, bin_op.operator(), bin_op.mem)
-
-            else:
-                raise Exception("Invalid BinOp kind!")
-
-            bin_op.generated = True
-
     def transform(self, fn):
         self.bin_op = self.bin_op.transform(fn)
         return fn(self)
@@ -224,6 +201,9 @@ class BinOp:
     def type(self):
         return self.bin_op_type
 
+    def definition(self):
+        return self.bin_op_def
+
     def operator(self):
         return self.op
 
@@ -243,32 +223,6 @@ class BinOp:
 
     def children(self):
         return [self.lhs, self.rhs]
-
-    def generate(self, mem=False, index=None):
-        if isinstance(self.lhs, BinOp) and self.lhs.kind() == BinOp.Kind_Vector and self.op == '[]':
-            return self.lhs.generate(self.mem, self.rhs.generate())
-
-        lhs = self.lhs.generate(mem, index)
-        rhs = self.rhs.generate(index=index)
-
-        if self.op == '[]':
-            idx = self.mapped_vector_index(index).generate() if self.is_vector_property_access() else rhs
-            return self.sim.code_gen.generate_expr_access(lhs, idx, self.mem)
-
-        if self.inlined is True:
-            assert self.bin_op_type != Type_Vector, "Vector operations cannot be inlined!"
-            return self.sim.code_gen.generate_inline_expr(lhs, rhs, self.op)
-
-        # Some expressions can be defined on-the-fly during transformations, hence they do not have
-        # a definition statement, so we generate them right before usage
-        if not self.generated:
-            self.bin_op_def.generate()
-
-        if self.kind() == BinOp.Kind_Vector:
-            assert index is not None, "Index must be set for vector reference!"
-            return self.sim.code_gen.generate_vec_expr_ref(self.id(), index, self.mem)
-
-        return self.sim.code_gen.generate_expr_ref(self.id())
 
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)

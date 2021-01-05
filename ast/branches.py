@@ -36,17 +36,6 @@ class Branch:
         return [self.cond, self.block_if] + \
                ([] if self.block_else is None else [self.block_else])
 
-    def generate(self):
-        cond_gen = self.cond.generate()
-        self.sim.code_gen.generate_if(cond_gen)
-        self.block_if.generate()
-
-        if self.block_else is not None:
-            self.sim.code_gen.generate_else()
-            self.block_else.generate()
-
-        self.sim.code_gen.generate_endif()
-
     def transform(self, fn):
         self.cond = self.cond.transform(fn)
         self.block_if = self.block_if.transform(fn)

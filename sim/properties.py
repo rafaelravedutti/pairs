@@ -26,9 +26,9 @@ class PropertiesAlloc:
                 raise Exception("Invalid property type!")
 
             if self.realloc:
-                Realloc(self.sim, p, p.type(), sizes)
+                Realloc(self.sim, p, sizes)
             else:
-                Malloc(self.sim, p, p.type(), sizes, True)
+                Malloc(self.sim, p, sizes, True)
 
         return self.sim.block
 

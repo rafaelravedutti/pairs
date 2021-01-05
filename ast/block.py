@@ -50,17 +50,6 @@ class Block:
     def children(self):
         return self.stmts
 
-    def generate(self):
-        self.sim.code_gen.generate_block_preamble()
-
-        for expr in self.expressions:
-            expr.generate()
-
-        for stmt in self.stmts:
-            stmt.generate()
-
-        self.sim.code_gen.generate_block_epilogue()
-
     def transform(self, fn):
         for i in range(0, len(self.stmts)):
             self.stmts[i] = self.stmts[i].transform(fn)

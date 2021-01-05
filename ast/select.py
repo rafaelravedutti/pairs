@@ -12,9 +12,6 @@ class Select:
     def children(self):
         return [self.cond, self.expr_if, self.expr_else]
 
-    def generate(self):
-        return self.sim.code_gen.generate_select(self.cond.generate(), self.expr_if.generate(), self.expr_else.generate())
-
     def transform(self, fn):
         self.cond = self.cond.transform(fn)
         self.expr_if = self.expr_if.transform(fn)

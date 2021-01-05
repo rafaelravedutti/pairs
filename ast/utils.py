@@ -9,8 +9,5 @@ class Print:
     def children(self):
         return []
 
-    def generate(self):
-        self.sim.code_gen.generate_print(self.string)
-
     def transform(self, fn):
         return fn(self)

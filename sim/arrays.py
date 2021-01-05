@@ -12,6 +12,6 @@ class ArraysDecl:
             if a.is_static():
                 ArrayDecl(self.sim, a)
             else:
-                Malloc(self.sim, a, a.type(), a.alloc_size(), True)
+                Malloc(self.sim, a, a.alloc_size(), True)
 
         return self.sim.block

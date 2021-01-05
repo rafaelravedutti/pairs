@@ -22,8 +22,5 @@ class Sizeof:
     def children(self):
         return []
 
-    def generate(self, mem=False, index=None):
-        return self.sim.code_gen.generate_sizeof(self.data_type)
-
     def transform(self, fn):
         return fn(self)

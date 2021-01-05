@@ -42,8 +42,5 @@ class Timestep:
     def as_block(self):
         return Block(self.sim, [self.timestep_loop])
 
-    def generate(self):
-        self.block.generate()
-
     def transform(self, fn):
         self.block = self.block.transform(fn)

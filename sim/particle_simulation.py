@@ -200,6 +200,5 @@ class ParticleSimulation:
         #Transform.apply(program, Transform.reuse_array_access_expressions)
         #Transform.apply(program, Transform.move_loop_invariant_expressions)
 
-        self.code_gen.generate_program_preamble()
-        program.generate()
-        self.code_gen.generate_program_epilogue()
+        self.code_gen.generate_program(self, program)
+

@@ -17,6 +17,9 @@ class Iter():
         self.loop = loop
         self.iter_id = Iter.new_id()
 
+    def id(self):
+        return self.iter_id
+
     def type(self):
         return Type_Int
 
@@ -62,10 +65,6 @@ class Iter():
     def children(self):
         return []
 
-    def generate(self, mem=False, index=None):
-        assert mem is False, "Iterator is not lvalue!"
-        return f"i{self.iter_id}"
-
     def transform(self, fn):
         return fn(self)
 
@@ -97,14 +96,6 @@ class For():
     def children(self):
         return [self.iterator, self.block]
 
-    def generate(self):
-        it_id = self.iterator.generate()
-        rmin = self.min.generate()
-        rmax = self.max.generate()
-        self.sim.code_gen.generate_for_preamble(it_id, rmin, rmax)
-        self.block.generate()
-        self.sim.code_gen.generate_for_epilogue()
-
     def transform(self, fn):
         self.iterator = self.iterator.transform(fn)
         self.block = self.block.transform(fn)
@@ -118,12 +109,6 @@ class ParticleFor(For):
 
     def __str__(self):
         return f"ParticleFor<>"
-
-    def generate(self):
-        upper_range = self.sim.nlocal if self.local_only else self.sim.nlocal + self.sim.pbc.npbc
-        self.sim.code_gen.generate_for_preamble(self.iterator.generate(), 0, upper_range.generate())
-        self.block.generate()
-        self.sim.code_gen.generate_for_epilogue()
 
 
 class While():
@@ -148,11 +133,6 @@ class While():
 
     def children(self):
         return [self.cond, self.block]
-
-    def generate(self):
-        self.sim.code_gen.generate_while_preamble(self.cond.generate())
-        self.block.generate()
-        self.sim.code_gen.generate_while_epilogue()
 
     def transform(self, fn):
         self.cond = self.cond.transform(fn)

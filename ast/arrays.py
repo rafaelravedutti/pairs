@@ -80,9 +80,6 @@ class Array:
     def children(self):
         return []
 
-    def generate(self, mem=False, index=None):
-        return self.arr_name
-
     def transform(self, fn):
         return fn(self)
 
@@ -110,7 +107,7 @@ class ArrayND(Array):
                 f"type: {self.arr_type}>")
 
     def realloc(self):
-        return Realloc(self.sim, self, self.arr_type, self.alloc_size())
+        return Realloc(self.sim, self, self.alloc_size())
 
 
 class ArrayAccess:
@@ -174,6 +171,9 @@ class ArrayAccess:
     def add(self, other):
         return self.sim.add_statement(Assign(self.sim, self, self + other))
 
+    def id(self):
+        return self.acc_id
+
     def type(self):
         return self.array.type()
         # return self.array.type() if self.index is None else Type_Array
@@ -196,15 +196,6 @@ class ArrayAccess:
     def children(self):
         return [self.array] + self.indexes
 
-    def generate(self, mem=False, index=None):
-        agen = self.array.generate()
-        igen = self.index.generate()
-        if mem is False and self.generated is False:
-            self.sim.code_gen.generate_array_access(self.acc_id, self.array.type(), agen, igen)
-            self.generated = True
-
-        return self.sim.code_gen.generate_array_access_ref(self.acc_id, agen, igen, mem)
-
     def transform(self, fn):
         self.array = self.array.transform(fn)
         self.indexes = [i.transform(fn) for i in self.indexes]
@@ -219,9 +210,6 @@ class ArrayDecl:
 
     def children(self):
         return []
-
-    def generate(self, mem=False, index=None):
-        self.sim.code_gen.generate_array_decl(self.array.name(), self.array.type(), BinOp.inline(self.array.alloc_size()).generate())
 
     def transform(self, fn):
         return fn(self)

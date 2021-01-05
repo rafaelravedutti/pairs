@@ -77,8 +77,5 @@ class Property:
     def children(self):
         return []
 
-    def generate(self, mem=False, index=None):
-        return self.prop_name
-
     def transform(self, fn):
         return fn(self)

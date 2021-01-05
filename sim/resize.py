@@ -33,4 +33,4 @@ class Resize:
                             else:
                                 sizes = capacity * self.sim.dimensions
 
-                        Realloc(self.sim, p, p.type(), sizes)
+                        Realloc(self.sim, p, sizes)

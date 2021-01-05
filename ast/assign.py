@@ -8,7 +8,6 @@ class Assign:
         self.sim = sim
         self.parent_block = None
         self.type = dest.type()
-        self.generated = False
         src = as_lit_ast(sim, src)
 
         if dest.type() == Type_Vector:
@@ -31,15 +30,6 @@ class Assign:
         return reduce((lambda x, y: x + y), [
                       [self.assignments[i][0], self.assignments[i][1]]
                       for i in range(0, len(self.assignments))])
-
-    def generate(self):
-        if self.generated is False:
-            for dest, src in self.assignments:
-                d = dest.generate(True)
-                s = src.generate()
-                self.sim.code_gen.generate_assignment(d, s)
-
-            self.generated = True
 
     def transform(self, fn):
         self.assignments = [(
