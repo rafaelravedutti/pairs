@@ -24,10 +24,7 @@ class Iter():
         return Type_Int
 
     def is_mutable(self):
-        # FIXME: This should be set to False, but currently the flattening transformation is reusing
-        # expressions that are not alive anymore (used first within if, then outside it), causing
-        # the generated code to be uncompilable
-        return True
+        return False
 
     def scope(self):
         return self.loop.block
