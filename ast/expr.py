@@ -227,5 +227,6 @@ class BinOp:
     def transform(self, fn):
         self.lhs = self.lhs.transform(fn)
         self.rhs = self.rhs.transform(fn)
+        self.bin_op_vector_index_mapping = {i: e.transform(fn) for i, e in self.bin_op_vector_index_mapping.items()}
         return fn(self)
 

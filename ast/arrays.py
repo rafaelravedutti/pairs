@@ -199,6 +199,10 @@ class ArrayAccess:
     def transform(self, fn):
         self.array = self.array.transform(fn)
         self.indexes = [i.transform(fn) for i in self.indexes]
+
+        if self.index is not None:
+            self.index = self.index.transform(fn)
+
         return fn(self)
 
 
