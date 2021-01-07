@@ -1,8 +1,9 @@
 class Visitor:
-    def __init__(self, ast, enter_fn, leave_fn):
+    def __init__(self, ast, enter_fn=None, leave_fn=None, max_depth=0):
         self.ast = ast
         self.enter_fn = enter_fn
         self.leave_fn = leave_fn
+        self.max_depth = max_depth
 
     def visit(self):
         self.visit_rec(self.ast)
@@ -28,11 +29,12 @@ class Visitor:
 
         return ast_list
 
-    def yield_elements(self, ast):
+    def yield_elements(ast, depth, max_depth):
         yield ast
-
-        for c in ast.children():
-            self.yield_elements(c)
+        if depth < max_depth or max_depth == 0:
+            for child in ast.children():
+                for child_node in Visitor.yield_elements(child, depth + 1, max_depth):
+                    yield child_node
 
     def __iter__(self):
-        self.yield_elements(self.ast)
+        yield from Visitor.yield_elements(self.ast, 0, self.max_depth)
