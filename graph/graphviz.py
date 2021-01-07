@@ -8,8 +8,8 @@ from ast.visitor import Visitor
 from graphviz import Digraph
 
 class ASTGraph:
-    def __init__(self, ast_node, filename, ref="G", max_depth=0):
-        self.graph = Digraph(ref, filename, node_attr={'color': 'lightblue2', 'style': 'filled'})
+    def __init__(self, ast_node, filename, ref="AST", max_depth=0):
+        self.graph = Digraph(ref, filename=filename, node_attr={'color': 'lightblue2', 'style': 'filled'})
         self.graph.attr(size='6,6')
         self.visitor = Visitor(ast_node, max_depth=max_depth)
 

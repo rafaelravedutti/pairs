@@ -8,6 +8,7 @@ from ast.properties import Properties
 from ast.transform import Transform
 from ast.variables import Variables
 from sim.arrays import ArraysDecl
+from graph.graphviz import ASTGraph
 from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from sim.grid import Grid2D, Grid3D
 from sim.kernel_wrapper import KernelWrapper
@@ -200,5 +201,5 @@ class ParticleSimulation:
         #Transform.apply(program, Transform.reuse_array_access_expressions)
         #Transform.apply(program, Transform.move_loop_invariant_expressions)
 
+        ASTGraph(self.kernels.lower(), "kernels").generate_and_view()
         self.code_gen.generate_program(self, program)
-
