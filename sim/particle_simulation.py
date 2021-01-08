@@ -193,7 +193,6 @@ class ParticleSimulation:
 
         program = Block.merge_blocks(decls, body)
         self.global_scope = program
-        Block.set_block_levels(program)
         Transform.apply(program, Transform.flatten)
         Transform.apply(program, Transform.simplify)
         #Transform.apply(program, Transform.reuse_index_expressions)

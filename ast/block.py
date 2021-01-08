@@ -71,17 +71,3 @@ class Block(ASTNode):
             result_block = Block.merge_blocks(result_block, block)
 
         return result_block
-
-    def set_block_levels(ast):
-        Block.level = 0
-
-        def enter(ast):
-            if isinstance(ast, Block):
-                ast.set_level(Block.level)
-                Block.level += 1
-
-        def leave(ast):
-            if isinstance(ast, Block):
-                Block.level -= 1
-
-        Visitor(ast, enter, leave).visit()

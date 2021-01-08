@@ -46,7 +46,6 @@ class BinOp(ASTNode):
         self.rhs = as_lit_ast(sim, rhs)
         self.op = op
         self.mem = mem
-        self.mutable = self.lhs.is_mutable() or self.rhs.is_mutable() # Value can change accross references
         self.inlined = False
         self.generated = False
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
@@ -166,9 +165,6 @@ class BinOp(ASTNode):
 
     def kind(self):
         return BinOp.Kind_Vector if self.type() == Type_Vector else BinOp.Kind_Scalar
-
-    def is_mutable(self):
-        return self.mutable
 
     def scope(self):
         if self.bin_op_scope is None:

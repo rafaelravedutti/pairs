@@ -11,9 +11,6 @@ class ASTNode:
     def type(self):
         return Type_Invalid
 
-    def is_mutable(self):
-        return False
-
     def scope(self):
         return self.sim.global_scope
 

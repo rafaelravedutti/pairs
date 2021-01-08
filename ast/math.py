@@ -13,9 +13,6 @@ class Sqrt(ASTNode):
     def type(self):
         return self.expr.type()
 
-    def is_mutable(self):
-        return self.expr.is_mutable()
-
     def scope(self):
         return self.expr.scope()
 

@@ -60,9 +60,6 @@ class Var(ASTTerm):
     def bonded_arrays(self):
         return self.var_bonded_arrays
 
-    def is_mutable(self):
-        return self.mutable
-
 
 class VarDecl(ASTNode):
     def __init__(self, sim, var):
