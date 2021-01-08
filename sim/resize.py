@@ -26,11 +26,9 @@ class Resize:
                 if properties.is_capacity(self.capacity_var):
                     capacity = sum(self.sim.properties.capacities)
                     for p in properties.all():
-                        sizes = capacity
                         if p.type() == Type_Vector:
-                            if p.flattened:
-                                sizes = capacity * self.sim.dimensions
-                            else:
-                                sizes = capacity * self.sim.dimensions
+                            sizes = capacity * self.sim.dimensions
+                        else:
+                            sizes = capacity
 
                         Realloc(self.sim, p, sizes)

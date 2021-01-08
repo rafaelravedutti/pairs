@@ -1,21 +1,18 @@
-from ast.data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool
-from ast.data_types import Type_Vector
+from ast.ast_node import ASTNode
+from ast.data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool, Type_Vector
 
 
 def is_literal(a):
-    return (isinstance(a, int) or
-            isinstance(a, float) or
-            isinstance(a, bool) or
-            isinstance(a, list))
+    return isinstance(a, (int, float, bool, list))
 
 
 def as_lit_ast(sim, a):
     return Lit(sim, a) if is_literal(a) else a
 
 
-class Lit:
+class Lit(ASTNode):
     def __init__(self, sim, value):
-        self.sim = sim
+        super().__init__(sim)
         self.value = value
         self.lit_type = Type_Invalid
 
@@ -47,15 +44,3 @@ class Lit:
 
     def type(self):
         return self.lit_type
-
-    def is_mutable(self):
-        return False
-
-    def scope(self):
-        return self.sim.global_scope
-
-    def children(self):
-        return []
-
-    def transform(self, fn):
-        return fn(self)

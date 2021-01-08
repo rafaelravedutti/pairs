@@ -1,5 +1,5 @@
+from ast.bin_op import BinOp
 from ast.block import Block
-from ast.expr import BinOp
 from ast.branches import Branch
 from ast.loops import For
 

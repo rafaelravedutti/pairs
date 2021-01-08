@@ -1,6 +1,7 @@
 from ast.assign import Assign
+from ast.ast_node import ASTNode
+from ast.bin_op import BinOp, ASTTerm
 from ast.data_types import Type_Array
-from ast.expr import BinOp
 from ast.layouts import Layout_AoS, Layout_SoA
 from ast.lit import as_lit_ast
 from ast.memory import Realloc
@@ -35,9 +36,9 @@ class Arrays:
         return None
 
 
-class Array:
+class Array(ASTNode):
     def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
-        self.sim = sim
+        super().__init__(sim)
         self.arr_name = a_name
         self.arr_sizes = \
             [as_lit_ast(sim, a_sizes)] if not isinstance(a_sizes, list) \
@@ -65,9 +66,6 @@ class Array:
     def layout(self):
         return self.arr_layout
 
-    def scope(self):
-        return self.sim.global_scope
-
     def ndims(self):
         return self.arr_ndims
 
@@ -76,12 +74,6 @@ class Array:
 
     def alloc_size(self):
         return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])
-
-    def children(self):
-        return []
-
-    def transform(self, fn):
-        return fn(self)
 
 
 class ArrayStatic(Array):
@@ -110,7 +102,7 @@ class ArrayND(Array):
         return Realloc(self.sim, self, self.alloc_size())
 
 
-class ArrayAccess:
+class ArrayAccess(ASTTerm):
     last_acc = 0
 
     def new_id():
@@ -118,7 +110,7 @@ class ArrayAccess:
         return ArrayAccess.last_acc - 1
 
     def __init__(self, sim, array, index):
-        self.sim = sim
+        super().__init__(sim)
         self.acc_id = ArrayAccess.new_id()
         self.array = array
         self.indexes = [as_lit_ast(sim, index)]
@@ -129,15 +121,6 @@ class ArrayAccess:
 
     def __str__(self):
         return f"ArrayAccess<array: {self.array}, indexes: {self.indexes}>"
-
-    def __add__(self, other):
-        return BinOp(self.sim, self, other, '+')
-
-    def __mul__(self, other):
-        return BinOp(self.sim, self, other, '*')
-
-    def __rmul__(self, other):
-        return BinOp(self.sim, other, self, '*')
 
     def __getitem__(self, index):
         assert self.index is None, "Number of indexes higher than array dimension!"
@@ -206,14 +189,8 @@ class ArrayAccess:
         return fn(self)
 
 
-class ArrayDecl:
+class ArrayDecl(ASTNode):
     def __init__(self, sim, array):
-        self.sim = sim
+        super().__init__(sim)
         self.array = array
         self.sim.add_statement(self)
-
-    def children(self):
-        return []
-
-    def transform(self, fn):
-        return fn(self)

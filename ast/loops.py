@@ -1,11 +1,12 @@
+from ast.ast_node import ASTNode
+from ast.bin_op import BinOp, ASTTerm
 from ast.block import Block
 from ast.branches import Filter
 from ast.data_types import Type_Int
-from ast.expr import BinOp
 from ast.lit import as_lit_ast
 
 
-class Iter():
+class Iter(ASTTerm):
     last_iter = 0
 
     def new_id():
@@ -13,7 +14,7 @@ class Iter():
         return Iter.last_iter - 1
 
     def __init__(self, sim, loop):
-        self.sim = sim
+        super().__init__(sim)
         self.loop = loop
         self.iter_id = Iter.new_id()
 
@@ -23,25 +24,8 @@ class Iter():
     def type(self):
         return Type_Int
 
-    def is_mutable(self):
-        return False
-
     def scope(self):
         return self.loop.block
-
-    def __add__(self, other):
-        return BinOp(self.sim, self, other, '+')
-
-    def __sub__(self, other):
-        return BinOp(self.sim, self, other, '-')
-
-    def __mul__(self, other):
-        from ast.expr import BinOp
-        return BinOp(self.sim, self, other, '*')
-
-    def __rmul__(self, other):
-        from ast.expr import BinOp
-        return BinOp(self.sim, other, self, '*')
 
     def __eq__(self, other):
         if isinstance(other, Iter):
@@ -52,23 +36,13 @@ class Iter():
     def __req__(self, other):
         return self.__cmp__(other)
 
-    def __mod__(self, other):
-        from ast.expr import BinOp
-        return BinOp(self.sim, self, other, '%')
-
     def __str__(self):
         return f"Iter<{self.iter_id}>"
 
-    def children(self):
-        return []
 
-    def transform(self, fn):
-        return fn(self)
-
-
-class For():
+class For(ASTNode):
     def __init__(self, sim, range_min, range_max, block=None):
-        self.sim = sim
+        super().__init__(sim)
         self.iterator = Iter(sim, self)
         self.min = as_lit_ast(sim, range_min)
         self.max = as_lit_ast(sim, range_max)
@@ -108,10 +82,9 @@ class ParticleFor(For):
         return f"ParticleFor<>"
 
 
-class While():
+class While(ASTNode):
     def __init__(self, sim, cond, block=None):
-        from ast.expr import BinOp
-        self.sim = sim
+        super().__init__(sim)
         self.parent_block = None
         self.cond = BinOp.inline(cond)
         self.block = Block(sim, []) if block is None else block

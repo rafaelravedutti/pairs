@@ -1,9 +1,10 @@
+from ast.ast_node import ASTNode
 from ast.visitor import Visitor
 
 
-class Block:
+class Block(ASTNode):
     def __init__(self, sim, stmts):
-        self.sim = sim
+        super().__init__(sim)
         self.level = 0
         self.expressions = []
 

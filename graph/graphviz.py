@@ -1,11 +1,12 @@
 from ast.arrays import Array
-from ast.expr import BinOp, BinOpDef
+from ast.bin_op import BinOp, BinOpDef
 from ast.lit import Lit
 from ast.loops import Iter
 from ast.properties import Property
 from ast.variables import Var
 from ast.visitor import Visitor
 from graphviz import Digraph
+
 
 class ASTGraph:
     def __init__(self, ast_node, filename, ref="AST", max_depth=0):

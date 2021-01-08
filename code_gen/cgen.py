@@ -3,7 +3,7 @@ from ast.arrays import ArrayAccess, ArrayDecl
 from ast.block import Block
 from ast.branches import Branch
 from ast.cast import Cast
-from ast.expr import BinOp, BinOpDef
+from ast.bin_op import BinOp, BinOpDef
 from ast.data_types import Type_Int, Type_Float, Type_Vector
 from ast.lit import Lit
 from ast.loops import For, Iter, ParticleFor, While

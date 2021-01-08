@@ -1,7 +1,7 @@
+from ast.bin_op import BinOp
 from ast.branches import Branch, Filter
 from ast.cast import Cast
 from ast.data_types import Type_Int
-from ast.expr import BinOp
 from ast.loops import For, ParticleFor
 from ast.utils import Print
 from functools import reduce

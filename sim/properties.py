@@ -18,10 +18,7 @@ class PropertiesAlloc:
             if p.type() == Type_Float:
                 sizes = [capacity]
             elif p.type() == Type_Vector:
-                if p.flattened:
-                    sizes = [capacity * self.sim.dimensions]
-                else:
-                    sizes = [capacity, self.sim.dimensions]
+                sizes = [capacity * self.sim.dimensions]
             else:
                 raise Exception("Invalid property type!")
 

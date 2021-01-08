@@ -1,8 +1,9 @@
+from ast.ast_node import ASTNode
 from ast.block import Block
 from ast.lit import as_lit_ast
 
 
-class Branch:
+class Branch(ASTNode):
     def __init__(self, sim, cond, one_way=False, blk_if=None, blk_else=None):
         self.sim = sim
         self.parent_block = None

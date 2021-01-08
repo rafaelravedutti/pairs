@@ -1,12 +1,13 @@
-from ast.expr import BinOp
+from ast.ast_node import ASTNode
+from ast.bin_op import BinOp
 from ast.sizeof import Sizeof
 from functools import reduce
 import operator
 
 
-class Malloc:
+class Malloc(ASTNode):
     def __init__(self, sim, array, sizes, decl=False):
-        self.sim = sim
+        super().__init__(sim)
         self.parent_block = None
         self.array = array
         self.decl = decl
@@ -23,9 +24,9 @@ class Malloc:
         return fn(self)
 
 
-class Realloc:
+class Realloc(ASTNode):
     def __init__(self, sim, array, size):
-        self.sim = sim
+        super().__init__(sim)
         self.parent_block = None
         self.array = array
         self.prim_size = Sizeof(sim, array.type())

@@ -1,6 +1,6 @@
 from ast.arrays import ArrayAccess
+from ast.bin_op import BinOp
 from ast.data_types import Type_Int, Type_Vector
-from ast.expr import BinOp
 from ast.layouts import Layout_AoS, Layout_SoA
 from ast.lit import Lit
 from ast.loops import Iter
@@ -32,9 +32,6 @@ class Transform:
                         raise Exception("Invalid property layout!")
 
                     ast.map_vector_index(i, flat_index)
-
-        if isinstance(ast, Property):
-            ast.flattened = True
 
         return ast
 
@@ -128,13 +125,5 @@ class Transform:
                     Transform.reuse_expressions[acc_id] = []
 
                 Transform.reuse_expressions[acc_id].append(ast)
-
-        return ast
-
-    def move_loop_invariant_expressions(ast):
-        if isinstance(ast, BinOp):
-            scope = ast.scope()
-            if scope.level > 0:
-                scope.add_expression(ast)
 
         return ast

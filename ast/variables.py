@@ -1,5 +1,6 @@
+from ast.ast_node import ASTNode
 from ast.assign import Assign
-from ast.expr import BinOp
+from ast.bin_op import ASTTerm 
 
 
 class Variables:
@@ -23,9 +24,9 @@ class Variables:
 
         return None
 
-class Var:
+class Var(ASTTerm):
     def __init__(self, sim, var_name, var_type, init_value=0):
-        self.sim = sim
+        super().__init__(sim)
         self.var_name = var_name
         self.var_type = var_type
         self.var_init_value = init_value
@@ -34,42 +35,6 @@ class Var:
 
     def __str__(self):
         return f"Var<name: {self.var_name}, type: {self.var_type}>"
-
-    def __add__(self, other):
-        return BinOp(self.sim, self, other, '+')
-
-    def __radd__(self, other):
-        return BinOp(self.sim, other, self, '+')
-
-    def __sub__(self, other):
-        return BinOp(self.sim, self, other, '-')
-
-    def __mul__(self, other):
-        return BinOp(self.sim, self, other, '*')
-
-    def __rmul__(self, other):
-        return BinOp(self.sim, other, self, '*')
-
-    def __truediv__(self, other):
-        return BinOp(self.sim, self, other, '/')
-
-    def __rtruediv__(self, other):
-        return BinOp(self.sim, other, self, '/')
-
-    def __lt__(self, other):
-        return BinOp(self.sim, self, other, '<')
-
-    def __le__(self, other):
-        return BinOp(self.sim, self, other, '<=')
-
-    def __gt__(self, other):
-        return BinOp(self.sim, self, other, '>')
-
-    def __ge__(self, other):
-        return BinOp(self.sim, self, other, '>=')
-
-    def inv(self):
-        return BinOp(self.sim, 1.0, self, '/')
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
@@ -98,24 +63,9 @@ class Var:
     def is_mutable(self):
         return self.mutable
 
-    def scope(self):
-        return self.sim.global_scope
 
-    def children(self):
-        return []
-
-    def transform(self, fn):
-        return fn(self)
-
-
-class VarDecl:
+class VarDecl(ASTNode):
     def __init__(self, sim, var):
-        self.sim = sim
+        super().__init__(sim)
         self.var = var
         self.sim.add_statement(self)
-
-    def children(self):
-        return []
-
-    def transform(self, fn):
-        return fn(self)

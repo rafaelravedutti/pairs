@@ -1,11 +1,13 @@
+from ast.ast_node import ASTNode
 from ast.assign import Assign
 from ast.data_types import Type_Float, Type_Bool, Type_Vector
 from ast.lit import as_lit_ast
 from ast.properties import Property
 
 
-class BinOpDef:
+class BinOpDef(ASTNode):
     def __init__(self, bin_op):
+        super().__init__(bin_op.sim)
         self.bin_op = bin_op
         self.bin_op.sim.add_statement(self)
 
@@ -20,7 +22,7 @@ class BinOpDef:
         return fn(self)
 
 
-class BinOp:
+class BinOp(ASTNode):
     # BinOp kinds
     Kind_Scalar = 0
     Kind_Vector = 1
@@ -38,7 +40,7 @@ class BinOp:
         return op.inline_rec()
 
     def __init__(self, sim, lhs, rhs, op, mem=False):
-        self.sim = sim
+        super().__init__(sim)
         self.bin_op_id = BinOp.new_id()
         self.lhs = as_lit_ast(sim, lhs)
         self.rhs = as_lit_ast(sim, rhs)
@@ -55,51 +57,6 @@ class BinOp:
 
     def __str__(self):
         return f"BinOp<a: {self.lhs.id()}, b: {self.rhs.id()}, op: {self.op}>"
-
-    def __add__(self, other):
-        return BinOp(self.sim, self, other, '+')
-
-    def __radd__(self, other):
-        return BinOp(self.sim, other, self, '+')
-
-    def __sub__(self, other):
-        return BinOp(self.sim, self, other, '-')
-
-    def __mul__(self, other):
-        return BinOp(self.sim, self, other, '*')
-
-    def __rmul__(self, other):
-        return BinOp(self.sim, other, self, '*')
-
-    def __truediv__(self, other):
-        return BinOp(self.sim, self, other, '/')
-
-    def __rtruediv__(self, other):
-        return BinOp(self.sim, other, self, '/')
-
-    def __lt__(self, other):
-        return BinOp(self.sim, self, other, '<')
-
-    def __le__(self, other):
-        return BinOp(self.sim, self, other, '<=')
-
-    def __gt__(self, other):
-        return BinOp(self.sim, self, other, '>')
-
-    def __ge__(self, other):
-        return BinOp(self.sim, self, other, '>=')
-
-    def and_op(self, other):
-        return BinOp(self.sim, self, other, '&&')
-
-    def cmp(lhs, rhs):
-        return BinOp(lhs.sim, lhs, rhs, '==')
-
-    def neq(lhs, rhs):
-        return BinOp(lhs.sim, lhs, rhs, '!=')
-
-    def inv(self):
-        return BinOp(self.sim, 1.0, self, '/')
 
     def match(self, bin_op):
         return self.lhs == bin_op.lhs and \
@@ -230,3 +187,103 @@ class BinOp:
         self.bin_op_vector_index_mapping = {i: e.transform(fn) for i, e in self.bin_op_vector_index_mapping.items()}
         return fn(self)
 
+    def __add__(self, other):
+        return BinOp(self.sim, self, other, '+')
+
+    def __radd__(self, other):
+        return BinOp(self.sim, other, self, '+')
+
+    def __sub__(self, other):
+        return BinOp(self.sim, self, other, '-')
+
+    def __mul__(self, other):
+        return BinOp(self.sim, self, other, '*')
+
+    def __rmul__(self, other):
+        return BinOp(self.sim, other, self, '*')
+
+    def __truediv__(self, other):
+        return BinOp(self.sim, self, other, '/')
+
+    def __rtruediv__(self, other):
+        return BinOp(self.sim, other, self, '/')
+
+    def __lt__(self, other):
+        return BinOp(self.sim, self, other, '<')
+
+    def __le__(self, other):
+        return BinOp(self.sim, self, other, '<=')
+
+    def __gt__(self, other):
+        return BinOp(self.sim, self, other, '>')
+
+    def __ge__(self, other):
+        return BinOp(self.sim, self, other, '>=')
+
+    def and_op(self, other):
+        return BinOp(self.sim, self, other, '&&')
+
+    def cmp(lhs, rhs):
+        return BinOp(lhs.sim, lhs, rhs, '==')
+
+    def neq(lhs, rhs):
+        return BinOp(lhs.sim, lhs, rhs, '!=')
+
+    def inv(self):
+        return BinOp(self.sim, 1.0, self, '/')
+
+    def __mod__(self, other):
+        return BinOp(self.sim, self, other, '%')
+
+
+class ASTTerm(ASTNode):
+    def __init__(self, sim):
+        super().__init__(sim)
+
+    def __add__(self, other):
+        return BinOp(self.sim, self, other, '+')
+
+    def __radd__(self, other):
+        return BinOp(self.sim, other, self, '+')
+
+    def __sub__(self, other):
+        return BinOp(self.sim, self, other, '-')
+
+    def __mul__(self, other):
+        return BinOp(self.sim, self, other, '*')
+
+    def __rmul__(self, other):
+        return BinOp(self.sim, other, self, '*')
+
+    def __truediv__(self, other):
+        return BinOp(self.sim, self, other, '/')
+
+    def __rtruediv__(self, other):
+        return BinOp(self.sim, other, self, '/')
+
+    def __lt__(self, other):
+        return BinOp(self.sim, self, other, '<')
+
+    def __le__(self, other):
+        return BinOp(self.sim, self, other, '<=')
+
+    def __gt__(self, other):
+        return BinOp(self.sim, self, other, '>')
+
+    def __ge__(self, other):
+        return BinOp(self.sim, self, other, '>=')
+
+    def and_op(self, other):
+        return BinOp(self.sim, self, other, '&&')
+
+    def cmp(lhs, rhs):
+        return BinOp(lhs.sim, lhs, rhs, '==')
+
+    def neq(lhs, rhs):
+        return BinOp(lhs.sim, lhs, rhs, '!=')
+
+    def inv(self):
+        return BinOp(self.sim, 1.0, self, '/')
+
+    def __mod__(self, other):
+        return BinOp(self.sim, self, other, '%')

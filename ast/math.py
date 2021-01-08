@@ -1,9 +1,10 @@
+from ast.ast_node import ASTNode
 from ast.data_types import Type_Int, Type_Float
 
 
-class Sqrt:
+class Sqrt(ASTNode):
     def __init__(self, sim, expr, cast_type):
-        self.sim = sim
+        super().__init__(sim)
         self.expr = expr
 
     def __str__(self):

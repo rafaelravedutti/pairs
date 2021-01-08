@@ -1,3 +1,4 @@
+from ast.ast_node import ASTNode
 from ast.layouts import Layout_AoS
 
 
@@ -38,16 +39,15 @@ class Properties:
         return None
 
 
-class Property:
+class Property(ASTNode):
     def __init__(self, sim, name, dtype, default, volatile, layout=Layout_AoS):
-        self.sim = sim
+        super().__init__(sim)
         self.prop_name = name
         self.prop_type = dtype
         self.prop_layout = layout
         self.default_value = default
         self.volatile = volatile
         self.mutable = True
-        self.flattened = False
 
     def __str__(self):
         return f"Property<{self.prop_name}>"
@@ -70,12 +70,6 @@ class Property:
     def scope(self):
         return self.sim.global_scope
 
-    def __getitem__(self, expr_ast):
-        from ast.expr import BinOp
-        return BinOp(self.sim, self, expr_ast, '[]', True)
-
-    def children(self):
-        return []
-
-    def transform(self, fn):
-        return fn(self)
+    def __getitem__(self, expr):
+        from ast.bin_op import BinOp
+        return BinOp(self.sim, self, expr, '[]', True)

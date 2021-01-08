@@ -1,11 +1,12 @@
+from ast.ast_node import ASTNode
 from ast.data_types import Type_Vector
 from ast.lit import as_lit_ast
 from functools import reduce
 
 
-class Assign:
+class Assign(ASTNode):
     def __init__(self, sim, dest, src):
-        self.sim = sim
+        super().__init__(sim)
         self.parent_block = None
         self.type = dest.type()
         src = as_lit_ast(sim, src)
@@ -14,7 +15,7 @@ class Assign:
             self.assignments = []
 
             for i in range(0, sim.dimensions):
-                from ast.expr import BinOp
+                from ast.bin_op import BinOp
                 dsrc = (src if (not isinstance(src, BinOp) or
                                 src.type() != Type_Vector)
                         else src[i])
