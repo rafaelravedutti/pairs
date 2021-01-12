@@ -1,22 +1,31 @@
+from ast.bin_op import BinOp
+from ast.loops import For, ParticleFor, While
+
+
 class Visitor:
-    def __init__(self, ast, enter_fn=None, leave_fn=None, max_depth=0):
+    def __init__(self, ast, max_depth=0):
         self.ast = ast
-        self.enter_fn = enter_fn
-        self.leave_fn = leave_fn
-        self.max_depth = max_depth
+        self.max_depth = 0
 
-    def visit(self):
-        self.visit_rec(self.ast)
+    def visit(ast_node):
+        for c in ast_node.children():
+            if isinstance(c, Array):
+                self.visit_Array(c)
+            elif isinstance(c, BinOp):
+                self.visit_BinOp(c)
+            elif isinstance(c, (For, ParticleFor, While)):
+                self.visit_Loop(c)
+            else:
+                self.visit(c)
 
-    def visit_rec(self, ast):
-        if self.enter_fn is not None:
-            self.enter_fn(ast)
+    def visit_Array(self, ast_node):
+        return self.visit(ast_node)
 
-        for c in ast.children():
-            self.visit_rec(c)
+    def visit_BinOp(self, ast_node):
+        return self.visit(ast_node)
 
-        if self.leave_fn is not None:
-            self.leave_fn(ast)
+    def visit_Loop(self, ast_node):
+        return self.visit(ast_node)
 
     def list_ast(self):
         self.list_elements(self.ast)

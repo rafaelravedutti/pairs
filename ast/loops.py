@@ -67,11 +67,6 @@ class For(ASTNode):
     def children(self):
         return [self.iterator, self.block]
 
-    def transform(self, fn):
-        self.iterator = self.iterator.transform(fn)
-        self.block = self.block.transform(fn)
-        return fn(self)
-
 
 class ParticleFor(For):
     def __init__(self, sim, block=None, local_only=True):
@@ -103,11 +98,6 @@ class While(ASTNode):
 
     def children(self):
         return [self.cond, self.block]
-
-    def transform(self, fn):
-        self.cond = self.cond.transform(fn)
-        self.block = self.block.transform(fn)
-        return fn(self)
 
 
 class NeighborFor():

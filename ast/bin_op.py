@@ -17,10 +17,6 @@ class BinOpDef(ASTNode):
     def children(self):
         return [self.bin_op]
 
-    def transform(self, fn):
-        self.bin_op = self.bin_op.transform(fn)
-        return fn(self)
-
 
 class BinOp(ASTNode):
     # BinOp kinds
@@ -176,12 +172,6 @@ class BinOp(ASTNode):
 
     def children(self):
         return [self.lhs, self.rhs]
-
-    def transform(self, fn):
-        self.lhs = self.lhs.transform(fn)
-        self.rhs = self.rhs.transform(fn)
-        self.bin_op_vector_index_mapping = {i: e.transform(fn) for i, e in self.bin_op_vector_index_mapping.items()}
-        return fn(self)
 
     def __add__(self, other):
         return BinOp(self.sim, self, other, '+')

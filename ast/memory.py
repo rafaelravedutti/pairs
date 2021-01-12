@@ -18,11 +18,6 @@ class Malloc(ASTNode):
     def children(self):
         return [self.array, self.size]
 
-    def transform(self, fn):
-        self.array = self.array.transform(fn)
-        self.size = self.size.transform(fn)
-        return fn(self)
-
 
 class Realloc(ASTNode):
     def __init__(self, sim, array, size):
@@ -35,8 +30,3 @@ class Realloc(ASTNode):
 
     def children(self):
         return [self.array, self.size]
-
-    def transform(self, fn):
-        self.array = self.array.transform(fn)
-        self.size = self.size.transform(fn)
-        return fn(self)

@@ -12,10 +12,3 @@ class Select(ASTNode):
 
     def children(self):
         return [self.cond, self.expr_if, self.expr_else]
-
-    def transform(self, fn):
-        self.cond = self.cond.transform(fn)
-        self.expr_if = self.expr_if.transform(fn)
-        self.expr_else = self.expr_else.transform(fn)
-        return fn(self)
-

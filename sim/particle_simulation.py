@@ -5,10 +5,9 @@ from ast.data_types import Type_Int, Type_Float, Type_Vector
 from ast.layouts import Layout_AoS
 from ast.loops import ParticleFor, NeighborFor
 from ast.properties import Properties
-from ast.transform import Transform
 from ast.variables import Variables
-from sim.arrays import ArraysDecl
 from graph.graphviz import ASTGraph
+from sim.arrays import ArraysDecl
 from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from sim.grid import Grid2D, Grid3D
 from sim.kernel_wrapper import KernelWrapper
@@ -20,6 +19,8 @@ from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
 from sim.variables import VariablesDecl
 from sim.vtk import VTKWrite
+from transformations.flatten import flatten_property_accesses
+from transformations.simplify import simplify_expressions
 
 
 class ParticleSimulation:
@@ -193,12 +194,10 @@ class ParticleSimulation:
 
         program = Block.merge_blocks(decls, body)
         self.global_scope = program
-        Transform.apply(program, Transform.flatten)
-        Transform.apply(program, Transform.simplify)
-        #Transform.apply(program, Transform.reuse_index_expressions)
-        #Transform.apply(program, Transform.reuse_expr_expressions)
-        #Transform.apply(program, Transform.reuse_array_access_expressions)
-        #Transform.apply(program, Transform.move_loop_invariant_expressions)
+
+        # Transformations
+        flatten_property_accesses(program)
+        simplify_expressions(program)
 
         ASTGraph(self.kernels.lower(), "kernels").generate_and_view()
         self.code_gen.generate_program(self, program)

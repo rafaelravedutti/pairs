@@ -1,5 +1,4 @@
 from ast.ast_node import ASTNode
-from ast.visitor import Visitor
 
 
 class Block(ASTNode):
@@ -50,12 +49,6 @@ class Block(ASTNode):
 
     def children(self):
         return self.stmts
-
-    def transform(self, fn):
-        for i in range(0, len(self.stmts)):
-            self.stmts[i] = self.stmts[i].transform(fn)
-
-        return fn(self)
 
     def merge_blocks(block1, block2):
         assert isinstance(block1, Block), "First block type is not Block!"

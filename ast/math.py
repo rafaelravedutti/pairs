@@ -18,7 +18,3 @@ class Sqrt(ASTNode):
 
     def children(self):
         return [self.expr]
-
-    def transform(self, fn):
-        self.expr = self.expr.transform(fn)
-        return fn(self)

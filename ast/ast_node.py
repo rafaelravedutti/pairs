@@ -16,6 +16,3 @@ class ASTNode:
 
     def children(self):
         return []
-
-    def transform(self, fn):
-        return fn(self)

@@ -31,11 +31,3 @@ class Assign(ASTNode):
         return reduce((lambda x, y: x + y), [
                       [self.assignments[i][0], self.assignments[i][1]]
                       for i in range(0, len(self.assignments))])
-
-    def transform(self, fn):
-        self.assignments = [(
-            self.assignments[i][0].transform(fn),
-            self.assignments[i][1].transform(fn))
-            for i in range(0, len(self.assignments))]
-
-        return fn(self)

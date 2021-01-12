@@ -175,15 +175,6 @@ class ArrayAccess(ASTTerm):
     def children(self):
         return [self.array] + self.indexes
 
-    def transform(self, fn):
-        self.array = self.array.transform(fn)
-        self.indexes = [i.transform(fn) for i in self.indexes]
-
-        if self.index is not None:
-            self.index = self.index.transform(fn)
-
-        return fn(self)
-
 
 class ArrayDecl(ASTNode):
     def __init__(self, sim, array):

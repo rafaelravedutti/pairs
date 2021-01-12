@@ -37,14 +37,6 @@ class Branch(ASTNode):
         return [self.cond, self.block_if] + \
                ([] if self.block_else is None else [self.block_else])
 
-    def transform(self, fn):
-        self.cond = self.cond.transform(fn)
-        self.block_if = self.block_if.transform(fn)
-        self.block_else = \
-            None if self.block_else is None \
-            else self.block_else.transform(fn)
-        return fn(self)
-
 
 class Filter(Branch):
     def __init__(self, sim, cond):
