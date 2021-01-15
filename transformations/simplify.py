@@ -11,7 +11,7 @@ class SimplifyExpressions(Mutator):
         sim = ast_node.lhs.sim
         ast_node.lhs = self.mutate(ast_node.lhs)
         ast_node.rhs = self.mutate(ast_node.rhs)
-        ast_node.bin_op_vector_index_mapping = {i: self.mutate(e) for i, e in ast_node.bin_op_vector_index_mapping.items()}
+        ast_node.vector_index_mapping = {i: self.mutate(e) for i, e in ast_node.vector_index_mapping.items()}
 
         if ast_node.op in ['+', '-'] and ast_node.rhs == 0:
             return ast_node.lhs

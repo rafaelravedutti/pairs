@@ -21,11 +21,13 @@ from sim.variables import VariablesDecl
 from sim.vtk import VTKWrite
 from transformations.flatten import flatten_property_accesses
 from transformations.simplify import simplify_expressions
+from transformations.LICM import move_loop_invariant_code
 
 
 class ParticleSimulation:
     def __init__(self, code_gen, dims=3, timesteps=100):
         self.code_gen = code_gen
+        self.code_gen.assign_simulation(self)
         self.global_scope = None
         self.properties = Properties(self)
         self.vars = Variables(self)
@@ -198,6 +200,7 @@ class ParticleSimulation:
         # Transformations
         flatten_property_accesses(program)
         simplify_expressions(program)
+        move_loop_invariant_code(program)
 
         ASTGraph(self.kernels.lower(), "kernels").render()
-        self.code_gen.generate_program(self, program)
+        self.code_gen.generate_program(program)

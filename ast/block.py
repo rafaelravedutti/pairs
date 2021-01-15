@@ -5,7 +5,7 @@ class Block(ASTNode):
     def __init__(self, sim, stmts):
         super().__init__(sim)
         self.level = 0
-        self.variants = []
+        self.variants = set()
 
         if isinstance(stmts, Block):
             self.stmts = stmts.statements()
@@ -34,10 +34,8 @@ class Block(ASTNode):
             self.stmts.append(stmt)
 
     def add_variant(self, variant):
-        if isinstance(variant, list):
-            self.variants = self.variants + variant
-        else:
-            self.variants.append(variant)
+        for v in variant if isinstance(variant, list) else [variant]:
+            self.variants.add(v)
 
     def statements(self):
         return self.stmts

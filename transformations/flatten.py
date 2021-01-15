@@ -13,7 +13,7 @@ class FlattenPropertyAccesses(Mutator):
         if ast_node.is_vector_property_access():
             layout = ast_node.lhs.layout()
 
-            for i in ast_node.vector_indexes():
+            for i in ast_node.vector_indexes:
                 flat_index = None
 
                 if layout == Layout_AoS:

@@ -8,7 +8,7 @@ sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
 
-psim = pt.simulation()
+psim = pt.simulation("lj")
 mass = psim.add_real_property('mass', 1.0)
 position = psim.add_vector_property('position')
 velocity = psim.add_vector_property('velocity')

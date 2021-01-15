@@ -46,8 +46,9 @@ class BinOp(ASTNode):
         self.generated = False
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
         self.bin_op_scope = None
-        self.bin_op_vector_indexes = set()
-        self.bin_op_vector_index_mapping = {}
+        self.terminals = set()
+        self._vector_indexes = set()
+        self.vector_index_mapping = {}
         self.bin_op_def = BinOpDef(self)
 
     def __str__(self):
@@ -68,17 +69,18 @@ class BinOp(ASTNode):
         return self.__getitem__(2)
 
     def map_vector_index(self, index, expr):
-        self.bin_op_vector_index_mapping[index] = expr
+        self.vector_index_mapping[index] = expr
 
     def mapped_vector_index(self, index):
-        mapping = self.bin_op_vector_index_mapping
+        mapping = self.vector_index_mapping
         return mapping[index] if index in mapping else as_lit_ast(self.sim, index)
 
+    @property
     def vector_indexes(self):
-        return self.bin_op_vector_indexes
+        return self._vector_indexes
 
     def propagate_vector_access(self, index):
-        self.bin_op_vector_indexes.add(index)
+        self.vector_indexes.add(index)
 
         if isinstance(self.lhs, BinOp) and self.lhs.kind() == BinOp.Kind_Vector:
             self.lhs.propagate_vector_access(index)
@@ -161,6 +163,9 @@ class BinOp(ASTNode):
 
     def kind(self):
         return BinOp.Kind_Vector if self.type() == Type_Vector else BinOp.Kind_Scalar
+
+    def add_terminal(self, terminal):
+        self.terminals.add(terminal)
 
     def scope(self):
         if self.bin_op_scope is None:

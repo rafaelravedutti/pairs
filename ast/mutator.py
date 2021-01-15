@@ -33,7 +33,7 @@ class Mutator:
     def mutate_BinOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
         ast_node.rhs = self.mutate(ast_node.rhs)
-        ast_node.bin_op_vector_index_mapping = {i: self.mutate(e) for i, e in ast_node.bin_op_vector_index_mapping.items()}
+        ast_node.vector_index_mapping = {i: self.mutate(e) for i, e in ast_node.vector_index_mapping.items()}
         return ast_node
 
     def mutate_BinOpDef(self, ast_node):
