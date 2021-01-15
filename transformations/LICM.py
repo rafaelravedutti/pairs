@@ -55,37 +55,45 @@ class SetParentBlock(Visitor):
 
     def visit_Assign(self, ast_node):
         ast_node.parent_block = self.current_block
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
 
     def visit_Block(self, ast_node):
         ast_node.parent_block = self.current_block
         self.blocks.append(ast_node)
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
         self.blocks.pop()
 
     def visit_BinOpDef(self, ast_node):
         ast_node.parent_block = self.current_block
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
 
     def visit_Branch(self, ast_node):
         ast_node.parent_block = self.current_block
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
+
+    def visit_Filter(self, ast_node):
+        ast_node.parent_block = self.current_block
+        self.visit_children(ast_node)
 
     def visit_For(self, ast_node):
         ast_node.parent_block = self.current_block
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
+
+    def visit_ParticleFor(self, ast_node):
+        ast_node.parent_block = self.current_block
+        self.visit_children(ast_node)
 
     def visit_Malloc(self, ast_node):
         ast_node.parent_block = self.current_block
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
 
     def visit_Realloc(self, ast_node):
         ast_node.parent_block = self.current_block
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
 
     def visit_While(self, ast_node):
         ast_node.parent_block = self.current_block
-        self.keep_visiting(ast_node)
+        self.visit_children(ast_node)
 
     def get_loop_parent_block(self, ast_node):
         assert isinstance(ast_node, (For, While)), "Node must be a loop!"
@@ -113,5 +121,5 @@ def move_loop_invariant_code(ast):
     set_parent_block.visit()
     set_block_variants = SetBlockVariants(ast)
     set_block_variants.mutate()
-    licm = LICM(ast, set_loop_parents)
+    licm = LICM(ast)
     licm.mutate()

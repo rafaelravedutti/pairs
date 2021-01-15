@@ -19,9 +19,9 @@ class Visitor:
         if method is not None:
             method(ast_node)
         else:
-            self.keep_visiting(ast_node)
+            self.visit_children(ast_node)
 
-    def keep_visiting(self, ast_node):
+    def visit_children(self, ast_node):
         for c in ast_node.children():
             self.visit(c)
 

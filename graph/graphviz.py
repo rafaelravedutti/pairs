@@ -14,7 +14,7 @@ class ASTGraph:
         self.graph.attr(size='6,6')
         self.visitor = Visitor(ast_node, max_depth=max_depth)
 
-    def generate_and_view(self):
+    def render(self):
         def generate_edges_for_node(ast_node, graph, generated):
             node_id = id(ast_node)
             if not isinstance(ast_node, BinOpDef) and node_id not in generated:
@@ -31,6 +31,9 @@ class ASTGraph:
         for node in self.visitor:
             generate_edges_for_node(node, self.graph, generated)
 
+        self.graph.render()
+
+    def view(self):
         self.graph.view()
 
     def get_node_label(ast_node):

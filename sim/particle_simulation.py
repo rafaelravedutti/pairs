@@ -199,5 +199,5 @@ class ParticleSimulation:
         flatten_property_accesses(program)
         simplify_expressions(program)
 
-        ASTGraph(self.kernels.lower(), "kernels").generate_and_view()
+        ASTGraph(self.kernels.lower(), "kernels").render()
         self.code_gen.generate_program(self, program)
