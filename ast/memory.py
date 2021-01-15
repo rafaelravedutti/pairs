@@ -8,7 +8,6 @@ import operator
 class Malloc(ASTNode):
     def __init__(self, sim, array, sizes, decl=False):
         super().__init__(sim)
-        self.parent_block = None
         self.array = array
         self.decl = decl
         self.prim_size = Sizeof(sim, array.type())
@@ -22,7 +21,6 @@ class Malloc(ASTNode):
 class Realloc(ASTNode):
     def __init__(self, sim, array, size):
         super().__init__(sim)
-        self.parent_block = None
         self.array = array
         self.prim_size = Sizeof(sim, array.type())
         self.size = BinOp.inline(self.prim_size * size)

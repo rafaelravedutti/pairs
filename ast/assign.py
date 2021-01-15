@@ -7,7 +7,6 @@ from functools import reduce
 class Assign(ASTNode):
     def __init__(self, sim, dest, src):
         super().__init__(sim)
-        self.parent_block = None
         self.type = dest.type()
         src = as_lit_ast(sim, src)
 
@@ -16,18 +15,19 @@ class Assign(ASTNode):
 
             for i in range(0, sim.dimensions):
                 from ast.bin_op import BinOp
-                dsrc = (src if (not isinstance(src, BinOp) or
-                                src.type() != Type_Vector)
-                        else src[i])
-
-                self.assignments.append((dest[i], dsrc))
+                dim_src = src if not isinstance(src, BinOp) or src.type() != Type_Vector else src[i]
+                self.assignments.append((dest[i], dim_src))
         else:
             self.assignments = [(dest, src)]
 
     def __str__(self):
         return f"Assign<{self.assignments}>"
 
+    def destinations(self):
+        return [a[0] for a in self.assignments]
+
+    def sources(self):
+        return [a[1] for a in self.assignments]
+
     def children(self):
-        return reduce((lambda x, y: x + y), [
-                      [self.assignments[i][0], self.assignments[i][1]]
-                      for i in range(0, len(self.assignments))])
+        return reduce((lambda x, y: x + y), [[a[0], a[1]] for a in self.assignments])

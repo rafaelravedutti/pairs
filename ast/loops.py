@@ -46,7 +46,6 @@ class For(ASTNode):
         self.iterator = Iter(sim, self)
         self.min = as_lit_ast(sim, range_min)
         self.max = as_lit_ast(sim, range_max)
-        self.parent_block = None
         self.block = Block(sim, []) if block is None else block
 
     def __str__(self):
@@ -80,7 +79,6 @@ class ParticleFor(For):
 class While(ASTNode):
     def __init__(self, sim, cond, block=None):
         super().__init__(sim)
-        self.parent_block = None
         self.cond = BinOp.inline(cond)
         self.block = Block(sim, []) if block is None else block
 
@@ -103,7 +101,6 @@ class While(ASTNode):
 class NeighborFor():
     def __init__(self, sim, particle, cell_lists):
         self.sim = sim
-        self.parent_block = None
         self.particle = particle
         self.cell_lists = cell_lists
 

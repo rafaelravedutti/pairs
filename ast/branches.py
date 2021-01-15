@@ -6,7 +6,6 @@ from ast.lit import as_lit_ast
 class Branch(ASTNode):
     def __init__(self, sim, cond, one_way=False, blk_if=None, blk_else=None):
         self.sim = sim
-        self.parent_block = None
         self.cond = as_lit_ast(sim, cond)
         self.switch = True
         self.block_if = Block(sim, []) if blk_if is None else blk_if

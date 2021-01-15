@@ -183,7 +183,7 @@ class CGen:
                 return f"({lhs} {ast_node.operator()} {rhs})"
 
             # Some expressions can be defined on-the-fly during transformations, hence they do not have
-            # a definition statement in the tree, so we generate them right before usage
+            # a definition statement in the tree, so we generate them right before use
             if not ast_node.generated:
                 CGen.generate_statement(sim, ast_node.definition())
 

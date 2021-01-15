@@ -1,66 +1,19 @@
-from ast.arrays import ArrayAccess
-from ast.assign import Assign
-from ast.bin_op import BinOp, BinOpDef
-from ast.block import Block
-from ast.branches import Branch
-from ast.cast import Cast
-from ast.loops import For, While
-from ast.math import Sqrt
-from ast.memory import Malloc, Realloc
-from ast.select import Select
-from sim.timestep import Timestep
-
-
 class Mutator:
     def __init__(self, ast, max_depth=0):
         self.ast = ast
         self.max_depth = 0
 
+    def get_method(self, method_name):
+        method = getattr(self, method_name, None)
+        return method if callable(method) else None
+
     def mutate(self, ast_node=None):
         if ast_node is None:
             ast_node = self.ast
 
-        if isinstance(ast_node, ArrayAccess):
-            return self.mutate_ArrayAccess(ast_node)
-
-        elif isinstance(ast_node, Assign):
-            return self.mutate_Assign(ast_node)
-
-        elif isinstance(ast_node, BinOp):
-            return self.mutate_BinOp(ast_node)
-
-        elif isinstance(ast_node, BinOpDef):
-            return self.mutate_BinOpDef(ast_node)
-
-        elif isinstance(ast_node, Block):
-            return self.mutate_Block(ast_node)
-
-        elif isinstance(ast_node, Branch):
-            return self.mutate_Branch(ast_node)
-
-        elif isinstance(ast_node, Cast):
-            return self.mutate_Cast(ast_node)
-
-        elif isinstance(ast_node, For):
-            return self.mutate_For(ast_node)
-
-        elif isinstance(ast_node, Malloc):
-            return self.mutate_Malloc(ast_node)
-
-        elif isinstance(ast_node, Realloc):
-            return self.mutate_Realloc(ast_node)
-
-        elif isinstance(ast_node, Select):
-            return self.mutate_Select(ast_node)
-
-        elif isinstance(ast_node, Sqrt):
-            return self.mutate_Sqrt(ast_node)
-
-        elif isinstance(ast_node, Timestep):
-            return self.mutate_Timestep(ast_node)
-
-        elif isinstance(ast_node, While):
-            return self.mutate_While(ast_node)
+        method = self.get_method(f"mutate_{type(ast_node).__name__}")
+        if method is not None:
+            return method(ast_node)
 
         return ast_node
 
@@ -74,10 +27,7 @@ class Mutator:
         return ast_node 
 
     def mutate_Assign(self, ast_node):
-        ast_node.assignments = [
-            (self.mutate(ast_node.assignments[i][0]), self.mutate(ast_node.assignments[i][1]))
-            for i in range(0, len(ast_node.assignments))
-        ]
+        ast_node.assignments = [(self.mutate(a[0]), self.mutate(a[1])) for a in ast_node.assignments]
         return ast_node
 
     def mutate_BinOp(self, ast_node):
@@ -100,6 +50,9 @@ class Mutator:
         ast_node.block_else = None if ast_node.block_else is None else self.mutate(ast_node.block_else)
         return ast_node
 
+    def mutate_Filter(self, ast_node):
+        return self.mutate_Branch(ast_node)
+
     def mutate_Cast(self, ast_node):
         ast_node.expr = self.mutate(ast_node.expr)
         return ast_node
@@ -108,6 +61,9 @@ class Mutator:
         ast_node.iterator = self.mutate(ast_node.iterator)
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
+
+    def mutate_ParticleFor(self, ast_node):
+        return self.mutate_For(ast_node)
 
     def mutate_Malloc(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
