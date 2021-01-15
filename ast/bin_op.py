@@ -52,7 +52,9 @@ class BinOp(ASTNode):
         self.bin_op_def = BinOpDef(self)
 
     def __str__(self):
-        return f"BinOp<a: {self.lhs.id()}, b: {self.rhs.id()}, op: {self.op}>"
+        a = self.lhs.id() if isinstance(self.lhs, BinOp) else self.lhs
+        b = self.rhs.id() if isinstance(self.rhs, BinOp) else self.rhs
+        return f"BinOp<a: {a}, b: {b}, op: {self.op}>"
 
     def match(self, bin_op):
         return self.lhs == bin_op.lhs and \

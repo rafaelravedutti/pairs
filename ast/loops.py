@@ -21,6 +21,9 @@ class Iter(ASTTerm):
     def id(self):
         return self.iter_id
 
+    def name(self):
+        return f"i{self.iter_id}"
+
     def type(self):
         return Type_Int
 
