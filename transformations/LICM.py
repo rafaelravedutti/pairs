@@ -37,6 +37,18 @@ class SetBlockVariants(Mutator):
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
 
+    def mutate_BinOp(self, ast_node):
+        # For property accesses, we only want to include the property name, and not
+        # the index that is also present in the expression
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        return ast_node
+
+    def mutate_ArrayAccess(self, ast_node):
+        # For array accesses, we only want to include the array name, and not
+        # the index that is also present in the access node
+        ast_node.array = self.mutate(ast_node.array)
+        return ast_node
+
     def mutate_Array(self, ast_node):
         return self.push_variant(ast_node)
 
@@ -155,7 +167,7 @@ class LICM(Mutator):
             last_loop = self.loops[-1]
             #print(f"variants = {last_loop.block.variants}, terminals = {ast_node.bin_op.terminals}")
             if not last_loop.block.variants.intersection(ast_node.bin_op.terminals):
-                print(f'lifting {ast_node.bin_op.id()}')
+                #print(f'lifting {ast_node.bin_op.id()}')
                 self.lifts[id(last_loop)].append(ast_node)
                 return None
 
