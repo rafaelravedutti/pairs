@@ -14,6 +14,18 @@ position = psim.add_vector_property('position')
 velocity = psim.add_vector_property('velocity')
 force = psim.add_vector_property('force', vol=True)
 
+#def lj(i, j):
+#    sr2 = 1.0 / rsq(i, j)
+#    sr6 = sr2 * sr2 * sr2 * sigma6
+#    force[i] += delta(i, j) * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon
+
+#def euler(i):
+#    velocity[i] += dt * force[i] / mass[i]
+#    position[i] += dt * velocity[i]
+
+# psim.compute(lj)
+# psim.compute(euler)
+
 #grid = psim.grid_3d(0.0, 4.0, 0.0, 4.0, 0.0, 4.0)
 #psim.create_particle_lattice(grid, spacing=[0.82323, 0.82323, 0.82323])
 psim.from_file("data/minimd_setup_4x4x4.input", ['mass', 'position', 'velocity'])
