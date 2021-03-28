@@ -1,11 +1,11 @@
-from ast.arrays import Arrays
-from ast.block import Block
-from ast.branches import Filter
-from ast.data_types import Type_Int, Type_Float, Type_Vector
-from ast.layouts import Layout_AoS
-from ast.loops import ParticleFor, NeighborFor
-from ast.properties import Properties
-from ast.variables import Variables
+from ir.arrays import Arrays
+from ir.block import Block
+from ir.branches import Filter
+from ir.data_types import Type_Int, Type_Float, Type_Vector
+from ir.layouts import Layout_AoS
+from ir.loops import ParticleFor, NeighborFor
+from ir.properties import Properties
+from ir.variables import Variables
 from graph.graphviz import ASTGraph
 from sim.arrays import ArraysDecl
 from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild

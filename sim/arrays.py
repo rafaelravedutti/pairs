@@ -1,5 +1,5 @@
-from ast.memory import Malloc
-from ast.arrays import ArrayDecl
+from ir.memory import Malloc
+from ir.arrays import ArrayDecl
 
 
 class ArraysDecl:

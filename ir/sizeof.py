@@ -1,5 +1,5 @@
-from ast.bin_op import ASTTerm
-from ast.data_types import Type_Int
+from ir.bin_op import ASTTerm
+from ir.data_types import Type_Int
 
 
 class Sizeof(ASTTerm):

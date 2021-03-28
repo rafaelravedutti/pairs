@@ -1,7 +1,7 @@
-from ast.data_types import Type_Float, Type_Vector
-from ast.loops import ParticleFor
-from ast.memory import Malloc, Realloc
-from ast.utils import Print
+from ir.data_types import Type_Float, Type_Vector
+from ir.loops import ParticleFor
+from ir.memory import Malloc, Realloc
+from ir.utils import Print
 
 
 class PropertiesAlloc:

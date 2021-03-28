@@ -1,5 +1,5 @@
-from ast.ast_node import ASTNode
-from ast.data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool, Type_Vector
+from ir.ast_node import ASTNode
+from ir.data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool, Type_Vector
 
 
 def is_literal(a):

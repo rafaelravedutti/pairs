@@ -1,5 +1,5 @@
-from ast.data_types import Type_Vector
-from ast.loops import For
+from ir.data_types import Type_Vector
+from ir.loops import For
 
 
 class ParticleLattice():

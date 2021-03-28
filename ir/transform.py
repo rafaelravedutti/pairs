@@ -1,10 +1,10 @@
-from ast.arrays import ArrayAccess
-from ast.bin_op import BinOp
-from ast.data_types import Type_Int, Type_Vector
-from ast.layouts import Layout_AoS, Layout_SoA
-from ast.lit import Lit
-from ast.loops import Iter
-from ast.properties import Property
+from ir.arrays import ArrayAccess
+from ir.bin_op import BinOp
+from ir.data_types import Type_Int, Type_Vector
+from ir.layouts import Layout_AoS, Layout_SoA
+from ir.lit import Lit
+from ir.loops import Iter
+from ir.properties import Property
 
 
 class Transform:

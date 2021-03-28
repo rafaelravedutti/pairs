@@ -1,8 +1,8 @@
-from ast.branches import Branch, Filter
-from ast.data_types import Type_Int
-from ast.loops import For, ParticleFor
-from ast.utils import Print
-from ast.select import Select
+from ir.branches import Branch, Filter
+from ir.data_types import Type_Int
+from ir.loops import For, ParticleFor
+from ir.utils import Print
+from ir.select import Select
 from sim.resize import Resize
 
 

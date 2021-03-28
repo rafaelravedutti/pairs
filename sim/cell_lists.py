@@ -1,9 +1,9 @@
-from ast.bin_op import BinOp
-from ast.branches import Branch, Filter
-from ast.cast import Cast
-from ast.data_types import Type_Int
-from ast.loops import For, ParticleFor
-from ast.utils import Print
+from ir.bin_op import BinOp
+from ir.branches import Branch, Filter
+from ir.cast import Cast
+from ir.data_types import Type_Int
+from ir.loops import For, ParticleFor
+from ir.utils import Print
 from functools import reduce
 from sim.resize import Resize
 import math

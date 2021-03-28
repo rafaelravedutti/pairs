@@ -1,6 +1,6 @@
-from ast.data_types import Type_Int
-from ast.lit import Lit
-from ast.mutator import Mutator
+from ir.data_types import Type_Int
+from ir.lit import Lit
+from ir.mutator import Mutator
 
 
 class SimplifyExpressions(Mutator):

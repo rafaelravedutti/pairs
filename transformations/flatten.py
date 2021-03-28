@@ -1,5 +1,5 @@
-from ast.layouts import Layout_AoS, Layout_SoA
-from ast.mutator import Mutator
+from ir.layouts import Layout_AoS, Layout_SoA
+from ir.mutator import Mutator
 
 
 class FlattenPropertyAccesses(Mutator):

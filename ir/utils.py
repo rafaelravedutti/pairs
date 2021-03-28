@@ -1,4 +1,4 @@
-from ast.ast_node import ASTNode
+from ir.ast_node import ASTNode
 
 
 class Print(ASTNode):

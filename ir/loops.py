@@ -1,9 +1,9 @@
-from ast.ast_node import ASTNode
-from ast.bin_op import BinOp, ASTTerm
-from ast.block import Block
-from ast.branches import Filter
-from ast.data_types import Type_Int
-from ast.lit import as_lit_ast
+from ir.ast_node import ASTNode
+from ir.bin_op import BinOp, ASTTerm
+from ir.block import Block
+from ir.branches import Filter
+from ir.data_types import Type_Int
+from ir.lit import as_lit_ast
 
 
 class Iter(ASTTerm):

@@ -1,6 +1,6 @@
-from ast.ast_node import ASTNode
-from ast.bin_op import BinOp
-from ast.lit import as_lit_ast
+from ir.ast_node import ASTNode
+from ir.bin_op import BinOp
+from ir.lit import as_lit_ast
 
 
 class Select(ASTNode):

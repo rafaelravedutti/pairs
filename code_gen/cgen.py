@@ -1,19 +1,19 @@
-from ast.assign import Assign
-from ast.arrays import ArrayAccess, ArrayDecl
-from ast.block import Block
-from ast.branches import Branch
-from ast.cast import Cast
-from ast.bin_op import BinOp, BinOpDef
-from ast.data_types import Type_Int, Type_Float, Type_Vector
-from ast.lit import Lit
-from ast.loops import For, Iter, ParticleFor, While
-from ast.math import Sqrt
-from ast.memory import Malloc, Realloc
-from ast.properties import Property
-from ast.select import Select
-from ast.sizeof import Sizeof
-from ast.utils import Print
-from ast.variables import Var, VarDecl
+from ir.assign import Assign
+from ir.arrays import ArrayAccess, ArrayDecl
+from ir.block import Block
+from ir.branches import Branch
+from ir.cast import Cast
+from ir.bin_op import BinOp, BinOpDef
+from ir.data_types import Type_Int, Type_Float, Type_Vector
+from ir.lit import Lit
+from ir.loops import For, Iter, ParticleFor, While
+from ir.math import Sqrt
+from ir.memory import Malloc, Realloc
+from ir.properties import Property
+from ir.select import Select
+from ir.sizeof import Sizeof
+from ir.utils import Print
+from ir.variables import Var, VarDecl
 from sim.timestep import Timestep
 from sim.vtk import VTKWrite
 from code_gen.printer import Printer

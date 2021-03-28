@@ -1,6 +1,6 @@
-from ast.ast_node import ASTNode
-from ast.block import Block
-from ast.lit import as_lit_ast
+from ir.ast_node import ASTNode
+from ir.block import Block
+from ir.lit import as_lit_ast
 
 
 class Branch(ASTNode):

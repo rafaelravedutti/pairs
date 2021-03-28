@@ -1,11 +1,11 @@
-from ast.assign import Assign
-from ast.ast_node import ASTNode
-from ast.bin_op import BinOp, ASTTerm
-from ast.data_types import Type_Array
-from ast.layouts import Layout_AoS, Layout_SoA
-from ast.lit import as_lit_ast
-from ast.memory import Realloc
-from ast.variables import Var
+from ir.assign import Assign
+from ir.ast_node import ASTNode
+from ir.bin_op import BinOp, ASTTerm
+from ir.data_types import Type_Array
+from ir.layouts import Layout_AoS, Layout_SoA
+from ir.lit import as_lit_ast
+from ir.memory import Realloc
+from ir.variables import Var
 from functools import reduce
 
 

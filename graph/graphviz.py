@@ -1,10 +1,10 @@
-from ast.arrays import Array
-from ast.bin_op import BinOp, BinOpDef
-from ast.lit import Lit
-from ast.loops import Iter
-from ast.properties import Property
-from ast.variables import Var
-from ast.visitor import Visitor
+from ir.arrays import Array
+from ir.bin_op import BinOp, BinOpDef
+from ir.lit import Lit
+from ir.loops import Iter
+from ir.properties import Property
+from ir.variables import Var
+from ir.visitor import Visitor
 from graphviz import Digraph
 
 

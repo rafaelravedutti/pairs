@@ -1,4 +1,4 @@
-from ast.data_types import Type_Invalid
+from ir.data_types import Type_Invalid
 
 
 class ASTNode:

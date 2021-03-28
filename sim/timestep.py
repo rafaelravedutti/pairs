@@ -1,7 +1,7 @@
-from ast.bin_op import BinOp
-from ast.block import Block
-from ast.branches import Branch
-from ast.loops import For
+from ir.bin_op import BinOp
+from ir.block import Block
+from ir.branches import Branch
+from ir.loops import For
 
 
 class Timestep:

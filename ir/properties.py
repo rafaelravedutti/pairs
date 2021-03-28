@@ -1,5 +1,5 @@
-from ast.ast_node import ASTNode
-from ast.layouts import Layout_AoS
+from ir.ast_node import ASTNode
+from ir.layouts import Layout_AoS
 
 
 class Properties:
@@ -67,5 +67,5 @@ class Property(ASTNode):
         return self.sim.global_scope
 
     def __getitem__(self, expr):
-        from ast.bin_op import BinOp
+        from ir.bin_op import BinOp
         return BinOp(self.sim, self, expr, '[]', True)

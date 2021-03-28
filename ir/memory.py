@@ -1,6 +1,6 @@
-from ast.ast_node import ASTNode
-from ast.bin_op import BinOp
-from ast.sizeof import Sizeof
+from ir.ast_node import ASTNode
+from ir.bin_op import BinOp
+from ir.sizeof import Sizeof
 from functools import reduce
 import operator
 

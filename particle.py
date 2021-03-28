@@ -1,5 +1,5 @@
 import part_prot as pt
-from ast.layouts import Layout_SoA
+from ir.layouts import Layout_SoA
 
 dt = 0.005
 cutoff_radius = 2.5

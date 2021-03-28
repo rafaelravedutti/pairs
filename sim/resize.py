@@ -1,8 +1,8 @@
-from ast.branches import Filter
-from ast.data_types import Type_Int, Type_Float, Type_Vector
-from ast.loops import While
-from ast.memory import Realloc
-from ast.utils import Print
+from ir.branches import Filter
+from ir.data_types import Type_Int, Type_Float, Type_Vector
+from ir.loops import While
+from ir.memory import Realloc
+from ir.utils import Print
 
 class Resize:
     def __init__(self, sim, capacity_var, grow_fn=None):

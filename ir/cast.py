@@ -1,5 +1,5 @@
-from ast.ast_node import ASTNode
-from ast.data_types import Type_Int, Type_Float
+from ir.ast_node import ASTNode
+from ir.data_types import Type_Int, Type_Float
 
 
 class Cast(ASTNode):

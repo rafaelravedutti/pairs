@@ -1,6 +1,6 @@
-from ast.ast_node import ASTNode
-from ast.assign import Assign
-from ast.bin_op import ASTTerm 
+from ir.ast_node import ASTNode
+from ir.assign import Assign
+from ir.bin_op import ASTTerm 
 
 
 class Variables:

@@ -1,4 +1,4 @@
-from ast.variables import VarDecl
+from ir.variables import VarDecl
 
 
 class VariablesDecl:

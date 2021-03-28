@@ -1,7 +1,7 @@
-from ast.bin_op import BinOp
-from ast.loops import For, While
-from ast.mutator import Mutator
-from ast.visitor import Visitor
+from ir.bin_op import BinOp
+from ir.loops import For, While
+from ir.mutator import Mutator
+from ir.visitor import Visitor
 
 
 class SetBlockVariants(Mutator):

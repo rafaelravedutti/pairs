@@ -1,8 +1,8 @@
-from ast.ast_node import ASTNode
-from ast.assign import Assign
-from ast.data_types import Type_Float, Type_Bool, Type_Vector
-from ast.lit import as_lit_ast
-from ast.properties import Property
+from ir.ast_node import ASTNode
+from ir.assign import Assign
+from ir.data_types import Type_Float, Type_Bool, Type_Vector
+from ir.lit import as_lit_ast
+from ir.properties import Property
 
 
 class BinOpDef(ASTNode):

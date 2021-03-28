@@ -1,4 +1,4 @@
-from ast.block import Block
+from ir.block import Block
 
 
 class SetupWrapper():
