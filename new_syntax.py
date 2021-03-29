@@ -79,8 +79,7 @@ class BuildParticleIR(ast.NodeVisitor):
         if isinstance(lhs, UndefinedSymbol):
             self.add_symbols({lhs.symbol_id: rhs})
         else:
-            print(lhs)
-            lhs = rhs
+            lhs.set(rhs)
 
     def visit_AugAssign(self, node):
         lhs = self.visit(node.target)
@@ -89,11 +88,10 @@ class BuildParticleIR(ast.NodeVisitor):
         if isinstance(lhs, UndefinedSymbol):
             self.add_symbols({lhs.symbol_id: rhs})
         else:
-            print(lhs)
-            lhs += rhs
+            lhs.add(rhs)
 
     def visit_BinOp(self, node):
-        print(ast.dump(node))
+        #print(ast.dump(node))
         lhs = self.visit(node.left)
         assert not isinstance(lhs, UndefinedSymbol), f"Undefined lhs used in BinOp: {lhs.symbol_id}"
         rhs = self.visit(node.right)
@@ -138,14 +136,14 @@ class BuildParticleIR(ast.NodeVisitor):
         return node.n
 
     def visit_Subscript(self, node):
-        print(ast.dump(node))
+        #print(ast.dump(node))
         return self.visit(node.value)[self.visit(node.slice)]
 
 
 def add_kernel(sim, func, cutoff_radius=None, position=None, symbols={}):
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
-    print(ast.dump(ast.parse(src, mode='exec')))
+    #print(ast.dump(ast.parse(src, mode='exec')))
 
     # Fetch function info
     info = FetchParticleFuncInfo()
@@ -165,6 +163,7 @@ def add_kernel(sim, func, cutoff_radius=None, position=None, symbols={}):
         for i, j, delta, rsq in psim.particle_pairs(cutoff_radius, sim.property(position)):
             ir.add_symbols({params[0]: i, params[1]: j, 'delta': delta, 'rsq': rsq})
             ir.visit(tree)
+
     else:
         raise Exception(f"Invalid number of parameters: {nparams}")
 
