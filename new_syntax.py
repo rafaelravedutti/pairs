@@ -17,6 +17,8 @@ def rsq(i, j):
 def lj(i, j):
     sr2 = 1.0 / rsq
     sr6 = sr2 * sr2 * sr2 * sigma6
+    #f = 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon
+    #force[i] += delta * f
     force[i] += delta * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon
 
 

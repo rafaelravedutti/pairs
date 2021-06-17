@@ -10,6 +10,7 @@ class BinOpDef(ASTNode):
         super().__init__(bin_op.sim)
         self.bin_op = bin_op
         self.bin_op.sim.add_statement(self)
+        self.used = False
 
     def __str__(self):
         return f"BinOpDef<bin_op: self.bin_op>"
@@ -50,6 +51,13 @@ class BinOp(ASTNode):
         self._vector_indexes = set()
         self.vector_index_mapping = {}
         self.bin_op_def = BinOpDef(self)
+
+    def reassign(self, lhs, rhs, op):
+        assert self.generated is False, "Error on reassign: BinOp {} already generated!".format(self.bin_op_id)
+        self.lhs = as_lit_ast(self.sim, lhs)
+        self.rhs = as_lit_ast(self.sim, rhs)
+        self.op = op
+        self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
 
     def __str__(self):
         a = self.lhs.id() if isinstance(self.lhs, BinOp) else self.lhs

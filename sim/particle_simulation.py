@@ -20,9 +20,10 @@ from sim.timestep import Timestep
 from sim.variables import VariablesDecl
 from sim.vtk import VTKWrite
 from transformations.flatten import flatten_property_accesses
+from transformations.prioritize_scalar_ops import prioritaze_scalar_ops
+from transformations.set_used_bin_ops import set_used_bin_ops
 from transformations.simplify import simplify_expressions
 from transformations.LICM import move_loop_invariant_code
-
 
 class ParticleSimulation:
     def __init__(self, code_gen, dims=3, timesteps=100):
@@ -198,9 +199,11 @@ class ParticleSimulation:
         self.global_scope = program
 
         # Transformations
+        #prioritaze_scalar_ops(program)
         flatten_property_accesses(program)
         simplify_expressions(program)
         move_loop_invariant_code(program)
+        #set_used_bin_ops(program)
 
         ASTGraph(self.kernels.lower(), "kernels").render()
         self.code_gen.generate_program(program)
