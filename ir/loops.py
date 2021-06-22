@@ -67,7 +67,7 @@ class For(ASTNode):
         self.block.add_statement(stmt)
 
     def children(self):
-        return [self.iterator, self.block]
+        return [self.iterator, self.block, self.min, self.max]
 
 
 class ParticleFor(For):

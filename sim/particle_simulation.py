@@ -42,6 +42,7 @@ class ParticleSimulation:
         self.scope = []
         self.nested_count = 0
         self.nest = False
+        self.check_bin_ops_usage = True
         self.block = Block(self, [])
         self.setups = SetupWrapper()
         self.kernels = KernelWrapper()
@@ -199,11 +200,14 @@ class ParticleSimulation:
         self.global_scope = program
 
         # Transformations
-        #prioritaze_scalar_ops(program)
+        prioritaze_scalar_ops(program)
         flatten_property_accesses(program)
         simplify_expressions(program)
         move_loop_invariant_code(program)
-        #set_used_bin_ops(program)
+        set_used_bin_ops(program)
+
+        # For this part on, all bin ops are generated without usage verification
+        self.check_bin_ops_usage = False
 
         ASTGraph(self.kernels.lower(), "kernels").render()
         self.code_gen.generate_program(program)

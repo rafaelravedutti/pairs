@@ -173,6 +173,9 @@ class ArrayAccess(ASTTerm):
         return self.index.scope()
 
     def children(self):
+        if self.index is not None:
+            return [self.array, self.index]
+
         return [self.array] + self.indexes
 
 

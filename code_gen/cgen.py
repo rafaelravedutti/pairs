@@ -68,7 +68,7 @@ class CGen:
         if isinstance(ast_node, BinOpDef):
             bin_op = ast_node.bin_op
 
-            if not isinstance(bin_op, BinOp):
+            if not isinstance(bin_op, BinOp) or not ast_node.used:
                 return None
 
             if bin_op.inlined is False and bin_op.operator() != '[]' and bin_op.generated is False:

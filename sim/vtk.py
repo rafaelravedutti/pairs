@@ -11,3 +11,6 @@ class VTKWrite(ASTNode):
         self.filename = filename
         self.timestep = as_lit_ast(sim, timestep)
         VTKWrite.vtk_id += 1
+
+    def children(self):
+        return [self.timestep]

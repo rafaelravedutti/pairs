@@ -10,7 +10,7 @@ class BinOpDef(ASTNode):
         super().__init__(bin_op.sim)
         self.bin_op = bin_op
         self.bin_op.sim.add_statement(self)
-        self.used = False
+        self.used = not bin_op.sim.check_bin_ops_usage
 
     def __str__(self):
         return f"BinOpDef<bin_op: self.bin_op>"
@@ -84,6 +84,9 @@ class BinOp(ASTNode):
     def mapped_vector_index(self, index):
         mapping = self.vector_index_mapping
         return mapping[index] if index in mapping else as_lit_ast(self.sim, index)
+
+    def mapped_expressions(self):
+        return self.vector_index_mapping.values()
 
     @property
     def vector_indexes(self):
