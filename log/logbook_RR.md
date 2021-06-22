@@ -20,7 +20,8 @@ The Agenda section is a scratchpad area for planning and Todo list
 # Agenda
 
 * Fix prioritaze_vector_ops transformation
-* Reuse same expressions
+* Common subexpression elimination (CSE)
+    * Analyze generated code by backend compilers to see which cases we really need to manage
 * Create variables to accumulate forces (reduction)
 * Provide a way to express simulation specific kernels (cell lists, PBC, neighbor lists) in a more clean way with new syntax
 * Runtime functions (VTK printing, read and write to files)
@@ -28,7 +29,7 @@ The Agenda section is a scratchpad area for planning and Todo list
 * LLVM support
 * OpenMP support
 * MPI support
-* waLBerla as backend
+* waLBerla as backend (Load-Balancing)
 * LAMMPS as backend (?)
 * Provide test cases (LJ, EAM, DEM, Configurational Forces + Energy Minimization, ...)
 * Separate performance strategies from code (parallelism, gathering), allow to experiment different strategies
