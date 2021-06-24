@@ -14,6 +14,7 @@ class CellLists:
         self.sim = sim
         self.grid = grid
         self.spacing = spacing
+        self.cutoff_radius = cutoff_radius
 
         self.nneighbor_cells = [
             math.ceil(cutoff_radius / (

@@ -12,6 +12,7 @@ from sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from sim.grid import Grid2D, Grid3D
 from sim.kernel_wrapper import KernelWrapper
 from sim.lattice import ParticleLattice
+from sim.neighbor_lists import NeighborLists, NeighborListsBuild
 from sim.pbc import PBC, UpdatePBC, EnforcePBC, SetupPBC
 from sim.properties import PropertiesAlloc, PropertiesResetVolatile
 from sim.read_from_file import ReadFromFile
@@ -38,6 +39,7 @@ class ParticleSimulation:
         self.nghost = self.add_var('nghost', Type_Int)
         self.grid = None
         self.cell_lists = None
+        self.neighbor_lists = None
         self.pbc = None
         self.scope = []
         self.nested_count = 0
@@ -114,6 +116,10 @@ class ParticleSimulation:
         self.cell_lists = CellLists(self, self.grid, spacing, cutoff_radius)
         return self.cell_lists
 
+    def create_neighbor_lists(self):
+        self.neighbor_lists = NeighborLists(self.cell_lists)
+        return self.neighbor_lists
+
     def periodic(self, cutneigh, flags=[1, 1, 1]):
         self.pbc = PBC(self, self.grid, cutneigh, flags)
         self.properties.add_capacity(self.pbc.pbc_capacity)
@@ -122,7 +128,7 @@ class ParticleSimulation:
     def particle_pairs(self, cutoff_radius=None, position=None):
         self.clear_block()
         for i in ParticleFor(self):
-            for j in NeighborFor(self, i, self.cell_lists):
+            for j in NeighborFor(self, i, self.cell_lists, self.neighbor_lists):
                 if cutoff_radius is not None and position is not None:
                     dp = position[i] - position[j]
                     rsq = dp.x() * dp.x() + dp.y() * dp.y() + dp.z() * dp.z()
@@ -177,6 +183,7 @@ class ParticleSimulation:
             (EnforcePBC(self.pbc).lower(), 20),
             (SetupPBC(self.pbc).lower(), UpdatePBC(self.pbc).lower(), 20),
             (CellListsBuild(self.cell_lists).lower(), 20),
+            (NeighborListsBuild(self.neighbor_lists).lower(), 20),
             PropertiesResetVolatile(self).lower(),
             self.kernels.lower()
         ])

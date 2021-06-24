@@ -38,9 +38,13 @@ class SetBlockVariants(Mutator):
         return ast_node
 
     def mutate_BinOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
         # For property accesses, we only want to include the property name, and not
         # the index that is also present in the expression
-        ast_node.lhs = self.mutate(ast_node.lhs)
+        if not ast_node.is_property_access():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         return ast_node
 
     def mutate_ArrayAccess(self, ast_node):
@@ -50,6 +54,10 @@ class SetBlockVariants(Mutator):
         return ast_node
 
     def mutate_Array(self, ast_node):
+        return self.push_variant(ast_node)
+
+    # TODO: Array should be enough
+    def mutate_ArrayND(self, ast_node):
         return self.push_variant(ast_node)
 
     def mutate_Iter(self, ast_node):
@@ -128,6 +136,10 @@ class SetBinOpTerminals(Visitor):
         self.bin_ops.pop()
 
     def visit_Array(self, ast_node):
+        self.push_terminal(ast_node)
+
+    # TODO: Array should be enough
+    def visit_ArrayND(self, ast_node):
         self.push_terminal(ast_node)
 
     def visit_Iter(self, ast_node):

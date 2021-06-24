@@ -184,6 +184,7 @@ psim.add_vector_property('velocity')
 psim.add_vector_property('force', vol=True)
 psim.from_file("data/minimd_setup_4x4x4.input", ['mass', 'position', 'velocity'])
 psim.create_cell_lists(2.8, 2.8)
+psim.create_neighbor_lists()
 psim.periodic(2.8)
 psim.vtk_output("output/test")
 
