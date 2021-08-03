@@ -27,7 +27,7 @@ class Resize:
                     capacity = sum(self.sim.properties.capacities)
                     for p in properties.all():
                         if p.type() == Type_Vector:
-                            sizes = capacity * self.sim.dimensions
+                            sizes = capacity * self.sim.ndims()
                         else:
                             sizes = capacity
 

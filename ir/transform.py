@@ -23,7 +23,7 @@ class Transform:
                     flat_index = None
 
                     if layout == Layout_AoS:
-                        flat_index = ast.rhs * ast.sim.dimensions + i
+                        flat_index = ast.rhs * ast.sim.ndims() + i
 
                     elif layout == Layout_SoA:
                         flat_index = i * ast.sim.particle_capacity + ast.rhs

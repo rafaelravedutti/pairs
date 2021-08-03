@@ -17,20 +17,17 @@ class CellLists:
         self.cutoff_radius = cutoff_radius
 
         self.nneighbor_cells = [
-            math.ceil(cutoff_radius / (
-                spacing if not isinstance(spacing, list)
-                else spacing[d]))
-            for d in range(0, sim.dimensions)]
+            math.ceil(cutoff_radius / (spacing if not isinstance(spacing, list) else spacing[d])) for d in range(sim.ndims())
+        ]
 
         self.nstencil = self.sim.add_var('nstencil', Type_Int)
-        self.nstencil_max = reduce((lambda x, y: x * y), [
-            self.nneighbor_cells[d] * 2 + 1 for d in range(0, sim.dimensions)])
-
-        self.ncells_all = self.sim.add_var('ncells_all', Type_Int)
+        self.nstencil_max = reduce((lambda x, y: x * y), [self.nneighbor_cells[d] * 2 + 1 for d in range(sim.ndims())])
+        self.ncells = self.sim.add_var('ncells', Type_Int, 1)
+        self.ncells_capacity = self.sim.add_var('ncells_capacity', Type_Int, 100)
+        self.dim_ncells = self.sim.add_static_array('dim_cells', self.sim.ndims(), Type_Int)
         self.cell_capacity = self.sim.add_var('cell_capacity', Type_Int, 20)
-        self.ncells = self.sim.add_static_array('ncells', self.sim.dimensions, Type_Int)
-        self.cell_particles = self.sim.add_array('cell_particles', [self.ncells_all, self.cell_capacity], Type_Int)
-        self.cell_sizes = self.sim.add_array('cell_sizes', self.ncells_all, Type_Int)
+        self.cell_particles = self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Type_Int)
+        self.cell_sizes = self.sim.add_array('cell_sizes', self.ncells_capacity, Type_Int)
         self.stencil = self.sim.add_array('stencil', self.nstencil_max, Type_Int)
         self.particle_cell = self.sim.add_array('particle_cell', self.sim.particle_capacity, Type_Int)
 
@@ -41,28 +38,29 @@ class CellListsStencilBuild:
 
     def lower(self):
         cl = self.cell_lists
-        ncells = cl.sim.grid.get_ncells_for_spacing(cl.spacing)
+        grid = cl.sim.grid
         index = None
+        nall = 1
 
         cl.sim.clear_block()
         cl.sim.add_statement(Print(cl.sim, "CellListsStencilBuild"))
 
-        nall = 1
-        for d in range(0, cl.sim.dimensions):
-            cl.ncells[d].set(ncells[d])
-            nall *= ncells[d]
+        for d in range(cl.sim.ndims()):
+            cl.dim_ncells[d].set(Cast.int(cl.sim, (grid.max(d) - grid.min(d)) / cl.spacing))
+            nall *= cl.dim_ncells[d]
 
-        cl.ncells_all.set_initial_value(nall)
+        cl.ncells.set(nall)
+        for resize in Resize(cl.sim, cl.ncells_capacity):
+            for _ in Filter(cl.sim, cl.ncells >= cl.ncells_capacity):
+                resize.set(cl.ncells)
 
         for _ in cl.sim.nest_mode():
             cl.nstencil.set(0)
-            for d in range(0, cl.sim.dimensions):
+            for d in range(cl.sim.ndims()):
                 nneigh = cl.nneighbor_cells[d]
                 for d_idx in For(cl.sim, -nneigh, nneigh + 1):
-                    index = (d_idx if index is None
-                             else index * cl.ncells[d - 1] + d_idx)
-
-                    if d == cl.sim.dimensions - 1:
+                    index = (d_idx if index is None else index * cl.dim_ncells[d - 1] + d_idx)
+                    if d == cl.sim.ndims() - 1:
                         cl.stencil[cl.nstencil].set(index)
                         cl.nstencil.set(cl.nstencil + 1)
 
@@ -76,27 +74,26 @@ class CellListsBuild:
     def lower(self):
         cl = self.cell_lists
         grid = cl.sim.grid
-        spc = cl.spacing
         positions = cl.sim.property('position')
 
         cl.sim.clear_block()
         cl.sim.add_statement(Print(cl.sim, "CellListsBuild"))
         for resize in Resize(cl.sim, cl.cell_capacity):
-            for c in For(cl.sim, 0, cl.ncells_all):
+            for c in For(cl.sim, 0, cl.ncells):
                 cl.cell_sizes[c].set(0)
 
             for i in ParticleFor(cl.sim, local_only=False):
                 cell_index = [
-                    Cast.int(cl.sim, (positions[i][d] - grid.min(d)) / spc)
-                    for d in range(0, cl.sim.dimensions)]
+                    Cast.int(cl.sim, (positions[i][d] - grid.min(d)) / cl.spacing)
+                    for d in range(0, cl.sim.ndims())]
 
                 flat_idx = None
-                for d in range(0, cl.sim.dimensions):
+                for d in range(0, cl.sim.ndims()):
                     flat_idx = (cell_index[d] if flat_idx is None
-                                else flat_idx * cl.ncells[d] + cell_index[d])
+                                else flat_idx * cl.dim_ncells[d] + cell_index[d])
 
                 cell_size = cl.cell_sizes[flat_idx]
-                for _ in Filter(cl.sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells_all)):
+                for _ in Filter(cl.sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells)):
                     for cond in Branch(cl.sim, cell_size >= cl.cell_capacity):
                         if cond:
                             resize.set(cell_size)

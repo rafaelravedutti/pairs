@@ -1,3 +1,6 @@
+from ir.data_types import Type_Float
+
+
 class Grid:
     def __init__(self, sim, config):
         self.sim = sim
@@ -34,10 +37,6 @@ class Grid:
     def length(self, dim):
         return self.max(dim) - self.min(dim)
 
-    def get_ncells_for_spacing(self, spacing):
-        return [int(self.max(d) - self.min(d) / spacing)
-                for d in range(0, self.ndims)]
-
 
 class Grid2D(Grid):
     def __init__(self, sim, xmin, xmax, ymin, ymax):
@@ -49,3 +48,14 @@ class Grid3D(Grid):
     def __init__(self, sim, xmin, xmax, ymin, ymax, zmin, zmax):
         config = [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
         super().__init__(sim, config)
+
+
+class MutableGrid(Grid):
+    last_id = 0
+
+    def __init__(self, sim, ndims):
+        self.id = MutableGrid.last_id
+        prefix = f"grid{self.id}_"
+        config = [[sim.add_var(f"{prefix}d{d}_min", Type_Float), sim.add_var(f"{prefix}d{d}_max", Type_Float)] for d in range(ndims)]
+        super().__init__(sim, config)
+        MutableGrid.last_id += 1

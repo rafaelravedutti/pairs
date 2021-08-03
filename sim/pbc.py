@@ -15,7 +15,7 @@ class PBC:
         self.npbc = sim.add_var('npbc', Type_Int)
         self.pbc_capacity = sim.add_var('pbc_capacity', Type_Int, 100)
         self.pbc_map = sim.add_array('pbc_map', [self.pbc_capacity], Type_Int)
-        self.pbc_mult = sim.add_array('pbc_mult', [self.pbc_capacity, sim.dimensions], Type_Int)
+        self.pbc_mult = sim.add_array('pbc_mult', [self.pbc_capacity, sim.ndims()], Type_Int)
 
 
 class UpdatePBC:
@@ -24,7 +24,7 @@ class UpdatePBC:
 
     def lower(self):
         sim = self.pbc.sim
-        ndims = sim.dimensions
+        ndims = sim.ndims()
         grid = self.pbc.grid
         npbc = self.pbc.npbc
         pbc_map = self.pbc.pbc_map
@@ -49,7 +49,7 @@ class EnforcePBC:
 
     def lower(self):
         sim = self.pbc.sim
-        ndims = sim.dimensions
+        ndims = sim.ndims()
         grid = self.pbc.grid
         positions = sim.property('position')
 
@@ -73,7 +73,7 @@ class SetupPBC:
 
     def lower(self):
         sim = self.pbc.sim
-        ndims = sim.dimensions
+        ndims = sim.ndims()
         grid = self.pbc.grid
         cutneigh = self.pbc.cutneigh
         npbc = self.pbc.npbc

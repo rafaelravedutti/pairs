@@ -1,15 +1,16 @@
 from ir.assign import Assign
-from ir.arrays import ArrayAccess, ArrayDecl
+from ir.arrays import Array, ArrayAccess, ArrayDecl
 from ir.block import Block
 from ir.branches import Branch
 from ir.cast import Cast
 from ir.bin_op import BinOp, BinOpDef
-from ir.data_types import Type_Int, Type_Float, Type_Vector
+from ir.data_types import Type_Int, Type_Float, Type_String, Type_Vector
+from ir.functions import Call
 from ir.lit import Lit
 from ir.loops import For, Iter, ParticleFor, While
 from ir.math import Sqrt
 from ir.memory import Malloc, Realloc
-from ir.properties import Property
+from ir.properties import Property, PropertyList
 from ir.select import Select
 from ir.sizeof import Sizeof
 from ir.utils import Print
@@ -20,6 +21,8 @@ from code_gen.printer import Printer
 
 
 class CGen:
+    temp_id = 0
+
     def type2keyword(type_):
         return (
             'double' if type_ == Type_Float or type_ == Type_Vector
@@ -100,6 +103,10 @@ class CGen:
 
             self.print("}") 
 
+        if isinstance(ast_node, Call):
+            call = self.generate_expression(ast_node)
+            self.print("{call};")
+
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
             lower_range = None
@@ -161,6 +168,9 @@ class CGen:
             self.print("}")
 
     def generate_expression(self, ast_node, mem=False, index=None):
+        if isinstance(ast_node, Array):
+            return ast_node.name()
+
         if isinstance(ast_node, ArrayAccess):
             index = self.generate_expression(ast_node.index)
             array_name = ast_node.array.name()
@@ -202,6 +212,10 @@ class CGen:
 
             return f"e{ast_node.id()}"
 
+        if isinstance(ast_node, Call):
+            params = ", ".join(["ps"] + [str(self.generate_expression(p)) for p in ast_node.parameters()])
+            return f"{ast_node.name()}({params})"
+
         if isinstance(ast_node, Cast):
             tkw = CGen.type2keyword(ast_node.cast_type)
             expr = self.generate_expression(ast_node.expr)
@@ -213,10 +227,22 @@ class CGen:
 
         if isinstance(ast_node, Lit):
             assert mem is False, "Literal is not lvalue!"
+
+            if ast_node.type() == Type_String:
+                return f"\"{ast_node.value}\""
+
             return ast_node.value
 
         if isinstance(ast_node, Property):
             return ast_node.name()
+
+        if isinstance(ast_node, PropertyList):
+            tid = CGen.temp_id
+            list_ref = f"prop_list_{tid}"
+            list_def = ", ".join(str(p.id) for p in ast_node)
+            self.print(f"const int {list_ref}[] = {{{list_def}}};")
+            CGen.temp_id += 1
+            return list_ref
 
         if isinstance(ast_node, Sizeof):
             assert mem is False, "Sizeof expression is not lvalue!"

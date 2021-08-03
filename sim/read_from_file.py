@@ -1,49 +1,24 @@
-from ir.data_types import Type_Int, Type_Float, Type_Vector
-from ir.loops import For
-from sim.grid import Grid
+from ir.data_types import Type_Float
+from ir.functions import Call_Int
+from ir.properties import PropertyList
+from sim.grid import MutableGrid
+
 
 class ReadFromFile():
     def __init__(self, sim, filename, props):
         self.sim = sim
         self.filename = filename
-        self.props = props
-        self.grid = None
+        self.props = PropertyList(sim, props)
+        self.grid = MutableGrid(sim, sim.ndims())
+        self.grid_buffer = self.sim.add_static_array("grid_buffer", [self.sim.ndims() * 2], Type_Float)
 
     def lower(self):
-        ndims = None
-        nlocal = self.sim.nlocal
-        line_number = 0
-
         self.sim.clear_block()
-        with open(self.filename, "r") as fp:
-            for line in fp:
-                current_data = line.split(',')
-                if line_number == 0:
-                    assert len(current_data) % 2 == 0, "Number of dimensions in header must be even!"
-                    ndims = int(len(current_data) / 2)
-                    config = [[float(current_data[d * 2]), float(current_data[d * 2 + 1])] for d in range(0, ndims)]
-                    self.grid = Grid(self.sim, config)
-                else:
-                    i = 0
-                    for p in self.props:
-                        if p.type() == Type_Vector:
-                            for d in range(0, ndims):
-                                p[nlocal][d].set(float(current_data[i + d]))
+        self.sim.nlocal.set(Call_Int(self.sim, "pairs::read_particle_data",
+                            [self.filename, self.grid_buffer, self.props, self.props.length()]))
 
-                            i += ndims
-
-                        else:
-                            if p.type() == Type_Int:
-                                p[nlocal].set(int(current_data[i]))
-                            elif p.type() == Type_Float:
-                                p[nlocal].set(float(current_data[i]))
-                            else:
-                                raise Exception(f"Invalid property type at line {line_number}!")
-
-                            i += 1
-
-                    nlocal.set(nlocal + 1)
-
-                line_number += 1
+        for d in range(self.sim.ndims()):
+            self.grid.min(d).set(self.grid_buffer[d * 2 + 0])
+            self.grid.max(d).set(self.grid_buffer[d * 2 + 1])
 
         return self.sim.block

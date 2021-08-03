@@ -16,7 +16,7 @@ class ParticleLattice():
 
         self.sim.clear_block()
         for _ in self.sim.nest_mode():
-            for d in range(0, self.sim.dimensions):
+            for d in range(0, self.sim.ndims()):
                 d_min, d_max = self.grid.range(d)
                 n = int((d_max - d_min) / self.spacing[d] - 0.001) + 1
 
@@ -24,17 +24,17 @@ class ParticleLattice():
                     # index = (d_idx if index is None else index * n + d_idx)
                     loop_indexes.append(d_idx)
 
-                    if d == self.sim.dimensions - 1:
+                    if d == self.sim.ndims() - 1:
                         index = self.sim.nlocal
 
-                        for d_ in range(0, self.sim.dimensions):
+                        for d_ in range(0, self.sim.ndims()):
                             pos = self.grid.min(d_) + self.spacing[d_] * loop_indexes[d_]
                             self.positions[index][d_].set(pos)
 
                         for prop in [p for p in self.sim.properties.all()
                                      if p.volatile is False and p.name() != self.positions.name()]:
                             if prop.type() == Type_Vector:
-                                for d_ in range(0, self.sim.dimensions):
+                                for d_ in range(0, self.sim.ndims()):
                                     prop[index][d_].set(prop.default()[d_])
 
                             else:

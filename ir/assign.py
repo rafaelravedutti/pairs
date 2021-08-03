@@ -13,7 +13,7 @@ class Assign(ASTNode):
         if dest.type() == Type_Vector:
             self.assignments = []
 
-            for i in range(0, sim.dimensions):
+            for i in range(0, sim.ndims()):
                 from ir.bin_op import BinOp
                 dim_src = src if not isinstance(src, BinOp) or src.type() != Type_Vector else src[i]
                 self.assignments.append((dest[i], dim_src))

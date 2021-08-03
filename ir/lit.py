@@ -1,9 +1,9 @@
 from ir.ast_node import ASTNode
-from ir.data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool, Type_Vector
+from ir.data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool, Type_String, Type_Vector
 
 
 def is_literal(a):
-    return isinstance(a, (int, float, bool, list))
+    return isinstance(a, (int, float, bool, str, list))
 
 
 def as_lit_ast(sim, a):
@@ -24,6 +24,9 @@ class Lit(ASTNode):
 
         if isinstance(value, bool):
             self.lit_type = Type_Bool
+
+        if isinstance(value, str):
+            self.lit_type = Type_String
 
         if isinstance(value, list):
             self.lit_type = Type_Vector

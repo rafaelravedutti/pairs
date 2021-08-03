@@ -40,16 +40,23 @@ class Properties:
 
 
 class Property(ASTNode):
+    last_prop_id = 0
+
     def __init__(self, sim, name, dtype, default, volatile, layout=Layout_AoS):
         super().__init__(sim)
+        self.id = Property.last_prop_id
         self.prop_name = name
         self.prop_type = dtype
         self.prop_layout = layout
         self.default_value = default
         self.volatile = volatile
+        Property.last_prop_id += 1
 
     def __str__(self):
         return f"Property<{self.prop_name}>"
+
+    def id(self):
+        return self.id
 
     def name(self):
         return self.prop_name
@@ -69,3 +76,21 @@ class Property(ASTNode):
     def __getitem__(self, expr):
         from ir.bin_op import BinOp
         return BinOp(self.sim, self, expr, '[]', True)
+
+
+class PropertyList(ASTNode):
+    def __init__(self, sim, properties_list):
+        super().__init__(sim)
+        self.list = []
+        for p in properties_list:
+            if isinstance(p, Property):
+                self.list.append(p)
+
+            if isinstance(p, str):
+                self.list.append(sim.prop(p))
+
+    def __iter__(self):
+        yield from self.list
+
+    def length(self):
+        return len(self.list)

@@ -26,6 +26,7 @@ from transformations.set_used_bin_ops import set_used_bin_ops
 from transformations.simplify import simplify_expressions
 from transformations.LICM import move_loop_invariant_code
 
+
 class ParticleSimulation:
     def __init__(self, code_gen, dims=3, timesteps=100):
         self.code_gen = code_gen
@@ -48,13 +49,16 @@ class ParticleSimulation:
         self.block = Block(self, [])
         self.setups = SetupWrapper()
         self.kernels = KernelWrapper()
-        self.dimensions = dims
+        self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
         self.vtk_file = None
         self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
+
+    def ndims(self):
+        return self.dims
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
@@ -191,8 +195,8 @@ class ParticleSimulation:
         timestep.add(Block(self, VTKWrite(self, self.vtk_file, timestep.timestep() + 1)))
 
         body = Block.from_list(self, [
-            CellListsStencilBuild(self.cell_lists).lower(),
             self.setups.lower(),
+            CellListsStencilBuild(self.cell_lists).lower(),
             Block(self, VTKWrite(self, self.vtk_file, 0)),
             timestep.as_block()
         ])

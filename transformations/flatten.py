@@ -17,7 +17,7 @@ class FlattenPropertyAccesses(Mutator):
                 flat_index = None
 
                 if layout == Layout_AoS:
-                    flat_index = ast_node.rhs * ast_node.sim.dimensions + i
+                    flat_index = ast_node.rhs * ast_node.sim.ndims() + i
 
                 elif layout == Layout_SoA:
                     flat_index = i * ast_node.sim.particle_capacity + ast_node.rhs
