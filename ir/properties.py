@@ -38,13 +38,16 @@ class Properties:
 
         return None
 
+    def __iter__(self):
+        yield from self.props
+
 
 class Property(ASTNode):
     last_prop_id = 0
 
     def __init__(self, sim, name, dtype, default, volatile, layout=Layout_AoS):
         super().__init__(sim)
-        self.id = Property.last_prop_id
+        self.prop_id = Property.last_prop_id
         self.prop_name = name
         self.prop_type = dtype
         self.prop_layout = layout
@@ -56,7 +59,7 @@ class Property(ASTNode):
         return f"Property<{self.prop_name}>"
 
     def id(self):
-        return self.id
+        return self.prop_id
 
     def name(self):
         return self.prop_name
@@ -94,3 +97,16 @@ class PropertyList(ASTNode):
 
     def length(self):
         return len(self.list)
+
+
+class RegisterProperty(ASTNode):
+    def __init__(self, sim, prop):
+        super().__init__(sim)
+        self.prop = prop
+        self.sim.add_statement(self)
+
+    def property(self):
+        return self.prop
+
+    def __str__(self):
+        return f"Property<{self.prop.name()}>"

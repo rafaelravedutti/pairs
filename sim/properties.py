@@ -1,6 +1,7 @@
 from ir.data_types import Type_Float, Type_Vector
 from ir.loops import ParticleFor
 from ir.memory import Malloc, Realloc
+from ir.properties import RegisterProperty
 from ir.utils import Print
 
 
@@ -26,6 +27,7 @@ class PropertiesAlloc:
                 Realloc(self.sim, p, sizes)
             else:
                 Malloc(self.sim, p, sizes, True)
+                RegisterProperty(self.sim, p)
 
         return self.sim.block
 

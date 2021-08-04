@@ -10,7 +10,7 @@ from ir.lit import Lit
 from ir.loops import For, Iter, ParticleFor, While
 from ir.math import Sqrt
 from ir.memory import Malloc, Realloc
-from ir.properties import Property, PropertyList
+from ir.properties import Property, PropertyList, RegisterProperty
 from ir.select import Select
 from ir.sizeof import Sizeof
 from ir.utils import Print
@@ -42,8 +42,14 @@ class CGen:
         self.print("#include <stdio.h>")
         self.print("#include <stdlib.h>")
         self.print("#include <stdbool.h>")
+        self.print("//---")
+        self.print("#include \"runtime/pairs.hpp\"")
+        self.print("#include \"runtime/read_from_file.hpp\"")
+        self.print("")
+        self.print("using namespace pairs;")
         self.print("")
         self.print("int main() {")
+        self.print("    PairsSim *ps = new PairsSim();")
         self.generate_statement(ast_node)
         self.print("}")
         self.print.end()
@@ -146,6 +152,16 @@ class CGen:
             array_name = ast_node.array.name()
             self.print(f"{array_name} = ({tkw} *) realloc({array_name}, {size});")
 
+        if isinstance(ast_node, RegisterProperty):
+            p = ast_node.property()
+            ptype = "Prop_Integer"  if p.type() == Type_Int else \
+                    "Prop_Float"    if p.type() == Type_Float else \
+                    "Prop_Vector"   if p.type() == Type_Vector else \
+                    "Prop_Invalid"
+
+            assert ptype != "Prop_Invalid", "Invalid property type!"
+            self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {p.name()}, {ptype}));")
+
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)
 
@@ -239,7 +255,7 @@ class CGen:
         if isinstance(ast_node, PropertyList):
             tid = CGen.temp_id
             list_ref = f"prop_list_{tid}"
-            list_def = ", ".join(str(p.id) for p in ast_node)
+            list_def = ", ".join(str(p.id()) for p in ast_node)
             self.print(f"const int {list_ref}[] = {{{list_def}}};")
             CGen.temp_id += 1
             return list_ref
