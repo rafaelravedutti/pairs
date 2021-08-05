@@ -1,8 +1,10 @@
+from functools import reduce
 from ir.data_types import Type_Float, Type_Vector
 from ir.loops import ParticleFor
 from ir.memory import Malloc, Realloc
 from ir.properties import RegisterProperty
 from ir.utils import Print
+import operator
 
 
 class PropertiesAlloc:
@@ -19,15 +21,15 @@ class PropertiesAlloc:
             if p.type() == Type_Float:
                 sizes = [capacity]
             elif p.type() == Type_Vector:
-                sizes = [capacity * self.sim.ndims()]
+                sizes = [capacity, self.sim.ndims()]
             else:
                 raise Exception("Invalid property type!")
 
             if self.realloc:
-                Realloc(self.sim, p, sizes)
+                Realloc(self.sim, p, reduce(operator.mul, sizes))
             else:
-                Malloc(self.sim, p, sizes, True)
-                RegisterProperty(self.sim, p)
+                Malloc(self.sim, p, reduce(operator.mul, sizes), True)
+                RegisterProperty(self.sim, p, sizes)
 
         return self.sim.block
 

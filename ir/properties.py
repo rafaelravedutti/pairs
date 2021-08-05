@@ -1,5 +1,6 @@
 from ir.ast_node import ASTNode
 from ir.layouts import Layout_AoS
+from ir.lit import as_lit_ast
 
 
 class Properties:
@@ -100,13 +101,17 @@ class PropertyList(ASTNode):
 
 
 class RegisterProperty(ASTNode):
-    def __init__(self, sim, prop):
+    def __init__(self, sim, prop, sizes):
         super().__init__(sim)
         self.prop = prop
+        self.sizes_list = [as_lit_ast(sim, s) for s in sizes]
         self.sim.add_statement(self)
 
     def property(self):
         return self.prop
+
+    def sizes(self):
+        return self.sizes_list
 
     def __str__(self):
         return f"Property<{self.prop.name()}>"

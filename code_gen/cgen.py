@@ -6,6 +6,7 @@ from ir.cast import Cast
 from ir.bin_op import BinOp, BinOpDef
 from ir.data_types import Type_Int, Type_Float, Type_String, Type_Vector
 from ir.functions import Call
+from ir.layouts import Layout_AoS, Layout_SoA, Layout_Invalid
 from ir.lit import Lit
 from ir.loops import For, Iter, ParticleFor, While
 from ir.math import Sqrt
@@ -160,7 +161,16 @@ class CGen:
                     "Prop_Invalid"
 
             assert ptype != "Prop_Invalid", "Invalid property type!"
-            self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {p.name()}, {ptype}));")
+
+            playout = "AoS" if p.layout() == Layout_AoS else \
+                      "SoA" if p.layout() == Layout_SoA else \
+                      "Invalid"
+
+            if p.type() != Type_Vector or p.layout() == Layout_Invalid:
+                self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {p.name()}, {ptype}));")
+            else:
+                sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
+                self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {p.name()}, {ptype}, {playout}, {sizes}));")
 
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)

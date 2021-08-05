@@ -16,7 +16,7 @@ size_t read_particle_data(PairsSim *ps, const char *filename, double *grid_buffe
     int read_grid_data = 0;
 
     if(in_file.is_open()) {
-        while(getline(in_file, line)) {
+        while(std::getline(in_file, line)) {
             std::stringstream line_stream(line);
             std::string in0;
             int i = 0;
@@ -25,7 +25,6 @@ size_t read_particle_data(PairsSim *ps, const char *filename, double *grid_buffe
                 if(!read_grid_data) {
                     PAIRS_ASSERT(i < ps->getNumDims() * 2);
                     grid_buffer[i] = std::stod(in0);
-                    read_grid_data = 1;
                 } else {
                     PAIRS_ASSERT(i < nprops);
                     property_t p_id = properties[i];
@@ -55,7 +54,8 @@ size_t read_particle_data(PairsSim *ps, const char *filename, double *grid_buffe
                 i++;
             }
 
-            n++;
+            n += (read_grid_data) ? 1 : 0;
+            read_grid_data = 1;
         }
 
         in_file.close();
