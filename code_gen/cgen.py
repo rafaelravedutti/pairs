@@ -9,7 +9,7 @@ from ir.functions import Call
 from ir.layouts import Layout_AoS, Layout_SoA, Layout_Invalid
 from ir.lit import Lit
 from ir.loops import For, Iter, ParticleFor, While
-from ir.math import Sqrt
+from ir.math import Ceil, Sqrt
 from ir.memory import Malloc, Realloc
 from ir.properties import Property, PropertyList, RegisterProperty
 from ir.select import Select
@@ -40,9 +40,10 @@ class CGen:
 
     def generate_program(self, ast_node):
         self.print.start()
+        self.print("#include <math.h>")
+        self.print("#include <stdbool.h>")
         self.print("#include <stdio.h>")
         self.print("#include <stdlib.h>")
-        self.print("#include <stdbool.h>")
         self.print("//---")
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
@@ -246,6 +247,11 @@ class CGen:
             tkw = CGen.type2keyword(ast_node.cast_type)
             expr = self.generate_expression(ast_node.expr)
             return f"({tkw})({expr})"
+
+        if isinstance(ast_node, Ceil):
+            assert mem is False, "Ceil call is not lvalue!"
+            expr = self.generate_expression(ast_node.expr)
+            return f"ceil({expr})"
 
         if isinstance(ast_node, Iter):
             assert mem is False, "Iterator is not lvalue!"

@@ -2,6 +2,7 @@ from ir.bin_op import BinOp
 from ir.branches import Branch, Filter
 from ir.cast import Cast
 from ir.data_types import Type_Int
+from ir.math import Ceil
 from ir.loops import For, ParticleFor
 from ir.utils import Print
 from functools import reduce
@@ -13,13 +14,9 @@ class CellLists:
     def __init__(self, sim, grid, spacing, cutoff_radius):
         self.sim = sim
         self.grid = grid
-        self.spacing = spacing
+        self.spacing = spacing if isinstance(spacing, list) else [spacing for d in range(sim.ndims())]
         self.cutoff_radius = cutoff_radius
-
-        self.nneighbor_cells = [
-            math.ceil(cutoff_radius / (spacing if not isinstance(spacing, list) else spacing[d])) for d in range(sim.ndims())
-        ]
-
+        self.nneighbor_cells = [math.ceil(cutoff_radius / self.spacing[d]) for d in range(sim.ndims())]
         self.nstencil = self.sim.add_var('nstencil', Type_Int)
         self.nstencil_max = reduce((lambda x, y: x * y), [self.nneighbor_cells[d] * 2 + 1 for d in range(sim.ndims())])
         self.ncells = self.sim.add_var('ncells', Type_Int, 1)
@@ -46,7 +43,7 @@ class CellListsStencilBuild:
         cl.sim.add_statement(Print(cl.sim, "CellListsStencilBuild"))
 
         for d in range(cl.sim.ndims()):
-            cl.dim_ncells[d].set(Cast.int(cl.sim, (grid.max(d) - grid.min(d)) / cl.spacing))
+            cl.dim_ncells[d].set(Ceil(cl.sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
             nall *= cl.dim_ncells[d]
 
         cl.ncells.set(nall)
@@ -84,7 +81,7 @@ class CellListsBuild:
 
             for i in ParticleFor(cl.sim, local_only=False):
                 cell_index = [
-                    Cast.int(cl.sim, (positions[i][d] - grid.min(d)) / cl.spacing)
+                    Cast.int(cl.sim, (positions[i][d] - grid.min(d)) / cl.spacing[d])
                     for d in range(0, cl.sim.ndims())]
 
                 flat_idx = None

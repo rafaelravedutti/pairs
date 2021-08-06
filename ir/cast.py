@@ -1,8 +1,8 @@
-from ir.ast_node import ASTNode
+from ir.bin_op import ASTTerm
 from ir.data_types import Type_Int, Type_Float
 
 
-class Cast(ASTNode):
+class Cast(ASTTerm):
     def __init__(self, sim, expr, cast_type):
         super().__init__(sim)
         self.expr = expr
