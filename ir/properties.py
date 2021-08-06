@@ -114,4 +114,21 @@ class RegisterProperty(ASTNode):
         return self.sizes_list
 
     def __str__(self):
-        return f"Property<{self.prop.name()}>"
+        return f"RegisterProperty<{self.prop.name()}>"
+
+
+class UpdateProperty(ASTNode):
+    def __init__(self, sim, prop, sizes):
+        super().__init__(sim)
+        self.prop = prop
+        self.sizes_list = [as_lit_ast(sim, s) for s in sizes]
+        self.sim.add_statement(self)
+
+    def property(self):
+        return self.prop
+
+    def sizes(self):
+        return self.sizes_list
+
+    def __str__(self):
+        return f"UpdateProperty<{self.prop.name()}>"

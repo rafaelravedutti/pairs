@@ -1,16 +1,22 @@
-from ir.lit import as_lit_ast
 from ir.ast_node import ASTNode
+from ir.functions import Call_Void
+from ir.lit import as_lit_ast
 
 
 class VTKWrite(ASTNode):
-    vtk_id = 0
-
     def __init__(self, sim, filename, timestep):
         super().__init__(sim)
-        self.vtk_id = VTKWrite.vtk_id
         self.filename = filename
         self.timestep = as_lit_ast(sim, timestep)
-        VTKWrite.vtk_id += 1
+
+    def lower(self):
+        nlocal = self.sim.nlocal
+        npbc = self.sim.pbc.npbc
+        self.sim.clear_block()
+        nall = nlocal + npbc
+        Call_Void(self.sim, "pairs::vtk_write_data", [self.filename + "_local", 0, nlocal, self.timestep])
+        Call_Void(self.sim, "pairs::vtk_write_data", [self.filename + "_pbc", nlocal, nall, self.timestep])
+        return self.sim.block
 
     def children(self):
         return [self.timestep]

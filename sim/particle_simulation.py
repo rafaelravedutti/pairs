@@ -192,12 +192,12 @@ class ParticleSimulation:
             self.kernels.lower()
         ])
 
-        timestep.add(Block(self, VTKWrite(self, self.vtk_file, timestep.timestep() + 1)))
+        timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1).lower())
 
         body = Block.from_list(self, [
             self.setups.lower(),
             CellListsStencilBuild(self.cell_lists).lower(),
-            Block(self, VTKWrite(self, self.vtk_file, 0)),
+            VTKWrite(self, self.vtk_file, 0).lower(),
             timestep.as_block()
         ])
 

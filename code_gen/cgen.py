@@ -11,13 +11,12 @@ from ir.lit import Lit
 from ir.loops import For, Iter, ParticleFor, While
 from ir.math import Ceil, Sqrt
 from ir.memory import Malloc, Realloc
-from ir.properties import Property, PropertyList, RegisterProperty
+from ir.properties import Property, PropertyList, RegisterProperty, UpdateProperty
 from ir.select import Select
 from ir.sizeof import Sizeof
 from ir.utils import Print
 from ir.variables import Var, VarDecl
 from sim.timestep import Timestep
-from sim.vtk import VTKWrite
 from code_gen.printer import Printer
 
 
@@ -47,6 +46,7 @@ class CGen:
         self.print("//---")
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
+        self.print("#include \"runtime/vtk.hpp\"")
         self.print("")
         self.print("using namespace pairs;")
         self.print("")
@@ -113,7 +113,7 @@ class CGen:
 
         if isinstance(ast_node, Call):
             call = self.generate_expression(ast_node)
-            self.print("{call};")
+            self.print(f"{call};")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
@@ -176,17 +176,18 @@ class CGen:
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)
 
+        if isinstance(ast_node, UpdateProperty):
+            p = ast_node.property()
+
+            if p.type() != Type_Vector or p.layout() == Layout_Invalid:
+                self.print(f"ps->updateProperty({p.id()}, {p.name()});")
+            else:
+                sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
+                self.print(f"ps->updateProperty({p.id()}, {p.name()}, {sizes});")
+
         if isinstance(ast_node, VarDecl):
             tkw = CGen.type2keyword(ast_node.var.type())
             self.print(f"{tkw} {ast_node.var.name()} = {ast_node.var.init_value()};")
-
-        if isinstance(ast_node, VTKWrite):
-            nlocal = self.generate_expression(self.sim.nlocal)
-            npbc = self.generate_expression(self.sim.pbc.npbc)
-            nall = self.generate_expression(self.sim.nlocal + self.sim.pbc.npbc)
-            timestep = self.generate_expression(ast_node.timestep)
-            self.generate_vtk_writing(ast_node.vtk_id * 2, f"{ast_node.filename}_local", 0, nlocal, nlocal, timestep)
-            self.generate_vtk_writing(ast_node.vtk_id * 2 + 1, f"{ast_node.filename}_pbc", nlocal, nall, npbc, timestep)
 
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)
@@ -259,7 +260,6 @@ class CGen:
 
         if isinstance(ast_node, Lit):
             assert mem is False, "Literal is not lvalue!"
-
             if ast_node.type() == Type_String:
                 return f"\"{ast_node.value}\""
 
@@ -295,59 +295,3 @@ class CGen:
 
         if isinstance(ast_node, Var):
             return ast_node.name()
-
-    def generate_vtk_writing(self, id, filename, start, end, n, timestep):
-        # TODO: Do this in a more elegant way, without hard coded stuff
-        header = "# vtk DataFile Version 2.0\n" \
-                 "Particle data\n" \
-                 "ASCII\n" \
-                 "DATASET UNSTRUCTURED_GRID\n"
-
-        filename_var = f"filename{id}"
-        filehandle_var = f"vtk{id}"
-        self.print(f"char {filename_var}[128];")
-        self.print(f"snprintf({filename_var}, sizeof {filename_var}, \"{filename}_%d.vtk\", {timestep});")
-        self.print(f"FILE *{filehandle_var} = fopen({filename_var}, \"w\");")
-        for line in header.split('\n'):
-            if len(line) > 0:
-                self.print(f"fwrite(\"{line}\\n\", 1, {len(line) + 1}, {filehandle_var});")
-
-        # Write positions
-        self.print(f"fprintf({filehandle_var}, \"POINTS %d double\\n\", {n});")
-        self.print(f"for(int i = {start}; i < {end}; i++) {{")
-        self.print.add_ind(4)
-        self.print(f"fprintf({filehandle_var}, \"%.4f %.4f %.4f\\n\", position[i * 3], position[i * 3 + 1], position[i * 3 + 2]);")
-        self.print.add_ind(-4)
-        self.print("}")
-        self.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
-
-        # Write cells
-        self.print(f"fprintf({filehandle_var}, \"CELLS %d %d\\n\", {n}, {n} * 2);")
-        self.print(f"for(int i = {start}; i < {end}; i++) {{")
-        self.print.add_ind(4)
-        self.print(f"fprintf({filehandle_var}, \"1 %d\\n\", i - {start});")
-        self.print.add_ind(-4)
-        self.print("}")
-        self.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
-
-        # Write cell types
-        self.print(f"fprintf({filehandle_var}, \"CELL_TYPES %d\\n\", {n});")
-        self.print(f"for(int i = {start}; i < {end}; i++) {{")
-        self.print.add_ind(4)
-        self.print(f"fwrite(\"1\\n\", 1, 2, {filehandle_var});")
-        self.print.add_ind(-4)
-        self.print("}")
-        self.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
-
-        # Write masses
-        self.print(f"fprintf({filehandle_var}, \"POINT_DATA %d\\n\", {n});")
-        self.print(f"fprintf({filehandle_var}, \"SCALARS mass double\\n\");")
-        self.print(f"fprintf({filehandle_var}, \"LOOKUP_TABLE default\\n\");")
-        self.print(f"for(int i = {start}; i < {end}; i++) {{")
-        self.print.add_ind(4)
-        #self.print(f"fprintf({filehandle_var}, \"%4.f\\n\", mass[i]);")
-        self.print(f"fprintf({filehandle_var}, \"1.0\\n\");")
-        self.print.add_ind(-4)
-        self.print("}")
-        self.print(f"fwrite(\"\\n\\n\", 1, 2, {filehandle_var});")
-        self.print(f"fclose({filehandle_var});")

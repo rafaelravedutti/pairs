@@ -1,8 +1,12 @@
+from functools import reduce
 from ir.branches import Filter
 from ir.data_types import Type_Int, Type_Float, Type_Vector
 from ir.loops import While
 from ir.memory import Realloc
+from ir.properties import UpdateProperty
 from ir.utils import Print
+import operator
+
 
 class Resize:
     def __init__(self, sim, capacity_var, grow_fn=None):
@@ -27,8 +31,9 @@ class Resize:
                     capacity = sum(self.sim.properties.capacities)
                     for p in properties.all():
                         if p.type() == Type_Vector:
-                            sizes = capacity * self.sim.ndims()
+                            sizes = [capacity, self.sim.ndims()]
                         else:
-                            sizes = capacity
+                            sizes = [capacity]
 
-                        Realloc(self.sim, p, sizes)
+                        Realloc(self.sim, p, reduce(operator.mul, sizes))
+                        UpdateProperty(self.sim, p, sizes)

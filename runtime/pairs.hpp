@@ -70,6 +70,7 @@ public:
     std::string getName() { return name; }
     void *getPointer() { return ptr; }
     void setPointer(void *ptr_) { ptr = ptr_; }
+    void setSizes(int sx_, int sy_) { sx = sx_, sy = sy_; }
     PropertyType getType() { return type; }
     layout_t getLayout() { return layout; }
 };
@@ -103,6 +104,15 @@ private:
 public:
     PairsSim() {}
     void addProperty(Property prop) { properties.push_back(prop); }
+    void updateProperty(property_t id, void *ptr, int sx = 0, int sy = 0) {
+        auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) {
+            return p.getId() == id;
+        });
+
+        PAIRS_ASSERT(p != std::end(properties));
+        p->setPointer(ptr);
+        p->setSizes(sx, sy);
+    }
 
     Property &getProperty(property_t id) {
         auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) {

@@ -2,7 +2,7 @@ from functools import reduce
 from ir.data_types import Type_Float, Type_Vector
 from ir.loops import ParticleFor
 from ir.memory import Malloc, Realloc
-from ir.properties import RegisterProperty
+from ir.properties import RegisterProperty, UpdateProperty
 from ir.utils import Print
 import operator
 
@@ -27,6 +27,7 @@ class PropertiesAlloc:
 
             if self.realloc:
                 Realloc(self.sim, p, reduce(operator.mul, sizes))
+                UpdateProperty(self.sim, p, sizes)
             else:
                 Malloc(self.sim, p, reduce(operator.mul, sizes), True)
                 RegisterProperty(self.sim, p, sizes)

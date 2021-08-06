@@ -1,5 +1,5 @@
 from ir.bin_op import ASTTerm
-from ir.data_types import Type_Int
+from ir.data_types import Type_Int, Type_Invalid
 from ir.lit import as_lit_ast
 
 
@@ -19,8 +19,15 @@ class Call(ASTTerm):
     def type(self):
         return self.return_type
 
+    def children(self):
+        return self.params
 
 class Call_Int(Call):
     def __init__(self, sim, func_name, parameters):
         super().__init__(sim, func_name, parameters, Type_Int)
-        
+
+
+class Call_Void(Call):
+    def __init__(self, sim, func_name, parameters):
+        super().__init__(sim, func_name, parameters, Type_Invalid)
+        sim.add_statement(self)
