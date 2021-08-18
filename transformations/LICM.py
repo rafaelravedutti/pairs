@@ -155,7 +155,6 @@ class SetBinOpTerminals(Visitor):
     def visit_Property(self, ast_node):
         self.push_terminal(ast_node)
 
-
     def visit_Var(self, ast_node):
         self.push_terminal(ast_node)
 
@@ -183,11 +182,11 @@ class LICM(Mutator):
         return ast_node
 
     def mutate_Decl(self, ast_node):
-        if self.loops:
+        if self.loops and isinstance(ast_node.elem, (BinOp, PropertyAccess)):
             last_loop = self.loops[-1]
-            #print(f"variants = {last_loop.block.variants}, terminals = {ast_node.bin_op.terminals}")
-            if isinstance(ast_node.elem, (BinOp, PropertyAccess)) and not last_loop.block.variants.intersection(ast_node.elem.terminals):
-                #print(f'lifting {ast_node.bin_op.id()}')
+            #print(f"variants = {last_loop.block.variants}, terminals = {ast_node.elem.terminals}")
+            if not last_loop.block.variants.intersection(ast_node.elem.terminals):
+                #print(f'lifting {ast_node.elem.id()}')
                 self.lifts[id(last_loop)].append(ast_node)
                 return None
 

@@ -212,7 +212,7 @@ class ParticleSimulation:
         # Transformations
         prioritaze_scalar_ops(program)
         simplify_expressions(program)
-        #move_loop_invariant_code(program)
+        move_loop_invariant_code(program)
         set_used_bin_ops(program)
 
         # For this part on, all bin ops are generated without usage verification

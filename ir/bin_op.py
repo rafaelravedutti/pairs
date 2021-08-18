@@ -267,3 +267,5 @@ class VectorAccess(ASTTerm):
     def sub(self, other):
         return self.sim.add_statement(Assign(self.sim, self, self - other))
 
+    def children(self):
+        return [self.expr]
