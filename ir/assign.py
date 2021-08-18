@@ -1,6 +1,7 @@
 from ir.ast_node import ASTNode
 from ir.data_types import Type_Vector
 from ir.lit import as_lit_ast
+from ir.vector_expr import VectorExpression
 from functools import reduce
 
 
@@ -14,8 +15,7 @@ class Assign(ASTNode):
             self.assignments = []
 
             for i in range(0, sim.ndims()):
-                from ir.bin_op import BinOp
-                dim_src = src if not isinstance(src, BinOp) or src.type() != Type_Vector else src[i]
+                dim_src = src if not isinstance(src, VectorExpression) or src.type() != Type_Vector else src[i]
                 self.assignments.append((dest[i], dim_src))
         else:
             self.assignments = [(dest, src)]

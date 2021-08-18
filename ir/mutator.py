@@ -33,11 +33,7 @@ class Mutator:
     def mutate_BinOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
         ast_node.rhs = self.mutate(ast_node.rhs)
-        ast_node.vector_index_mapping = {i: self.mutate(e) for i, e in ast_node.vector_index_mapping.items()}
-        return ast_node
-
-    def mutate_BinOpDef(self, ast_node):
-        ast_node.bin_op = self.mutate(ast_node.bin_op)
+        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
         return ast_node
 
     def mutate_Block(self, ast_node):
@@ -48,6 +44,10 @@ class Mutator:
         ast_node.cond = self.mutate(ast_node.cond)
         ast_node.block_if = self.mutate(ast_node.block_if)
         ast_node.block_else = None if ast_node.block_else is None else self.mutate(ast_node.block_else)
+        return ast_node
+
+    def mutate_Decl(self, ast_node):
+        ast_node.elem = self.mutate(ast_node.elem)
         return ast_node
 
     def mutate_Filter(self, ast_node):
@@ -64,6 +64,12 @@ class Mutator:
 
     def mutate_ParticleFor(self, ast_node):
         return self.mutate_For(ast_node)
+
+    def mutate_PropertyAccess(self, ast_node):
+        ast_node.prop = self.mutate(ast_node.prop)
+        ast_node.index = self.mutate(ast_node.index)
+        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        return ast_node
 
     def mutate_Malloc(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
@@ -87,6 +93,10 @@ class Mutator:
 
     def mutate_Timestep(self, ast_node):
         ast_node.block = self.mutate(ast_node.block)
+        return ast_node
+
+    def mutate_VectorAccess(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
         return ast_node
 
     def mutate_While(self, ast_node):

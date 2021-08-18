@@ -2,28 +2,24 @@ from ir.ast_node import ASTNode
 from ir.assign import Assign
 from ir.data_types import Type_Float, Type_Bool, Type_Vector
 from ir.lit import as_lit_ast
-from ir.properties import Property
+from ir.vector_expr import VectorExpression
 
 
-class BinOpDef(ASTNode):
-    def __init__(self, bin_op):
-        super().__init__(bin_op.sim)
-        self.bin_op = bin_op
-        self.bin_op.sim.add_statement(self)
-        self.used = not bin_op.sim.check_bin_ops_usage
+class Decl(ASTNode):
+    def __init__(self, sim, elem):
+        super().__init__(sim)
+        self.elem = elem
+        self.used = not sim.check_decl_usage
+        sim.add_statement(self)
 
     def __str__(self):
-        return f"BinOpDef<bin_op: self.bin_op>"
+        return f"Decl<elem: self.elem>"
 
     def children(self):
-        return [self.bin_op]
+        return [self.elem]
 
 
-class BinOp(ASTNode):
-    # BinOp kinds
-    Kind_Scalar = 0
-    Kind_Vector = 1
-
+class BinOp(VectorExpression):
     last_bin_op = 0
 
     def new_id():
@@ -48,9 +44,7 @@ class BinOp(ASTNode):
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
         self.bin_op_scope = None
         self.terminals = set()
-        self._vector_indexes = set()
-        self.vector_index_mapping = {}
-        self.bin_op_def = BinOpDef(self)
+        self.decl = Decl(sim, self)
 
     def reassign(self, lhs, rhs, op):
         assert self.generated is False, "Error on reassign: BinOp {} already generated!".format(self.bin_op_id)
@@ -65,9 +59,7 @@ class BinOp(ASTNode):
         return f"BinOp<a: {a}, b: {b}, op: {self.op}>"
 
     def match(self, bin_op):
-        return self.lhs == bin_op.lhs and \
-               self.rhs == bin_op.rhs and \
-               self.op == bin_op.operator()
+        return self.lhs == bin_op.lhs and self.rhs == bin_op.rhs and self.op == bin_op.operator()
 
     def x(self):
         return self.__getitem__(0)
@@ -77,40 +69,6 @@ class BinOp(ASTNode):
 
     def z(self):
         return self.__getitem__(2)
-
-    def map_vector_index(self, index, expr):
-        self.vector_index_mapping[index] = expr
-
-    def mapped_vector_index(self, index):
-        mapping = self.vector_index_mapping
-        return mapping[index] if index in mapping else as_lit_ast(self.sim, index)
-
-    def mapped_expressions(self):
-        return self.vector_index_mapping.values()
-
-    @property
-    def vector_indexes(self):
-        return self._vector_indexes
-
-    def propagate_vector_access(self, index):
-        self.vector_indexes.add(index)
-
-        if isinstance(self.lhs, BinOp) and self.lhs.kind() == BinOp.Kind_Vector:
-            self.lhs.propagate_vector_access(index)
-
-        if isinstance(self.rhs, BinOp) and self.rhs.kind() == BinOp.Kind_Vector:
-            self.rhs.propagate_vector_access(index)
-
-    def __getitem__(self, index):
-        assert self.type() == Type_Vector, "Cannot use operator [] on specified type!"
-        self.propagate_vector_access(index)
-        return BinOp(self.sim, self, as_lit_ast(self.sim, index), '[]', self.mem)
-
-    def is_property_access(self):
-        return isinstance(self.lhs, Property) and self.operator() == '[]'
-
-    def is_vector_property_access(self):
-        return self.is_property_access() and self.type() == Type_Vector
 
     def set(self, other):
         assert self.mem is True, "Invalid assignment: lvalue expected!"
@@ -132,9 +90,6 @@ class BinOp(ASTNode):
             return Type_Bool
 
         if op == '[]':
-            if isinstance(lhs, Property):
-                return lhs_type
-
             if lhs_type == Type_Vector:
                 return Type_Float
 
@@ -168,14 +123,11 @@ class BinOp(ASTNode):
     def type(self):
         return self.bin_op_type
 
-    def definition(self):
-        return self.bin_op_def
+    def declaration(self):
+        return self.decl
 
     def operator(self):
         return self.op
-
-    def kind(self):
-        return BinOp.Kind_Vector if self.type() == Type_Vector else BinOp.Kind_Scalar
 
     def add_terminal(self, terminal):
         self.terminals.add(terminal)
@@ -189,7 +141,11 @@ class BinOp(ASTNode):
         return self.bin_op_scope
 
     def children(self):
-        return [self.lhs, self.rhs]
+        return [self.lhs, self.rhs] + list(super().children())
+
+    def __getitem__(self, index):
+        super().__getitem__(index)
+        return VectorAccess(self.sim, self, as_lit_ast(self.sim, index))
 
     def __add__(self, other):
         return BinOp(self.sim, self, other, '+')
@@ -291,3 +247,23 @@ class ASTTerm(ASTNode):
 
     def __mod__(self, other):
         return BinOp(self.sim, self, other, '%')
+
+
+class VectorAccess(ASTTerm):
+    def __init__(self, sim, expr, index):
+        super().__init__(sim)
+        self.expr = expr
+        self.index = index
+
+    def type(self):
+        return Type_Float
+
+    def set(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, other))
+
+    def add(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, self + other))
+
+    def sub(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, self - other))
+

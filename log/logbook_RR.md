@@ -19,10 +19,8 @@ The Agenda section is a scratchpad area for planning and Todo list
 ------------------------------------------------------------------------------>
 # Agenda
 
-* Implement neighbor lists
 * Use variables to accumulate forces (reduction)
 * Express simulation specific kernels (cell lists, PBC, neighbor lists, comm) in a cleaner way with new syntax
-* Runtime functions (VTK printing, read and write to files)
 * MPI support
 * GPU support
 * LLVM support

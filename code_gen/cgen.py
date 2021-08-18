@@ -3,7 +3,7 @@ from ir.arrays import Array, ArrayAccess, ArrayDecl
 from ir.block import Block
 from ir.branches import Branch
 from ir.cast import Cast
-from ir.bin_op import BinOp, BinOpDef
+from ir.bin_op import BinOp, Decl, VectorAccess
 from ir.data_types import Type_Int, Type_Float, Type_String, Type_Vector
 from ir.functions import Call
 from ir.layouts import Layout_AoS, Layout_SoA, Layout_Invalid
@@ -11,7 +11,7 @@ from ir.lit import Lit
 from ir.loops import For, Iter, ParticleFor, While
 from ir.math import Ceil, Sqrt
 from ir.memory import Malloc, Realloc
-from ir.properties import Property, PropertyList, RegisterProperty, UpdateProperty
+from ir.properties import Property, PropertyAccess, PropertyList, RegisterProperty, UpdateProperty
 from ir.select import Select
 from ir.sizeof import Sizeof
 from ir.utils import Print
@@ -56,7 +56,7 @@ class CGen:
         self.print("}")
         self.print.end()
 
-    def generate_statement(self, ast_node):
+    def generate_statement(self, ast_node, bypass_checking=False):
         if isinstance(ast_node, ArrayDecl):
             tkw = CGen.type2keyword(ast_node.array.type())
             size = self.generate_expression(BinOp.inline(ast_node.array.alloc_size()))
@@ -76,29 +76,44 @@ class CGen:
 
             self.print.add_ind(-4)
 
-        if isinstance(ast_node, BinOpDef):
-            bin_op = ast_node.bin_op
+        # TODO: Why there are Decls for other types?
+        if isinstance(ast_node, Decl):
+            if isinstance(ast_node.elem, BinOp):
+                bin_op = ast_node.elem
+                if not bypass_checking and (not isinstance(bin_op, BinOp) or not ast_node.used):
+                    return None
 
-            if not isinstance(bin_op, BinOp) or not ast_node.used:
-                return None
+                if bin_op.inlined is False and bin_op.generated is False:
+                    if bin_op.is_vector_kind():
+                        for i in bin_op.indexes():
+                            lhs = self.generate_expression(bin_op.lhs, bin_op.mem, index=i)
+                            rhs = self.generate_expression(bin_op.rhs, index=i)
+                            self.print(f"const double e{bin_op.id()}_{i} = {lhs} {bin_op.operator()} {rhs};")
 
-            if bin_op.inlined is False and bin_op.operator() != '[]' and bin_op.generated is False:
-                if bin_op.kind() == BinOp.Kind_Scalar:
-                    lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
-                    rhs = self.generate_expression(bin_op.rhs)
-                    tkw = CGen.type2keyword(bin_op.type())
-                    self.print(f"const {tkw} e{bin_op.id()} = {lhs} {bin_op.operator()} {rhs};")
+                    else:
+                        lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
+                        rhs = self.generate_expression(bin_op.rhs)
+                        tkw = CGen.type2keyword(bin_op.type())
+                        self.print(f"const {tkw} e{bin_op.id()} = {lhs} {bin_op.operator()} {rhs};")
 
-                elif bin_op.kind() == BinOp.Kind_Vector:
-                    for i in bin_op.vector_indexes:
-                        lhs = self.generate_expression(bin_op.lhs, bin_op.mem, index=i)
-                        rhs = self.generate_expression(bin_op.rhs, index=i)
-                        self.print(f"const double e{bin_op.id()}_{i} = {lhs} {bin_op.operator()} {rhs};")
+                ast_node.elem.generated = True
+
+            if isinstance(ast_node.elem, PropertyAccess):
+                prop_access = ast_node.elem
+                prop_name = prop_access.prop.name()
+                acc_ref = f"p{prop_access.id()}"
+
+                if prop_access.is_vector_kind():
+                    for i in prop_access.indexes():
+                        i_expr = self.generate_expression(prop_access.get_index_expression(i))
+                        self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
 
                 else:
-                    raise Exception("Invalid BinOp kind!")
+                    tkw = CGen.type2keyword(prop_access.type())
+                    index_g = self.generate_expression(prop_access.index)
+                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
 
-                bin_op.generated = True
+                ast_node.elem.generated = True
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
@@ -200,41 +215,34 @@ class CGen:
             return ast_node.name()
 
         if isinstance(ast_node, ArrayAccess):
-            index = self.generate_expression(ast_node.index)
             array_name = ast_node.array.name()
+            acc_index = self.generate_expression(ast_node.index)
 
             if mem:
-                return f"{array_name}[{index}]"
+                return f"{array_name}[{acc_index}]"
 
             acc_ref = f"a{ast_node.id()}"
-            if ast_node.generated is False:
+            if not ast_node.generated:
                 tkw = CGen.type2keyword(ast_node.type())
-                self.print(f"const {tkw} {acc_ref} = {array_name}[{index}];")
+                self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
                 ast_node.generated = True
 
             return acc_ref
 
         if isinstance(ast_node, BinOp):
-            if isinstance(ast_node.lhs, BinOp) and ast_node.lhs.kind() == BinOp.Kind_Vector and ast_node.operator() == '[]':
-                return self.generate_expression(ast_node.lhs, ast_node.mem, self.generate_expression(ast_node.rhs))
-
             lhs = self.generate_expression(ast_node.lhs, mem, index)
             rhs = self.generate_expression(ast_node.rhs, index=index)
-
-            if ast_node.operator() == '[]':
-                idx = self.generate_expression(ast_node.mapped_vector_index(index)) if ast_node.is_vector_property_access() else rhs
-                return f"{lhs}[{idx}]" if ast_node.mem else f"{lhs}_{idx}"
 
             if ast_node.inlined is True:
                 assert ast_node.type() != Type_Vector, "Vector operations cannot be inlined!"
                 return f"({lhs} {ast_node.operator()} {rhs})"
 
             # Some expressions can be defined on-the-fly during transformations, hence they do not have
-            # a definition statement in the tree, so we generate them right before use
+            # a declaration statement in the tree, so we generate them right before use
             if not ast_node.generated:
-                self.generate_statement(ast_node.definition())
+                self.generate_statement(ast_node.declaration(), bypass_checking=True)
 
-            if ast_node.kind() == BinOp.Kind_Vector:
+            if ast_node.is_vector_kind():
                 assert index is not None, "Index must be set for vector reference!"
                 return f"e{ast_node.id()}[{index}]" if ast_node.mem else f"e{ast_node.id()}_{index}"
 
@@ -268,6 +276,24 @@ class CGen:
         if isinstance(ast_node, Property):
             return ast_node.name()
 
+        if isinstance(ast_node, PropertyAccess):
+            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
+            prop_name = ast_node.prop.name()
+
+            if mem:
+                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
+                index_g = self.generate_expression(index_expr)
+                return f"{prop_name}[{index_g}]"
+
+            if not ast_node.generated:
+                self.generate_statement(ast_node.declaration(), bypass_checking=True) 
+
+            acc_ref = f"p{ast_node.id()}"
+            if ast_node.is_vector_kind():
+                acc_ref += f"_{index}"
+
+            return acc_ref
+
         if isinstance(ast_node, PropertyList):
             tid = CGen.temp_id
             list_ref = f"prop_list_{tid}"
@@ -295,3 +321,6 @@ class CGen:
 
         if isinstance(ast_node, Var):
             return ast_node.name()
+
+        if isinstance(ast_node, VectorAccess):
+            return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))

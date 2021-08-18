@@ -1,6 +1,7 @@
 from ir.bin_op import BinOp
 from ir.loops import For, While
 from ir.mutator import Mutator
+from ir.properties import PropertyAccess
 from ir.visitor import Visitor
 
 
@@ -39,12 +40,7 @@ class SetBlockVariants(Mutator):
 
     def mutate_BinOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
-
-        # For property accesses, we only want to include the property name, and not
-        # the index that is also present in the expression
-        if not ast_node.is_property_access():
-            ast_node.rhs = self.mutate(ast_node.rhs)
-
+        ast_node.rhs = self.mutate(ast_node.rhs)
         return ast_node
 
     def mutate_ArrayAccess(self, ast_node):
@@ -65,6 +61,12 @@ class SetBlockVariants(Mutator):
 
     def mutate_Property(self, ast_node):
         return self.push_variant(ast_node)
+
+    def mutate_PropertyAccess(self, ast_node):
+        # For property accesses, we only want to include the property name, and not
+        # the index that is also present in the access node
+        ast_node.prop = self.mutate(ast_node.prop)
+        return ast_node
 
     def mutate_Var(self, ast_node):
         return self.push_variant(ast_node)
@@ -91,10 +93,10 @@ class SetParentBlock(Visitor):
     def visit_Assign(self, ast_node):
         self.set_parent_block(ast_node)
 
-    def visit_BinOpDef(self, ast_node):
+    def visit_Branch(self, ast_node):
         self.set_parent_block(ast_node)
 
-    def visit_Branch(self, ast_node):
+    def visit_Decl(self, ast_node):
         self.set_parent_block(ast_node)
 
     def visit_Filter(self, ast_node):
@@ -124,16 +126,21 @@ class SetParentBlock(Visitor):
 class SetBinOpTerminals(Visitor):
     def __init__(self, ast):
         super().__init__(ast)
-        self.bin_ops = []
+        self.elems = []
 
     def push_terminal(self, ast_node):
-        for bin_op in self.bin_ops:
-            bin_op.add_terminal(ast_node.name())
+        for e in self.elems:
+            e.add_terminal(ast_node.name())
 
     def visit_BinOp(self, ast_node):
-        self.bin_ops.append(ast_node)
+        self.elems.append(ast_node)
         self.visit_children(ast_node)
-        self.bin_ops.pop()
+        self.elems.pop()
+
+    def visit_PropertyAccess(self, ast_node):
+        self.elems.append(ast_node)
+        self.visit_children(ast_node)
+        self.elems.pop()
 
     def visit_Array(self, ast_node):
         self.push_terminal(ast_node)
@@ -147,6 +154,7 @@ class SetBinOpTerminals(Visitor):
 
     def visit_Property(self, ast_node):
         self.push_terminal(ast_node)
+
 
     def visit_Var(self, ast_node):
         self.push_terminal(ast_node)
@@ -174,11 +182,11 @@ class LICM(Mutator):
         self.loops.pop()
         return ast_node
 
-    def mutate_BinOpDef(self, ast_node):
-        if self.loops and isinstance(ast_node.bin_op, BinOp):
+    def mutate_Decl(self, ast_node):
+        if self.loops:
             last_loop = self.loops[-1]
             #print(f"variants = {last_loop.block.variants}, terminals = {ast_node.bin_op.terminals}")
-            if not last_loop.block.variants.intersection(ast_node.bin_op.terminals):
+            if isinstance(ast_node.elem, (BinOp, PropertyAccess)) and not last_loop.block.variants.intersection(ast_node.elem.terminals):
                 #print(f'lifting {ast_node.bin_op.id()}')
                 self.lifts[id(last_loop)].append(ast_node)
                 return None

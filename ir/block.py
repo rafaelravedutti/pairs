@@ -6,6 +6,8 @@ class Block(ASTNode):
         super().__init__(sim)
         self.level = 0
         self.variants = set()
+        self.props_accessed = {}
+        self.props_to_sync = set()
 
         if isinstance(stmts, Block):
             self.stmts = stmts.statements()

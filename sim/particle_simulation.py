@@ -20,7 +20,6 @@ from sim.setup_wrapper import SetupWrapper
 from sim.timestep import Timestep
 from sim.variables import VariablesDecl
 from sim.vtk import VTKWrite
-from transformations.flatten import flatten_property_accesses
 from transformations.prioritize_scalar_ops import prioritaze_scalar_ops
 from transformations.set_used_bin_ops import set_used_bin_ops
 from transformations.simplify import simplify_expressions
@@ -45,7 +44,7 @@ class ParticleSimulation:
         self.scope = []
         self.nested_count = 0
         self.nest = False
-        self.check_bin_ops_usage = True
+        self.check_decl_usage = True
         self.block = Block(self, [])
         self.setups = SetupWrapper()
         self.kernels = KernelWrapper()
@@ -212,13 +211,12 @@ class ParticleSimulation:
 
         # Transformations
         prioritaze_scalar_ops(program)
-        flatten_property_accesses(program)
         simplify_expressions(program)
-        move_loop_invariant_code(program)
+        #move_loop_invariant_code(program)
         set_used_bin_ops(program)
 
         # For this part on, all bin ops are generated without usage verification
-        self.check_bin_ops_usage = False
+        self.check_decl_usage = False
 
         ASTGraph(self.kernels.lower(), "kernels").render()
         self.code_gen.generate_program(program)

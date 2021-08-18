@@ -1,5 +1,5 @@
 from ir.arrays import Array
-from ir.bin_op import BinOp, BinOpDef
+from ir.bin_op import BinOp, Decl
 from ir.lit import Lit
 from ir.loops import Iter
 from ir.properties import Property
@@ -17,12 +17,12 @@ class ASTGraph:
     def render(self):
         def generate_edges_for_node(ast_node, graph, generated):
             node_id = id(ast_node)
-            if not isinstance(ast_node, BinOpDef) and node_id not in generated:
+            if not isinstance(ast_node, Decl) and node_id not in generated:
                 node_ref = f"n{id(ast_node)}"
                 generated.append(node_id)
                 graph.node(node_ref, label=ASTGraph.get_node_label(ast_node))
                 for child in ast_node.children():
-                    if not isinstance(child, BinOpDef):
+                    if not isinstance(child, Decl):
                         child_ref = f"n{id(child)}"
                         graph.node(child_ref, label=ASTGraph.get_node_label(child))
                         graph.edge(node_ref, child_ref)

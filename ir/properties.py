@@ -1,6 +1,10 @@
 from ir.ast_node import ASTNode
+from ir.assign import Assign
+from ir.bin_op import BinOp, Decl, ASTTerm, VectorAccess
+from ir.data_types import Type_Vector
 from ir.layouts import Layout_AoS
 from ir.lit import as_lit_ast
+from ir.vector_expr import VectorExpression
 
 
 class Properties:
@@ -74,12 +78,81 @@ class Property(ASTNode):
     def default(self):
         return self.default_value
 
+    def ndims(self):
+        return 1 if self.prop_type != Type_Vector else 2
+
+    def sizes(self):
+        return [self.sim.particle_capacity] if self.prop_type != Type_Vector else [self.sim.ndims(), self.sim.particle_capacity]
+
     def scope(self):
         return self.sim.global_scope
 
     def __getitem__(self, expr):
-        from ir.bin_op import BinOp
-        return BinOp(self.sim, self, expr, '[]', True)
+        return PropertyAccess(self.sim, self, expr)
+
+
+class PropertyAccess(ASTTerm, VectorExpression):
+    last_prop_acc = 0
+
+    def new_id():
+        PropertyAccess.last_prop_acc += 1
+        return PropertyAccess.last_prop_acc - 1
+
+    def __init__(self, sim, prop, index):
+        super().__init__(sim)
+        self.acc_id = PropertyAccess.new_id()
+        self.prop = prop
+        self.index = as_lit_ast(sim, index)
+        self.generated = False
+        self.terminals = set()
+        self.decl = Decl(sim, self)
+
+    def __str__(self):
+        return f"PropertyAccess<prop: {self.prop}, index: {self.index}>"
+
+    def vector_index(self, v_index):
+        sizes = self.prop.sizes()
+        layout = self.prop.layout()
+        index = self.index * sizes[0] + v_index if layout == Layout_AoS else \
+                v_index * sizes[1] + self.index if layout == Layout_SoA else \
+                None
+
+        assert index is not None, "Invalid data layout"
+        return index
+
+    def propagate_through(self):
+        return []
+
+    def set(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, other))
+
+    def add(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, self + other))
+
+    def sub(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, self - other))
+
+    def id(self):
+        return self.acc_id
+
+    def type(self):
+        return self.prop.type()
+
+    def declaration(self):
+        return self.decl
+
+    def add_terminal(self, terminal):
+        self.terminals.add(terminal)
+
+    def scope(self):
+        return self.index.scope()
+
+    def children(self):
+        return [self.prop, self.index] + list(super().children())
+
+    def __getitem__(self, index):
+        super().__getitem__(index)
+        return VectorAccess(self.sim, self, as_lit_ast(self.sim, index))
 
 
 class PropertyList(ASTNode):
