@@ -12,7 +12,6 @@ modules = [
     'graph',
     'ir',
     'mapping',
-    'runtime',
     'sim',
     'transformations',
 ]
