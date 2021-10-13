@@ -5,6 +5,7 @@ from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
 from pairs.ir.data_types import Type_Int, Type_Float, Type_String, Type_Vector
+from pairs.ir.device import DeviceCopy
 from pairs.ir.functions import Call
 from pairs.ir.layouts import Layout_AoS, Layout_SoA, Layout_Invalid
 from pairs.ir.lit import Lit
@@ -129,6 +130,9 @@ class CGen:
         if isinstance(ast_node, Call):
             call = self.generate_expression(ast_node)
             self.print(f"{call};")
+
+        if isinstance(ast_node, DeviceCopy):
+            self.print(f"pairs::copy_to_device({ast_node.prop.name()})")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)

@@ -4,30 +4,12 @@ from pairs.ir.ast_node import ASTNode
 class Block(ASTNode):
     def __init__(self, sim, stmts):
         super().__init__(sim)
-        self.level = 0
         self.variants = set()
-        self.props_accessed = {}
-        self.props_to_sync = set()
 
         if isinstance(stmts, Block):
             self.stmts = stmts.statements()
         else:
             self.stmts = [stmts] if not isinstance(stmts, list) else stmts
-
-    def __lt__(self, other):
-        return self.level < other.level
-
-    def __le__(self, other):
-        return self.level <= other.level
-
-    def __gt__(self, other):
-        return self.level > other.level
-
-    def __ge__(self, other):
-        return self.level >= other.level
-
-    def set_level(self, level):
-        self.level = level
 
     def add_statement(self, stmt):
         if isinstance(stmt, list):
@@ -59,3 +41,24 @@ class Block(ASTNode):
             result_block = Block.merge_blocks(result_block, block)
 
         return result_block
+
+
+class KernelBlock(Block):
+    def __init__(self, sim, stmts, run_on_host=False):
+        super().__init__(sim, stmts)
+        self.run_on_host = run_on_host
+        self.props_accessed = {}
+
+    def add_property_access(self, prop, oper):
+        prop_key = prop.name()
+        if prop_key not in self.props_accessed:
+            self.props_accessed[prop_key] = oper
+
+        elif oper not in self.props_accessed[prop_key]:
+            self.props_accessed[prop_key] += oper
+
+    def properties_to_synchronize(self):
+        return {p for p in self.props_accessed if self.props_accessed[p][0] == 'r'}
+
+    def writing_properties(self):
+        return {p for p in self.props_accessed if 'w' in self.props_accessed[p][0]}

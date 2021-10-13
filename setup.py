@@ -28,7 +28,7 @@ setuptools.setup(name='pairs',
     install_requires=[],
     packages=['pairs'] + [f"pairs.{mod}" for mod in modules],
     package_dir={'pairs': 'src/pairs'},
-    package_data={'pairs.runtime': ['runtime/*.hpp']},
+    package_data={'pairs': ['runtime/*.hpp']},
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

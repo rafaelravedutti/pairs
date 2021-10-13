@@ -21,6 +21,7 @@ from pairs.sim.setup_wrapper import SetupWrapper
 from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
+from pairs.transformations.add_device_copies import add_device_copies
 from pairs.transformations.prioritize_scalar_ops import prioritaze_scalar_ops
 from pairs.transformations.set_used_bin_ops import set_used_bin_ops
 from pairs.transformations.simplify import simplify_expressions
@@ -47,8 +48,8 @@ class ParticleSimulation:
         self.nest = False
         self.check_decl_usage = True
         self.block = Block(self, [])
-        self.setups = SetupWrapper()
-        self.kernels = KernelWrapper()
+        self.setups = SetupWrapper(self)
+        self.kernels = KernelWrapper(self)
         self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -218,6 +219,7 @@ class ParticleSimulation:
         simplify_expressions(program)
         move_loop_invariant_code(program)
         set_used_bin_ops(program)
+        add_device_copies(program)
 
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False
