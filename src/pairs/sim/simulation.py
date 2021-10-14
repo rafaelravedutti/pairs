@@ -186,10 +186,10 @@ class Simulation:
 
     def generate(self):
         timestep = Timestep(self, self.ntimesteps, [
-            (EnforcePBC(self.pbc).lower(), 20),
-            (SetupPBC(self.pbc).lower(), UpdatePBC(self.pbc).lower(), 20),
-            (CellListsBuild(self.cell_lists).lower(), 20),
-            (NeighborListsBuild(self.neighbor_lists).lower(), 20),
+            (EnforcePBC(self, self.pbc).lower(), 20),
+            (SetupPBC(self, self.pbc).lower(), UpdatePBC(self, self.pbc).lower(), 20),
+            (CellListsBuild(self, self.cell_lists).lower(), 20),
+            (NeighborListsBuild(self, self.neighbor_lists).lower(), 20),
             PropertiesResetVolatile(self).lower(),
             self.kernels
         ])
@@ -198,7 +198,7 @@ class Simulation:
 
         body = Block.from_list(self, [
             self.setups,
-            CellListsStencilBuild(self.cell_lists).lower(),
+            CellListsStencilBuild(self, self.cell_lists).lower(),
             VTKWrite(self, self.vtk_file, 0).lower(),
             timestep.as_block()
         ])

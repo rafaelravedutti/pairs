@@ -1,3 +1,4 @@
+from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.data_types import Type_Int
 from pairs.ir.loops import For, ParticleFor
@@ -19,11 +20,13 @@ class PBC:
 
 
 class UpdatePBC:
-    def __init__(self, pbc):
+    def __init__(self, sim, pbc):
+        self.sim = sim
         self.pbc = pbc
 
+    @pairs_device_block
     def lower(self):
-        sim = self.pbc.sim
+        sim = self.sim
         ndims = sim.ndims()
         grid = self.pbc.grid
         npbc = self.pbc.npbc
@@ -32,29 +35,25 @@ class UpdatePBC:
         positions = self.pbc.sim.property('position')
         nlocal = self.pbc.sim.nlocal
 
-        sim.clear_block()
-        sim.add_statement(Print(sim, "UpdatePBC"))
         for i in For(sim, 0, npbc):
             # TODO: allow syntax:
             # positions[nlocal + i].set(positions[pbc_map[i]] + pbc_mult[i] * grid.length)
             for d in range(0, ndims):
                 positions[nlocal + i][d].set(positions[pbc_map[i]][d] + pbc_mult[i][d] * grid.length(d))
 
-        return sim.block
-
 
 class EnforcePBC:
-    def __init__(self, pbc):
+    def __init__(self, sim, pbc):
+        self.sim = sim
         self.pbc = pbc
 
+    @pairs_device_block
     def lower(self):
-        sim = self.pbc.sim
+        sim = self.sim
         ndims = sim.ndims()
         grid = self.pbc.grid
         positions = sim.property('position')
 
-        sim.clear_block()
-        sim.add_statement(Print(sim, "EnforcePBC"))
         for i in ParticleFor(sim):
             # TODO: VecFilter?
             for d in range(0, ndims):
@@ -64,15 +63,15 @@ class EnforcePBC:
                 for _ in Filter(sim, positions[i][d] > grid.max(d)):
                     positions[i][d].sub(grid.length(d))
 
-        return sim.block
-
 
 class SetupPBC:
-    def __init__(self, pbc):
+    def __init__(self, sim, pbc):
+        self.sim = sim
         self.pbc = pbc
 
+    @pairs_device_block
     def lower(self):
-        sim = self.pbc.sim
+        sim = self.sim
         ndims = sim.ndims()
         grid = self.pbc.grid
         cutneigh = self.pbc.cutneigh
@@ -83,8 +82,6 @@ class SetupPBC:
         positions = self.pbc.sim.property('position')
         nlocal = self.pbc.sim.nlocal
 
-        sim.clear_block()
-        sim.add_statement(Print(sim, "SetupPBC"))
         for resize in Resize(sim, pbc_capacity):
             npbc.set(0)
             for d in range(0, ndims):
@@ -120,5 +117,3 @@ class SetupPBC:
                                     positions[last_id][d_].set(positions[i][d_])
 
                                 npbc.add(1)
-
-        return sim.block

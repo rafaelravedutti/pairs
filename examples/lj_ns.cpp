@@ -60,8 +60,6 @@ int main() {
     grid0_d2_min = a4;
     const double a5 = grid_buffer[5];
     grid0_d2_max = a5;
-    fprintf(stdout, "CellListsStencilBuild\n");
-    fflush(stdout);
     const double e462 = grid0_d0_max - grid0_d0_min;
     const double e463 = e462 / 2.8;
     const int e464 = ceil(e463) + 2;
@@ -120,8 +118,7 @@ int main() {
         const int e452 = i14 % 20;
         const bool e453 = e452 == 0;
         if(e453) {
-            fprintf(stdout, "EnforcePBC\n");
-            fflush(stdout);
+            pairs::copy_to_device(position)
             const double e115 = grid0_d0_max - grid0_d0_min;
             const double e122 = grid0_d0_max - grid0_d0_min;
             const double e129 = grid0_d1_max - grid0_d1_min;
@@ -196,8 +193,6 @@ int main() {
         const int e454 = i14 % 20;
         const bool e455 = e454 == 0;
         if(e455) {
-            fprintf(stdout, "SetupPBC\n");
-            fflush(stdout);
             resize = 1;
             while((resize > 0)) {
                 resize = 0;
@@ -501,8 +496,6 @@ int main() {
                 }
             }
         } else {
-            fprintf(stdout, "UpdatePBC\n");
-            fflush(stdout);
             const double e348 = grid0_d0_max - grid0_d0_min;
             const double e358 = grid0_d1_max - grid0_d1_min;
             const double e368 = grid0_d2_max - grid0_d2_min;
@@ -551,8 +544,6 @@ int main() {
         const int e456 = i14 % 20;
         const bool e457 = e456 == 0;
         if(e457) {
-            fprintf(stdout, "CellListsBuild\n");
-            fflush(stdout);
             resize = 1;
             while((resize > 0)) {
                 resize = 0;
@@ -612,8 +603,6 @@ int main() {
         const int e458 = i14 % 20;
         const bool e459 = e458 == 0;
         if(e459) {
-            fprintf(stdout, "NeighborListsBuild\n");
-            fflush(stdout);
             resize = 1;
             while((resize > 0)) {
                 resize = 0;
@@ -687,8 +676,7 @@ int main() {
                 }
             }
         }
-        fprintf(stdout, "PropertiesResetVolatile\n");
-        fflush(stdout);
+        pairs::copy_to_device(force)
         for(int i13 = 0; i13 < nlocal; i13++) {
             const int e446 = i13 * 3;
             const double p73_0 = force[e446];
@@ -702,8 +690,7 @@ int main() {
             force[e449] = 0.0;
             force[e451] = 0.0;
         }
-        pairs::copy_to_device(position)
-        pairs::copy_to_device(force)
+        const int e460 = i14 + 1;
         for(int i0 = 0; i0 < nlocal; i0++) {
             const int e1 = i0 * neighborlist_capacity;
             const int e47 = i0 * 3;
@@ -822,7 +809,6 @@ int main() {
             position[e109] = e91_2;
         }
         const int e461 = nlocal + npbc;
-        const int e460 = i14 + 1;
         pairs::vtk_write_data(ps, "output/test_local", 0, nlocal, e460);
         pairs::vtk_write_data(ps, "output/test_pbc", nlocal, e461, e460);
     }

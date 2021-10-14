@@ -1,6 +1,7 @@
 from functools import reduce
 import math
 from pairs.ir.bin_op import BinOp
+from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
 from pairs.ir.data_types import Type_Int
@@ -30,68 +31,67 @@ class CellLists:
 
 
 class CellListsStencilBuild:
-    def __init__(self, cell_lists):
+    def __init__(self, sim, cell_lists):
+        self.sim = sim
         self.cell_lists = cell_lists
 
+    @pairs_device_block
     def lower(self):
+        sim = self.sim
         cl = self.cell_lists
-        grid = cl.sim.grid
+        grid = sim.grid
         index = None
         nall = 1
 
-        cl.sim.clear_block()
-        cl.sim.add_statement(Print(cl.sim, "CellListsStencilBuild"))
-
-        for d in range(cl.sim.ndims()):
-            cl.dim_ncells[d].set(Ceil(cl.sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
+        for d in range(sim.ndims()):
+            cl.dim_ncells[d].set(Ceil(sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
             nall *= cl.dim_ncells[d]
 
         cl.ncells.set(nall)
-        for resize in Resize(cl.sim, cl.ncells_capacity):
-            for _ in Filter(cl.sim, cl.ncells >= cl.ncells_capacity):
+        for resize in Resize(sim, cl.ncells_capacity):
+            for _ in Filter(sim, cl.ncells >= cl.ncells_capacity):
                 resize.set(cl.ncells)
 
-        for _ in cl.sim.nest_mode():
+        for _ in sim.nest_mode():
             cl.nstencil.set(0)
-            for d in range(cl.sim.ndims()):
+            for d in range(sim.ndims()):
                 nneigh = cl.nneighbor_cells[d]
-                for d_idx in For(cl.sim, -nneigh, nneigh + 1):
+                for d_idx in For(sim, -nneigh, nneigh + 1):
                     index = (d_idx if index is None else index * cl.dim_ncells[d - 1] + d_idx)
-                    if d == cl.sim.ndims() - 1:
+                    if d == sim.ndims() - 1:
                         cl.stencil[cl.nstencil].set(index)
                         cl.nstencil.set(cl.nstencil + 1)
 
-        return cl.sim.block
-
 
 class CellListsBuild:
-    def __init__(self, cell_lists):
+    def __init__(self, sim, cell_lists):
+        self.sim = sim
         self.cell_lists = cell_lists
 
+    @pairs_device_block
     def lower(self):
+        sim = self.sim
         cl = self.cell_lists
-        grid = cl.sim.grid
-        positions = cl.sim.property('position')
+        grid = sim.grid
+        positions = sim.property('position')
 
-        cl.sim.clear_block()
-        cl.sim.add_statement(Print(cl.sim, "CellListsBuild"))
-        for resize in Resize(cl.sim, cl.cell_capacity):
-            for c in For(cl.sim, 0, cl.ncells):
+        for resize in Resize(sim, cl.cell_capacity):
+            for c in For(sim, 0, cl.ncells):
                 cl.cell_sizes[c].set(0)
 
-            for i in ParticleFor(cl.sim, local_only=False):
+            for i in ParticleFor(sim, local_only=False):
                 cell_index = [
-                    Cast.int(cl.sim, (positions[i][d] - grid.min(d)) / cl.spacing[d])
-                    for d in range(0, cl.sim.ndims())]
+                    Cast.int(sim, (positions[i][d] - grid.min(d)) / cl.spacing[d])
+                    for d in range(0, sim.ndims())]
 
                 flat_idx = None
-                for d in range(0, cl.sim.ndims()):
+                for d in range(0, sim.ndims()):
                     flat_idx = (cell_index[d] if flat_idx is None
                                 else flat_idx * cl.dim_ncells[d] + cell_index[d])
 
                 cell_size = cl.cell_sizes[flat_idx]
-                for _ in Filter(cl.sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells)):
-                    for cond in Branch(cl.sim, cell_size >= cl.cell_capacity):
+                for _ in Filter(sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells)):
+                    for cond in Branch(sim, cell_size >= cl.cell_capacity):
                         if cond:
                             resize.set(cell_size)
                         else:
@@ -99,5 +99,3 @@ class CellListsBuild:
                             cl.particle_cell[i].set(flat_idx)
 
                     cl.cell_sizes[flat_idx].set(cell_size + 1)
-
-        return cl.sim.block

@@ -1,3 +1,4 @@
+from pairs.ir.block import pairs_block, pairs_device_block
 from pairs.ir.data_types import Type_Float, Type_Vector
 from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
@@ -12,10 +13,9 @@ class PropertiesAlloc:
         self.sim = sim
         self.realloc = realloc
 
+    @pairs_block
     def lower(self):
         capacity = sum(self.sim.properties.capacities)
-
-        self.sim.clear_block()
         for p in self.sim.properties.all():
             sizes = []
             if p.type() == Type_Float:
@@ -32,18 +32,13 @@ class PropertiesAlloc:
                 Malloc(self.sim, p, reduce(operator.mul, sizes), True)
                 RegisterProperty(self.sim, p, sizes)
 
-        return self.sim.block
-
 
 class PropertiesResetVolatile:
     def __init__(self, sim):
         self.sim = sim
 
+    @pairs_device_block
     def lower(self):
-        self.sim.clear_block()
-        self.sim.add_statement(Print(self.sim, "PropertiesResetVolatile"))
         for i in ParticleFor(self.sim):
             for p in self.sim.properties.volatiles():
                 p[i].set(0.0)
-
-        return self.sim.block

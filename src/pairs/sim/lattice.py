@@ -1,3 +1,4 @@
+from pairs.ir.block import pairs_block
 from pairs.ir.data_types import Type_Vector
 from pairs.ir.loops import For
 
@@ -10,6 +11,7 @@ class ParticleLattice():
         self.props = props
         self.positions = positions
 
+    @pairs_block
     def lower(self):
         index = None
         loop_indexes = []

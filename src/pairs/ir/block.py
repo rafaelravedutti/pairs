@@ -1,6 +1,37 @@
 from pairs.ir.ast_node import ASTNode
 
 
+def pairs_block(func):
+    def inner(*args, **kwargs):
+        sim = args[0].sim # self.sim
+        sim.clear_block()
+        func(*args, **kwargs)
+        return sim.block
+
+    return inner
+
+
+def pairs_device_block(func):
+    def inner(*args, **kwargs):
+        sim = args[0].sim # self.sim
+        sim.clear_block()
+        func(*args, **kwargs)
+        return KernelBlock(sim, sim.block)
+
+    return inner
+
+
+# TODO: Is this really useful? Or just pairs_block is enough?
+def pairs_host_block(func):
+    def inner(*args, **kwargs):
+        sim = args[0].sim # self.sim
+        sim.clear_block()
+        func(*args, **kwargs)
+        return KernelBlock(sim, sim.block, run_on_host=True)
+
+    return inner
+
+
 class Block(ASTNode):
     def __init__(self, sim, stmts):
         super().__init__(sim)
@@ -37,12 +68,16 @@ class Block(ASTNode):
         return Block(block1.sim, block1.statements() + block2.statements())
 
     def from_list(sim, block_list):
-        assert isinstance(block_list, list), "Passed argument is not a list!"
+        assert isinstance(block_list, list), "Given argument is not a list!"
         result_block = Block(sim, [])
 
         for block in block_list:
-            assert isinstance(block, Block), "Element in list is not Block!"
-            result_block = Block.merge_blocks(result_block, block)
+            if isinstance(block, Block):
+                result_block = Block.merge_blocks(result_block, block)
+            elif isinstance(block, KernelBlock):
+                result_block.add_statement(block)
+            else:
+                raise Exception("Element in list is not Block!")
 
         return result_block
 
