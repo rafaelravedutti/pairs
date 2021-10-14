@@ -46,6 +46,10 @@ class Mutator:
         ast_node.block_else = None if ast_node.block_else is None else self.mutate(ast_node.block_else)
         return ast_node
 
+    def mutate_Cast(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
     def mutate_Decl(self, ast_node):
         ast_node.elem = self.mutate(ast_node.elem)
         return ast_node
@@ -53,12 +57,12 @@ class Mutator:
     def mutate_Filter(self, ast_node):
         return self.mutate_Branch(ast_node)
 
-    def mutate_Cast(self, ast_node):
-        ast_node.expr = self.mutate(ast_node.expr)
-        return ast_node
-
     def mutate_For(self, ast_node):
         ast_node.iterator = self.mutate(ast_node.iterator)
+        ast_node.block = self.mutate(ast_node.block)
+        return ast_node
+
+    def mutate_KernelBlock(self, ast_node):
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
 

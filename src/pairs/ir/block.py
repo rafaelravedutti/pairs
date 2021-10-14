@@ -30,6 +30,8 @@ class Block(ASTNode):
     def merge_blocks(block1, block2):
         assert isinstance(block1, Block), "First block type is not Block!"
         assert isinstance(block2, Block), "Second block type is not Block!"
+        assert not isinstance(block1, KernelBlock), "Kernel blocks cannot be merged!"
+        assert not isinstance(block2, KernelBlock), "Kernel blocks cannot be merged!"
         return Block(block1.sim, block1.statements() + block2.statements())
 
     def from_list(sim, block_list):
@@ -43,9 +45,10 @@ class Block(ASTNode):
         return result_block
 
 
-class KernelBlock(Block):
-    def __init__(self, sim, stmts, run_on_host=False):
-        super().__init__(sim, stmts)
+class KernelBlock(ASTNode):
+    def __init__(self, sim, block, run_on_host=False):
+        super().__init__(sim)
+        self.block = block if isinstance(block, Block) else Block(sim, block)
         self.run_on_host = run_on_host
         self.props_accessed = {}
 
@@ -56,6 +59,9 @@ class KernelBlock(Block):
 
         elif oper not in self.props_accessed[prop_key]:
             self.props_accessed[prop_key] += oper
+
+    def children(self):
+        return [self.block]
 
     def properties_to_synchronize(self):
         return {p for p in self.props_accessed if self.props_accessed[p][0] == 'r'}

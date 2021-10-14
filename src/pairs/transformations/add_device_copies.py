@@ -42,8 +42,7 @@ class AddDeviceCopies(Mutator):
             if s is not None:
                 s_id = id(s)
                 if isinstance(s, KernelBlock) and s_id in self.props_to_copy:
-                    for p in self.props.to_copy[s_id]:
-                        new_stmts = new_stmts + DeviceCopy(ast_node.sim, p)
+                    new_stmts = new_stmts + [DeviceCopy(ast_node.sim, ast_node.sim.property(p)) for p in self.props_to_copy[s_id]]
 
                 new_stmts.append(s)
 
@@ -51,10 +50,12 @@ class AddDeviceCopies(Mutator):
         return ast_node
 
     def mutate_KernelBlock(self, ast_node):
-        copying_properties = {p for p in ast_node.properties_to_synchronize() if p not in synchronized_props}
+        ast_node.block = self.mutate(ast_node.block)
+        copying_properties = {p for p in ast_node.properties_to_synchronize() if p not in self.synchronized_props}
         self.props_to_copy[id(ast_node)] = copying_properties
         self.synchronized_props.update(copying_properties)
         self.synchronized_props -= ast_node.writing_properties()
+        return ast_node
 
 
 def add_device_copies(ast):

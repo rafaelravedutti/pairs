@@ -1,5 +1,5 @@
 from pairs.ir.arrays import Arrays
-from pairs.ir.block import Block
+from pairs.ir.block import Block, KernelBlock
 from pairs.ir.branches import Filter
 from pairs.ir.data_types import Type_Int, Type_Float, Type_Vector
 from pairs.ir.layouts import Layout_AoS
@@ -11,7 +11,6 @@ from pairs.mapping.funcs import compute
 from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from pairs.sim.grid import Grid2D, Grid3D
-from pairs.sim.kernel_wrapper import KernelWrapper
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild
 from pairs.sim.pbc import PBC, UpdatePBC, EnforcePBC, SetupPBC
@@ -49,7 +48,7 @@ class ParticleSimulation:
         self.check_decl_usage = True
         self.block = Block(self, [])
         self.setups = SetupWrapper(self)
-        self.kernels = KernelWrapper(self)
+        self.kernels = Block(self, [])
         self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -146,14 +145,14 @@ class ParticleSimulation:
                 else:
                     yield i, j
 
-        self.kernels.add_kernel_block(self.block)
+        self.kernels.add_statement(KernelBlock(self, self.block))
 
     def particles(self):
         self.clear_block()
         for i in ParticleFor(self):
             yield i
 
-        self.kernels.add_kernel_block(self.block)
+        self.kernels.add_statement(KernelBlock(self, self.block))
 
     def clear_block(self):
         self.block = Block(self, [])
@@ -193,7 +192,7 @@ class ParticleSimulation:
             (CellListsBuild(self.cell_lists).lower(), 20),
             (NeighborListsBuild(self.neighbor_lists).lower(), 20),
             PropertiesResetVolatile(self).lower(),
-            self.kernels.lower()
+            self.kernels
         ])
 
         timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1).lower())
@@ -224,5 +223,5 @@ class ParticleSimulation:
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False
 
-        ASTGraph(self.kernels.lower(), "kernels").render()
+        ASTGraph(self.kernels, "kernels").render()
         self.code_gen.generate_program(program)

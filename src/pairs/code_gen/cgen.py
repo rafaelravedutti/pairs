@@ -1,6 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl
-from pairs.ir.block import Block
+from pairs.ir.block import Block, KernelBlock
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
@@ -71,10 +71,8 @@ class CGen:
 
         if isinstance(ast_node, Block):
             self.print.add_ind(4)
-
             for stmt in ast_node.statements():
                 self.generate_statement(stmt)
-
             self.print.add_ind(-4)
 
         # TODO: Why there are Decls for other types?
@@ -133,6 +131,11 @@ class CGen:
 
         if isinstance(ast_node, DeviceCopy):
             self.print(f"pairs::copy_to_device({ast_node.prop.name()})")
+
+        if isinstance(ast_node, KernelBlock):
+            self.print.add_ind(-4)
+            self.generate_statement(ast_node.block)
+            self.print.add_ind(4) # Workaround for fixing indentation of kernels
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
