@@ -702,6 +702,8 @@ int main() {
             force[e449] = 0.0;
             force[e451] = 0.0;
         }
+        pairs::copy_to_device(position)
+        pairs::copy_to_device(force)
         for(int i0 = 0; i0 < nlocal; i0++) {
             const int e1 = i0 * neighborlist_capacity;
             const int e47 = i0 * 3;
@@ -761,6 +763,8 @@ int main() {
                 }
             }
         }
+        pairs::copy_to_device(velocity)
+        pairs::copy_to_device(mass)
         for(int i2 = 0; i2 < nlocal; i2++) {
             const int e76 = i2 * 3;
             const double p3_0 = velocity[e76];

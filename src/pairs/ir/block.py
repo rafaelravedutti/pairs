@@ -14,6 +14,8 @@ class Block(ASTNode):
     def add_statement(self, stmt):
         if isinstance(stmt, list):
             self.stmts = self.stmts + stmt
+        elif isinstance(stmt, Block):
+            self.stmts = self.stmts + stmt.statements()
         else:
             self.stmts.append(stmt)
 

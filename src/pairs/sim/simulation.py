@@ -16,7 +16,6 @@ from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild
 from pairs.sim.pbc import PBC, UpdatePBC, EnforcePBC, SetupPBC
 from pairs.sim.properties import PropertiesAlloc, PropertiesResetVolatile
 from pairs.sim.read_from_file import ReadFromFile
-from pairs.sim.setup_wrapper import SetupWrapper
 from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
@@ -27,7 +26,7 @@ from pairs.transformations.simplify import simplify_expressions
 from pairs.transformations.LICM import move_loop_invariant_code
 
 
-class ParticleSimulation:
+class Simulation:
     def __init__(self, code_gen, dims=3, timesteps=100):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
@@ -47,7 +46,7 @@ class ParticleSimulation:
         self.nest = False
         self.check_decl_usage = True
         self.block = Block(self, [])
-        self.setups = SetupWrapper(self)
+        self.setups = Block(self, [])
         self.kernels = Block(self, [])
         self.dims = dims
         self.ntimesteps = timesteps
@@ -108,12 +107,12 @@ class ParticleSimulation:
     def create_particle_lattice(self, grid, spacing, props={}):
         positions = self.property('position')
         lattice = ParticleLattice(self, grid, spacing, props, positions)
-        self.setups.add_setup_block(lattice.lower())
+        self.setups.add_statement(lattice.lower())
 
     def from_file(self, filename, prop_names):
         props = [self.property(prop_name) for prop_name in prop_names]
         read_object = ReadFromFile(self, filename, props)
-        self.setups.add_setup_block(read_object.lower())
+        self.setups.add_statement(read_object.lower())
         self.grid = read_object.grid
 
     def create_cell_lists(self, spacing, cutoff_radius):
@@ -198,7 +197,7 @@ class ParticleSimulation:
         timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1).lower())
 
         body = Block.from_list(self, [
-            self.setups.lower(),
+            self.setups,
             CellListsStencilBuild(self.cell_lists).lower(),
             VTKWrite(self, self.vtk_file, 0).lower(),
             timestep.as_block()

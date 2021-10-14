@@ -1,15 +1,6 @@
 import pairs
 
 
-def delta(i, j):
-    return position[i] - position[j]
-
-
-def rsq(i, j):
-    dp = delta(i, j)
-    return dp.x() * dp.x() + dp.y() * dp.y() + dp.z() * dp.z()
-
-
 def lj(i, j):
     sr2 = 1.0 / rsq
     sr6 = sr2 * sr2 * sr2 * sigma6
