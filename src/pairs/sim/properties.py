@@ -4,11 +4,12 @@ from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.properties import RegisterProperty, UpdateProperty
 from pairs.ir.utils import Print
+from pairs.sim.lowerable import Lowerable
 from functools import reduce
 import operator
 
 
-class PropertiesAlloc:
+class PropertiesAlloc(Lowerable):
     def __init__(self, sim, realloc=False):
         self.sim = sim
         self.realloc = realloc
@@ -33,7 +34,7 @@ class PropertiesAlloc:
                 RegisterProperty(self.sim, p, sizes)
 
 
-class PropertiesResetVolatile:
+class PropertiesResetVolatile(Lowerable):
     def __init__(self, sim):
         self.sim = sim
 

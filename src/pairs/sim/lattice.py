@@ -1,11 +1,12 @@
 from pairs.ir.block import pairs_block
 from pairs.ir.data_types import Type_Vector
 from pairs.ir.loops import For
+from pairs.sim.lowerable import Lowerable
 
 
-class ParticleLattice():
+class ParticleLattice(Lowerable):
     def __init__(self, sim, grid, spacing, props, positions):
-        self.sim = sim
+        super().__init__(sim)
         self.grid = grid
         self.spacing = spacing
         self.props = props

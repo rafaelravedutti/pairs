@@ -15,6 +15,10 @@ class Mutator:
         if method is not None:
             return method(ast_node)
 
+        method_unknown = self.get_method("mutate_Unknown")
+        if method_unknown is not None:
+            return method_unknown(ast_node)
+
         return ast_node
 
     def mutate_ArrayAccess(self, ast_node):

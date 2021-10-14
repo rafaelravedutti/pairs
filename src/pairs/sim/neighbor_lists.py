@@ -3,6 +3,7 @@ from pairs.ir.branches import Branch, Filter
 from pairs.ir.data_types import Type_Int
 from pairs.ir.loops import For, ParticleFor, NeighborFor
 from pairs.ir.utils import Print
+from pairs.sim.lowerable import Lowerable
 from pairs.sim.resize import Resize
 
 
@@ -15,9 +16,9 @@ class NeighborLists:
         self.numneighs = self.sim.add_array('numneighs', self.sim.particle_capacity, Type_Int)
 
 
-class NeighborListsBuild:
+class NeighborListsBuild(Lowerable):
     def __init__(self, sim, neighbor_lists):
-        self.sim = sim
+        super().__init__(sim)
         self.neighbor_lists = neighbor_lists
 
     @pairs_device_block

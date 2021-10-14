@@ -74,10 +74,8 @@ class Block(ASTNode):
         for block in block_list:
             if isinstance(block, Block):
                 result_block = Block.merge_blocks(result_block, block)
-            elif isinstance(block, KernelBlock):
-                result_block.add_statement(block)
             else:
-                raise Exception("Element in list is not Block!")
+                result_block.add_statement(block)
 
         return result_block
 

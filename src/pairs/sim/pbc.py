@@ -4,6 +4,7 @@ from pairs.ir.data_types import Type_Int
 from pairs.ir.loops import For, ParticleFor
 from pairs.ir.utils import Print
 from pairs.ir.select import Select
+from pairs.sim.lowerable import Lowerable
 from pairs.sim.resize import Resize
 
 
@@ -19,9 +20,9 @@ class PBC:
         self.pbc_mult = sim.add_array('pbc_mult', [self.pbc_capacity, sim.ndims()], Type_Int)
 
 
-class UpdatePBC:
+class UpdatePBC(Lowerable):
     def __init__(self, sim, pbc):
-        self.sim = sim
+        super().__init__(sim)
         self.pbc = pbc
 
     @pairs_device_block
@@ -42,9 +43,9 @@ class UpdatePBC:
                 positions[nlocal + i][d].set(positions[pbc_map[i]][d] + pbc_mult[i][d] * grid.length(d))
 
 
-class EnforcePBC:
+class EnforcePBC(Lowerable):
     def __init__(self, sim, pbc):
-        self.sim = sim
+        super().__init__(sim)
         self.pbc = pbc
 
     @pairs_device_block
@@ -64,9 +65,9 @@ class EnforcePBC:
                     positions[i][d].sub(grid.length(d))
 
 
-class SetupPBC:
+class SetupPBC(Lowerable):
     def __init__(self, sim, pbc):
-        self.sim = sim
+        super().__init__(sim)
         self.pbc = pbc
 
     @pairs_device_block

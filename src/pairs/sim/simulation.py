@@ -20,10 +20,12 @@ from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
 from pairs.transformations.add_device_copies import add_device_copies
-from pairs.transformations.prioritize_scalar_ops import prioritaze_scalar_ops
+from pairs.transformations.prioritize_scalar_ops import prioritize_scalar_ops
 from pairs.transformations.set_used_bin_ops import set_used_bin_ops
 from pairs.transformations.simplify import simplify_expressions
 from pairs.transformations.LICM import move_loop_invariant_code
+from pairs.transformations.lower import lower_everything
+from pairs.transformations.merge_adjacent_blocks import merge_adjacent_blocks
 
 
 class Simulation:
@@ -107,12 +109,12 @@ class Simulation:
     def create_particle_lattice(self, grid, spacing, props={}):
         positions = self.property('position')
         lattice = ParticleLattice(self, grid, spacing, props, positions)
-        self.setups.add_statement(lattice.lower())
+        self.setups.add_statement(lattice)
 
     def from_file(self, filename, prop_names):
         props = [self.property(prop_name) for prop_name in prop_names]
         read_object = ReadFromFile(self, filename, props)
-        self.setups.add_statement(read_object.lower())
+        self.setups.add_statement(read_object)
         self.grid = read_object.grid
 
     def create_cell_lists(self, spacing, cutoff_radius):
@@ -186,34 +188,36 @@ class Simulation:
 
     def generate(self):
         timestep = Timestep(self, self.ntimesteps, [
-            (EnforcePBC(self, self.pbc).lower(), 20),
-            (SetupPBC(self, self.pbc).lower(), UpdatePBC(self, self.pbc).lower(), 20),
-            (CellListsBuild(self, self.cell_lists).lower(), 20),
-            (NeighborListsBuild(self, self.neighbor_lists).lower(), 20),
-            PropertiesResetVolatile(self).lower(),
+            (EnforcePBC(self, self.pbc), 20),
+            (SetupPBC(self, self.pbc), UpdatePBC(self, self.pbc), 20),
+            (CellListsBuild(self, self.cell_lists), 20),
+            (NeighborListsBuild(self, self.neighbor_lists), 20),
+            PropertiesResetVolatile(self),
             self.kernels
         ])
 
-        timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1).lower())
+        timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1))
 
         body = Block.from_list(self, [
             self.setups,
-            CellListsStencilBuild(self, self.cell_lists).lower(),
-            VTKWrite(self, self.vtk_file, 0).lower(),
+            CellListsStencilBuild(self, self.cell_lists),
+            VTKWrite(self, self.vtk_file, 0),
             timestep.as_block()
         ])
 
         decls = Block.from_list(self, [
-            VariablesDecl(self).lower(),
-            ArraysDecl(self).lower(),
-            PropertiesAlloc(self).lower(),
+            VariablesDecl(self),
+            ArraysDecl(self),
+            PropertiesAlloc(self),
         ])
 
         program = Block.merge_blocks(decls, body)
         self.global_scope = program
 
         # Transformations
-        prioritaze_scalar_ops(program)
+        lower_everything(program)
+        merge_adjacent_blocks(program)
+        prioritize_scalar_ops(program)
         simplify_expressions(program)
         move_loop_invariant_code(program)
         set_used_bin_ops(program)

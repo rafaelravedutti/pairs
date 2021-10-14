@@ -8,6 +8,7 @@ from pairs.ir.data_types import Type_Int
 from pairs.ir.math import Ceil
 from pairs.ir.loops import For, ParticleFor
 from pairs.ir.utils import Print
+from pairs.sim.lowerable import Lowerable
 from pairs.sim.resize import Resize
 
 
@@ -30,9 +31,9 @@ class CellLists:
         self.particle_cell = self.sim.add_array('particle_cell', self.sim.particle_capacity, Type_Int)
 
 
-class CellListsStencilBuild:
+class CellListsStencilBuild(Lowerable):
     def __init__(self, sim, cell_lists):
-        self.sim = sim
+        super().__init__(sim)
         self.cell_lists = cell_lists
 
     @pairs_device_block
@@ -63,9 +64,9 @@ class CellListsStencilBuild:
                         cl.nstencil.set(cl.nstencil + 1)
 
 
-class CellListsBuild:
+class CellListsBuild(Lowerable):
     def __init__(self, sim, cell_lists):
-        self.sim = sim
+        super().__init__(sim)
         self.cell_lists = cell_lists
 
     @pairs_device_block

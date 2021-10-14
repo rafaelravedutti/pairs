@@ -3,11 +3,12 @@ from pairs.ir.data_types import Type_Float
 from pairs.ir.functions import Call_Int
 from pairs.ir.properties import PropertyList
 from pairs.sim.grid import MutableGrid
+from pairs.sim.lowerable import Lowerable
 
 
-class ReadFromFile():
+class ReadFromFile(Lowerable):
     def __init__(self, sim, filename, props):
-        self.sim = sim
+        super().__init__(sim)
         self.filename = filename
         self.props = PropertyList(sim, props)
         self.grid = MutableGrid(sim, sim.ndims())

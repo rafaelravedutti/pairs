@@ -3,7 +3,7 @@ from pairs.ir.data_types import Type_Float, Type_Vector
 from pairs.ir.mutator import Mutator
 
 
-class PrioritazeScalarOps(Mutator):
+class PrioritizeScalarOps(Mutator):
     def __init__(self, ast):
         super().__init__(ast)
 
@@ -21,7 +21,7 @@ class PrioritazeScalarOps(Mutator):
             op = ast_node.op
 
             if( isinstance(lhs, BinOp) and lhs.type() == Type_Vector and rhs.type() == Type_Float and \
-                PrioritazeScalarOps.can_rearrange(op, lhs.op) ):
+                PrioritizeScalarOps.can_rearrange(op, lhs.op) ):
 
                 if lhs.lhs.type() == Type_Vector and lhs.rhs.type() == Type_Float:
                     ast_node.reassign(lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
@@ -32,7 +32,7 @@ class PrioritazeScalarOps(Mutator):
                     #return BinOp(sim, lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
 
             if( isinstance(rhs, BinOp) and rhs.type() == Type_Vector and lhs.type() == Type_Float and \
-                PrioritazeScalarOps.can_rearrange(op, rhs.op) ):
+                PrioritizeScalarOps.can_rearrange(op, rhs.op) ):
 
                 if rhs.lhs.type() == Type_Vector and rhs.rhs.type() == Type_Float:
                     ast_node.reassign(rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
@@ -45,6 +45,6 @@ class PrioritazeScalarOps(Mutator):
         return ast_node
 
 
-def prioritaze_scalar_ops(ast_node):
-    prioritaze = PrioritazeScalarOps(ast_node)
-    prioritaze.mutate()
+def prioritize_scalar_ops(ast_node):
+    prioritize = PrioritizeScalarOps(ast_node)
+    prioritize.mutate()
