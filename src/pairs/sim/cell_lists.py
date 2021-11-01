@@ -74,7 +74,7 @@ class CellListsBuild(Lowerable):
         sim = self.sim
         cl = self.cell_lists
         grid = sim.grid
-        positions = sim.property('position')
+        positions = sim.position()
 
         for resize in Resize(sim, cl.cell_capacity):
             for c in For(sim, 0, cl.ncells):

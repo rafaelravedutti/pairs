@@ -1,8 +1,9 @@
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.data_types import Type_Int
-from pairs.ir.loops import For, ParticleFor, NeighborFor
+from pairs.ir.loops import ParticleFor
 from pairs.ir.utils import Print
+from pairs.sim.interaction import ParticleInteraction
 from pairs.sim.lowerable import Lowerable
 from pairs.sim.resize import Resize
 
@@ -27,20 +28,18 @@ class NeighborListsBuild(Lowerable):
         neighbor_lists = self.neighbor_lists
         cell_lists = neighbor_lists.cell_lists
         cutoff_radius = cell_lists.cutoff_radius
-        position = sim.property('position')
+        position = sim.position()
 
         for resize in Resize(sim, neighbor_lists.capacity):
             for i in ParticleFor(sim):
                 neighbor_lists.numneighs[i].set(0)
-                for j in NeighborFor(sim, i, cell_lists):
-                    # TODO: find a way to not repeat this (already present in particle_pairs)
-                    dp = position[i] - position[j]
-                    rsq = dp.x() * dp.x() + dp.y() * dp.y() + dp.z() * dp.z()
-                    for _ in Filter(sim, rsq < cutoff_radius):
-                        numneighs = neighbor_lists.numneighs[i]
-                        for cond in Branch(sim, numneighs >= neighbor_lists.capacity):
-                            if cond:
-                                resize.set(numneighs)
-                            else:
-                                neighbor_lists.neighborlists[i][numneighs].set(j)
-                                neighbor_lists.numneighs[i].set(numneighs + 1)
+
+            pairs = ParticleInteraction(sim, 2, cutoff_radius, bypass_neighbor_lists=True)
+            for i, j in pairs:
+                numneighs = neighbor_lists.numneighs[i]
+                for cond in Branch(sim, numneighs >= neighbor_lists.capacity):
+                    if cond:
+                        resize.set(numneighs)
+                    else:
+                        neighbor_lists.neighborlists[i][numneighs].set(j)
+                        neighbor_lists.numneighs[i].set(numneighs + 1)

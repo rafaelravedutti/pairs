@@ -24,6 +24,7 @@ class Variables:
 
         return None
 
+
 class Var(ASTTerm):
     def __init__(self, sim, var_name, var_type, init_value=0):
         super().__init__(sim)

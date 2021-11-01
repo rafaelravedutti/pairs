@@ -5,6 +5,7 @@ from pairs.ast.branches import Branch
 from pairs.ast.data_types import Type_Float, Type_Vector
 from pairs.ast.math import Sqrt
 from pairs.ast.select import Select
+from pairs.sim.interaction import ParticleInteraction
 
 
 def print_tree(node, indent=0):
@@ -76,7 +77,7 @@ def getVelocityAtWFPoint(sim, params):
     wf_pt = params[2]
     lin_vel = sim.property('velocity')
     ang_vel = sim.property('angular_velocity')
-    position = sim.property('position')
+    position = sim.position()
     return lin_vel[p_idx] + ang_vel[p_idx] * (wf_pt - position[p_idx])
 
 
@@ -87,7 +88,7 @@ def addForceAtWFPosAtomic(sim, params):
     wf_pt = params[3]
     force = sim.property('force')
     torque = sim.property('torque')
-    position = sim.property('position')
+    position = sim.position()
     force[p_idx].add(f)
     torque[p_idx].add((wf_pt - position[p_idx]) * f)
 
@@ -150,7 +151,9 @@ def map_kernel_to_simulation(sim, node):
     contactNormal = sim.add_var('contactNormal', Type_Vector)
     penetrationDepth = sim.add_var('penetrationDepth', Type_Float)
 
-    for i, j in sim.particle_pairs():
+    self.clear_block()
+    pairs = ParticleInteraction(sim, 2)
+    for i, j in pairs:
         return map_method_tree(sim, node, {
             'element_mappings': {
                 'p_idx1': i,
@@ -172,6 +175,8 @@ def map_kernel_to_simulation(sim, node):
                 'math::dot': dot
             }
         })
+
+    self.build_kernel_block_with_statements()
 
 
 def map_method_tree(sim, node, assignments={}, mappings={}):

@@ -2,6 +2,8 @@ import ast
 import inspect
 from pairs.ir.assign import Assign
 from pairs.ir.bin_op import BinOp
+from pairs.ir.loops import ParticleFor
+from pairs.sim.interaction import ParticleInteraction
 
 
 class UndefinedSymbol():
@@ -119,7 +121,7 @@ class BuildParticleIR(ast.NodeVisitor):
         return self.visit(node.value)[self.visit(node.slice)]
 
 
-def compute(sim, func, cutoff_radius=None, position=None, symbols={}):
+def compute(sim, func, cutoff_radius=None, symbols={}):
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
     #print(ast.dump(ast.parse(src, mode='exec')))
@@ -132,16 +134,18 @@ def compute(sim, func, cutoff_radius=None, position=None, symbols={}):
 
     # Start building IR
     ir = BuildParticleIR(sim, symbols)
+    assert nparams > 0, "Number of parameters from compute functions must be higher than zero!"
 
+    sim.clear_block()
     if nparams == 1:
-        for i in sim.particles():
+        for i in ParticleFor(sim):
             ir.add_symbols({params[0]: i})
             ir.visit(tree)
 
-    elif nparams == 2:
-        for i, j, delta, rsq in sim.particle_pairs(cutoff_radius, sim.property(position)):
-            ir.add_symbols({params[0]: i, params[1]: j, 'delta': delta, 'rsq': rsq})
+    else:
+        pairs = ParticleInteraction(sim, nparams, cutoff_radius)
+        for i, j in pairs:
+            ir.add_symbols({params[0]: i, params[1]: j, 'delta': pairs.delta(), 'rsq': pairs.squared_distance()})
             ir.visit(tree)
 
-    else:
-        raise Exception(f"Invalid number of parameters: {nparams}")
+    sim.build_kernel_block_with_statements()

@@ -38,8 +38,8 @@ class Branch(ASTNode):
 
 
 class Filter(Branch):
-    def __init__(self, sim, cond):
-        super().__init__(sim, cond, True)
+    def __init__(self, sim, cond, block=None):
+        super().__init__(sim, cond, True, block)
 
     def __iter__(self):
         self.sim.add_statement(self)

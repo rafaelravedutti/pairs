@@ -33,7 +33,7 @@ class UpdatePBC(Lowerable):
         npbc = self.pbc.npbc
         pbc_map = self.pbc.pbc_map
         pbc_mult = self.pbc.pbc_mult
-        positions = self.pbc.sim.property('position')
+        positions = self.pbc.sim.position()
         nlocal = self.pbc.sim.nlocal
 
         for i in For(sim, 0, npbc):
@@ -53,7 +53,7 @@ class EnforcePBC(Lowerable):
         sim = self.sim
         ndims = sim.ndims()
         grid = self.pbc.grid
-        positions = sim.property('position')
+        positions = sim.position()
 
         for i in ParticleFor(sim):
             # TODO: VecFilter?
@@ -80,7 +80,7 @@ class SetupPBC(Lowerable):
         pbc_capacity = self.pbc.pbc_capacity
         pbc_map = self.pbc.pbc_map
         pbc_mult = self.pbc.pbc_mult
-        positions = self.pbc.sim.property('position')
+        positions = self.pbc.sim.position()
         nlocal = self.pbc.sim.nlocal
 
         for resize in Resize(sim, pbc_capacity):

@@ -99,29 +99,3 @@ class While(ASTNode):
 
     def children(self):
         return [self.cond, self.block]
-
-
-class NeighborFor():
-    def __init__(self, sim, particle, cell_lists, neighbor_lists=None):
-        self.sim = sim
-        self.particle = particle
-        self.cell_lists = cell_lists
-        self.neighbor_lists = neighbor_lists
-
-    def __str__(self):
-        return f"NeighborFor<particle: {self.particle}>"
-
-    def __iter__(self):
-        if self.neighbor_lists is None:
-            cl = self.cell_lists
-            for s in For(self.sim, 0, cl.nstencil):
-                neigh_cell = cl.particle_cell[self.particle] + cl.stencil[s]
-                for _ in Filter(self.sim, BinOp.and_op(neigh_cell >= 0, neigh_cell <= cl.ncells)):
-                    for nc in For(self.sim, 0, cl.cell_sizes[neigh_cell]):
-                        it = cl.cell_particles[neigh_cell][nc]
-                        for _ in Filter(self.sim, BinOp.neq(it, self.particle)):
-                                yield it
-        else:
-            neighbor_lists = self.neighbor_lists
-            for k in For(self.sim, 0, neighbor_lists.numneighs[self.particle]):
-                yield neighbor_lists.neighborlists[self.particle][k]

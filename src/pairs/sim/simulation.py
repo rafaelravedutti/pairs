@@ -3,8 +3,8 @@ from pairs.ir.block import Block, KernelBlock
 from pairs.ir.branches import Filter
 from pairs.ir.data_types import Type_Int, Type_Float, Type_Vector
 from pairs.ir.layouts import Layout_AoS
-from pairs.ir.loops import ParticleFor, NeighborFor
 from pairs.ir.properties import Properties
+from pairs.ir.symbols import Symbol
 from pairs.ir.variables import Variables
 from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
@@ -26,6 +26,7 @@ from pairs.transformations.simplify import simplify_expressions
 from pairs.transformations.LICM import move_loop_invariant_code
 from pairs.transformations.lower import lower_everything
 from pairs.transformations.merge_adjacent_blocks import merge_adjacent_blocks
+from pairs.transformations.replace_symbols import replace_symbols
 
 
 class Simulation:
@@ -33,6 +34,7 @@ class Simulation:
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.global_scope = None
+        self.position_prop = None
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
@@ -54,6 +56,7 @@ class Simulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
+        self.temp_id = 1000
         self.vtk_file = None
         self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
@@ -65,12 +68,20 @@ class Simulation:
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
         return self.properties.add(prop_name, Type_Float, value, vol)
 
+    def add_position(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layout_AoS):
+        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
+        self.position_prop = self.properties.add(prop_name, Type_Vector, value, vol, layout)
+        return self.position_prop
+
     def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layout_AoS):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
         return self.properties.add(prop_name, Type_Vector, value, vol, layout)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
+
+    def position(self):
+        return self.position_prop
 
     def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
         assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
@@ -95,6 +106,15 @@ class Simulation:
 
         return self.vars.add(var_name, var_type, init_value)
 
+    def add_symbol(self, sym_type):
+        return Symbol(self, sym_type)
+
+    def add_temporary_vector(self):
+        return self.vars.add(f"tmp{self.temp_id}", Type_Vector)
+
+    def add_temporary_real(self):
+        return self.vars.add(f"tmp{self.temp_id}", Type_Float)
+
     def var(self, var_name):
         return self.vars.find(var_name)
 
@@ -107,7 +127,7 @@ class Simulation:
         return self.grid
 
     def create_particle_lattice(self, grid, spacing, props={}):
-        positions = self.property('position')
+        positions = self.position()
         lattice = ParticleLattice(self, grid, spacing, props, positions)
         self.setups.add_statement(lattice)
 
@@ -130,33 +150,14 @@ class Simulation:
         self.properties.add_capacity(self.pbc.pbc_capacity)
         return self.pbc
 
-    def compute(self, sim, func, cutoff_radius=None, position=None, symbols={}):
-        return compute(sim, func, cutoff_radius, position, symbols)
-
-    def particle_pairs(self, cutoff_radius=None, position=None):
-        self.clear_block()
-        for i in ParticleFor(self):
-            for j in NeighborFor(self, i, self.cell_lists, self.neighbor_lists):
-                if cutoff_radius is not None and position is not None:
-                    dp = position[i] - position[j]
-                    rsq = dp.x() * dp.x() + dp.y() * dp.y() + dp.z() * dp.z()
-                    for _ in Filter(self, rsq < cutoff_radius):
-                        yield i, j, dp, rsq
-
-                else:
-                    yield i, j
-
-        self.kernels.add_statement(KernelBlock(self, self.block))
-
-    def particles(self):
-        self.clear_block()
-        for i in ParticleFor(self):
-            yield i
-
-        self.kernels.add_statement(KernelBlock(self, self.block))
+    def compute(self, func, cutoff_radius=None, symbols={}):
+        return compute(self, func, cutoff_radius, symbols)
 
     def clear_block(self):
         self.block = Block(self, [])
+
+    def build_kernel_block_with_statements(self):
+        self.kernels.add_statement(KernelBlock(self, self.block))
 
     def add_statement(self, stmt):
         if not self.scope:
@@ -216,6 +217,7 @@ class Simulation:
 
         # Transformations
         lower_everything(program)
+        replace_symbols(program)
         merge_adjacent_blocks(program)
         prioritize_scalar_ops(program)
         simplify_expressions(program)
