@@ -1,4 +1,5 @@
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.module import Module
 
 
 def pairs_block(func):
@@ -16,7 +17,9 @@ def pairs_device_block(func):
         sim = args[0].sim # self.sim
         sim.clear_block()
         func(*args, **kwargs)
-        return KernelBlock(sim, sim.block)
+        module = Module(sim, block=KernelBlock(sim, sim.block))
+        sim.add_module(module)
+        return module
 
     return inner
 

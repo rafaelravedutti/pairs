@@ -27,9 +27,6 @@ class Iter(ASTTerm):
     def type(self):
         return Type_Int
 
-    def scope(self):
-        return self.loop.block
-
     def __eq__(self, other):
         if isinstance(other, Iter):
             return self.iter_id == other.iter_id
@@ -59,9 +56,9 @@ class For(ASTNode):
 
     def __iter__(self):
         self.sim.add_statement(self)
-        self.sim.enter_scope(self)
+        self.sim.enter(self)
         yield self.iterator
-        self.sim.leave_scope()
+        self.sim.leave()
 
     def add_statement(self, stmt):
         self.block.add_statement(stmt)
@@ -90,9 +87,9 @@ class While(ASTNode):
 
     def __iter__(self):
         self.sim.add_statement(self)
-        self.sim.enter_scope(self)
+        self.sim.enter(self)
         yield
-        self.sim.leave_scope()
+        self.sim.leave()
 
     def add_statement(self, stmt):
         self.block.add_statement(stmt)

@@ -84,6 +84,10 @@ class Mutator:
         ast_node.size = self.mutate(ast_node.size)
         return ast_node
 
+    def mutate_Module(self, ast_node):
+        ast_node._block = self.mutate(ast_node._block)
+        return ast_node
+
     def mutate_Realloc(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
         ast_node.size = self.mutate(ast_node.size)

@@ -3,6 +3,7 @@ from pairs.ir.block import Block, KernelBlock
 from pairs.ir.branches import Filter
 from pairs.ir.data_types import Type_Int, Type_Float, Type_Vector
 from pairs.ir.layouts import Layout_AoS
+from pairs.ir.module import Module
 from pairs.ir.properties import Properties
 from pairs.ir.symbols import Symbol
 from pairs.ir.variables import Variables
@@ -20,12 +21,14 @@ from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
 from pairs.transformations.add_device_copies import add_device_copies
+from pairs.transformations.fetch_modules_references import fetch_modules_references
 from pairs.transformations.prioritize_scalar_ops import prioritize_scalar_ops
 from pairs.transformations.set_used_bin_ops import set_used_bin_ops
 from pairs.transformations.simplify import simplify_expressions
 from pairs.transformations.LICM import move_loop_invariant_code
 from pairs.transformations.lower import lower_everything
 from pairs.transformations.merge_adjacent_blocks import merge_adjacent_blocks
+from pairs.transformations.replace_modules_by_calls import replace_modules_by_calls
 from pairs.transformations.replace_symbols import replace_symbols
 
 
@@ -33,7 +36,6 @@ class Simulation:
     def __init__(self, code_gen, dims=3, timesteps=100):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
-        self.global_scope = None
         self.position_prop = None
         self.properties = Properties(self)
         self.vars = Variables(self)
@@ -52,6 +54,7 @@ class Simulation:
         self.block = Block(self, [])
         self.setups = Block(self, [])
         self.kernels = Block(self, [])
+        self.module_list = []
         self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -60,6 +63,13 @@ class Simulation:
         self.vtk_file = None
         self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
+
+    def add_module(self, module):
+        assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"
+        self.module_list.append(module)
+
+    def modules(self):
+        return self.module_list
 
     def ndims(self):
         return self.dims
@@ -157,7 +167,7 @@ class Simulation:
         self.block = Block(self, [])
 
     def build_kernel_block_with_statements(self):
-        self.kernels.add_statement(KernelBlock(self, self.block))
+        self.kernels.add_statement(Module(self, block=KernelBlock(self, self.block)))
 
     def add_statement(self, stmt):
         if not self.scope:
@@ -175,10 +185,10 @@ class Simulation:
         for _ in range(0, self.nested_count):
             self.scope.pop()
 
-    def enter_scope(self, scope):
+    def enter(self, scope):
         self.scope.append(scope)
 
-    def leave_scope(self):
+    def leave(self):
         if not self.nest:
             self.scope.pop()
         else:
@@ -212,8 +222,7 @@ class Simulation:
             PropertiesAlloc(self),
         ])
 
-        program = Block.merge_blocks(decls, body)
-        self.global_scope = program
+        program = Module(self, name='main', block=Block.merge_blocks(decls, body))
 
         # Transformations
         lower_everything(program)
@@ -222,8 +231,10 @@ class Simulation:
         prioritize_scalar_ops(program)
         simplify_expressions(program)
         move_loop_invariant_code(program)
+        fetch_modules_references(program)
         set_used_bin_ops(program)
         add_device_copies(program)
+        replace_modules_by_calls(program)
 
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False

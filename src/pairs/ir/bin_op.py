@@ -42,7 +42,6 @@ class BinOp(VectorExpression):
         self.inlined = False
         self.generated = False
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
-        self.bin_op_scope = None
         self.terminals = set()
         self.decl = Decl(sim, self)
 
@@ -131,14 +130,6 @@ class BinOp(VectorExpression):
 
     def add_terminal(self, terminal):
         self.terminals.add(terminal)
-
-    def scope(self):
-        if self.bin_op_scope is None:
-            lhs_scp = self.lhs.scope()
-            rhs_scp = self.rhs.scope()
-            self.bin_op_scope = lhs_scp if lhs_scp > rhs_scp else rhs_scp
-
-        return self.bin_op_scope
 
     def children(self):
         return [self.lhs, self.rhs] + list(super().children())

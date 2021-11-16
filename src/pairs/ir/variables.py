@@ -67,3 +67,19 @@ class VarDecl(ASTNode):
         super().__init__(sim)
         self.var = var
         self.sim.add_statement(self)
+
+
+class Deref(ASTTerm):
+    def __init__(self, sim, var):
+        super().__init__(sim)
+        self._var = var
+
+    def __str__(self):
+        return f"Deref<var: {self.var.name()}>"
+
+    @property
+    def var(self):
+        return self._var
+
+    def type(self):
+        return self._var.type()

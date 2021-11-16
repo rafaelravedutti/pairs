@@ -84,9 +84,6 @@ class Property(ASTNode):
     def sizes(self):
         return [self.sim.particle_capacity] if self.prop_type != Type_Vector else [self.sim.ndims(), self.sim.particle_capacity]
 
-    def scope(self):
-        return self.sim.global_scope
-
     def __getitem__(self, expr):
         return PropertyAccess(self.sim, self, expr)
 
@@ -143,9 +140,6 @@ class PropertyAccess(ASTTerm, VectorExpression):
 
     def add_terminal(self, terminal):
         self.terminals.add(terminal)
-
-    def scope(self):
-        return self.index.scope()
 
     def children(self):
         return [self.prop, self.index] + list(super().children())

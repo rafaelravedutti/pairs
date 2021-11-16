@@ -12,11 +12,12 @@ from pairs.ir.lit import Lit
 from pairs.ir.loops import For, Iter, ParticleFor, While
 from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
+from pairs.ir.module import Module_Call
 from pairs.ir.properties import Property, PropertyAccess, PropertyList, RegisterProperty, UpdateProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.utils import Print
-from pairs.ir.variables import Var, VarDecl
+from pairs.ir.variables import Var, VarDecl, Deref
 from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
 
@@ -51,11 +52,45 @@ class CGen:
         self.print("")
         self.print("using namespace pairs;")
         self.print("")
-        self.print("int main() {")
-        self.print("    PairsSim *ps = new PairsSim();")
-        self.generate_statement(ast_node)
-        self.print("}")
+        for module in self.sim.modules():
+            self.generate_module(module)
         self.print.end()
+
+    def generate_module(self, module):
+        if module.name == 'main':
+            self.print("int main() {")
+            self.print("    PairsSim *ps = new PairsSim();")
+            self.generate_statement(module.block)
+            self.print("    return 0;")
+            self.print("}")
+
+        else:
+            module_params = ""
+            for var in module.read_only_variables():
+                type_kw = CGen.type2keyword(var.type())
+                decl = f"{type_kw} {var.name()}"
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            for var in module.write_variables():
+                type_kw = CGen.type2keyword(var.type())
+                decl = f"{type_kw} *{var.name()}"
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            for array in module.arrays():
+                type_kw = CGen.type2keyword(array.type())
+                decl = f"{type_kw} *{array.name()}"
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            for prop in module.properties():
+                type_kw = CGen.type2keyword(prop.type())
+                decl = f"{type_kw} *{prop.name()}"
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            self.print(f"void {module.name}({module_params}) {{")
+            self.print.add_indent(4)
+            self.generate_statement(module.block)
+            self.print.add_indent(-4)
+            self.print("}")
 
     def generate_statement(self, ast_node, bypass_checking=False):
         if isinstance(ast_node, ArrayDecl):
@@ -70,10 +105,10 @@ class CGen:
                 self.print(f"{dest} = {src};")
 
         if isinstance(ast_node, Block):
-            self.print.add_ind(4)
+            self.print.add_indent(4)
             for stmt in ast_node.statements():
                 self.generate_statement(stmt)
-            self.print.add_ind(-4)
+            self.print.add_indent(-4)
 
         # TODO: Why there are Decls for other types?
         if isinstance(ast_node, Decl):
@@ -133,9 +168,9 @@ class CGen:
             self.print(f"pairs::copy_to_device({ast_node.prop.name()})")
 
         if isinstance(ast_node, KernelBlock):
-            self.print.add_ind(-4)
+            self.print.add_indent(-4)
             self.generate_statement(ast_node.block)
-            self.print.add_ind(4) # Workaround for fixing indentation of kernels
+            self.print.add_indent(4) # Workaround for fixing indentation of kernels
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
@@ -165,6 +200,26 @@ class CGen:
                 self.print(f"{tkw} *{array_name} = ({tkw} *) malloc({size});")
             else:
                 self.print(f"{array_name} = ({tkw} *) malloc({size});")
+
+        if isinstance(ast_node, Module_Call):
+            module_params = ""
+            for var in module.read_only_variables():
+                decl = var.name()
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            for var in module.write_variables():
+                decl = f"&{var.name()}"
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            for array in module.arrays():
+                decl = array.name()
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            for prop in module.properties():
+                decl = prop.name()
+                module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+            self.print(f"{module.name}({module_params});")
 
         if isinstance(ast_node, Print):
             self.print(f"fprintf(stdout, \"{ast_node.string}\\n\");")
@@ -268,6 +323,10 @@ class CGen:
             assert mem is False, "Ceil call is not lvalue!"
             expr = self.generate_expression(ast_node.expr)
             return f"ceil({expr})"
+
+        if isinstance(ast_node, Deref):
+            var = self.generate_expression(ast_node.var)
+            return f"*{var}"
 
         if isinstance(ast_node, Iter):
             assert mem is False, "Iterator is not lvalue!"

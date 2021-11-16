@@ -13,9 +13,6 @@ class Sqrt(ASTTerm):
     def type(self):
         return self.expr.type()
 
-    def scope(self):
-        return self.expr.scope()
-
     def children(self):
         return [self.expr]
 
@@ -31,9 +28,6 @@ class Ceil(ASTTerm):
 
     def type(self):
         return Type_Int
-
-    def scope(self):
-        return self.expr.scope()
 
     def children(self):
         return [self.expr]

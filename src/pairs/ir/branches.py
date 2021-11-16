@@ -17,14 +17,14 @@ class Branch(ASTNode):
     def __iter__(self):
         self.sim.add_statement(self)
         self.switch = True
-        self.sim.enter_scope(self)
+        self.sim.enter(self)
         yield self.switch
-        self.sim.leave_scope()
+        self.sim.leave()
 
         self.switch = False
-        self.sim.enter_scope(self)
+        self.sim.enter(self)
         yield self.switch
-        self.sim.leave_scope()
+        self.sim.leave()
 
     def add_statement(self, stmt):
         if self.switch:
@@ -43,9 +43,9 @@ class Filter(Branch):
 
     def __iter__(self):
         self.sim.add_statement(self)
-        self.sim.enter_scope(self)
+        self.sim.enter(self)
         yield
-        self.sim.leave_scope()
+        self.sim.leave()
 
     def add_statement(self, stmt):
         self.block_if.add_statement(stmt)

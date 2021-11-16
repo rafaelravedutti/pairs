@@ -160,18 +160,6 @@ class ArrayAccess(ASTTerm):
         return self.array.type()
         # return self.array.type() if self.index is None else Type_Array
 
-    def scope(self):
-        if self.index is None:
-            scope = None
-            for i in self.indexes:
-                index_scp = i.scope()
-                if scope is None or index_scp > scope:
-                    scope = index_scp
-
-            return scope
-
-        return self.index.scope()
-
     def children(self):
         if self.index is not None:
             return [self.array, self.index]

@@ -20,8 +20,5 @@ class Cast(ASTTerm):
     def type(self):
         return self.cast_type
 
-    def scope(self):
-        return self.expr.scope()
-
     def children(self):
         return [self.expr]

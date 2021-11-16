@@ -22,6 +22,7 @@ class Call(ASTTerm):
     def children(self):
         return self.params
 
+
 class Call_Int(Call):
     def __init__(self, sim, func_name, parameters):
         super().__init__(sim, func_name, parameters, Type_Int)

@@ -4,7 +4,7 @@ class Printer:
         self.stream = None
         self.indent = 0
 
-    def add_ind(self, offset):
+    def add_indent(self, offset):
         self.indent += offset
 
     def start(self):

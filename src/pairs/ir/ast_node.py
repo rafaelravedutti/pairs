@@ -12,8 +12,5 @@ class ASTNode:
     def type(self):
         return Type_Invalid
 
-    def scope(self):
-        return self.sim.global_scope
-
     def children(self):
         return []

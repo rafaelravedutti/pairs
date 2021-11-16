@@ -57,9 +57,9 @@ class ParticleInteraction(Lowerable):
 
     def __iter__(self):
         self.sim.add_statement(self)
-        self.sim.enter_scope(self)
+        self.sim.enter(self)
         yield self.i, self.j
-        self.sim.leave_scope()
+        self.sim.leave()
 
     @pairs_block
     def lower(self):
