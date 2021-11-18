@@ -49,7 +49,8 @@ class AddDereferencesToWriteVariables(Mutator):
         return ast_node
 
     def mutate_Var(self, ast_node):
-        if ast_node in self.module_stack[-1].write_variables():
+        parent_module = self.module_stack[-1]
+        if parent_module.name != 'main' and ast_node in parent_module.write_variables():
             return Deref(ast_node.sim, ast_node)
 
         return ast_node

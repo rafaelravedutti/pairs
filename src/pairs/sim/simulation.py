@@ -119,12 +119,6 @@ class Simulation:
     def add_symbol(self, sym_type):
         return Symbol(self, sym_type)
 
-    def add_temporary_vector(self):
-        return self.vars.add(f"tmp{self.temp_id}", Type_Vector)
-
-    def add_temporary_real(self):
-        return self.vars.add(f"tmp{self.temp_id}", Type_Float)
-
     def var(self, var_name):
         return self.vars.find(var_name)
 

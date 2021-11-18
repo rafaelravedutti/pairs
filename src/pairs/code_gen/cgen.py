@@ -202,6 +202,7 @@ class CGen:
                 self.print(f"{array_name} = ({tkw} *) malloc({size});")
 
         if isinstance(ast_node, Module_Call):
+            module = ast_node.module
             module_params = ""
             for var in module.read_only_variables():
                 decl = var.name()

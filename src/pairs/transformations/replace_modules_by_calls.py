@@ -7,7 +7,8 @@ class ReplaceModulesByCalls(Mutator):
         super().__init__(ast)
 
     def mutate_Module(self, ast_node):
-        return Module_Call(ast_node.sim, ast_node)
+        ast_node._block = self.mutate(ast_node._block)
+        return Module_Call(ast_node.sim, ast_node) if ast_node.name != 'main' else ast_node
 
 
 def replace_modules_by_calls(ast):

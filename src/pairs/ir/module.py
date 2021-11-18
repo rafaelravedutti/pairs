@@ -69,4 +69,8 @@ class Module_Call(ASTNode):
     def __init__(self, sim, module):
         assert isinstance(module, Module), "Module_Call(): given parameter is not of type Module!"
         super().__init__(sim)
-        self.module = module
+        self._module = module
+
+    @property
+    def module(self):
+        return self._module
