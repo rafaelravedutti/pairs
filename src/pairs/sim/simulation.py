@@ -21,28 +21,28 @@ from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
 from pairs.transformations.add_device_copies import add_device_copies
-from pairs.transformations.fetch_modules_references import fetch_modules_references
 from pairs.transformations.prioritize_scalar_ops import prioritize_scalar_ops
 from pairs.transformations.set_used_bin_ops import set_used_bin_ops
 from pairs.transformations.simplify import simplify_expressions
 from pairs.transformations.LICM import move_loop_invariant_code
 from pairs.transformations.lower import lower_everything
 from pairs.transformations.merge_adjacent_blocks import merge_adjacent_blocks
-from pairs.transformations.replace_modules_by_calls import replace_modules_by_calls
+from pairs.transformations.modules import modularize
 from pairs.transformations.replace_symbols import replace_symbols
 
 
 class Simulation:
-    def __init__(self, code_gen, dims=3, timesteps=100):
+    def __init__(self, code_gen, dims=3, timesteps=100, particle_capacity=10000):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.position_prop = None
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
-        self.particle_capacity = self.add_var('particle_capacity', Type_Int, 10000)
+        self.particle_capacity = self.add_var('particle_capacity', Type_Int, particle_capacity)
         self.nlocal = self.add_var('nlocal', Type_Int)
         self.nghost = self.add_var('nghost', Type_Int)
+        self.resizes = self.add_array('resizes', 3, Type_Int)
         self.grid = None
         self.cell_lists = None
         self.neighbor_lists = None
@@ -51,15 +51,17 @@ class Simulation:
         self.nested_count = 0
         self.nest = False
         self.check_decl_usage = True
-        self.block = Block(self, [])
+        self._block = Block(self, [])
         self.setups = Block(self, [])
         self.kernels = Block(self, [])
         self.module_list = []
+        self._check_properties_resize = False
+        self._resizes_to_check = {}
+        self._module_name = None
         self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
-        self.temp_id = 1000
         self.vtk_file = None
         self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
@@ -108,14 +110,6 @@ class Simulation:
         assert self.var(var_name) is None, f"Variable already defined: {var_name}"
         return self.vars.add(var_name, var_type, init_value)
 
-    def add_or_reuse_var(self, var_name, var_type, init_value=0):
-        existing_var = self.var(var_name)
-        if existing_var is not None:
-            assert existing_var.type() == var_type, f"Cannot reuse variable {var_name}: types differ!"
-            return existing_var
-
-        return self.vars.add(var_name, var_type, init_value)
-
     def add_symbol(self, sym_type):
         return Symbol(self, sym_type)
 
@@ -157,15 +151,36 @@ class Simulation:
     def compute(self, func, cutoff_radius=None, symbols={}):
         return compute(self, func, cutoff_radius, symbols)
 
-    def clear_block(self):
-        self.block = Block(self, [])
+    def init_block(self):
+        self._block = Block(self, [])
+        self._check_properties_resize = False
+        self._resizes_to_check = {}
+        self._module_name = None
+
+    def module_name(self, name):
+        self._module_name = name
+
+    def check_properties_resize(self):
+        self._check_properties_resize = True
+
+    def check_resize(self, capacity, size):
+        size_array = [size] if not isinstance(size, list) else size
+        if capacity not in self._resizes_to_check:
+            self._resizes_to_check[capacity] = size_array
+        else:
+            self._resizes_to_check[capacity] += size_array
 
     def build_kernel_block_with_statements(self):
-        self.kernels.add_statement(Module(self, block=KernelBlock(self, self.block)))
+        self.kernels.add_statement(
+            Module(self,
+                name=self._module_name,
+                block=KernelBlock(self, self._block),
+                resizes_to_check=self._resizes_to_check,
+                check_properties_resize=self._check_properties_resize))
 
     def add_statement(self, stmt):
         if not self.scope:
-            self.block.add_statement(stmt)
+            self._block.add_statement(stmt)
         else:
             self.scope[-1].add_statement(stmt)
 
@@ -192,6 +207,7 @@ class Simulation:
         self.vtk_file = filename
 
     def generate(self):
+        # For timestep in Timestep(self):
         timestep = Timestep(self, self.ntimesteps, [
             (EnforcePBC(self, self.pbc), 20),
             (SetupPBC(self, self.pbc), UpdatePBC(self, self.pbc), 20),
@@ -225,10 +241,9 @@ class Simulation:
         prioritize_scalar_ops(program)
         simplify_expressions(program)
         move_loop_invariant_code(program)
-        fetch_modules_references(program)
         set_used_bin_ops(program)
+        modularize(program)
         add_device_copies(program)
-        replace_modules_by_calls(program)
 
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False

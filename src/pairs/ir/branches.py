@@ -9,10 +9,7 @@ class Branch(ASTNode):
         self.cond = as_lit_ast(sim, cond)
         self.switch = True
         self.block_if = Block(sim, []) if blk_if is None else blk_if
-        self.block_else = \
-            None if one_way \
-            else Block(sim, []) if blk_else is None \
-            else blk_else
+        self.block_else = None if one_way else Block(sim, []) if blk_else is None else blk_else
 
     def __iter__(self):
         self.sim.add_statement(self)
@@ -33,8 +30,7 @@ class Branch(ASTNode):
             self.block_else.add_statement(stmt)
 
     def children(self):
-        return [self.cond, self.block_if] + \
-               ([] if self.block_else is None else [self.block_else])
+        return [self.cond, self.block_if] + ([] if self.block_else is None else [self.block_else])
 
 
 class Filter(Branch):

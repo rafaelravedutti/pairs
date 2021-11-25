@@ -35,6 +35,7 @@ class UpdatePBC(Lowerable):
         pbc_mult = self.pbc.pbc_mult
         positions = self.pbc.sim.position()
         nlocal = self.pbc.sim.nlocal
+        sim.module_name("update_pbc")
 
         for i in For(sim, 0, npbc):
             # TODO: allow syntax:
@@ -54,6 +55,7 @@ class EnforcePBC(Lowerable):
         ndims = sim.ndims()
         grid = self.pbc.grid
         positions = sim.position()
+        sim.module_name("enforce_pbc")
 
         for i in ParticleFor(sim):
             # TODO: VecFilter?
@@ -82,39 +84,32 @@ class SetupPBC(Lowerable):
         pbc_mult = self.pbc.pbc_mult
         positions = self.pbc.sim.position()
         nlocal = self.pbc.sim.nlocal
+        sim.module_name("setup_pbc")
+        sim.check_resize(pbc_capacity, npbc)
 
-        for resize in Resize(sim, pbc_capacity):
-            npbc.set(0)
-            for d in range(0, ndims):
-                for i in For(sim, 0, nlocal + npbc):
-                    last_id = nlocal + npbc
-                    # TODO: VecFilter?
-                    for _ in Filter(sim, positions[i][d] < grid.min(d) + cutneigh):
-                        for capacity_exceeded in Branch(sim, npbc >= pbc_capacity):
-                            if capacity_exceeded:
-                                resize.set(Select(sim, resize > npbc, resize + 1, npbc))
-                            else:
-                                pbc_map[npbc].set(i)
-                                pbc_mult[npbc][d].set(1)
-                                positions[last_id][d].set(positions[i][d] + grid.length(d))
+        npbc.set(0)
+        for d in range(0, ndims):
+            for i in For(sim, 0, nlocal + npbc):
+                last_id = nlocal + npbc
+                # TODO: VecFilter?
+                for _ in Filter(sim, positions[i][d] < grid.min(d) + cutneigh):
+                    pbc_map[npbc].set(i)
+                    pbc_mult[npbc][d].set(1)
+                    positions[last_id][d].set(positions[i][d] + grid.length(d))
 
-                                for d_ in [x for x in range(0, ndims) if x != d]:
-                                    pbc_mult[npbc][d_].set(0)
-                                    positions[last_id][d_].set(positions[i][d_])
+                    for d_ in [x for x in range(0, ndims) if x != d]:
+                        pbc_mult[npbc][d_].set(0)
+                        positions[last_id][d_].set(positions[i][d_])
 
-                                npbc.add(1)
+                    npbc.add(1)
 
-                    for _ in Filter(sim, positions[i][d] > grid.max(d) - cutneigh):
-                        for capacity_exceeded in Branch(sim, npbc >= pbc_capacity):
-                            if capacity_exceeded:
-                                resize.set(Select(sim, resize > npbc, resize + 1, npbc))
-                            else:
-                                pbc_map[npbc].set(i)
-                                pbc_mult[npbc][d].set(-1)
-                                positions[last_id][d].set(positions[i][d] - grid.length(d))
+                for _ in Filter(sim, positions[i][d] > grid.max(d) - cutneigh):
+                    pbc_map[npbc].set(i)
+                    pbc_mult[npbc][d].set(-1)
+                    positions[last_id][d].set(positions[i][d] - grid.length(d))
 
-                                for d_ in [x for x in range(0, ndims) if x != d]:
-                                    pbc_mult[npbc][d_].set(0)
-                                    positions[last_id][d_].set(positions[i][d_])
+                    for d_ in [x for x in range(0, ndims) if x != d]:
+                        pbc_mult[npbc][d_].set(0)
+                        positions[last_id][d_].set(positions[i][d_])
 
-                                npbc.add(1)
+                    npbc.add(1)

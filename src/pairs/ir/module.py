@@ -7,13 +7,15 @@ from pairs.ir.variables import Var
 class Module(ASTNode):
     last_module = 0
 
-    def __init__(self, sim, name=None, block=None):
+    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False):
         super().__init__(sim)
         self._name = name if name is not None else "module_" + str(Module.last_module)
         self._variables = {}
         self._arrays = set()
         self._properties = set()
         self._block = block
+        self._resizes_to_check = resizes_to_check
+        self._check_properties_resize = check_properties_resize
         sim.add_module(self)
         Module.last_module += 1
 

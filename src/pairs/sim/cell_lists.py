@@ -44,15 +44,14 @@ class CellListsStencilBuild(Lowerable):
         index = None
         nall = 1
 
+        sim.module_name("build_cell_lists_stencil")
+        sim.check_resize(cl.ncells_capacity, cl.ncells)
+
         for d in range(sim.ndims()):
             cl.dim_ncells[d].set(Ceil(sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
             nall *= cl.dim_ncells[d]
 
         cl.ncells.set(nall)
-        for resize in Resize(sim, cl.ncells_capacity):
-            for _ in Filter(sim, cl.ncells >= cl.ncells_capacity):
-                resize.set(cl.ncells)
-
         for _ in sim.nest_mode():
             cl.nstencil.set(0)
             for d in range(sim.ndims()):
@@ -75,28 +74,24 @@ class CellListsBuild(Lowerable):
         cl = self.cell_lists
         grid = sim.grid
         positions = sim.position()
+        sim.module_name("build_cell_lists")
+        sim.check_resize(cl.cell_capacity, cl.cell_sizes)
 
-        for resize in Resize(sim, cl.cell_capacity):
-            for c in For(sim, 0, cl.ncells):
-                cl.cell_sizes[c].set(0)
+        for c in For(sim, 0, cl.ncells):
+            cl.cell_sizes[c].set(0)
 
-            for i in ParticleFor(sim, local_only=False):
-                cell_index = [
-                    Cast.int(sim, (positions[i][d] - grid.min(d)) / cl.spacing[d])
-                    for d in range(0, sim.ndims())]
+        for i in ParticleFor(sim, local_only=False):
+            cell_index = [
+                Cast.int(sim, (positions[i][d] - grid.min(d)) / cl.spacing[d])
+                for d in range(0, sim.ndims())]
 
-                flat_idx = None
-                for d in range(0, sim.ndims()):
-                    flat_idx = (cell_index[d] if flat_idx is None
-                                else flat_idx * cl.dim_ncells[d] + cell_index[d])
+            flat_idx = None
+            for d in range(0, sim.ndims()):
+                flat_idx = (cell_index[d] if flat_idx is None
+                            else flat_idx * cl.dim_ncells[d] + cell_index[d])
 
-                cell_size = cl.cell_sizes[flat_idx]
-                for _ in Filter(sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells)):
-                    for cond in Branch(sim, cell_size >= cl.cell_capacity):
-                        if cond:
-                            resize.set(cell_size)
-                        else:
-                            cl.cell_particles[flat_idx][cell_size].set(i)
-                            cl.particle_cell[i].set(flat_idx)
-
-                    cl.cell_sizes[flat_idx].set(cell_size + 1)
+            cell_size = cl.cell_sizes[flat_idx]
+            for _ in Filter(sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells)):
+                cl.particle_cell[i].set(flat_idx)
+                cl.cell_particles[flat_idx][cell_size].set(i)
+                cl.cell_sizes[flat_idx].set(cell_size + 1)

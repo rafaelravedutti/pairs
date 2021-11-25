@@ -5,9 +5,9 @@ from pairs.ir.module import Module
 def pairs_block(func):
     def inner(*args, **kwargs):
         sim = args[0].sim # self.sim
-        sim.clear_block()
+        sim.init_block()
         func(*args, **kwargs)
-        return sim.block
+        return sim._block
 
     return inner
 
@@ -15,9 +15,9 @@ def pairs_block(func):
 def pairs_device_block(func):
     def inner(*args, **kwargs):
         sim = args[0].sim # self.sim
-        sim.clear_block()
+        sim.init_block()
         func(*args, **kwargs)
-        return Module(sim, block=KernelBlock(sim, sim.block))
+        return Module(sim, block=KernelBlock(sim, sim._block))
 
     return inner
 
@@ -26,9 +26,9 @@ def pairs_device_block(func):
 def pairs_host_block(func):
     def inner(*args, **kwargs):
         sim = args[0].sim # self.sim
-        sim.clear_block()
+        sim.init_block()
         func(*args, **kwargs)
-        return KernelBlock(sim, sim.block, run_on_host=True)
+        return KernelBlock(sim, sim._block, run_on_host=True)
 
     return inner
 

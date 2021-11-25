@@ -151,7 +151,7 @@ def map_kernel_to_simulation(sim, node):
     contactNormal = sim.add_var('contactNormal', Type_Vector)
     penetrationDepth = sim.add_var('penetrationDepth', Type_Float)
 
-    self.clear_block()
+    self.init_block()
     pairs = ParticleInteraction(sim, 2)
     for i, j in pairs:
         return map_method_tree(sim, node, {

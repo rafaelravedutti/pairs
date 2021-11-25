@@ -227,6 +227,9 @@ class ASTTerm(ASTNode):
     def and_op(self, other):
         return BinOp(self.sim, self, other, '&&')
 
+    def or_op(self, other):
+        return BinOp(self.sim, self, other, '||')
+
     def cmp(lhs, rhs):
         return BinOp(lhs.sim, lhs, rhs, '==')
 
