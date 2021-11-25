@@ -164,11 +164,10 @@ class Simulation:
         self._check_properties_resize = True
 
     def check_resize(self, capacity, size):
-        size_array = [size] if not isinstance(size, list) else size
         if capacity not in self._resizes_to_check:
-            self._resizes_to_check[capacity] = size_array
+            self._resizes_to_check[capacity] = size
         else:
-            self._resizes_to_check[capacity] += size_array
+            raise Exception("Two sizes assigned to same capacity!")
 
     def build_kernel_block_with_statements(self):
         self.kernels.add_statement(
