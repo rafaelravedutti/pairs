@@ -242,6 +242,7 @@ class Simulation:
         move_loop_invariant_code(program)
         set_used_bin_ops(program)
         modularize(program)
+        merge_adjacent_blocks(program)
         add_device_copies(program)
 
         # For this part on, all bin ops are generated without usage verification

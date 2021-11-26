@@ -280,8 +280,7 @@ class CGen:
         if isinstance(ast_node, ArrayAccess):
             array_name = ast_node.array.name()
             acc_index = self.generate_expression(ast_node.index)
-
-            if mem:
+            if mem or ast_node.inlined is True:
                 return f"{array_name}[{acc_index}]"
 
             acc_ref = f"a{ast_node.id()}"
@@ -347,7 +346,7 @@ class CGen:
             assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
             prop_name = ast_node.prop.name()
 
-            if mem:
+            if mem or ast_node.inlined is True:
                 index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
                 index_g = self.generate_expression(index_expr)
                 return f"{prop_name}[{index_g}]"

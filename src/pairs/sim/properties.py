@@ -40,6 +40,7 @@ class PropertiesResetVolatile(Lowerable):
 
     @pairs_device_block
     def lower(self):
+        self.sim.module_name("reset_volatile_properties")
         for i in ParticleFor(self.sim):
             for p in self.sim.properties.volatiles():
                 p[i].set(0.0)

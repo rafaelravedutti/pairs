@@ -17,7 +17,11 @@ def pairs_device_block(func):
         sim = args[0].sim # self.sim
         sim.init_block()
         func(*args, **kwargs)
-        return Module(sim, block=KernelBlock(sim, sim._block))
+        return Module(sim,
+            name=sim._module_name,
+            block=KernelBlock(sim, sim._block),
+            resizes_to_check=sim._resizes_to_check,
+            check_properties_resize=sim._check_properties_resize)
 
     return inner
 

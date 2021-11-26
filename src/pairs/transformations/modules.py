@@ -1,4 +1,6 @@
+from pairs.ir.assign import Assign
 from pairs.ir.bin_op import BinOp
+from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.data_types import Type_Vector
 from pairs.ir.loops import While
@@ -108,11 +110,11 @@ class AddResizeLogic(Mutator):
                     resize_id = self.module_resizes[module].keys()[self.module_resizes[module].values().index(match_capacity)]
                     return Branch(ast_node.sim, check_value < match_capacity,
                                   Block(ast_node.sim, ast_node),
-                                  Block(ast_node.sim, ast_node.resizes[resize_id].set(check_value)))
+                                  Block(ast_node.sim, sim.resizes[resize_id].set(check_value)))
 
 
                 # Size is changed here, assigned value must be used for further checkings
-                # When size is array (i.e. neighbor list size), just use last assignment to it
+                # When size is of type array (i.e. neighbor list size), just use last assignment to it
                 # without checking accessed index (maybe this has to be changed at some point)
                 self.update[dest.array] = src
 
@@ -181,24 +183,24 @@ class ReplaceModulesByCalls(Mutator):
             branch_cond = None
 
             for r, c in self.module_resizes[ast_node].items():
-                init_stmts.append(Assign(sim, ast_node.resizes[r], 1))
-                reset_stmts.append(Assign(sim, ast_node.resizes[r], 0))
-                cond = ast_node.resizes[r] > 0
+                init_stmts.append(Assign(sim, sim.resizes[r], 1))
+                reset_stmts.append(Assign(sim, sim.resizes[r], 0))
+                cond = BinOp.inline(sim.resizes[r] > 0)
                 branch_cond = cond if branch_cond is None else BinOp.or_op(cond, branch_cond)
                 props_realloc = []
 
                 if properties.is_capacity(c):
                     for p in properties.all():
-                        sizes = [capacity, sim.ndims()] if p.type() == Type_Vector else [capacity]
-                        props_realloc.append([Realloc(sim, p, reduce(operator.mul, sizes)), UpdateProperty(sim, p, sizes)])
+                        sizes = [c, sim.ndims()] if p.type() == Type_Vector else [c]
+                        props_realloc += [Realloc(sim, p, reduce(operator.mul, sizes)), UpdateProperty(sim, p, sizes)]
 
                 resize_stmts.append(
-                    Filter(sim, ast_node.resizes[r] > 0,
-                        [Assign(sim, c, self.grow_fn(ast_node.resizes[r]))] +
+                    Filter(sim, sim.resizes[r] > 0, Block(sim,
+                        [Assign(sim, c, self.grow_fn(sim.resizes[r]))] +
                         [a.realloc() for a in c.bonded_arrays()] +
-                        props_realloc))
+                        props_realloc)))
 
-            return Block(sim, init_stmts + While(sim, branch_cond, reset_stmts + [call, resize_stmts]))
+            return Block(sim, init_stmts + [While(sim, branch_cond, Block(sim, reset_stmts + [call] + resize_stmts))])
 
         return call
 

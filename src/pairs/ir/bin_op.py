@@ -27,10 +27,10 @@ class BinOp(VectorExpression):
         return BinOp.last_bin_op - 1
 
     def inline(op):
-        if not isinstance(op, BinOp):
-            return op
+        if hasattr(op, "inline_rec") and callable(getattr(op, "inline_rec")):
+            return op.inline_rec()
 
-        return op.inline_rec()
+        return op
 
     def __init__(self, sim, lhs, rhs, op, mem=False):
         super().__init__(sim)
@@ -108,10 +108,10 @@ class BinOp(VectorExpression):
     def inline_rec(self):
         self.inlined = True
 
-        if isinstance(self.lhs, BinOp):
+        if hasattr(self.lhs, "inline_rec") and callable(getattr(self.lhs, "inline_rec")):
             self.lhs.inline_rec()
 
-        if isinstance(self.rhs, BinOp):
+        if hasattr(self.rhs, "inline_rec") and callable(getattr(self.rhs, "inline_rec")):
             self.rhs.inline_rec()
 
         return self

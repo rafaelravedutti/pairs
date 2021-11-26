@@ -100,6 +100,7 @@ class PropertyAccess(ASTTerm, VectorExpression):
         self.acc_id = PropertyAccess.new_id()
         self.prop = prop
         self.index = as_lit_ast(sim, index)
+        self.inlined = False
         self.generated = False
         self.terminals = set()
         self.decl = Decl(sim, self)
@@ -116,6 +117,10 @@ class PropertyAccess(ASTTerm, VectorExpression):
 
         assert index is not None, "Invalid data layout"
         return index
+
+    def inline_rec(self):
+        self.inlined = True
+        return self
 
     def propagate_through(self):
         return []

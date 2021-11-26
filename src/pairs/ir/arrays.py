@@ -115,6 +115,7 @@ class ArrayAccess(ASTTerm):
         self.array = array
         self.indexes = [as_lit_ast(sim, index)]
         self.index = None
+        self.inlined = False
         self.generated = False
         self.check_and_set_index()
 
@@ -125,6 +126,10 @@ class ArrayAccess(ASTTerm):
         assert self.index is None, "Number of indexes higher than array dimension!"
         self.indexes.append(as_lit_ast(self.sim, index))
         self.check_and_set_index()
+        return self
+
+    def inline_rec(self):
+        self.inlined = True
         return self
 
     def check_and_set_index(self):
