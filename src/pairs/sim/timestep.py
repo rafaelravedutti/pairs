@@ -28,16 +28,19 @@ class Timestep:
         stmts = item if not isinstance(item, Block) else item.statements()
         stmts_else = None
         ts = self.timestep_loop.iter()
+        self.sim.enter(self.block)
 
         if item_else is not None:
             stmts_else = item_else if not isinstance(item_else, Block) else item_else.statements()
 
         if exec_every > 0:
             self.block.add_statement(
-                Branch(self.sim, BinOp.cmp(ts % exec_every, 0), True if stmts_else is None else False,
+                Branch(self.sim, BinOp.inline(BinOp.cmp(ts % exec_every, 0)), True if stmts_else is None else False,
                 Block(self.sim, stmts), None if stmts_else is None else Block(self.sim, stmts_else)))
         else:
             self.block.add_statement(stmts)
+
+        self.sim.leave()
 
     def as_block(self):
         return Block(self.sim, [self.timestep_loop])

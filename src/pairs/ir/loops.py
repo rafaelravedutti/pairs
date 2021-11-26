@@ -76,7 +76,7 @@ class ParticleFor(For):
         return f"ParticleFor<>"
 
     def children(self):
-        return [self.sim.nlocal] + ([] if self.local_only else [self.sim.pbc.npbc])
+        return [self.block, self.sim.nlocal] + ([] if self.local_only else [self.sim.pbc.npbc])
 
 
 class While(ASTNode):

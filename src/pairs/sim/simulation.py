@@ -216,7 +216,9 @@ class Simulation:
             self.kernels
         ])
 
+        self.enter(timestep.block)
         timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1))
+        self.leave()
 
         body = Block.from_list(self, [
             self.setups,

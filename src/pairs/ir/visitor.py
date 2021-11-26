@@ -19,7 +19,14 @@ class Visitor:
         if method is not None:
             method(ast_node)
         else:
-            self.visit_children(ast_node)
+            for b in type(ast_node).__bases__:
+                method = self.get_method(f"visit_{b.__name__}")
+                if method is not None:
+                    method(ast_node)
+                    break
+
+            if method is None:
+                self.visit_children(ast_node)
 
     def visit_children(self, ast_node):
         for c in ast_node.children():
