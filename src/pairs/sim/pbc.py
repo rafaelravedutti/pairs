@@ -89,12 +89,12 @@ class SetupPBC(Lowerable):
         sim.check_resize(pbc_capacity, npbc)
 
         npbc.set(0)
-        for i in For(sim, 0, nlocal + npbc):
-            pos = positions[i]
-            last_id = nlocal + npbc
-            last_pos = positions[last_id]
+        for d in range(0, ndims):
+            for i in For(sim, 0, nlocal + npbc):
+                pos = positions[i]
+                last_id = nlocal + npbc
+                last_pos = positions[last_id]
 
-            for d in range(0, ndims):
                 grid_length = grid.length(d)
                 # TODO: VecFilter?
                 for _ in Filter(sim, pos[d] < grid.min(d) + cutneigh):

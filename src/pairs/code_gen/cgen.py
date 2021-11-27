@@ -326,7 +326,7 @@ class CGen:
 
         if isinstance(ast_node, Deref):
             var = self.generate_expression(ast_node.var)
-            return f"*{var}"
+            return f"(*{var})"
 
         if isinstance(ast_node, Iter):
             assert mem is False, "Iterator is not lvalue!"

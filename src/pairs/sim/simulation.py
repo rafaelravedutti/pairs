@@ -71,7 +71,15 @@ class Simulation:
         self.module_list.append(module)
 
     def modules(self):
-        return self.module_list
+        sorted_mods = []
+        main_mod = None
+        for m in self.module_list:
+            if m.name != 'main':
+                sorted_mods.append(m)
+            else:
+                main_mod = m
+
+        return sorted_mods + [main_mod]
 
     def ndims(self):
         return self.dims
