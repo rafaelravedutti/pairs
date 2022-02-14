@@ -19,16 +19,17 @@ class CellLists:
         self.spacing = spacing if isinstance(spacing, list) else [spacing for d in range(sim.ndims())]
         self.cutoff_radius = cutoff_radius
         self.nneighbor_cells = [math.ceil(cutoff_radius / self.spacing[d]) for d in range(sim.ndims())]
-        self.nstencil = self.sim.add_var('nstencil', Type_Int)
         self.nstencil_max = reduce((lambda x, y: x * y), [self.nneighbor_cells[d] * 2 + 1 for d in range(sim.ndims())])
-        self.ncells = self.sim.add_var('ncells', Type_Int, 1)
-        self.ncells_capacity = self.sim.add_var('ncells_capacity', Type_Int, 100)
-        self.dim_ncells = self.sim.add_static_array('dim_cells', self.sim.ndims(), Type_Int)
-        self.cell_capacity = self.sim.add_var('cell_capacity', Type_Int, 20)
-        self.cell_particles = self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Type_Int)
-        self.cell_sizes = self.sim.add_array('cell_sizes', self.ncells_capacity, Type_Int)
-        self.stencil = self.sim.add_array('stencil', self.nstencil_max, Type_Int)
-        self.particle_cell = self.sim.add_array('particle_cell', self.sim.particle_capacity, Type_Int)
+        # Data introduced in the simulation
+        self.nstencil           =   self.sim.add_var('nstencil', Type_Int)
+        self.ncells             =   self.sim.add_var('ncells', Type_Int, 1)
+        self.ncells_capacity    =   self.sim.add_var('ncells_capacity', Type_Int, 100)
+        self.cell_capacity      =   self.sim.add_var('cell_capacity', Type_Int, 20)
+        self.dim_ncells         =   self.sim.add_static_array('dim_cells', self.sim.ndims(), Type_Int)
+        self.cell_particles     =   self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Type_Int)
+        self.cell_sizes         =   self.sim.add_array('cell_sizes', self.ncells_capacity, Type_Int)
+        self.stencil            =   self.sim.add_array('stencil', self.nstencil_max, Type_Int)
+        self.particle_cell      =   self.sim.add_array('particle_cell', self.sim.particle_capacity, Type_Int)
 
 
 class CellListsStencilBuild(Lowerable):
