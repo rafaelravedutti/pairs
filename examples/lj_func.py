@@ -19,7 +19,7 @@ sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
 
-psim = pairs.simulation("lj_ns")
+psim = pairs.simulation("lj_ns", debug=True)
 psim.add_real_property('mass', 1.0)
 psim.add_position('position')
 psim.add_vector_property('velocity')

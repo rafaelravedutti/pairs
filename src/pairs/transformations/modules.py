@@ -115,9 +115,9 @@ class AddResizeLogic(Mutator):
                     resizes = list(self.module_resizes[module].keys())
                     capacities = list(self.module_resizes[module].values())
                     resize_id = resizes[capacities.index(match_capacity)]
-                    return Branch(ast_node.sim, src < match_capacity,
-                                  blk_if=Block(ast_node.sim, ast_node),
-                                  blk_else=Block(ast_node.sim, ast_node.sim.resizes[resize_id].set(src)))
+                    return Branch(ast_node.sim, src + 1 >= match_capacity,
+                                  blk_if=Block(ast_node.sim, ast_node.sim.resizes[resize_id].set(src)),
+                                  blk_else=Block(ast_node.sim, ast_node))
 
         return ast_node
 
@@ -181,7 +181,8 @@ class ReplaceModulesByCalls(Mutator):
 
                 if properties.is_capacity(c):
                     for p in properties.all():
-                        sizes = [c, sim.ndims()] if p.type() == Type_Vector else [c]
+                        new_capacity = sum(properties.capacities)
+                        sizes = [new_capacity, sim.ndims()] if p.type() == Type_Vector else [new_capacity]
                         props_realloc += [Realloc(sim, p, reduce(operator.mul, sizes)), UpdateProperty(sim, p, sizes)]
 
                 resize_stmts.append(

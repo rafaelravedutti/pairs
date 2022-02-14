@@ -32,8 +32,9 @@ class CGen:
             else 'bool'
         )
 
-    def __init__(self, output):
+    def __init__(self, output, debug=False):
         self.sim = None
+        self.debug = debug
         self.print = Printer(output)
 
     def assign_simulation(self, sim):
@@ -88,7 +89,15 @@ class CGen:
 
             self.print(f"void {module.name}({module_params}) {{")
             self.print.add_indent(4)
+
+            if self.debug:
+                self.generate_statement(Print(self.sim, module.name + " --- enter"))
+
             self.generate_statement(module.block)
+
+            if self.debug:
+                self.generate_statement(Print(self.sim, module.name + " --- exit"))
+
             self.print.add_indent(-4)
             self.print("}")
 
