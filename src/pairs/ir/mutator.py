@@ -66,10 +66,6 @@ class Mutator:
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
 
-    def mutate_KernelBlock(self, ast_node):
-        ast_node.block = self.mutate(ast_node.block)
-        return ast_node
-
     def mutate_ParticleFor(self, ast_node):
         return self.mutate_For(ast_node)
 

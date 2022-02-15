@@ -1,6 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl
-from pairs.ir.block import Block, KernelBlock
+from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
@@ -12,7 +12,7 @@ from pairs.ir.lit import Lit
 from pairs.ir.loops import For, Iter, ParticleFor, While
 from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
-from pairs.ir.module import Module_Call
+from pairs.ir.module import ModuleCall
 from pairs.ir.properties import Property, PropertyAccess, PropertyList, RegisterProperty, UpdateProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
@@ -176,11 +176,6 @@ class CGen:
         if isinstance(ast_node, DeviceCopy):
             self.print(f"pairs::copy_to_device({ast_node.prop.name()})")
 
-        if isinstance(ast_node, KernelBlock):
-            self.print.add_indent(-4)
-            self.generate_statement(ast_node.block)
-            self.print.add_indent(4) # Workaround for fixing indentation of kernels
-
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
             lower_range = None
@@ -210,7 +205,7 @@ class CGen:
             else:
                 self.print(f"{array_name} = ({tkw} *) malloc({size});")
 
-        if isinstance(ast_node, Module_Call):
+        if isinstance(ast_node, ModuleCall):
             module = ast_node.module
             module_params = ""
             for var in module.read_only_variables():

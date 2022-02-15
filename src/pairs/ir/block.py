@@ -19,20 +19,10 @@ def pairs_device_block(func):
         func(*args, **kwargs)
         return Module(sim,
             name=sim._module_name,
-            block=KernelBlock(sim, sim._block),
+            block=Block(sim, sim._block),
             resizes_to_check=sim._resizes_to_check,
-            check_properties_resize=sim._check_properties_resize)
-
-    return inner
-
-
-# TODO: Is this really useful? Or just pairs_block is enough?
-def pairs_host_block(func):
-    def inner(*args, **kwargs):
-        sim = args[0].sim # self.sim
-        sim.init_block()
-        func(*args, **kwargs)
-        return KernelBlock(sim, sim._block, run_on_host=True)
+            check_properties_resize=sim._check_properties_resize,
+            run_on_device=True)
 
     return inner
 
@@ -68,8 +58,6 @@ class Block(ASTNode):
     def merge_blocks(block1, block2):
         assert isinstance(block1, Block), "First block type is not Block!"
         assert isinstance(block2, Block), "Second block type is not Block!"
-        assert not isinstance(block1, KernelBlock), "Kernel blocks cannot be merged!"
-        assert not isinstance(block2, KernelBlock), "Kernel blocks cannot be merged!"
         return Block(block1.sim, block1.statements() + block2.statements())
 
     def from_list(sim, block_list):
@@ -83,28 +71,3 @@ class Block(ASTNode):
                 result_block.add_statement(block)
 
         return result_block
-
-
-class KernelBlock(ASTNode):
-    def __init__(self, sim, block, run_on_host=False):
-        super().__init__(sim)
-        self.block = block if isinstance(block, Block) else Block(sim, block)
-        self.run_on_host = run_on_host
-        self.props_accessed = {}
-
-    def add_property_access(self, prop, oper):
-        prop_key = prop.name()
-        if prop_key not in self.props_accessed:
-            self.props_accessed[prop_key] = oper
-
-        elif oper not in self.props_accessed[prop_key]:
-            self.props_accessed[prop_key] += oper
-
-    def children(self):
-        return [self.block]
-
-    def properties_to_synchronize(self):
-        return {p for p in self.props_accessed if self.props_accessed[p][0] == 'r'}
-
-    def writing_properties(self):
-        return {p for p in self.props_accessed if 'w' in self.props_accessed[p][0]}

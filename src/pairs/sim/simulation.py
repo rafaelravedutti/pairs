@@ -1,5 +1,5 @@
 from pairs.ir.arrays import Arrays
-from pairs.ir.block import Block, KernelBlock
+from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.data_types import Type_Int, Type_Float, Type_Vector
 from pairs.ir.layouts import Layout_AoS
@@ -181,9 +181,10 @@ class Simulation:
         self.kernels.add_statement(
             Module(self,
                 name=self._module_name,
-                block=KernelBlock(self, self._block),
+                block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
-                check_properties_resize=self._check_properties_resize))
+                check_properties_resize=self._check_properties_resize,
+                run_on_device=True))
 
     def add_statement(self, stmt):
         if not self.scope:

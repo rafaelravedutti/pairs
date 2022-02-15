@@ -7,7 +7,7 @@ from pairs.ir.data_types import Type_Vector
 from pairs.ir.lit import Lit
 from pairs.ir.loops import While
 from pairs.ir.memory import Realloc
-from pairs.ir.module import Module, Module_Call
+from pairs.ir.module import Module, ModuleCall
 from pairs.ir.mutator import Mutator
 from pairs.ir.properties import UpdateProperty
 from pairs.ir.variables import Var, Deref
@@ -38,11 +38,11 @@ class FetchModulesReferences(Visitor):
 
     def visit_Array(self, ast_node):
         for m in self.module_stack:
-            m.add_array(ast_node)
+            m.add_array(ast_node, self.writing)
 
     def visit_Property(self, ast_node):
         for m in self.module_stack:
-            m.add_property(ast_node)
+            m.add_property(ast_node, self.writing)
 
     def visit_Var(self, ast_node):
         for m in self.module_stack:
@@ -164,7 +164,7 @@ class ReplaceModulesByCalls(Mutator):
             return ast_node
 
         sim = ast_node.sim
-        call = Module_Call(sim, ast_node)
+        call = ModuleCall(sim, ast_node)
         if self.module_resizes[ast_node]:
             properties = sim.properties
             init_stmts = []
