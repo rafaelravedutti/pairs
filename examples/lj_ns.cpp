@@ -469,7 +469,7 @@ void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, d
         const double p14_0 = position[e311];
         const int e313 = i9 * 3;
         const int a40 = pbc_mult[e313];
-        const int e316 = a40 * e315;
+        const double e316 = a40 * e315;
         const double e317 = p14_0 + e316;
         position[e309] = e317;
         const int e318 = (*nlocal) + i9;
@@ -483,7 +483,7 @@ void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, d
         const int e323 = i9 * 3;
         const int e324 = e323 + 1;
         const int a42 = pbc_mult[e324];
-        const int e326 = a42 * e325;
+        const double e326 = a42 * e325;
         const double e327 = p16_1 + e326;
         position[e320] = e327;
         const int e328 = (*nlocal) + i9;
@@ -497,7 +497,7 @@ void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, d
         const int e333 = i9 * 3;
         const int e334 = e333 + 2;
         const int a44 = pbc_mult[e334];
-        const int e336 = a44 * e335;
+        const double e336 = a44 * e335;
         const double e337 = p18_2 + e336;
         position[e330] = e337;
     }
@@ -852,16 +852,16 @@ int main() {
         prop_hflags[0] = e525;
         reset_volatile_properties(nlocal, force);
         const unsigned long long int a125 = prop_dflags[0];
-        const unsigned long long int e526 = a125 & 2;
+        const unsigned long long int e526 = a125 & 8;
         const bool e527 = e526 == 0;
         if(e527) {
-            pairs::copy_to_device(position)
+            pairs::copy_to_device(force)
         }
         const unsigned long long int a126 = prop_dflags[0];
-        const unsigned long long int e528 = a126 & 8;
+        const unsigned long long int e528 = a126 & 2;
         const bool e529 = e528 == 0;
         if(e529) {
-            pairs::copy_to_device(force)
+            pairs::copy_to_device(position)
         }
         const unsigned long long int a128 = prop_dflags[0];
         const unsigned long long int e530 = a128 | 10;
@@ -871,28 +871,28 @@ int main() {
         prop_hflags[0] = e531;
         module_0(neighborlist_capacity, nlocal, neighborlists, numneighs, position, force);
         const unsigned long long int a131 = prop_dflags[0];
-        const unsigned long long int e532 = a131 & 2;
+        const unsigned long long int e532 = a131 & 1;
         const bool e533 = e532 == 0;
         if(e533) {
-            pairs::copy_to_device(position)
-        }
-        const unsigned long long int a132 = prop_dflags[0];
-        const unsigned long long int e534 = a132 & 4;
-        const bool e535 = e534 == 0;
-        if(e535) {
-            pairs::copy_to_device(velocity)
-        }
-        const unsigned long long int a133 = prop_dflags[0];
-        const unsigned long long int e536 = a133 & 1;
-        const bool e537 = e536 == 0;
-        if(e537) {
             pairs::copy_to_device(mass)
         }
+        const unsigned long long int a132 = prop_dflags[0];
+        const unsigned long long int e534 = a132 & 8;
+        const bool e535 = e534 == 0;
+        if(e535) {
+            pairs::copy_to_device(force)
+        }
+        const unsigned long long int a133 = prop_dflags[0];
+        const unsigned long long int e536 = a133 & 2;
+        const bool e537 = e536 == 0;
+        if(e537) {
+            pairs::copy_to_device(position)
+        }
         const unsigned long long int a134 = prop_dflags[0];
-        const unsigned long long int e538 = a134 & 8;
+        const unsigned long long int e538 = a134 & 4;
         const bool e539 = e538 == 0;
         if(e539) {
-            pairs::copy_to_device(force)
+            pairs::copy_to_device(velocity)
         }
         const unsigned long long int a136 = prop_dflags[0];
         const unsigned long long int e540 = a136 | 15;

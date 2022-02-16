@@ -97,6 +97,12 @@ class BinOp(VectorExpression):
         if lhs_type == rhs_type:
             return lhs_type
 
+        if lhs_type == Types.Vector or rhs_type == Types.Vector:
+            return Types.Vector
+
+        if Types.is_real(lhs_type) or Types.is_real(rhs_type):
+            return Types.Double
+
         if Types.is_integer(lhs_type) or Types.is_integer(rhs_type):
             if isinstance(lhs, Lit) or Lit.is_literal(lhs):
                 return rhs_type
@@ -106,12 +112,6 @@ class BinOp(VectorExpression):
 
             # TODO: Are more checkings required here to generate proper integer data type?
             return lhs_type
-
-        if lhs_type == Types.Vector or rhs_type == Types.Vector:
-            return Types.Vector
-
-        if Types.is_real(lhs_type) or Types.is_real(rhs_type):
-            return Types.Double
 
         return None
 

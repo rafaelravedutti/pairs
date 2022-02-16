@@ -26,7 +26,7 @@ class SimplifyExpressions(Mutator):
             return ast_node.rhs
 
         if ast_node.op == '*' and ast_node.lhs == 0:
-            return Lit(sim, 0 if ast_node.type() == Types.Int32 else 0.0)
+            return Lit(sim, 0 if Types.is_integer(ast_node.type()) else 0.0)
 
         return ast_node
 
