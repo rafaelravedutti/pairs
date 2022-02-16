@@ -63,6 +63,7 @@ class Simulation:
         self.expr_id = 0
         self.iter_id = 0
         self.vtk_file = None
+        self._target = None
         self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
 
@@ -214,7 +215,12 @@ class Simulation:
     def vtk_output(self, filename):
         self.vtk_file = filename
 
+    def target(self, target):
+        self._target = target
+
     def generate(self):
+        assert self._target is not None, "Target not specified!"
+
         timestep = Timestep(self, self.ntimesteps, [
             (EnforcePBC(self, self.pbc), 20),
             (SetupPBC(self, self.pbc), UpdatePBC(self, self.pbc), 20),
@@ -242,7 +248,8 @@ class Simulation:
         ])
 
         program = Module(self, name='main', block=Block.merge_blocks(decls, body))
-        add_copies = AddDeviceCopies(program)
+        if self._target.is_gpu():
+            add_copies = AddDeviceCopies(program)
 
         # Transformations
         lower_everything(program)
@@ -254,7 +261,9 @@ class Simulation:
         set_used_bin_ops(program)
         modularize(program)
         merge_adjacent_blocks(program)
-        add_copies.mutate()
+
+        if self._target.is_gpu():
+            add_copies.mutate()
 
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False
