@@ -98,10 +98,16 @@ class CGen:
 
     def generate_statement(self, ast_node, bypass_checking=False):
         if isinstance(ast_node, ArrayDecl):
-            tkw = Types.ctype2keyword(ast_node.array.type())
+            t = ast_node.array.type()
+            tkw = Types.ctype2keyword(t)
             size = self.generate_expression(BinOp.inline(ast_node.array.alloc_size()))
             if ast_node.array.is_static() and ast_node.array.init_value is not None:
                 v_str = str(ast_node.array.init_value)
+                if t == Types.Int64:
+                    v_str += "LL"
+                if t == Types.UInt64:
+                    v_str += "ULL"
+
                 init_string = v_str + (f", {v_str}" * (size - 1))
                 self.print(f"{tkw} {ast_node.array.name()}[{size}] = {{{init_string}}};")
             else:
