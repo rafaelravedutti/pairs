@@ -2,9 +2,9 @@ import clang.cindex
 from clang.cindex import CursorKind as kind
 from pairs.ast.block import Block
 from pairs.ast.branches import Branch
-from pairs.ast.data_types import Type_Float, Type_Vector
 from pairs.ast.math import Sqrt
 from pairs.ast.select import Select
+from pairs.ast.types import Types
 from pairs.sim.interaction import ParticleInteraction
 
 
@@ -147,9 +147,9 @@ def dot(sim, params):
 
 
 def map_kernel_to_simulation(sim, node):
-    contactPoint = sim.add_var('contactPoint', Type_Vector)
-    contactNormal = sim.add_var('contactNormal', Type_Vector)
-    penetrationDepth = sim.add_var('penetrationDepth', Type_Float)
+    contactPoint = sim.add_var('contactPoint', Types.Vector)
+    contactNormal = sim.add_var('contactNormal', Types.Vector)
+    penetrationDepth = sim.add_var('penetrationDepth', Types.Double)
 
     self.init_block()
     pairs = ParticleInteraction(sim, 2)

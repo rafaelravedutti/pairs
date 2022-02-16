@@ -1,4 +1,4 @@
-from pairs.ir.data_types import Type_Float
+from pairs.ir.types import Types
 
 
 class Grid:
@@ -56,6 +56,6 @@ class MutableGrid(Grid):
     def __init__(self, sim, ndims):
         self.id = MutableGrid.last_id
         prefix = f"grid{self.id}_"
-        config = [[sim.add_var(f"{prefix}d{d}_min", Type_Float), sim.add_var(f"{prefix}d{d}_max", Type_Float)] for d in range(ndims)]
+        config = [[sim.add_var(f"{prefix}d{d}_min", Types.Double), sim.add_var(f"{prefix}d{d}_max", Types.Double)] for d in range(ndims)]
         super().__init__(sim, config)
         MutableGrid.last_id += 1

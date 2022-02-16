@@ -1,7 +1,7 @@
 from pairs.ir.block import pairs_block
-from pairs.ir.data_types import Type_Float
 from pairs.ir.functions import Call_Int
 from pairs.ir.properties import PropertyList
+from pairs.ir.types import Types
 from pairs.sim.grid import MutableGrid
 from pairs.sim.lowerable import Lowerable
 
@@ -12,7 +12,7 @@ class ReadFromFile(Lowerable):
         self.filename = filename
         self.props = PropertyList(sim, props)
         self.grid = MutableGrid(sim, sim.ndims())
-        self.grid_buffer = self.sim.add_static_array("grid_buffer", [self.sim.ndims() * 2], Type_Float)
+        self.grid_buffer = self.sim.add_static_array("grid_buffer", [self.sim.ndims() * 2], Types.Double)
 
     @pairs_block
     def lower(self):

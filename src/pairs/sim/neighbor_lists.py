@@ -1,20 +1,19 @@
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
-from pairs.ir.data_types import Type_Int
 from pairs.ir.loops import ParticleFor
+from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.interaction import ParticleInteraction
 from pairs.sim.lowerable import Lowerable
-from pairs.sim.resize import Resize
 
 
 class NeighborLists:
     def __init__(self, cell_lists):
         self.sim = cell_lists.sim
         self.cell_lists = cell_lists
-        self.capacity = self.sim.add_var('neighborlist_capacity', Type_Int, 32)
-        self.neighborlists = self.sim.add_array('neighborlists', [self.sim.particle_capacity, self.capacity], Type_Int)
-        self.numneighs = self.sim.add_array('numneighs', self.sim.particle_capacity, Type_Int)
+        self.capacity = self.sim.add_var('neighborlist_capacity', Types.Int32, 32)
+        self.neighborlists = self.sim.add_array('neighborlists', [self.sim.particle_capacity, self.capacity], Types.Int32)
+        self.numneighs = self.sim.add_array('numneighs', self.sim.particle_capacity, Types.Int32)
 
 
 class NeighborListsBuild(Lowerable):

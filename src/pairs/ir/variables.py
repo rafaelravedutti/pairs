@@ -35,7 +35,7 @@ class Var(ASTTerm):
         self.var_bonded_arrays = []
 
     def __str__(self):
-        return f"Var<name: {self.var_name}, type: {self.var_type}>"
+        return f"Var<{self.var_name}>"
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
@@ -75,7 +75,7 @@ class Deref(ASTTerm):
         self._var = var
 
     def __str__(self):
-        return f"Deref<var: {self.var.name()}>"
+        return f"Deref<{self.var.name()}>"
 
     @property
     def var(self):

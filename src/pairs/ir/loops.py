@@ -2,8 +2,8 @@ from pairs.ir.ast_node import ASTNode
 from pairs.ir.bin_op import BinOp, ASTTerm
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
-from pairs.ir.data_types import Type_Int
-from pairs.ir.lit import as_lit_ast
+from pairs.ir.lit import Lit
+from pairs.ir.types import Types
 
 
 class Iter(ASTTerm):
@@ -25,7 +25,7 @@ class Iter(ASTTerm):
         return f"i{self.iter_id}"
 
     def type(self):
-        return Type_Int
+        return Types.Int32
 
     def __eq__(self, other):
         if isinstance(other, Iter):
@@ -44,12 +44,12 @@ class For(ASTNode):
     def __init__(self, sim, range_min, range_max, block=None):
         super().__init__(sim)
         self.iterator = Iter(sim, self)
-        self.min = as_lit_ast(sim, range_min)
-        self.max = as_lit_ast(sim, range_max)
+        self.min = Lit.cvt(sim, range_min)
+        self.max = Lit.cvt(sim, range_max)
         self.block = Block(sim, []) if block is None else block
 
     def __str__(self):
-        return f"For<min: {self.min}, max: {self.max}>"
+        return f"For<{self.iterator}, {self.min} ... {self.max}>"
 
     def iter(self):
         return self.iterator
@@ -73,7 +73,7 @@ class ParticleFor(For):
         self.local_only = local_only
 
     def __str__(self):
-        return f"ParticleFor<>"
+        return f"ParticleFor<self.iterator>"
 
     def children(self):
         return [self.block, self.sim.nlocal] + ([] if self.local_only else [self.sim.pbc.npbc])

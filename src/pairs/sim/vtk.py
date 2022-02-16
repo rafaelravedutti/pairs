@@ -1,7 +1,7 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.block import pairs_block
 from pairs.ir.functions import Call_Void
-from pairs.ir.lit import as_lit_ast
+from pairs.ir.lit import Lit 
 from pairs.sim.lowerable import Lowerable
 
 
@@ -9,7 +9,7 @@ class VTKWrite(Lowerable):
     def __init__(self, sim, filename, timestep):
         super().__init__(sim)
         self.filename = filename
-        self.timestep = as_lit_ast(sim, timestep)
+        self.timestep = Lit.cvt(sim, timestep)
 
     @pairs_block
     def lower(self):

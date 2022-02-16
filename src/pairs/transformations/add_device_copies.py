@@ -1,14 +1,21 @@
-from pairs.ir.device import DeviceCopy
+import math
+from pairs.ir.assign import Assign
+from pairs.ir.bin_op import BinOp
+from pairs.ir.block import Block
+from pairs.ir.branches import Filter
+from pairs.ir.device import CopyToDevice, CopyToHost
 from pairs.ir.module import ModuleCall
 from pairs.ir.mutator import Mutator
-from pairs.ir.visitor import Visitor
+from pairs.ir.types import Types
 
 
 class AddDeviceCopies(Mutator):
     def __init__(self, ast):
         super().__init__(ast)
-        self.synchronized_props = set()
-        self.props_to_copy = {}
+        nprops = len(ast.sim.properties.all())
+        self.nflags = math.ceil(nprops / 64.0)
+        self.prop_hflags = ast.sim.add_static_array('prop_hflags', self.nflags, Types.UInt64, init_value=0xffffffffffffffff)
+        self.prop_dflags = ast.sim.add_static_array('prop_dflags', self.nflags, Types.UInt64, init_value=0)
 
     def mutate_Block(self, ast_node):
         new_stmts = []
@@ -16,23 +23,42 @@ class AddDeviceCopies(Mutator):
 
         for s in stmts:
             if s is not None:
-                s_id = id(s)
-                if isinstance(s, ModuleCall) and s_id in self.props_to_copy:
-                    new_stmts = new_stmts + [DeviceCopy(ast_node.sim, p) for p in self.props_to_copy[s_id]]
+                if isinstance(s, ModuleCall):
+                    sync_flags = [0] * self.nflags
+                    dirty_flags = [0] * self.nflags
+
+                    for p in s.module.properties_to_synchronize():
+                        flag_index = p.id() // 64
+                        bit = p.id() % 64
+
+                        if s.module.run_on_device:
+                            new_stmts += [
+                                Filter(s.sim,
+                                    BinOp.cmp(self.prop_dflags[flag_index] & (1 << bit), 0),
+                                    Block(s.sim, CopyToDevice(s.sim, p)))]
+                        else:
+                            new_stmts += [
+                                Filter(s.sim,
+                                    BinOp.cmp(self.prop_hflags[flag_index] & (1 << bit), 0),
+                                    Block(s.sim, CopyToHost(s.sim, p)))]
+
+                        sync_flags[flag_index] |= (1 << bit)
+
+                    for p in s.module.write_properties():
+                        flag_index = p.id() // 64
+                        bit = p.id() % 64
+                        dirty_flags[flag_index] |= (1 << bit)
+
+                    if s.module.run_on_device:
+                        new_stmts += \
+                            [Assign(s.sim, self.prop_dflags[i], self.prop_dflags[i] | sync_flags[i]) for i in range(self.nflags)] + \
+                            [Assign(s.sim, self.prop_hflags[i], self.prop_hflags[i] & ~dirty_flags[i]) for i in range(self.nflags)]
+                    else:
+                        new_stmts += \
+                            [Assign(s.sim, self.prop_hflags[i], self.prop_hflags[i] | sync_flags[i]) for i in range(self.nflags)] + \
+                            [Assign(s.sim, self.prop_dflags[i], self.prop_dflags[i] & ~dirty_flags[i]) for i in range(self.nflags)]
 
                 new_stmts.append(s)
 
         ast_node.stmts = new_stmts
         return ast_node
-
-    def mutate_ModuleCall(self, ast_node):
-        copying_properties = {p for p in ast_node.module.properties_to_synchronize() if p not in self.synchronized_props}
-        self.props_to_copy[id(ast_node)] = copying_properties
-        self.synchronized_props.update(copying_properties)
-        self.synchronized_props -= ast_node.module.write_properties()
-        return ast_node
-
-
-def add_device_copies(ast):
-    add_copies = AddDeviceCopies(ast)
-    add_copies.mutate()

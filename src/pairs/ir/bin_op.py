@@ -1,7 +1,7 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.assign import Assign
-from pairs.ir.data_types import Type_Float, Type_Bool, Type_Vector
-from pairs.ir.lit import as_lit_ast
+from pairs.ir.lit import Lit
+from pairs.ir.types import Types
 from pairs.ir.vector_expr import VectorExpression
 
 
@@ -13,7 +13,7 @@ class Decl(ASTNode):
         sim.add_statement(self)
 
     def __str__(self):
-        return f"Decl<elem: self.elem>"
+        return f"Decl<self.elem>"
 
     def children(self):
         return [self.elem]
@@ -35,8 +35,8 @@ class BinOp(VectorExpression):
     def __init__(self, sim, lhs, rhs, op, mem=False):
         super().__init__(sim)
         self.bin_op_id = BinOp.new_id()
-        self.lhs = as_lit_ast(sim, lhs)
-        self.rhs = as_lit_ast(sim, rhs)
+        self.lhs = Lit.cvt(sim, lhs)
+        self.rhs = Lit.cvt(sim, rhs)
         self.op = op
         self.mem = mem
         self.inlined = False
@@ -47,15 +47,15 @@ class BinOp(VectorExpression):
 
     def reassign(self, lhs, rhs, op):
         assert self.generated is False, "Error on reassign: BinOp {} already generated!".format(self.bin_op_id)
-        self.lhs = as_lit_ast(self.sim, lhs)
-        self.rhs = as_lit_ast(self.sim, rhs)
+        self.lhs = Lit.cvt(self.sim, lhs)
+        self.rhs = Lit.cvt(self.sim, rhs)
         self.op = op
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
 
     def __str__(self):
         a = self.lhs.id() if isinstance(self.lhs, BinOp) else self.lhs
         b = self.rhs.id() if isinstance(self.rhs, BinOp) else self.rhs
-        return f"BinOp<a: {a}, b: {b}, op: {self.op}>"
+        return f"BinOp<{a} {self.op} {b}>"
 
     def match(self, bin_op):
         return self.lhs == bin_op.lhs and self.rhs == bin_op.rhs and self.op == bin_op.operator()
@@ -86,22 +86,32 @@ class BinOp(VectorExpression):
         rhs_type = rhs.type()
 
         if op in ['>', '<', '>=', '<=', '==', '!=']:
-            return Type_Bool
+            return Types.Boolean
 
         if op == '[]':
-            if lhs_type == Type_Vector:
-                return Type_Float
+            if lhs_type == Types.Vector:
+                return Types.Double
 
             return lhs_type
 
         if lhs_type == rhs_type:
             return lhs_type
 
-        if lhs_type == Type_Vector or rhs_type == Type_Vector:
-            return Type_Vector
+        if Types.is_integer(lhs_type) or Types.is_integer(rhs_type):
+            if isinstance(lhs, Lit) or Lit.is_literal(lhs):
+                return rhs_type
 
-        if lhs_type == Type_Float or rhs_type == Type_Float:
-            return Type_Float
+            if isinstance(rhs, Lit) or Lit.is_literal(rhs):
+                return lhs_type
+
+            # TODO: Are more checkings required here to generate proper integer data type?
+            return lhs_type
+
+        if lhs_type == Types.Vector or rhs_type == Types.Vector:
+            return Types.Vector
+
+        if Types.is_real(lhs_type) or Types.is_real(rhs_type):
+            return Types.Double
 
         return None
 
@@ -136,7 +146,7 @@ class BinOp(VectorExpression):
 
     def __getitem__(self, index):
         super().__getitem__(index)
-        return VectorAccess(self.sim, self, as_lit_ast(self.sim, index))
+        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
 
     def __add__(self, other):
         return BinOp(self.sim, self, other, '+')
@@ -224,6 +234,18 @@ class ASTTerm(ASTNode):
     def __ge__(self, other):
         return BinOp(self.sim, self, other, '>=')
 
+    def __and__(self, other):
+        return BinOp(self.sim, self, other, '&')
+
+    def __or__(self, other):
+        return BinOp(self.sim, self, other, '|')
+
+    def __xor__(self, other):
+        return BinOp(self.sim, self, other, '^')
+
+    def __invert__(self):
+        return BinOp(self.sim, self, None, '~')
+
     def and_op(self, other):
         return BinOp(self.sim, self, other, '&&')
 
@@ -250,7 +272,7 @@ class VectorAccess(ASTTerm):
         self.index = index
 
     def type(self):
-        return Type_Float
+        return Types.Double
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))

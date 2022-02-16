@@ -1,6 +1,6 @@
 from pairs.ir.bin_op import BinOp
-from pairs.ir.data_types import Type_Float, Type_Vector
 from pairs.ir.mutator import Mutator
+from pairs.ir.types import Types
 
 
 class PrioritizeScalarOps(Mutator):
@@ -15,30 +15,30 @@ class PrioritizeScalarOps(Mutator):
         ast_node.lhs = self.mutate(ast_node.lhs)
         ast_node.rhs = self.mutate(ast_node.rhs)
 
-        if ast_node.type() == Type_Vector:
+        if ast_node.type() == Types.Vector:
             lhs = ast_node.lhs
             rhs = ast_node.rhs
             op = ast_node.op
 
-            if( isinstance(lhs, BinOp) and lhs.type() == Type_Vector and rhs.type() == Type_Float and \
+            if( isinstance(lhs, BinOp) and lhs.type() == Types.Vector and Types.is_real(rhs.type()) and \
                 PrioritizeScalarOps.can_rearrange(op, lhs.op) ):
 
-                if lhs.lhs.type() == Type_Vector and lhs.rhs.type() == Type_Float:
+                if lhs.lhs.type() == Types.Vector and Types.is_real(lhs.rhs.type()):
                     ast_node.reassign(lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
                     #return BinOp(sim, lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
 
-                if lhs.rhs.type() == Type_Vector and lhs.lhs.type() == Type_Float:
+                if lhs.rhs.type() == Types.Vector and Types.is_real(lhs.lhs.type()):
                     ast_node.reassign(lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
                     #return BinOp(sim, lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
 
-            if( isinstance(rhs, BinOp) and rhs.type() == Type_Vector and lhs.type() == Type_Float and \
+            if( isinstance(rhs, BinOp) and rhs.type() == Types.Vector and Types.is_real(lhs.type()) and \
                 PrioritizeScalarOps.can_rearrange(op, rhs.op) ):
 
-                if rhs.lhs.type() == Type_Vector and rhs.rhs.type() == Type_Float:
+                if rhs.lhs.type() == Types.Vector and Types.is_real(rhs.rhs.type()):
                     ast_node.reassign(rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
                     #return BinOp(sim, rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
 
-                if rhs.rhs.type() == Type_Vector and rhs.lhs.type() == Type_Float:
+                if rhs.rhs.type() == Types.Vector and Types.is_real(rhs.lhs.type()):
                     ast_node.reassign(rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
                     #return BinOp(sim, rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
 

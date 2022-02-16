@@ -1,5 +1,5 @@
 from pairs.ir.bin_op import ASTTerm
-from pairs.ir.data_types import Type_Int, Type_Float
+from pairs.ir.types import Types
 
 
 class Sqrt(ASTTerm):
@@ -8,7 +8,7 @@ class Sqrt(ASTTerm):
         self.expr = expr
 
     def __str__(self):
-        return f"Sqrt<expr: {self.expr}>"
+        return f"Sqrt<{self.expr}>"
 
     def type(self):
         return self.expr.type()
@@ -19,15 +19,15 @@ class Sqrt(ASTTerm):
 
 class Ceil(ASTTerm):
     def __init__(self, sim, expr):
-        assert expr.type() == Type_Float, "Expression must be of floating-point type!"
+        assert Types.is_real(expr.type()), "Expression must be of real type!"
         super().__init__(sim)
         self.expr = expr
 
     def __str__(self):
-        return f"Ceil<expr: {self.expr}>"
+        return f"Ceil<{self.expr}>"
 
     def type(self):
-        return Type_Int
+        return Types.Int32
 
     def children(self):
         return [self.expr]

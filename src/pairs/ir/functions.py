@@ -1,13 +1,13 @@
 from pairs.ir.bin_op import ASTTerm
-from pairs.ir.data_types import Type_Int, Type_Invalid
-from pairs.ir.lit import as_lit_ast
+from pairs.ir.lit import Lit
+from pairs.ir.types import Types
 
 
 class Call(ASTTerm):
     def __init__(self, sim, func_name, params, return_type):
         super().__init__(sim)
         self.func_name = func_name
-        self.params = [as_lit_ast(sim, p) for p in params]
+        self.params = [Lit.cvt(sim, p) for p in params]
         self.return_type = return_type
 
     def name(self):
@@ -25,10 +25,10 @@ class Call(ASTTerm):
 
 class Call_Int(Call):
     def __init__(self, sim, func_name, parameters):
-        super().__init__(sim, func_name, parameters, Type_Int)
+        super().__init__(sim, func_name, parameters, Types.Int32)
 
 
 class Call_Void(Call):
     def __init__(self, sim, func_name, parameters):
-        super().__init__(sim, func_name, parameters, Type_Invalid)
+        super().__init__(sim, func_name, parameters, Types.Invalid)
         sim.add_statement(self)

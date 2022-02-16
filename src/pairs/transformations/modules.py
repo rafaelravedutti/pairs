@@ -3,13 +3,13 @@ from pairs.ir.assign import Assign
 from pairs.ir.bin_op import BinOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch, Filter
-from pairs.ir.data_types import Type_Vector
 from pairs.ir.lit import Lit
 from pairs.ir.loops import While
 from pairs.ir.memory import Realloc
 from pairs.ir.module import Module, ModuleCall
 from pairs.ir.mutator import Mutator
 from pairs.ir.properties import UpdateProperty
+from pairs.ir.types import Types
 from pairs.ir.variables import Var, Deref
 from pairs.ir.visitor import Visitor
 from functools import reduce
@@ -182,7 +182,7 @@ class ReplaceModulesByCalls(Mutator):
                 if properties.is_capacity(c):
                     for p in properties.all():
                         new_capacity = sum(properties.capacities)
-                        sizes = [new_capacity, sim.ndims()] if p.type() == Type_Vector else [new_capacity]
+                        sizes = [new_capacity, sim.ndims()] if p.type() == Types.Vector else [new_capacity]
                         props_realloc += [Realloc(sim, p, reduce(operator.mul, sizes)), UpdateProperty(sim, p, sizes)]
 
                 resize_stmts.append(

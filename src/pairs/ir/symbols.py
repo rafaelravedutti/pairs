@@ -10,7 +10,7 @@ class Symbol(ASTTerm):
         self.assign_to = None
 
     def __str__(self):
-        return f"Symbol<type: {self.var_type}>"
+        return f"Symbol<{self.var_type}>"
 
     def assign(self, node):
         self.assign_to = node

@@ -1,11 +1,11 @@
 from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
-from pairs.ir.data_types import Type_Int, Type_Float, Type_Vector
-from pairs.ir.layouts import Layout_AoS
+from pairs.ir.layouts import Layouts
 from pairs.ir.module import Module
 from pairs.ir.properties import Properties
 from pairs.ir.symbols import Symbol
+from pairs.ir.types import Types
 from pairs.ir.variables import Variables
 from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
@@ -20,7 +20,7 @@ from pairs.sim.read_from_file import ReadFromFile
 from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
-from pairs.transformations.add_device_copies import add_device_copies
+from pairs.transformations.add_device_copies import AddDeviceCopies
 from pairs.transformations.prioritize_scalar_ops import prioritize_scalar_ops
 from pairs.transformations.set_used_bin_ops import set_used_bin_ops
 from pairs.transformations.simplify import simplify_expressions
@@ -39,10 +39,10 @@ class Simulation:
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
-        self.particle_capacity = self.add_var('particle_capacity', Type_Int, particle_capacity)
-        self.nlocal = self.add_var('nlocal', Type_Int)
-        self.nghost = self.add_var('nghost', Type_Int)
-        self.resizes = self.add_array('resizes', 3, Type_Int)
+        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
+        self.nlocal = self.add_var('nlocal', Types.Int32)
+        self.nghost = self.add_var('nghost', Types.Int32)
+        self.resizes = self.add_array('resizes', 3, Types.Int32)
         self.grid = None
         self.cell_lists = None
         self.neighbor_lists = None
@@ -86,16 +86,16 @@ class Simulation:
 
     def add_real_property(self, prop_name, value=0.0, vol=False):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, Type_Float, value, vol)
+        return self.properties.add(prop_name, Types.Double, value, vol)
 
-    def add_position(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layout_AoS):
+    def add_position(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layouts.AoS):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        self.position_prop = self.properties.add(prop_name, Type_Vector, value, vol, layout)
+        self.position_prop = self.properties.add(prop_name, Types.Vector, value, vol, layout)
         return self.position_prop
 
-    def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layout_AoS):
+    def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layouts.AoS):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, Type_Vector, value, vol, layout)
+        return self.properties.add(prop_name, Types.Vector, value, vol, layout)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
@@ -103,13 +103,13 @@ class Simulation:
     def position(self):
         return self.position_prop
 
-    def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
+    def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layouts.AoS):
         assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
         return self.arrays.add(arr_name, arr_sizes, arr_type, arr_layout)
 
-    def add_static_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layout_AoS):
+    def add_static_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layouts.AoS, init_value=None):
         assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
-        return self.arrays.add_static(arr_name, arr_sizes, arr_type, arr_layout)
+        return self.arrays.add_static(arr_name, arr_sizes, arr_type, arr_layout, init_value=init_value)
 
     def array(self, arr_name):
         return self.arrays.find(arr_name)
@@ -215,7 +215,6 @@ class Simulation:
         self.vtk_file = filename
 
     def generate(self):
-        # For timestep in Timestep(self):
         timestep = Timestep(self, self.ntimesteps, [
             (EnforcePBC(self, self.pbc), 20),
             (SetupPBC(self, self.pbc), UpdatePBC(self, self.pbc), 20),
@@ -243,6 +242,7 @@ class Simulation:
         ])
 
         program = Module(self, name='main', block=Block.merge_blocks(decls, body))
+        add_copies = AddDeviceCopies(program)
 
         # Transformations
         lower_everything(program)
@@ -254,7 +254,7 @@ class Simulation:
         set_used_bin_ops(program)
         modularize(program)
         merge_adjacent_blocks(program)
-        add_device_copies(program)
+        add_copies.mutate()
 
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False

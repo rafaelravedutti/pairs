@@ -2,9 +2,8 @@ from functools import reduce
 from pairs.ir.assign import Assign
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.bin_op import BinOp, ASTTerm
-from pairs.ir.data_types import Type_Array
-from pairs.ir.layouts import Layout_AoS, Layout_SoA
-from pairs.ir.lit import as_lit_ast
+from pairs.ir.layouts import Layouts
+from pairs.ir.lit import Lit
 from pairs.ir.memory import Realloc
 from pairs.ir.variables import Var
 
@@ -15,13 +14,13 @@ class Arrays:
         self.arrays = []
         self.narrays = 0
 
-    def add(self, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+    def add(self, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
         array = ArrayND(self.sim, a_name, a_sizes, a_type, a_layout)
         self.arrays.append(array)
         return array
 
-    def add_static(self, a_name, a_sizes, a_type, a_layout=Layout_AoS):
-        array = ArrayStatic(self.sim, a_name, a_sizes, a_type, a_layout)
+    def add_static(self, a_name, a_sizes, a_type, a_layout=Layouts.AoS, init_value=None):
+        array = ArrayStatic(self.sim, a_name, a_sizes, a_type, a_layout, init_value)
         self.arrays.append(array)
         return array
 
@@ -37,12 +36,12 @@ class Arrays:
 
 
 class Array(ASTNode):
-    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
         super().__init__(sim)
         self.arr_name = a_name
         self.arr_sizes = \
-            [as_lit_ast(sim, a_sizes)] if not isinstance(a_sizes, list) \
-            else [as_lit_ast(sim, s) for s in a_sizes]
+            [Lit.cvt(sim, a_sizes)] if not isinstance(a_sizes, list) \
+            else [Lit.cvt(sim, s) for s in a_sizes]
         self.arr_type = a_type
         self.arr_layout = a_layout
         self.arr_ndims = len(self.arr_sizes)
@@ -77,26 +76,24 @@ class Array(ASTNode):
 
 
 class ArrayStatic(Array):
-    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS, init_value=None):
         super().__init__(sim, a_name, a_sizes, a_type, a_layout)
+        self.init_value = init_value
         self.static = True
 
     def __str__(self):
-        return (f"ArrayStatic<name: {self.arr_name}, " +
-                f"sizes: {self.arr_sizes}, " +
-                f"type: {self.arr_type}>")
+        return f"ArrayStatic<{self.arr_name}>"
 
     def realloc(self):
         raise Exception("Static array cannot be reallocated!")
 
 
 class ArrayND(Array):
-    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layout_AoS):
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
         super().__init__(sim, a_name, a_sizes, a_type, a_layout)
 
     def __str__(self):
-        return (f"ArrayND<name: {self.arr_name}, sizes: {self.arr_sizes}, " +
-                f"type: {self.arr_type}>")
+        return f"ArrayND<{self.arr_name}>"
 
     def realloc(self):
         return Realloc(self.sim, self, self.alloc_size())
@@ -113,18 +110,18 @@ class ArrayAccess(ASTTerm):
         super().__init__(sim)
         self.acc_id = ArrayAccess.new_id()
         self.array = array
-        self.indexes = [as_lit_ast(sim, index)]
+        self.indexes = [Lit.cvt(sim, index)]
         self.index = None
         self.inlined = False
         self.generated = False
         self.check_and_set_index()
 
     def __str__(self):
-        return f"ArrayAccess<array: {self.array}, indexes: {self.indexes}>"
+        return f"ArrayAccess<{self.array}, {self.indexes}>"
 
     def __getitem__(self, index):
         assert self.index is None, "Number of indexes higher than array dimension!"
-        self.indexes.append(as_lit_ast(self.sim, index))
+        self.indexes.append(Lit.cvt(self.sim, index))
         self.check_and_set_index()
         return self
 
@@ -137,12 +134,12 @@ class ArrayAccess(ASTTerm):
             sizes = self.array.sizes()
             layout = self.array.layout()
 
-            if layout == Layout_AoS:
+            if layout == Layouts.AoS:
                 for s in range(0, len(sizes)):
                     self.index = (self.indexes[s] if self.index is None
                                   else self.index * sizes[s] + self.indexes[s])
 
-            elif layout == Layout_SoA:
+            elif layout == Layouts.SoA:
                 for s in reversed(range(0, len(sizes))):
                     self.index = (self.indexes[s] if self.index is None
                                   else self.index * sizes[s] + self.indexes[s])
@@ -150,7 +147,7 @@ class ArrayAccess(ASTTerm):
             else:
                 raise Exception("Invalid data layout!")
 
-            self.index = as_lit_ast(self.sim, self.index)
+            self.index = Lit.cvt(self.sim, self.index)
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
@@ -163,7 +160,7 @@ class ArrayAccess(ASTTerm):
 
     def type(self):
         return self.array.type()
-        # return self.array.type() if self.index is None else Type_Array
+        # return self.array.type() if self.index is None else Types.Array
 
     def children(self):
         if self.index is not None:

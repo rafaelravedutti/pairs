@@ -1,12 +1,12 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.block import Block
-from pairs.ir.lit import as_lit_ast
+from pairs.ir.lit import Lit
 
 
 class Branch(ASTNode):
     def __init__(self, sim, cond, one_way=False, blk_if=None, blk_else=None):
         self.sim = sim
-        self.cond = as_lit_ast(sim, cond)
+        self.cond = Lit.cvt(sim, cond)
         self.switch = True
         self.block_if = Block(sim, []) if blk_if is None else blk_if
         self.block_else = None if one_way else Block(sim, []) if blk_else is None else blk_else

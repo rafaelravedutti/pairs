@@ -1,6 +1,6 @@
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.data_types import Type_Vector
 from pairs.ir.lit import Lit
+from pairs.ir.types import Types
 
 
 class VectorExpression(ASTNode):
@@ -34,7 +34,7 @@ class VectorExpression(ASTNode):
                 p.propagate_vector_index(index)
 
     def is_vector_kind(self):
-        return self.type() == Type_Vector
+        return self.type() == Types.Vector
 
     # Default is to propagate through children, but this can be overridden
     def propagate_through(self):
@@ -44,6 +44,6 @@ class VectorExpression(ASTNode):
         return self.vector_expressions()
 
     def __getitem__(self, index):
-        assert self.type() == Type_Vector, "Cannot use operator [] on specified type!"
+        assert self.type() == Types.Vector, "Cannot use operator [] on specified type!"
         self.propagate_vector_index(index)
         return self

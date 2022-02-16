@@ -1,8 +1,8 @@
 from pairs.ir.block import pairs_block, pairs_device_block
-from pairs.ir.data_types import Type_Float, Type_Vector
 from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.properties import RegisterProperty, UpdateProperty
+from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.lowerable import Lowerable
 from functools import reduce
@@ -19,9 +19,9 @@ class PropertiesAlloc(Lowerable):
         capacity = sum(self.sim.properties.capacities)
         for p in self.sim.properties.all():
             sizes = []
-            if p.type() == Type_Float:
+            if Types.is_real(p.type()):
                 sizes = [capacity]
-            elif p.type() == Type_Vector:
+            elif p.type() == Types.Vector:
                 sizes = [capacity, self.sim.ndims()]
             else:
                 raise Exception("Invalid property type!")

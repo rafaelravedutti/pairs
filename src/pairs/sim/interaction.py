@@ -1,11 +1,10 @@
 from pairs.ir.bin_op import BinOp
 from pairs.ir.block import Block, pairs_block
 from pairs.ir.branches import Branch, Filter
-from pairs.ir.data_types import Type_Int, Type_Float, Type_Vector
 from pairs.ir.loops import For, ParticleFor
+from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.lowerable import Lowerable
-from pairs.sim.resize import Resize
 
 
 class NeighborFor():
@@ -16,7 +15,7 @@ class NeighborFor():
         self.neighbor_lists = neighbor_lists
 
     def __str__(self):
-        return f"NeighborFor<particle: {self.particle}>"
+        return f"NeighborFor<{self.particle}>"
 
     def __iter__(self):
         if self.neighbor_lists is None:
@@ -40,10 +39,10 @@ class ParticleInteraction(Lowerable):
         self.nbody = nbody
         self.cutoff_radius = cutoff_radius
         self.bypass_neighbor_lists = bypass_neighbor_lists
-        self.i = sim.add_symbol(Type_Int)
-        self.j = sim.add_symbol(Type_Int)
-        self.dp = sim.add_symbol(Type_Vector)
-        self.rsq = sim.add_symbol(Type_Float)
+        self.i = sim.add_symbol(Types.Int32)
+        self.j = sim.add_symbol(Types.Int32)
+        self.dp = sim.add_symbol(Types.Vector)
+        self.rsq = sim.add_symbol(Types.Double)
         self.block = Block(sim, []) if block is None else block
 
     def delta(self):

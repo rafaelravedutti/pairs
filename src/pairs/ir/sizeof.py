@@ -1,5 +1,5 @@
 from pairs.ir.bin_op import ASTTerm
-from pairs.ir.data_types import Type_Int
+from pairs.ir.types import Types
 
 
 class Sizeof(ASTTerm):
@@ -8,4 +8,4 @@ class Sizeof(ASTTerm):
         self.data_type = data_type
 
     def type(self):
-        return Type_Int
+        return Types.Int32

@@ -1,4 +1,4 @@
-from pairs.ir.data_types import Type_Invalid
+from pairs.ir.types import Types
 
 
 class ASTNode:
@@ -10,7 +10,7 @@ class ASTNode:
         return "ASTNode<>"
 
     def type(self):
-        return Type_Invalid
+        return Types.Invalid
 
     def children(self):
         return []

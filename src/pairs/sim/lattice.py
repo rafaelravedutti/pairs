@@ -1,6 +1,6 @@
 from pairs.ir.block import pairs_block
-from pairs.ir.data_types import Type_Vector
 from pairs.ir.loops import For
+from pairs.ir.types import Types
 from pairs.sim.lowerable import Lowerable
 
 
@@ -36,7 +36,7 @@ class ParticleLattice(Lowerable):
 
                         for prop in [p for p in self.sim.properties.all()
                                      if p.volatile is False and p.name() != self.positions.name()]:
-                            if prop.type() == Type_Vector:
+                            if prop.type() == Types.Vector:
                                 for d_ in range(0, self.sim.ndims()):
                                     prop[index][d_].set(prop.default()[d_])
 

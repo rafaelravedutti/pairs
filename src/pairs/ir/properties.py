@@ -1,9 +1,9 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.assign import Assign
 from pairs.ir.bin_op import BinOp, Decl, ASTTerm, VectorAccess
-from pairs.ir.data_types import Type_Vector
-from pairs.ir.layouts import Layout_AoS
-from pairs.ir.lit import as_lit_ast
+from pairs.ir.layouts import Layouts
+from pairs.ir.lit import Lit
+from pairs.ir.types import Types
 from pairs.ir.vector_expr import VectorExpression
 
 
@@ -13,9 +13,8 @@ class Properties:
         self.props = []
         self.capacities = []
         self.defs = {}
-        self.nprops = 0
 
-    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layout_AoS):
+    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS):
         p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout)
         self.props.append(p)
         self.defs[p_name] = p_value
@@ -50,7 +49,7 @@ class Properties:
 class Property(ASTNode):
     last_prop_id = 0
 
-    def __init__(self, sim, name, dtype, default, volatile, layout=Layout_AoS):
+    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS):
         super().__init__(sim)
         self.prop_id = Property.last_prop_id
         self.prop_name = name
@@ -79,10 +78,10 @@ class Property(ASTNode):
         return self.default_value
 
     def ndims(self):
-        return 1 if self.prop_type != Type_Vector else 2
+        return 1 if self.prop_type != Types.Vector else 2
 
     def sizes(self):
-        return [self.sim.particle_capacity] if self.prop_type != Type_Vector else [self.sim.ndims(), self.sim.particle_capacity]
+        return [self.sim.particle_capacity] if self.prop_type != Types.Vector else [self.sim.ndims(), self.sim.particle_capacity]
 
     def __getitem__(self, expr):
         return PropertyAccess(self.sim, self, expr)
@@ -99,20 +98,20 @@ class PropertyAccess(ASTTerm, VectorExpression):
         super().__init__(sim)
         self.acc_id = PropertyAccess.new_id()
         self.prop = prop
-        self.index = as_lit_ast(sim, index)
+        self.index = Lit.cvt(sim, index)
         self.inlined = False
         self.generated = False
         self.terminals = set()
         self.decl = Decl(sim, self)
 
     def __str__(self):
-        return f"PropertyAccess<prop: {self.prop}, index: {self.index}>"
+        return f"PropertyAccess<{self.prop}, {self.index}>"
 
     def vector_index(self, v_index):
         sizes = self.prop.sizes()
         layout = self.prop.layout()
-        index = self.index * sizes[0] + v_index if layout == Layout_AoS else \
-                v_index * sizes[1] + self.index if layout == Layout_SoA else \
+        index = self.index * sizes[0] + v_index if layout == Layouts.AoS else \
+                v_index * sizes[1] + self.index if layout == Layouts.SoA else \
                 None
 
         assert index is not None, "Invalid data layout"
@@ -151,7 +150,7 @@ class PropertyAccess(ASTTerm, VectorExpression):
 
     def __getitem__(self, index):
         super().__getitem__(index)
-        return VectorAccess(self.sim, self, as_lit_ast(self.sim, index))
+        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
 
 
 class PropertyList(ASTNode):
@@ -176,7 +175,7 @@ class RegisterProperty(ASTNode):
     def __init__(self, sim, prop, sizes):
         super().__init__(sim)
         self.prop = prop
-        self.sizes_list = [as_lit_ast(sim, s) for s in sizes]
+        self.sizes_list = [Lit.cvt(sim, s) for s in sizes]
         self.sim.add_statement(self)
 
     def property(self):
@@ -193,7 +192,7 @@ class UpdateProperty(ASTNode):
     def __init__(self, sim, prop, sizes):
         super().__init__(sim)
         self.prop = prop
-        self.sizes_list = [as_lit_ast(sim, s) for s in sizes]
+        self.sizes_list = [Lit.cvt(sim, s) for s in sizes]
         self.sim.add_statement(self)
 
     def property(self):

@@ -4,10 +4,9 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
-from pairs.ir.data_types import Type_Int, Type_Float, Type_String, Type_Vector
-from pairs.ir.device import DeviceCopy
+from pairs.ir.device import CopyToDevice, CopyToHost
 from pairs.ir.functions import Call
-from pairs.ir.layouts import Layout_AoS, Layout_SoA, Layout_Invalid
+from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For, Iter, ParticleFor, While
 from pairs.ir.math import Ceil, Sqrt
@@ -16,6 +15,7 @@ from pairs.ir.module import ModuleCall
 from pairs.ir.properties import Property, PropertyAccess, PropertyList, RegisterProperty, UpdateProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
+from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.ir.variables import Var, VarDecl, Deref
 from pairs.sim.timestep import Timestep
@@ -24,13 +24,6 @@ from pairs.code_gen.printer import Printer
 
 class CGen:
     temp_id = 0
-
-    def type2keyword(type_):
-        return (
-            'double' if type_ == Type_Float or type_ == Type_Vector
-            else 'int' if type_ == Type_Int
-            else 'bool'
-        )
 
     def __init__(self, output, debug=False):
         self.sim = None
@@ -68,44 +61,51 @@ class CGen:
         else:
             module_params = ""
             for var in module.read_only_variables():
-                type_kw = CGen.type2keyword(var.type())
+                type_kw = Types.ctype2keyword(var.type())
                 decl = f"{type_kw} {var.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for var in module.write_variables():
-                type_kw = CGen.type2keyword(var.type())
+                type_kw = Types.ctype2keyword(var.type())
                 decl = f"{type_kw} *{var.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for array in module.arrays():
-                type_kw = CGen.type2keyword(array.type())
+                type_kw = Types.ctype2keyword(array.type())
                 decl = f"{type_kw} *{array.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for prop in module.properties():
-                type_kw = CGen.type2keyword(prop.type())
+                type_kw = Types.ctype2keyword(prop.type())
                 decl = f"{type_kw} *{prop.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             self.print(f"void {module.name}({module_params}) {{")
-            self.print.add_indent(4)
 
             if self.debug:
+                self.print.add_indent(4)
                 self.generate_statement(Print(self.sim, module.name + " --- enter"))
+                self.print.add_indent(-4)
 
             self.generate_statement(module.block)
 
             if self.debug:
+                self.print.add_indent(4)
                 self.generate_statement(Print(self.sim, module.name + " --- exit"))
+                self.print.add_indent(-4)
 
-            self.print.add_indent(-4)
             self.print("}")
 
     def generate_statement(self, ast_node, bypass_checking=False):
         if isinstance(ast_node, ArrayDecl):
-            tkw = CGen.type2keyword(ast_node.array.type())
+            tkw = Types.ctype2keyword(ast_node.array.type())
             size = self.generate_expression(BinOp.inline(ast_node.array.alloc_size()))
-            self.print(f"{tkw} {ast_node.array.name()}[{size}];")
+            if ast_node.array.is_static() and ast_node.array.init_value is not None:
+                v_str = str(ast_node.array.init_value)
+                init_string = v_str + (f", {v_str}" * (size - 1))
+                self.print(f"{tkw} {ast_node.array.name()}[{size}] = {{{init_string}}};")
+            else:
+                self.print(f"{tkw} {ast_node.array.name()}[{size}];")
 
         if isinstance(ast_node, Assign):
             for assign_dest, assign_src in ast_node.assignments:
@@ -136,7 +136,7 @@ class CGen:
                     else:
                         lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
                         rhs = self.generate_expression(bin_op.rhs)
-                        tkw = CGen.type2keyword(bin_op.type())
+                        tkw = Types.ctype2keyword(bin_op.type())
                         self.print(f"const {tkw} e{bin_op.id()} = {lhs} {bin_op.operator()} {rhs};")
 
                 ast_node.elem.generated = True
@@ -152,7 +152,7 @@ class CGen:
                         self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
 
                 else:
-                    tkw = CGen.type2keyword(prop_access.type())
+                    tkw = Types.ctype2keyword(prop_access.type())
                     index_g = self.generate_expression(prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
 
@@ -173,8 +173,11 @@ class CGen:
             call = self.generate_expression(ast_node)
             self.print(f"{call};")
 
-        if isinstance(ast_node, DeviceCopy):
+        if isinstance(ast_node, CopyToDevice):
             self.print(f"pairs::copy_to_device({ast_node.prop.name()})")
+
+        if isinstance(ast_node, CopyToHost):
+            self.print(f"pairs::copy_to_host({ast_node.prop.name()})")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
@@ -196,7 +199,7 @@ class CGen:
 
 
         if isinstance(ast_node, Malloc):
-            tkw = CGen.type2keyword(ast_node.array.type())
+            tkw = Types.ctype2keyword(ast_node.array.type())
             size = self.generate_expression(ast_node.size)
             array_name = ast_node.array.name()
 
@@ -231,25 +234,25 @@ class CGen:
             self.print(f"fflush(stdout);")
 
         if isinstance(ast_node, Realloc):
-            tkw = CGen.type2keyword(ast_node.array.type())
+            tkw = Types.ctype2keyword(ast_node.array.type())
             size = self.generate_expression(ast_node.size)
             array_name = ast_node.array.name()
             self.print(f"{array_name} = ({tkw} *) realloc({array_name}, {size});")
 
         if isinstance(ast_node, RegisterProperty):
             p = ast_node.property()
-            ptype = "Prop_Integer"  if p.type() == Type_Int else \
-                    "Prop_Float"    if p.type() == Type_Float else \
-                    "Prop_Vector"   if p.type() == Type_Vector else \
+            ptype = "Prop_Integer"  if p.type() == Types.Int32 else \
+                    "Prop_Float"    if p.type() == Types.Double else \
+                    "Prop_Vector"   if p.type() == Types.Vector else \
                     "Prop_Invalid"
 
             assert ptype != "Prop_Invalid", "Invalid property type!"
 
-            playout = "AoS" if p.layout() == Layout_AoS else \
-                      "SoA" if p.layout() == Layout_SoA else \
+            playout = "AoS" if p.layout() == Layouts.AoS else \
+                      "SoA" if p.layout() == Layouts.SoA else \
                       "Invalid"
 
-            if p.type() != Type_Vector or p.layout() == Layout_Invalid:
+            if p.type() != Types.Vector or p.layout() == Layouts.Invalid:
                 self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {p.name()}, {ptype}));")
             else:
                 sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
@@ -261,14 +264,14 @@ class CGen:
         if isinstance(ast_node, UpdateProperty):
             p = ast_node.property()
 
-            if p.type() != Type_Vector or p.layout() == Layout_Invalid:
+            if p.type() != Types.Vector or p.layout() == Layouts.Invalid:
                 self.print(f"ps->updateProperty({p.id()}, {p.name()});")
             else:
                 sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
                 self.print(f"ps->updateProperty({p.id()}, {p.name()}, {sizes});")
 
         if isinstance(ast_node, VarDecl):
-            tkw = CGen.type2keyword(ast_node.var.type())
+            tkw = Types.ctype2keyword(ast_node.var.type())
             self.print(f"{tkw} {ast_node.var.name()} = {ast_node.var.init_value()};")
 
         if isinstance(ast_node, While):
@@ -289,7 +292,7 @@ class CGen:
 
             acc_ref = f"a{ast_node.id()}"
             if not ast_node.generated:
-                tkw = CGen.type2keyword(ast_node.type())
+                tkw = Types.ctype2keyword(ast_node.type())
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
                 ast_node.generated = True
 
@@ -300,7 +303,7 @@ class CGen:
             rhs = self.generate_expression(ast_node.rhs, index=index)
 
             if ast_node.inlined is True:
-                assert ast_node.type() != Type_Vector, "Vector operations cannot be inlined!"
+                assert ast_node.type() != Types.Vector, "Vector operations cannot be inlined!"
                 return f"({lhs} {ast_node.operator()} {rhs})"
 
             # Some expressions can be defined on-the-fly during transformations, hence they do not have
@@ -319,7 +322,7 @@ class CGen:
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):
-            tkw = CGen.type2keyword(ast_node.cast_type)
+            tkw = Types.ctype2keyword(ast_node.cast_type)
             expr = self.generate_expression(ast_node.expr)
             return f"({tkw})({expr})"
 
@@ -338,7 +341,7 @@ class CGen:
 
         if isinstance(ast_node, Lit):
             assert mem is False, "Literal is not lvalue!"
-            if ast_node.type() == Type_String:
+            if ast_node.type() == Types.String:
                 return f"\"{ast_node.value}\""
 
             return ast_node.value
@@ -374,7 +377,7 @@ class CGen:
 
         if isinstance(ast_node, Sizeof):
             assert mem is False, "Sizeof expression is not lvalue!"
-            tkw = CGen.type2keyword(ast_node.data_type)
+            tkw = Types.ctype2keyword(ast_node.data_type)
             return f"sizeof({tkw})"
 
         if isinstance(ast_node, Sqrt):

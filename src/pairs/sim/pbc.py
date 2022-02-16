@@ -1,11 +1,10 @@
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
-from pairs.ir.data_types import Type_Int
 from pairs.ir.loops import For, ParticleFor
 from pairs.ir.utils import Print
 from pairs.ir.select import Select
+from pairs.ir.types import Types
 from pairs.sim.lowerable import Lowerable
-from pairs.sim.resize import Resize
 
 
 class PBC:
@@ -14,10 +13,10 @@ class PBC:
         self.grid = grid
         self.cutneigh = cutneigh
         self.pbc_flags = pbc_flags
-        self.npbc = sim.add_var('npbc', Type_Int)
-        self.pbc_capacity = sim.add_var('pbc_capacity', Type_Int, 100)
-        self.pbc_map = sim.add_array('pbc_map', [self.pbc_capacity], Type_Int)
-        self.pbc_mult = sim.add_array('pbc_mult', [self.pbc_capacity, sim.ndims()], Type_Int)
+        self.npbc = sim.add_var('npbc', Types.Int32)
+        self.pbc_capacity = sim.add_var('pbc_capacity', Types.Int32, 100)
+        self.pbc_map = sim.add_array('pbc_map', [self.pbc_capacity], Types.Int32)
+        self.pbc_mult = sim.add_array('pbc_mult', [self.pbc_capacity, sim.ndims()], Types.Int32)
 
 
 class UpdatePBC(Lowerable):

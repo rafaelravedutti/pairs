@@ -1,3 +1,4 @@
-Layout_Invalid = -1
-Layout_AoS = 0
-Layout_SoA = 1
+class Layouts:
+    Invalid = -1
+    AoS = 0
+    SoA = 1

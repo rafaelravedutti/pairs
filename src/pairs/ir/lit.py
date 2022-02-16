@@ -1,37 +1,35 @@
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.data_types import Type_Invalid, Type_Int, Type_Float, Type_Bool, Type_String, Type_Vector
-
-
-def is_literal(a):
-    return isinstance(a, (int, float, bool, str, list))
-
-
-def as_lit_ast(sim, a):
-    return Lit(sim, a) if is_literal(a) else a
+from pairs.ir.types import Types
 
 
 class Lit(ASTNode):
+    def is_literal(a):
+        return isinstance(a, (int, float, bool, str, list))
+
+    def cvt(sim, a):
+        return Lit(sim, a) if Lit.is_literal(a) else a
+
     def __init__(self, sim, value):
         super().__init__(sim)
         self.value = value
-        self.lit_type = Type_Invalid
+        self.lit_type = Types.Invalid
 
         if isinstance(value, int):
-            self.lit_type = Type_Int
+            self.lit_type = Types.Int32
 
         if isinstance(value, float):
-            self.lit_type = Type_Float
+            self.lit_type = Types.Double
 
         if isinstance(value, bool):
-            self.lit_type = Type_Bool
+            self.lit_type = Types.Boolean
 
         if isinstance(value, str):
-            self.lit_type = Type_String
+            self.lit_type = Types.String
 
         if isinstance(value, list):
-            self.lit_type = Type_Vector
+            self.lit_type = Types.Vector
 
-        assert self.lit_type != Type_Invalid, "Invalid literal type!"
+        assert self.lit_type != Types.Invalid, "Invalid literal type!"
 
     def __str__(self):
         return f"Lit<{self.value}>"
