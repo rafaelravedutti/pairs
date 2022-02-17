@@ -33,6 +33,7 @@ class Var(ASTTerm):
         self.var_init_value = init_value
         self.mutable = True
         self.var_bonded_arrays = []
+        self.device_flag = False
 
     def __str__(self):
         return f"Var<{self.var_name}>"

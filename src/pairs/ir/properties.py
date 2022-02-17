@@ -57,6 +57,7 @@ class Property(ASTNode):
         self.prop_layout = layout
         self.default_value = default
         self.volatile = volatile
+        self.device_flag = False
         Property.last_prop_id += 1
 
     def __str__(self):

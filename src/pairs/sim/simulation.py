@@ -209,6 +209,7 @@ class Simulation:
 
     def target(self, target):
         self._target = target
+        self.code_gen.assign_target(target)
 
     def generate(self):
         assert self._target is not None, "Target not specified!"

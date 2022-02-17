@@ -46,6 +46,7 @@ class Array(ASTNode):
         self.arr_layout = a_layout
         self.arr_ndims = len(self.arr_sizes)
         self.static = False
+        self.device_flag = False
         for var in [s for s in self.arr_sizes if isinstance(s, Var)]:
             var.add_bonded_array(self)
 

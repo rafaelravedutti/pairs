@@ -25,13 +25,17 @@ from pairs.code_gen.printer import Printer
 class CGen:
     temp_id = 0
 
-    def __init__(self, output, debug=False):
+    def __init__(self, output, target, debug=False):
         self.sim = None
+        self.target = None
         self.debug = debug
         self.print = Printer(output)
 
     def assign_simulation(self, sim):
         self.sim = sim
+
+    def assign_target(self, target):
+        self.target = target
 
     def generate_program(self, ast_node):
         self.print.start()
@@ -101,7 +105,7 @@ class CGen:
             t = ast_node.array.type()
             tkw = Types.ctype2keyword(t)
             size = self.generate_expression(BinOp.inline(ast_node.array.alloc_size()))
-            if ast_node.array.is_static() and ast_node.array.init_value is not None:
+            if ast_node.array.init_value is not None:
                 v_str = str(ast_node.array.init_value)
                 if t == Types.Int64:
                     v_str += "LL"
@@ -180,10 +184,12 @@ class CGen:
             self.print(f"{call};")
 
         if isinstance(ast_node, CopyToDevice):
-            self.print(f"pairs::copy_to_device({ast_node.prop.name()})")
+            array_name = ast_node.prop.name()
+            self.print(f"pairs::copy_to_device({array_name}, d_{array_name})")
 
         if isinstance(ast_node, CopyToHost):
-            self.print(f"pairs::copy_to_host({ast_node.prop.name()})")
+            array_name = ast_node.prop.name()
+            self.print(f"pairs::copy_to_host(d_{array_name}, {array_name})")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
@@ -211,8 +217,12 @@ class CGen:
 
             if ast_node.decl:
                 self.print(f"{tkw} *{array_name} = ({tkw} *) malloc({size});")
+                if self.target.is_gpu() and ast_node.array.device_flag:
+                    self.print(f"{tkw} *d_{array_name} = ({tkw} *) pairs::device_alloc({size});")
             else:
                 self.print(f"{array_name} = ({tkw} *) malloc({size});")
+                if self.target.is_gpu() and ast_node.array.device_flag:
+                    self.print(f"d_{array_name} = ({tkw} *) pairs::device_alloc({size});")
 
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module
@@ -244,6 +254,8 @@ class CGen:
             size = self.generate_expression(ast_node.size)
             array_name = ast_node.array.name()
             self.print(f"{array_name} = ({tkw} *) realloc({array_name}, {size});")
+            if self.target.is_gpu() and ast_node.array.device_flag:
+                self.print(f"d_{array_name} = ({tkw} *) pairs::device_realloc(d_{array_name}, {size});")
 
         if isinstance(ast_node, RegisterProperty):
             p = ast_node.property()
