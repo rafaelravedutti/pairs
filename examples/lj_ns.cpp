@@ -671,8 +671,8 @@ int main() {
     int *numneighs = (int *) malloc((sizeof(int) * particle_capacity));
     int *pbc_map = (int *) malloc((sizeof(int) * pbc_capacity));
     int *pbc_mult = (int *) malloc((sizeof(int) * (pbc_capacity * 3)));
-    unsigned long long int prop_hflags[1] = {18446744073709551615};
-    unsigned long long int prop_dflags[1] = {0};
+    unsigned long long int prop_hflags[1] = {18446744073709551615ULL};
+    unsigned long long int prop_dflags[1] = {0ULL};
     double *mass = (double *) malloc((sizeof(double) * (particle_capacity + pbc_capacity)));
     ps->addProperty(Property(0, "mass", mass, Prop_Float));
     double *position = (double *) malloc((sizeof(double) * ((particle_capacity + pbc_capacity) * 3)));
@@ -871,28 +871,28 @@ int main() {
         prop_hflags[0] = e531;
         module_0(neighborlist_capacity, nlocal, neighborlists, numneighs, position, force);
         const unsigned long long int a131 = prop_dflags[0];
-        const unsigned long long int e532 = a131 & 1;
+        const unsigned long long int e532 = a131 & 8;
         const bool e533 = e532 == 0;
         if(e533) {
-            pairs::copy_to_device(mass)
-        }
-        const unsigned long long int a132 = prop_dflags[0];
-        const unsigned long long int e534 = a132 & 8;
-        const bool e535 = e534 == 0;
-        if(e535) {
             pairs::copy_to_device(force)
         }
-        const unsigned long long int a133 = prop_dflags[0];
-        const unsigned long long int e536 = a133 & 2;
-        const bool e537 = e536 == 0;
-        if(e537) {
+        const unsigned long long int a132 = prop_dflags[0];
+        const unsigned long long int e534 = a132 & 2;
+        const bool e535 = e534 == 0;
+        if(e535) {
             pairs::copy_to_device(position)
         }
+        const unsigned long long int a133 = prop_dflags[0];
+        const unsigned long long int e536 = a133 & 4;
+        const bool e537 = e536 == 0;
+        if(e537) {
+            pairs::copy_to_device(velocity)
+        }
         const unsigned long long int a134 = prop_dflags[0];
-        const unsigned long long int e538 = a134 & 4;
+        const unsigned long long int e538 = a134 & 1;
         const bool e539 = e538 == 0;
         if(e539) {
-            pairs::copy_to_device(velocity)
+            pairs::copy_to_device(mass)
         }
         const unsigned long long int a136 = prop_dflags[0];
         const unsigned long long int e540 = a136 | 15;

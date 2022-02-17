@@ -7,6 +7,7 @@ def readme():
 
 
 modules = [
+    'analysis',
     'code_gen',
     'coupling',
     'graph',

@@ -20,15 +20,7 @@ from pairs.sim.read_from_file import ReadFromFile
 from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
-from pairs.transformations.add_device_copies import AddDeviceCopies
-from pairs.transformations.prioritize_scalar_ops import prioritize_scalar_ops
-from pairs.transformations.set_used_bin_ops import set_used_bin_ops
-from pairs.transformations.simplify import simplify_expressions
-from pairs.transformations.LICM import move_loop_invariant_code
-from pairs.transformations.lower import lower_everything
-from pairs.transformations.merge_adjacent_blocks import merge_adjacent_blocks
-from pairs.transformations.modules import modularize
-from pairs.transformations.replace_symbols import replace_symbols
+from pairs.transformations import Transformations
 
 
 class Simulation:
@@ -248,22 +240,10 @@ class Simulation:
         ])
 
         program = Module(self, name='main', block=Block.merge_blocks(decls, body))
-        if self._target.is_gpu():
-            add_copies = AddDeviceCopies(program)
 
-        # Transformations
-        lower_everything(program)
-        replace_symbols(program)
-        merge_adjacent_blocks(program)
-        prioritize_scalar_ops(program)
-        simplify_expressions(program)
-        move_loop_invariant_code(program)
-        set_used_bin_ops(program)
-        modularize(program)
-        merge_adjacent_blocks(program)
-
-        if self._target.is_gpu():
-            add_copies.mutate()
+        # Apply transformations
+        transformations = Transformations(program, self._target)
+        transformations.apply_all()
 
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False

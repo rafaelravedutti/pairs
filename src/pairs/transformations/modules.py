@@ -11,45 +11,11 @@ from pairs.ir.mutator import Mutator
 from pairs.ir.properties import UpdateProperty
 from pairs.ir.types import Types
 from pairs.ir.variables import Var, Deref
-from pairs.ir.visitor import Visitor
 from functools import reduce
 import operator
 
 
-class FetchModulesReferences(Visitor):
-    def __init__(self, ast):
-        super().__init__(ast)
-        self.module_stack = []
-        self.writing = False
-
-    def visit_Assign(self, ast_node):
-        self.writing = True
-        for c in ast_node.destinations():
-            self.visit(c)
-
-        self.writing = False
-        for c in ast_node.sources():
-            self.visit(c)
-
-    def visit_Module(self, ast_node):
-        self.module_stack.append(ast_node)
-        self.visit_children(ast_node)
-        self.module_stack.pop()
-
-    def visit_Array(self, ast_node):
-        for m in self.module_stack:
-            m.add_array(ast_node, self.writing)
-
-    def visit_Property(self, ast_node):
-        for m in self.module_stack:
-            m.add_property(ast_node, self.writing)
-
-    def visit_Var(self, ast_node):
-        for m in self.module_stack:
-            m.add_variable(ast_node, self.writing)
-
-
-class AddDereferencesToWriteVariables(Mutator):
+class DereferenceWriteVariables(Mutator):
     def __init__(self, ast):
         super().__init__(ast)
         self.module_stack = []
@@ -153,10 +119,13 @@ class AddResizeLogic(Mutator):
 
 
 class ReplaceModulesByCalls(Mutator):
-    def __init__(self, ast, module_resizes, grow_fn=None):
+    def __init__(self, ast, grow_fn=None):
         super().__init__(ast)
-        self.module_resizes = module_resizes
+        self.module_resizes = None
         self.grow_fn = grow_fn if grow_fn is not None else (lambda x: x * 2)
+
+    def set_module_resizes(self, module_resizes):
+        self.module_resizes = module_resizes
 
     def mutate_Module(self, ast_node):
         ast_node._block = self.mutate(ast_node._block)
@@ -194,14 +163,3 @@ class ReplaceModulesByCalls(Mutator):
             return Block(sim, init_stmts + [While(sim, branch_cond, Block(sim, reset_stmts + [call] + resize_stmts))])
 
         return call
-
-
-def modularize(ast):
-    add_resize_logic = AddResizeLogic(ast)
-    add_resize_logic.mutate()
-    fetch_refs = FetchModulesReferences(ast)
-    fetch_refs.visit()
-    add_derefs_to_write_vars = AddDereferencesToWriteVariables(ast)
-    add_derefs_to_write_vars.mutate()
-    replace = ReplaceModulesByCalls(ast, add_resize_logic.module_resizes)
-    replace.mutate()

@@ -13,11 +13,3 @@ class Lower(Mutator):
             return ast_node.lower()
 
         return ast_node
-
-
-def lower_everything(ast):
-    nlowered = 1
-    while nlowered > 0:
-        lower = Lower(ast)
-        lower.mutate()
-        nlowered = lower.lowered_nodes

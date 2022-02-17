@@ -18,8 +18,3 @@ class MergeAdjacentBlocks(Mutator):
 
         ast_node.stmts = new_stmts 
         return ast_node
-
-
-def merge_adjacent_blocks(ast):
-    merge = MergeAdjacentBlocks(ast)
-    merge.mutate()
