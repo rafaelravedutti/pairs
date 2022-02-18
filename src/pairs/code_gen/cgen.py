@@ -50,6 +50,16 @@ class CGen:
         self.print("")
         self.print("using namespace pairs;")
         self.print("")
+
+        if self.target.is_gpu():
+            for array in self.sim.arrays.statics():
+                if array.device_flag:
+                    t = array.type()
+                    tkw = Types.ctype2keyword(t)
+                    size = self.generate_expression(BinOp.inline(array.alloc_size()))
+                    self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
+
+        self.print("")
         for module in self.sim.modules():
             self.generate_module(module)
         self.print.end()

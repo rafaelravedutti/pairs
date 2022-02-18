@@ -27,6 +27,9 @@ class Arrays:
     def all(self):
         return self.arrays
 
+    def statics(self):
+        return [a for a in self.arrays if a.is_static()]
+
     def find(self, a_name):
         array = [a for a in self.arrays if a.name() == a_name]
         if array:
