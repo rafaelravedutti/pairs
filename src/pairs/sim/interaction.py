@@ -1,5 +1,5 @@
 from pairs.ir.bin_op import BinOp
-from pairs.ir.block import Block, pairs_device_block
+from pairs.ir.block import Block, pairs_inline
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import For, ParticleFor
 from pairs.ir.types import Types
@@ -60,7 +60,7 @@ class ParticleInteraction(Lowerable):
         yield self.i, self.j
         self.sim.leave()
 
-    @pairs_device_block
+    @pairs_inline
     def lower(self):
         if self.nbody == 2:
             position = self.sim.position()

@@ -11,26 +11,29 @@ class Visitor:
         method = getattr(self, method_name, None)
         return method if callable(method) else None
 
-    def visit(self, ast_node=None):
-        if ast_node is None:
-            ast_node = self.ast
+    def visit(self, ast_nodes=None):
+        if ast_nodes is None:
+            ast_nodes = [self.ast]
 
-        method = self.get_method(f"visit_{type(ast_node).__name__}")
-        if method is not None:
-            method(ast_node)
-        else:
-            for b in type(ast_node).__bases__:
-                method = self.get_method(f"visit_{b.__name__}")
-                if method is not None:
-                    method(ast_node)
-                    break
+        if not isinstance(ast_nodes, list):
+            ast_nodes = [ast_nodes]
 
-            if method is None:
-                self.visit_children(ast_node)
+        for node in ast_nodes:
+            method = self.get_method(f"visit_{type(node).__name__}")
+            if method is not None:
+                method(node)
+            else:
+                for b in type(node).__bases__:
+                    method = self.get_method(f"visit_{b.__name__}")
+                    if method is not None:
+                        method(node)
+                        break
+
+                if method is None:
+                    self.visit(node.children())
 
     def visit_children(self, ast_node):
-        for c in ast_node.children():
-            self.visit(c)
+        self.visit(ast_node.children())
 
     def yield_elements_breadth_first(self, ast_node=None):
         nodes_to_visit = deque()
@@ -39,7 +42,6 @@ class Visitor:
             ast_node = self.ast
 
         nodes_to_visit.append(ast_node)
-
         while nodes_to_visit:
             next_node = nodes_to_visit.popleft() # nodes_to_visit.pop() for depth-first traversal
             yield next_node
