@@ -1,4 +1,4 @@
-from pairs.ir.block import pairs_block
+from pairs.ir.block import pairs_inline
 from pairs.ir.loops import For
 from pairs.ir.types import Types
 from pairs.sim.lowerable import Lowerable
@@ -12,7 +12,7 @@ class ParticleLattice(Lowerable):
         self.props = props
         self.positions = positions
 
-    @pairs_block
+    @pairs_inline
     def lower(self):
         index = None
         loop_indexes = []

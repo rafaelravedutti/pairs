@@ -1,4 +1,4 @@
-from pairs.ir.block import pairs_device_block
+from pairs.ir.block import pairs_device_block, pairs_host_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import For, ParticleFor
 from pairs.ir.utils import Print
@@ -72,7 +72,7 @@ class SetupPBC(Lowerable):
         super().__init__(sim)
         self.pbc = pbc
 
-    @pairs_device_block
+    @pairs_host_block
     def lower(self):
         sim = self.sim
         ndims = sim.ndims()

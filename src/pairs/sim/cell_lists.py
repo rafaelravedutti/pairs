@@ -1,7 +1,7 @@
 from functools import reduce
 import math
 from pairs.ir.bin_op import BinOp
-from pairs.ir.block import pairs_device_block
+from pairs.ir.block import pairs_device_block, pairs_host_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
 from pairs.ir.loops import For, ParticleFor
@@ -36,7 +36,7 @@ class CellListsStencilBuild(Lowerable):
         super().__init__(sim)
         self.cell_lists = cell_lists
 
-    @pairs_device_block
+    @pairs_host_block
     def lower(self):
         sim = self.sim
         cl = self.cell_lists

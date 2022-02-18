@@ -1,4 +1,4 @@
-from pairs.ir.block import pairs_block
+from pairs.ir.block import pairs_inline
 from pairs.ir.memory import Malloc
 from pairs.ir.arrays import ArrayDecl
 from pairs.sim.lowerable import Lowerable
@@ -8,7 +8,7 @@ class ArraysDecl(Lowerable):
     def __init__(self, sim):
         super().__init__(sim)
 
-    @pairs_block
+    @pairs_inline
     def lower(self):
         for a in self.sim.arrays.all():
             if a.is_static():

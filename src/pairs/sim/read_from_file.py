@@ -1,4 +1,4 @@
-from pairs.ir.block import pairs_block
+from pairs.ir.block import pairs_inline
 from pairs.ir.functions import Call_Int
 from pairs.ir.properties import PropertyList
 from pairs.ir.types import Types
@@ -14,7 +14,7 @@ class ReadFromFile(Lowerable):
         self.grid = MutableGrid(sim, sim.ndims())
         self.grid_buffer = self.sim.add_static_array("grid_buffer", [self.sim.ndims() * 2], Types.Double)
 
-    @pairs_block
+    @pairs_inline
     def lower(self):
         self.sim.nlocal.set(Call_Int(self.sim, "pairs::read_particle_data",
                             [self.filename, self.grid_buffer, self.props, self.props.length()]))

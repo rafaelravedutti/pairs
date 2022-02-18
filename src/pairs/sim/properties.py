@@ -1,4 +1,4 @@
-from pairs.ir.block import pairs_block, pairs_device_block
+from pairs.ir.block import pairs_device_block, pairs_inline
 from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.properties import RegisterProperty, UpdateProperty
@@ -14,7 +14,7 @@ class PropertiesAlloc(Lowerable):
         self.sim = sim
         self.realloc = realloc
 
-    @pairs_block
+    @pairs_inline
     def lower(self):
         capacity = sum(self.sim.properties.capacities)
         for p in self.sim.properties.all():

@@ -236,11 +236,11 @@ class CGen:
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for array in module.arrays():
-                decl = array.name()
+                decl = f"d_{array.name()}" if module.run_on_device else array.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for prop in module.properties():
-                decl = prop.name()
+                decl = f"d_{prop.name()}" if module.run_on_device else prop.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             self.print(f"{module.name}({module_params});")

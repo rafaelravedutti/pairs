@@ -2,12 +2,27 @@ from pairs.ir.ast_node import ASTNode
 from pairs.ir.module import Module
 
 
-def pairs_block(func):
+def pairs_inline(func):
     def inner(*args, **kwargs):
         sim = args[0].sim # self.sim
         sim.init_block()
         func(*args, **kwargs)
         return sim._block
+
+    return inner
+
+
+def pairs_host_block(func):
+    def inner(*args, **kwargs):
+        sim = args[0].sim # self.sim
+        sim.init_block()
+        func(*args, **kwargs)
+        return Module(sim,
+            name=sim._module_name,
+            block=Block(sim, sim._block),
+            resizes_to_check=sim._resizes_to_check,
+            check_properties_resize=sim._check_properties_resize,
+            run_on_device=False)
 
     return inner
 
