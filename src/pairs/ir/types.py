@@ -10,7 +10,7 @@ class Types:
     Vector = 7
     Array = 8
 
-    def ctype2keyword(t):
+    def c_keyword(t):
         return (
             'double' if t == Types.Double or t == Types.Vector
             else 'float' if t == Types.Float

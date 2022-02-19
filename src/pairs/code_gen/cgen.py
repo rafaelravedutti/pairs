@@ -55,7 +55,7 @@ class CGen:
             for array in self.sim.arrays.statics():
                 if array.device_flag:
                     t = array.type()
-                    tkw = Types.ctype2keyword(t)
+                    tkw = Types.c_keyword(t)
                     size = self.generate_expression(BinOp.inline(array.alloc_size()))
                     self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
 
@@ -75,22 +75,22 @@ class CGen:
         else:
             module_params = ""
             for var in module.read_only_variables():
-                type_kw = Types.ctype2keyword(var.type())
+                type_kw = Types.c_keyword(var.type())
                 decl = f"{type_kw} {var.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for var in module.write_variables():
-                type_kw = Types.ctype2keyword(var.type())
+                type_kw = Types.c_keyword(var.type())
                 decl = f"{type_kw} *{var.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for array in module.arrays():
-                type_kw = Types.ctype2keyword(array.type())
+                type_kw = Types.c_keyword(array.type())
                 decl = f"{type_kw} *{array.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for prop in module.properties():
-                type_kw = Types.ctype2keyword(prop.type())
+                type_kw = Types.c_keyword(prop.type())
                 decl = f"{type_kw} *{prop.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
@@ -113,7 +113,7 @@ class CGen:
     def generate_statement(self, ast_node, bypass_checking=False):
         if isinstance(ast_node, ArrayDecl):
             t = ast_node.array.type()
-            tkw = Types.ctype2keyword(t)
+            tkw = Types.c_keyword(t)
             size = self.generate_expression(BinOp.inline(ast_node.array.alloc_size()))
             if ast_node.array.init_value is not None:
                 v_str = str(ast_node.array.init_value)
@@ -156,7 +156,7 @@ class CGen:
                     else:
                         lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
                         rhs = self.generate_expression(bin_op.rhs)
-                        tkw = Types.ctype2keyword(bin_op.type())
+                        tkw = Types.c_keyword(bin_op.type())
                         self.print(f"const {tkw} e{bin_op.id()} = {lhs} {bin_op.operator()} {rhs};")
 
                 ast_node.elem.generated = True
@@ -172,7 +172,7 @@ class CGen:
                         self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
 
                 else:
-                    tkw = Types.ctype2keyword(prop_access.type())
+                    tkw = Types.c_keyword(prop_access.type())
                     index_g = self.generate_expression(prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
 
@@ -221,7 +221,7 @@ class CGen:
 
 
         if isinstance(ast_node, Malloc):
-            tkw = Types.ctype2keyword(ast_node.array.type())
+            tkw = Types.c_keyword(ast_node.array.type())
             size = self.generate_expression(ast_node.size)
             array_name = ast_node.array.name()
 
@@ -260,7 +260,7 @@ class CGen:
             self.print(f"fflush(stdout);")
 
         if isinstance(ast_node, Realloc):
-            tkw = Types.ctype2keyword(ast_node.array.type())
+            tkw = Types.c_keyword(ast_node.array.type())
             size = self.generate_expression(ast_node.size)
             array_name = ast_node.array.name()
             self.print(f"{array_name} = ({tkw} *) realloc({array_name}, {size});")
@@ -299,7 +299,7 @@ class CGen:
                 self.print(f"ps->updateProperty({p.id()}, {p.name()}, {sizes});")
 
         if isinstance(ast_node, VarDecl):
-            tkw = Types.ctype2keyword(ast_node.var.type())
+            tkw = Types.c_keyword(ast_node.var.type())
             self.print(f"{tkw} {ast_node.var.name()} = {ast_node.var.init_value()};")
 
         if isinstance(ast_node, While):
@@ -320,7 +320,7 @@ class CGen:
 
             acc_ref = f"a{ast_node.id()}"
             if not ast_node.generated:
-                tkw = Types.ctype2keyword(ast_node.type())
+                tkw = Types.c_keyword(ast_node.type())
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
                 ast_node.generated = True
 
@@ -350,7 +350,7 @@ class CGen:
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):
-            tkw = Types.ctype2keyword(ast_node.cast_type)
+            tkw = Types.c_keyword(ast_node.cast_type)
             expr = self.generate_expression(ast_node.expr)
             return f"({tkw})({expr})"
 
@@ -405,7 +405,7 @@ class CGen:
 
         if isinstance(ast_node, Sizeof):
             assert mem is False, "Sizeof expression is not lvalue!"
-            tkw = Types.ctype2keyword(ast_node.data_type)
+            tkw = Types.c_keyword(ast_node.data_type)
             return f"sizeof({tkw})"
 
         if isinstance(ast_node, Sqrt):
