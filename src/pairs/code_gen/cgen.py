@@ -141,10 +141,8 @@ class CGen:
 
         # TODO: Why there are Decls for other types?
         if isinstance(ast_node, Decl):
-            if isinstance(ast_node.elem, BinOp):
+            if isinstance(ast_node.elem, BinOp) and (bypass_checking or ast_node.used):
                 bin_op = ast_node.elem
-                if not bypass_checking and (not isinstance(bin_op, BinOp) or not ast_node.used):
-                    return None
 
                 if bin_op.inlined is False and bin_op.generated is False:
                     if bin_op.is_vector_kind():
@@ -152,7 +150,6 @@ class CGen:
                             lhs = self.generate_expression(bin_op.lhs, bin_op.mem, index=i)
                             rhs = self.generate_expression(bin_op.rhs, index=i)
                             self.print(f"const double e{bin_op.id()}_{i} = {lhs} {bin_op.operator()} {rhs};")
-
                     else:
                         lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
                         rhs = self.generate_expression(bin_op.rhs)
@@ -161,7 +158,7 @@ class CGen:
 
                 ast_node.elem.generated = True
 
-            if isinstance(ast_node.elem, PropertyAccess):
+            if isinstance(ast_node.elem, PropertyAccess) and (bypass_checking or ast_node.used):
                 prop_access = ast_node.elem
                 prop_name = prop_access.prop.name()
                 acc_ref = f"p{prop_access.id()}"
@@ -170,7 +167,6 @@ class CGen:
                     for i in prop_access.indexes():
                         i_expr = self.generate_expression(prop_access.get_index_expression(i))
                         self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
-
                 else:
                     tkw = Types.c_keyword(prop_access.type())
                     index_g = self.generate_expression(prop_access.index)
@@ -237,6 +233,8 @@ class CGen:
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module
             module_params = ""
+            device_cond = module.run_on_device and self.target.is_gpu()
+
             for var in module.read_only_variables():
                 decl = var.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
@@ -246,11 +244,11 @@ class CGen:
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for array in module.arrays():
-                decl = f"d_{array.name()}" if module.run_on_device else array.name()
+                decl = f"d_{array.name()}" if device_cond else array.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for prop in module.properties():
-                decl = f"d_{prop.name()}" if module.run_on_device else prop.name()
+                decl = f"d_{prop.name()}" if device_cond else prop.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             self.print(f"{module.name}({module_params});")

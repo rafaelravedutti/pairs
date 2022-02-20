@@ -92,11 +92,11 @@ class SetupPBC(Lowerable):
             for i in For(sim, 0, nlocal + npbc):
                 pos = positions[i]
                 last_id = nlocal + npbc
-                last_pos = positions[last_id]
 
                 grid_length = grid.length(d)
                 # TODO: VecFilter?
                 for _ in Filter(sim, pos[d] < grid.min(d) + cutneigh):
+                    last_pos = positions[last_id]
                     pbc_map[npbc].set(i)
                     pbc_mult[npbc][d].set(1)
                     last_pos[d].set(pos[d] + grid_length)
@@ -108,6 +108,7 @@ class SetupPBC(Lowerable):
                     npbc.add(1)
 
                 for _ in Filter(sim, pos[d] > grid.max(d) - cutneigh):
+                    last_pos = positions[last_id]
                     pbc_map[npbc].set(i)
                     pbc_mult[npbc][d].set(-1)
                     last_pos[d].set(pos[d] - grid_length)

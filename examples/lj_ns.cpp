@@ -15,13 +15,13 @@ void module_0(int neighborlist_capacity, int nlocal, int *neighborlists, int *nu
     for(int i14 = 0; i14 < nlocal; i14++) {
         const int e369 = i14 * neighborlist_capacity;
         const int e376 = i14 * 3;
-        const double p23_0 = position[e376];
+        const double p26_0 = position[e376];
         const int e385 = i14 * 3;
         const int e386 = e385 + 1;
-        const double p23_1 = position[e386];
+        const double p26_1 = position[e386];
         const int e395 = i14 * 3;
         const int e396 = e395 + 2;
-        const double p23_2 = position[e396];
+        const double p26_2 = position[e396];
         const int e14 = i14 * 3;
         const int e18 = i14 * 3;
         const int e19 = e18 + 1;
@@ -32,16 +32,16 @@ void module_0(int neighborlist_capacity, int nlocal, int *neighborlists, int *nu
             const int e370 = e369 + i15;
             const int a57 = neighborlists[e370];
             const int e378 = a57 * 3;
-            const double p24_0 = position[e378];
+            const double p27_0 = position[e378];
             const int e387 = a57 * 3;
             const int e388 = e387 + 1;
-            const double p24_1 = position[e388];
+            const double p27_1 = position[e388];
             const int e397 = a57 * 3;
             const int e398 = e397 + 2;
-            const double p24_2 = position[e398];
-            const double e371_0 = p23_0 - p24_0;
-            const double e371_1 = p23_1 - p24_1;
-            const double e371_2 = p23_2 - p24_2;
+            const double p27_2 = position[e398];
+            const double e371_0 = p26_0 - p27_0;
+            const double e371_1 = p26_1 - p27_1;
+            const double e371_2 = p26_2 - p27_2;
             const double e380 = e371_0 * e371_0;
             const double e389 = e371_1 * e371_1;
             const double e390 = e380 + e389;
@@ -236,29 +236,26 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
         const int e204 = e203 + 2;
         const double p7_2 = position[e204];
         const int e156 = nlocal + (*npbc);
-        const int e188 = e156 * 3;
-        const double p8_0 = position[e188];
-        const int e195 = e156 * 3;
-        const int e196 = e195 + 1;
-        const double p8_1 = position[e196];
-        const int e201 = e156 * 3;
-        const int e202 = e201 + 2;
-        const double p8_2 = position[e202];
         const bool e161 = p7_0 < e160;
         if(e161) {
             pbc_map[(*npbc)] = i6;
             const int e162 = (*npbc) * 3;
             pbc_mult[e162] = 1;
+            const int e164 = e156 * 3;
             const double e168 = p7_0 + e157;
-            position[e188] = e168;
+            position[e164] = e168;
             const int e169 = (*npbc) * 3;
             const int e170 = e169 + 1;
             pbc_mult[e170] = 0;
-            position[e196] = p7_1;
+            const int e171 = e156 * 3;
+            const int e172 = e171 + 1;
+            position[e172] = p7_1;
             const int e175 = (*npbc) * 3;
             const int e176 = e175 + 2;
             pbc_mult[e176] = 0;
-            position[e202] = p7_2;
+            const int e177 = e156 * 3;
+            const int e178 = e177 + 2;
+            position[e178] = p7_2;
             const int e181 = (*npbc) + 1;
             const int e446 = e181 + 1;
             const bool e447 = e446 >= pbc_capacity;
@@ -273,15 +270,20 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
             pbc_map[(*npbc)] = i6;
             const int e186 = (*npbc) * 3;
             pbc_mult[e186] = -1;
+            const int e188 = e156 * 3;
             const double e192 = p7_0 - e157;
             position[e188] = e192;
             const int e193 = (*npbc) * 3;
             const int e194 = e193 + 1;
             pbc_mult[e194] = 0;
+            const int e195 = e156 * 3;
+            const int e196 = e195 + 1;
             position[e196] = p7_1;
             const int e199 = (*npbc) * 3;
             const int e200 = e199 + 2;
             pbc_mult[e200] = 0;
+            const int e201 = e156 * 3;
+            const int e202 = e201 + 2;
             position[e202] = p7_2;
             const int e205 = (*npbc) + 1;
             const int e448 = e205 + 1;
@@ -299,37 +301,34 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
     const double e235 = grid0_d1_max - 2.8;
     for(int i7 = 0; i7 < e206; i7++) {
         const int e248 = i7 * 3;
-        const double p9_0 = position[e248];
+        const double p10_0 = position[e248];
         const int e241 = i7 * 3;
         const int e242 = e241 + 1;
-        const double p9_1 = position[e242];
+        const double p10_1 = position[e242];
         const int e254 = i7 * 3;
         const int e255 = e254 + 2;
-        const double p9_2 = position[e255];
+        const double p10_2 = position[e255];
         const int e207 = nlocal + (*npbc);
-        const int e246 = e207 * 3;
-        const double p10_0 = position[e246];
-        const int e239 = e207 * 3;
-        const int e240 = e239 + 1;
-        const double p10_1 = position[e240];
-        const int e252 = e207 * 3;
-        const int e253 = e252 + 2;
-        const double p10_2 = position[e253];
-        const bool e212 = p9_1 < e211;
+        const bool e212 = p10_1 < e211;
         if(e212) {
             pbc_map[(*npbc)] = i7;
             const int e213 = (*npbc) * 3;
             const int e214 = e213 + 1;
             pbc_mult[e214] = 1;
-            const double e219 = p9_1 + e208;
-            position[e240] = e219;
+            const int e215 = e207 * 3;
+            const int e216 = e215 + 1;
+            const double e219 = p10_1 + e208;
+            position[e216] = e219;
             const int e220 = (*npbc) * 3;
             pbc_mult[e220] = 0;
-            position[e246] = p9_0;
+            const int e222 = e207 * 3;
+            position[e222] = p10_0;
             const int e226 = (*npbc) * 3;
             const int e227 = e226 + 2;
             pbc_mult[e227] = 0;
-            position[e253] = p9_2;
+            const int e228 = e207 * 3;
+            const int e229 = e228 + 2;
+            position[e229] = p10_2;
             const int e232 = (*npbc) + 1;
             const int e450 = e232 + 1;
             const bool e451 = e450 >= pbc_capacity;
@@ -339,21 +338,26 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
                 (*npbc) = e232;
             }
         }
-        const bool e236 = p9_1 > e235;
+        const bool e236 = p10_1 > e235;
         if(e236) {
             pbc_map[(*npbc)] = i7;
             const int e237 = (*npbc) * 3;
             const int e238 = e237 + 1;
             pbc_mult[e238] = -1;
-            const double e243 = p9_1 - e208;
+            const int e239 = e207 * 3;
+            const int e240 = e239 + 1;
+            const double e243 = p10_1 - e208;
             position[e240] = e243;
             const int e244 = (*npbc) * 3;
             pbc_mult[e244] = 0;
-            position[e246] = p9_0;
+            const int e246 = e207 * 3;
+            position[e246] = p10_0;
             const int e250 = (*npbc) * 3;
             const int e251 = e250 + 2;
             pbc_mult[e251] = 0;
-            position[e253] = p9_2;
+            const int e252 = e207 * 3;
+            const int e253 = e252 + 2;
+            position[e253] = p10_2;
             const int e256 = (*npbc) + 1;
             const int e452 = e256 + 1;
             const bool e453 = e452 >= pbc_capacity;
@@ -370,37 +374,34 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
     const double e286 = grid0_d2_max - 2.8;
     for(int i8 = 0; i8 < e257; i8++) {
         const int e299 = i8 * 3;
-        const double p11_0 = position[e299];
+        const double p13_0 = position[e299];
         const int e305 = i8 * 3;
         const int e306 = e305 + 1;
-        const double p11_1 = position[e306];
+        const double p13_1 = position[e306];
         const int e292 = i8 * 3;
         const int e293 = e292 + 2;
-        const double p11_2 = position[e293];
+        const double p13_2 = position[e293];
         const int e258 = nlocal + (*npbc);
-        const int e297 = e258 * 3;
-        const double p12_0 = position[e297];
-        const int e303 = e258 * 3;
-        const int e304 = e303 + 1;
-        const double p12_1 = position[e304];
-        const int e290 = e258 * 3;
-        const int e291 = e290 + 2;
-        const double p12_2 = position[e291];
-        const bool e263 = p11_2 < e262;
+        const bool e263 = p13_2 < e262;
         if(e263) {
             pbc_map[(*npbc)] = i8;
             const int e264 = (*npbc) * 3;
             const int e265 = e264 + 2;
             pbc_mult[e265] = 1;
-            const double e270 = p11_2 + e259;
-            position[e291] = e270;
+            const int e266 = e258 * 3;
+            const int e267 = e266 + 2;
+            const double e270 = p13_2 + e259;
+            position[e267] = e270;
             const int e271 = (*npbc) * 3;
             pbc_mult[e271] = 0;
-            position[e297] = p11_0;
+            const int e273 = e258 * 3;
+            position[e273] = p13_0;
             const int e277 = (*npbc) * 3;
             const int e278 = e277 + 1;
             pbc_mult[e278] = 0;
-            position[e304] = p11_1;
+            const int e279 = e258 * 3;
+            const int e280 = e279 + 1;
+            position[e280] = p13_1;
             const int e283 = (*npbc) + 1;
             const int e454 = e283 + 1;
             const bool e455 = e454 >= pbc_capacity;
@@ -410,21 +411,26 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
                 (*npbc) = e283;
             }
         }
-        const bool e287 = p11_2 > e286;
+        const bool e287 = p13_2 > e286;
         if(e287) {
             pbc_map[(*npbc)] = i8;
             const int e288 = (*npbc) * 3;
             const int e289 = e288 + 2;
             pbc_mult[e289] = -1;
-            const double e294 = p11_2 - e259;
+            const int e290 = e258 * 3;
+            const int e291 = e290 + 2;
+            const double e294 = p13_2 - e259;
             position[e291] = e294;
             const int e295 = (*npbc) * 3;
             pbc_mult[e295] = 0;
-            position[e297] = p11_0;
+            const int e297 = e258 * 3;
+            position[e297] = p13_0;
             const int e301 = (*npbc) * 3;
             const int e302 = e301 + 1;
             pbc_mult[e302] = 0;
-            position[e304] = p11_1;
+            const int e303 = e258 * 3;
+            const int e304 = e303 + 1;
+            position[e304] = p13_1;
             const int e307 = (*npbc) + 1;
             const int e456 = e307 + 1;
             const bool e457 = e456 >= pbc_capacity;
@@ -443,42 +449,39 @@ void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, d
     for(int i9 = 0; i9 < npbc; i9++) {
         const int e308 = nlocal + i9;
         const int e309 = e308 * 3;
-        const double p13_0 = position[e309];
         const int a39 = pbc_map[i9];
         const int e311 = a39 * 3;
-        const double p14_0 = position[e311];
+        const double p17_0 = position[e311];
         const int e313 = i9 * 3;
         const int a40 = pbc_mult[e313];
         const double e316 = a40 * e315;
-        const double e317 = p14_0 + e316;
+        const double e317 = p17_0 + e316;
         position[e309] = e317;
         const int e318 = nlocal + i9;
         const int e319 = e318 * 3;
         const int e320 = e319 + 1;
-        const double p15_1 = position[e320];
         const int a41 = pbc_map[i9];
         const int e321 = a41 * 3;
         const int e322 = e321 + 1;
-        const double p16_1 = position[e322];
+        const double p19_1 = position[e322];
         const int e323 = i9 * 3;
         const int e324 = e323 + 1;
         const int a42 = pbc_mult[e324];
         const double e326 = a42 * e325;
-        const double e327 = p16_1 + e326;
+        const double e327 = p19_1 + e326;
         position[e320] = e327;
         const int e328 = nlocal + i9;
         const int e329 = e328 * 3;
         const int e330 = e329 + 2;
-        const double p17_2 = position[e330];
         const int a43 = pbc_map[i9];
         const int e331 = a43 * 3;
         const int e332 = e331 + 2;
-        const double p18_2 = position[e332];
+        const double p21_2 = position[e332];
         const int e333 = i9 * 3;
         const int e334 = e333 + 2;
         const int a44 = pbc_mult[e334];
         const double e336 = a44 * e335;
-        const double e337 = p18_2 + e336;
+        const double e337 = p21_2 + e336;
         position[e330] = e337;
     }
 }
@@ -489,18 +492,18 @@ void build_cell_lists(int ncells, double grid0_d0_min, double grid0_d1_min, doub
     const int e541 = nlocal + npbc;
     for(int i11 = 0; i11 < e541; i11++) {
         const int e338 = i11 * 3;
-        const double p19_0 = position[e338];
-        const double e340 = p19_0 - grid0_d0_min;
+        const double p22_0 = position[e338];
+        const double e340 = p22_0 - grid0_d0_min;
         const double e341 = e340 / 2.8;
         const int e342 = i11 * 3;
         const int e343 = e342 + 1;
-        const double p20_1 = position[e343];
-        const double e344 = p20_1 - grid0_d1_min;
+        const double p23_1 = position[e343];
+        const double e344 = p23_1 - grid0_d1_min;
         const double e345 = e344 / 2.8;
         const int e346 = i11 * 3;
         const int e347 = e346 + 2;
-        const double p21_2 = position[e347];
-        const double e348 = p21_2 - grid0_d2_min;
+        const double p24_2 = position[e347];
+        const double e348 = p24_2 - grid0_d2_min;
         const double e349 = e348 / 2.8;
         const int a46 = dim_cells[1];
         const int e350 = (int)(e341) * a46;
@@ -543,13 +546,13 @@ void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighbo
             if(e406) {
                 const int e407 = e403 * cell_capacity;
                 const int e415 = i16 * 3;
-                const double p25_0 = position[e415];
+                const double p28_0 = position[e415];
                 const int e424 = i16 * 3;
                 const int e425 = e424 + 1;
-                const double p25_1 = position[e425];
+                const double p28_1 = position[e425];
                 const int e434 = i16 * 3;
                 const int e435 = e434 + 2;
-                const double p25_2 = position[e435];
+                const double p28_2 = position[e435];
                 const int e360 = i16 * neighborlist_capacity;
                 const int a60 = cell_sizes[e403];
                 for(int i18 = 0; i18 < a60; i18++) {
@@ -558,16 +561,16 @@ void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighbo
                     const bool e409 = a61 != i16;
                     if(e409) {
                         const int e417 = a61 * 3;
-                        const double p26_0 = position[e417];
+                        const double p29_0 = position[e417];
                         const int e426 = a61 * 3;
                         const int e427 = e426 + 1;
-                        const double p26_1 = position[e427];
+                        const double p29_1 = position[e427];
                         const int e436 = a61 * 3;
                         const int e437 = e436 + 2;
-                        const double p26_2 = position[e437];
-                        const double e410_0 = p25_0 - p26_0;
-                        const double e410_1 = p25_1 - p26_1;
-                        const double e410_2 = p25_2 - p26_2;
+                        const double p29_2 = position[e437];
+                        const double e410_0 = p28_0 - p29_0;
+                        const double e410_1 = p28_1 - p29_1;
+                        const double e410_2 = p28_2 - p29_2;
                         const double e419 = e410_0 * e410_0;
                         const double e428 = e410_1 * e410_1;
                         const double e429 = e419 + e428;
@@ -596,13 +599,13 @@ void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighbo
 void reset_volatile_properties(int nlocal, double *force) {
     for(int i13 = 0; i13 < nlocal; i13++) {
         const int e363 = i13 * 3;
-        const double p22_0 = force[e363];
+        const double p25_0 = force[e363];
         const int e365 = i13 * 3;
         const int e366 = e365 + 1;
-        const double p22_1 = force[e366];
+        const double p25_1 = force[e366];
         const int e367 = i13 * 3;
         const int e368 = e367 + 2;
-        const double p22_2 = force[e368];
+        const double p25_2 = force[e368];
         force[e363] = 0.0;
         force[e366] = 0.0;
         force[e368] = 0.0;
@@ -860,28 +863,28 @@ int main() {
         prop_hflags[0] = e530;
         module_0(neighborlist_capacity, nlocal, d_neighborlists, d_numneighs, d_position, d_force);
         const unsigned long long int a131 = prop_dflags[0];
-        const unsigned long long int e531 = a131 & 4;
+        const unsigned long long int e531 = a131 & 8;
         const bool e532 = e531 == 0;
         if(e532) {
-            pairs::copy_to_device(velocity, d_velocity)
-        }
-        const unsigned long long int a132 = prop_dflags[0];
-        const unsigned long long int e533 = a132 & 1;
-        const bool e534 = e533 == 0;
-        if(e534) {
-            pairs::copy_to_device(mass, d_mass)
-        }
-        const unsigned long long int a133 = prop_dflags[0];
-        const unsigned long long int e535 = a133 & 8;
-        const bool e536 = e535 == 0;
-        if(e536) {
             pairs::copy_to_device(force, d_force)
         }
+        const unsigned long long int a132 = prop_dflags[0];
+        const unsigned long long int e533 = a132 & 2;
+        const bool e534 = e533 == 0;
+        if(e534) {
+            pairs::copy_to_device(position, d_position)
+        }
+        const unsigned long long int a133 = prop_dflags[0];
+        const unsigned long long int e535 = a133 & 4;
+        const bool e536 = e535 == 0;
+        if(e536) {
+            pairs::copy_to_device(velocity, d_velocity)
+        }
         const unsigned long long int a134 = prop_dflags[0];
-        const unsigned long long int e537 = a134 & 2;
+        const unsigned long long int e537 = a134 & 1;
         const bool e538 = e537 == 0;
         if(e538) {
-            pairs::copy_to_device(position, d_position)
+            pairs::copy_to_device(mass, d_mass)
         }
         const unsigned long long int a136 = prop_dflags[0];
         const unsigned long long int e539 = a136 | 15;
