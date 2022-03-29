@@ -62,3 +62,25 @@ class AddDeviceCopies(Mutator):
 
         ast_node.stmts = new_stmts
         return ast_node
+
+
+class AddDeviceKernels(Mutator):
+    def __init__(self, ast):
+        super().__init__(ast)
+
+    def mutate_Module(self, ast_node):
+        ast_node._block = self.mutate(ast_node._block)
+
+        if ast_node.run_on_device:
+            new_stmts = []
+            kernel_id = 0
+            for s in ast_node._block.stmts:
+                if s is not None:
+                    if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
+                        kernel = Kernel(ast_node.sim, f"{ast_node.name}_kernel{kernel_id}", s.block)
+                        new_stmts.append(KernelLaunch(ast_node.sim, kernel, s.iterator, s.min, s.max))
+                        kernel_id += 1
+                    else:
+                        new_stmts.append(s)
+
+        return ast_node
