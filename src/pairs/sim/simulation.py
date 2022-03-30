@@ -1,6 +1,7 @@
 from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
+from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
 from pairs.ir.module import Module
 from pairs.ir.properties import Properties

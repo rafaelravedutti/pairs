@@ -66,6 +66,17 @@ class Mutator:
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
 
+    def mutate_Kernel(self, ast_node):
+        ast_node._block = self.mutate(ast_node._block)
+        return ast_node
+
+    def mutate_KernelLaunch(self, ast_node):
+        ast_node._kernel = self.mutate(ast_node._kernel)
+        ast_node._iterator = self.mutate(ast_node._iterator)
+        ast_node._range_min = self.mutate(ast_node._range_min)
+        ast_node._range_max = self.mutate(ast_node._range_max)
+        return ast_node
+
     def mutate_ParticleFor(self, ast_node):
         return self.mutate_For(ast_node)
 
@@ -82,6 +93,10 @@ class Mutator:
 
     def mutate_Module(self, ast_node):
         ast_node._block = self.mutate(ast_node._block)
+        return ast_node
+
+    def mutate_ModuleCall(self, ast_node):
+        ast_node._module = self.mutate(ast_node._module)
         return ast_node
 
     def mutate_Realloc(self, ast_node):

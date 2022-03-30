@@ -88,7 +88,7 @@ class Kernel(ASTNode):
 
 class KernelLaunch(ASTNode):
     def __init__(self, sim, kernel, iterator, range_min, range_max):
-        assert isinstance(module, Kernel), "KernelLaunch(): given parameter is not of type Kernel!"
+        assert isinstance(kernel, Kernel), "KernelLaunch(): given parameter is not of type Kernel!"
         super().__init__(sim)
         self._kernel = kernel
         self._iterator = iterator
@@ -111,3 +111,6 @@ class KernelLaunch(ASTNode):
     @property
     def threads_per_block(self):
         return self._threads_per_block
+
+    def children(self):
+        return [self._kernel, self._iterator, self._range_min, self._range_max]

@@ -4,6 +4,9 @@ from pairs.ir.bin_op import BinOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.device import CopyToDevice, CopyToHost
+from pairs.ir.kernel import Kernel, KernelLaunch
+from pairs.ir.lit import Lit
+from pairs.ir.loops import For
 from pairs.ir.module import ModuleCall
 from pairs.ir.mutator import Mutator
 from pairs.ir.types import Types

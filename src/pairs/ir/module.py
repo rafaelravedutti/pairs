@@ -87,3 +87,6 @@ class ModuleCall(ASTNode):
     @property
     def module(self):
         return self._module
+
+    def children(self):
+        return [self._module]
