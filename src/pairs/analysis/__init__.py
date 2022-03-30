@@ -1,5 +1,6 @@
 from pairs.analysis.bin_ops import SetBinOpTerminals, SetUsedBinOps
 from pairs.analysis.blocks import SetBlockVariants, SetParentBlock
+from pairs.analysis.devices import FetchKernelReferences
 from pairs.analysis.modules import FetchModulesReferences
 
 
@@ -10,6 +11,7 @@ class Analysis:
         self._set_bin_op_terminals = SetBinOpTerminals(ast)
         self._set_block_variants = SetBlockVariants(ast)
         self._set_parent_block = SetParentBlock(ast)
+        self._fetch_kernel_references = FetchKernelReferences(ast)
         self._fetch_modules_references = FetchModulesReferences(ast)
 
     def set_used_bin_ops(self):
@@ -23,6 +25,9 @@ class Analysis:
 
     def set_parent_block(self):
         self._set_parent_block.visit()
+
+    def fetch_kernel_references(self):
+        self._fetch_kernel_references.visit()
 
     def fetch_modules_references(self):
         self._fetch_modules_references.visit()

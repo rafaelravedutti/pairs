@@ -1,6 +1,6 @@
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import MergeAdjacentBlocks
-from pairs.transformations.devices import AddDeviceCopies
+from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels
 from pairs.transformations.expressions import ReplaceSymbols, SimplifyExpressions, PrioritizeScalarOps
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
@@ -23,6 +23,7 @@ class Transformations:
 
         if target.is_gpu():
             self._add_device_copies = AddDeviceCopies(ast)
+            self._add_device_kernels = AddDeviceKernels(ast)
 
     def lower_everything(self):
         nlowered = 1
@@ -58,9 +59,15 @@ class Transformations:
         if self._target.is_gpu():
             self._add_device_copies.mutate()
 
+    def add_device_kernels(self):
+        if self._target.is_gpu():
+            self._analysis.fetch_kernel_references()
+            self._add_device_kernels.mutate()
+
     def apply_all(self):
         self.lower_everything()
         self.optimize_expressions()
         self.licm()
         self.modularize()
         self.add_device_copies()
+        self.add_device_kernels()

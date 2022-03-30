@@ -49,6 +49,9 @@ class Kernel(ASTNode):
     def properties_to_synchronize(self):
         return {p for p in self._properties if self._properties[p][0] == 'r'}
 
+    def bin_ops(self):
+        return self._bin_ops
+
     def write_properties(self):
         return {p for p in self._properties if 'w' in self._properties[p]}
 
@@ -91,7 +94,20 @@ class KernelLaunch(ASTNode):
         self._iterator = iterator
         self._range_min = range_min
         self._range_max = range_max
+        self._threads_per_block = 32
 
     @property
     def kernel(self):
         return self._kernel
+
+    @property
+    def min(self):
+        return self._range_min
+
+    @property
+    def max(self):
+        return self._range_max
+
+    @property
+    def threads_per_block(self):
+        return self._threads_per_block

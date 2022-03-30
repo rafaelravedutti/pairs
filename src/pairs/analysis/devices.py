@@ -1,3 +1,4 @@
+from pairs.ir.bin_op import BinOp
 from pairs.ir.visitor import Visitor
 
 

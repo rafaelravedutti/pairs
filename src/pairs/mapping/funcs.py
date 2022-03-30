@@ -148,4 +148,4 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
             ir.add_symbols({params[0]: i, params[1]: j, 'delta': pairs.delta(), 'rsq': pairs.squared_distance()})
             ir.visit(tree)
 
-    sim.build_kernel_block_with_statements()
+    sim.build_module_with_statements()

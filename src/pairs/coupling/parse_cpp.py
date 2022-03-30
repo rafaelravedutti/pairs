@@ -176,7 +176,7 @@ def map_kernel_to_simulation(sim, node):
             }
         })
 
-    self.build_kernel_block_with_statements()
+    self.build_module_with_statements()
 
 
 def map_method_tree(sim, node, assignments={}, mappings={}):

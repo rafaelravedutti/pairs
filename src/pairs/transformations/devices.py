@@ -83,4 +83,6 @@ class AddDeviceKernels(Mutator):
                     else:
                         new_stmts.append(s)
 
+            ast_node._block_stmts = new_stmts
+
         return ast_node

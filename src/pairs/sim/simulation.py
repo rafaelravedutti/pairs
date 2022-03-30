@@ -45,8 +45,9 @@ class Simulation:
         self.check_decl_usage = True
         self._block = Block(self, [])
         self.setups = Block(self, [])
-        self.kernels = Block(self, [])
+        self.functions = Block(self, [])
         self.module_list = []
+        self.kernel_list = []
         self._check_properties_resize = False
         self._resizes_to_check = {}
         self._module_name = None
@@ -73,6 +74,13 @@ class Simulation:
                 main_mod = m
 
         return sorted_mods + [main_mod]
+
+    def add_kernel(self, kernel):
+        assert isinstance(kernel, Kernel), "add_kernel(): Given parameter is not of type Kernel!"
+        self.kernel_list.append(kernel)
+
+    def kernels(self):
+        return self.kernel_list
 
     def ndims(self):
         return self.dims
@@ -170,14 +178,14 @@ class Simulation:
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
-    def build_kernel_block_with_statements(self):
-        self.kernels.add_statement(
+    def build_module_with_statements(self, run_on_device=True):
+        self.functions.add_statement(
             Module(self,
                 name=self._module_name,
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
-                run_on_device=True))
+                run_on_device=run_on_device))
 
     def add_statement(self, stmt):
         if not self.scope:
@@ -220,7 +228,7 @@ class Simulation:
             (CellListsBuild(self, self.cell_lists), 20),
             (NeighborListsBuild(self, self.neighbor_lists), 20),
             PropertiesResetVolatile(self),
-            self.kernels
+            self.functions
         ])
 
         self.enter(timestep.block)
@@ -249,5 +257,5 @@ class Simulation:
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False
 
-        ASTGraph(self.kernels, "kernels").render()
+        ASTGraph(self.functions, "functions").render()
         self.code_gen.generate_program(program)

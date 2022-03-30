@@ -6,6 +6,7 @@ from pairs.ir.cast import Cast
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
 from pairs.ir.device import CopyToDevice, CopyToHost
 from pairs.ir.functions import Call
+from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For, Iter, ParticleFor, While
@@ -60,8 +61,13 @@ class CGen:
                     self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
 
         self.print("")
+
+        for kernel in self.sim.kernels():
+            self.generate_kernel(kernel)
+
         for module in self.sim.modules():
             self.generate_module(module)
+
         self.print.end()
 
     def generate_module(self, module):
@@ -109,6 +115,37 @@ class CGen:
                 self.print.add_indent(-4)
 
             self.print("}")
+
+    def generate_kernel(self, kernel):
+        kernel_params = ""
+        for var in kernel.read_only_variables():
+            type_kw = Types.c_keyword(var.type())
+            decl = f"{type_kw} {var.name()}"
+            kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+        for var in kernel.write_variables():
+            type_kw = Types.c_keyword(var.type())
+            decl = f"{type_kw} *{var.name()}"
+            kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+        for array in kernel.arrays():
+            type_kw = Types.c_keyword(array.type())
+            decl = f"{type_kw} *{array.name()}"
+            kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+        for prop in kernel.properties():
+            type_kw = Types.c_keyword(prop.type())
+            decl = f"{type_kw} *{prop.name()}"
+            kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+        for bin_op in kernel.bin_ops():
+            type_kw = Types.c_keyword(bin_op.type())
+            decl = f"{type_kw} e{bin_op.id()}"
+            kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+        self.print(f"__global__ void {kernel.name}({kernel_params}) {{")
+        self.generate_statement(kernel.block)
+        self.print("}")
 
     def generate_statement(self, ast_node, bypass_checking=False):
         if isinstance(ast_node, ArrayDecl):
@@ -230,6 +267,34 @@ class CGen:
                 if self.target.is_gpu() and ast_node.array.device_flag:
                     self.print(f"d_{array_name} = ({tkw} *) pairs::device_alloc({size});")
 
+        if isinstance(ast_node, KernelLaunch):
+            kernel = ast_node.kernel
+            kernel_params = ""
+            for var in module.read_only_variables():
+                decl = var.name()
+                kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+            for var in module.write_variables():
+                decl = f"&{var.name()}"
+                kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+            for array in module.arrays():
+                decl = f"d_{array.name()}"
+                kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+            for prop in module.properties():
+                decl = f"d_{prop.name()}"
+                kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+            for bin_op in kernel.bin_ops():
+                decl = self.generate_expression(bin_op)
+                kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+            elems = ast_node.kernel.max - ast_node.kernel.min
+            threads_per_block = self.generate_expression(ast_node.kernel.threads_per_block)
+            blocks = self.generate_expression((elems + threads_per_block - 1) // threads_per_block)
+            self.print(f"{kernel.name}<<<{blocks}, {threads_per_block}>>>({kernel_params});")
+
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module
             module_params = ""
@@ -289,7 +354,6 @@ class CGen:
 
         if isinstance(ast_node, UpdateProperty):
             p = ast_node.property()
-
             if p.type() != Types.Vector or p.layout() == Layouts.Invalid:
                 self.print(f"ps->updateProperty({p.id()}, {p.name()});")
             else:
