@@ -14,4 +14,4 @@ lj_ns:
 
 clean:
 	@echo "Cleaning..."
-	rm -rf build lj_ns lj_ns.cpp dist pairs.egg-info kernels kernels.pdf
+	rm -rf build lj_ns lj_ns.cpp dist pairs.egg-info functions functions.pdf
