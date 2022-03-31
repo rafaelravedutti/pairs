@@ -48,7 +48,7 @@ class FetchKernelReferences(Visitor):
     def visit_Decl(self, ast_node):
         if isinstance(ast_node.elem, BinOp):
             for k in self.kernel_stack:
-                self.kernel_decls[k.kernel_id].append(ast_node)
+                self.kernel_decls[k.kernel_id].append(ast_node.elem)
 
     def visit_BinOp(self, ast_node):
         for k in self.kernel_stack:
