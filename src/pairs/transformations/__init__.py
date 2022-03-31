@@ -61,8 +61,8 @@ class Transformations:
 
     def add_device_kernels(self):
         if self._target.is_gpu():
-            self._analysis.fetch_kernel_references()
             self._add_device_kernels.mutate()
+            self._analysis.fetch_kernel_references()
 
     def apply_all(self):
         self.lower_everything()

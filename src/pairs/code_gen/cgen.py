@@ -144,6 +144,7 @@ class CGen:
             kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
         self.print(f"__global__ void {kernel.name}({kernel_params}) {{")
+        self.print(f"    const int {kernel.iterator.name()} = blockIdx.x * blockDim.x + threadIdx.x;")
         self.generate_statement(kernel.block)
         self.print("}")
 
@@ -270,19 +271,19 @@ class CGen:
         if isinstance(ast_node, KernelLaunch):
             kernel = ast_node.kernel
             kernel_params = ""
-            for var in module.read_only_variables():
+            for var in kernel.read_only_variables():
                 decl = var.name()
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
-            for var in module.write_variables():
+            for var in kernel.write_variables():
                 decl = f"&{var.name()}"
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
-            for array in module.arrays():
+            for array in kernel.arrays():
                 decl = f"d_{array.name()}"
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
-            for prop in module.properties():
+            for prop in kernel.properties():
                 decl = f"d_{prop.name()}"
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
@@ -290,10 +291,9 @@ class CGen:
                 decl = self.generate_expression(bin_op)
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
-            elems = ast_node.kernel.max - ast_node.kernel.min
-            threads_per_block = self.generate_expression(ast_node.kernel.threads_per_block)
-            blocks = self.generate_expression((elems + threads_per_block - 1) // threads_per_block)
-            self.print(f"{kernel.name}<<<{blocks}, {threads_per_block}>>>({kernel_params});")
+            elems = ast_node.max - ast_node.min
+            blocks = self.generate_expression((elems + ast_node.threads_per_block - 1) / ast_node.threads_per_block)
+            self.print(f"{kernel.name}<<<{blocks}, {ast_node.threads_per_block}>>>({kernel_params});")
 
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module

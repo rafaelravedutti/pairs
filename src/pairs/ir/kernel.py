@@ -1,5 +1,6 @@
 from pairs.ir.arrays import Array
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.bin_op import BinOp
 from pairs.ir.properties import Property
 from pairs.ir.variables import Var
 
@@ -7,7 +8,7 @@ from pairs.ir.variables import Var
 class Kernel(ASTNode):
     last_kernel = 0
 
-    def __init__(self, sim, name=None, block=None):
+    def __init__(self, sim, name=None, block=None, iterator=None):
         super().__init__(sim)
         self._id = Kernel.last_kernel
         self._name = name if name is not None else "kernel" + str(Kernel.last_kernel)
@@ -16,6 +17,7 @@ class Kernel(ASTNode):
         self._properties = {}
         self._bin_ops = []
         self._block = block
+        self._iterator = iterator
         sim.add_kernel(self)
         Kernel.last_kernel += 1
 
@@ -30,6 +32,10 @@ class Kernel(ASTNode):
     @property
     def block(self):
         return self._block
+
+    @property
+    def iterator(self):
+        return self._iterator
 
     def variables(self):
         return self._variables
