@@ -48,6 +48,12 @@ class CGen:
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
         self.print("#include \"runtime/vtk.hpp\"")
+
+        if self.target.is_gpu():
+            self.print("#include \"runtime/devices/cuda.hpp\"")
+        else:
+            self.print("#include \"runtime/devices/dummy.hpp\"")
+
         self.print("")
         self.print("using namespace pairs;")
         self.print("")
@@ -229,11 +235,13 @@ class CGen:
 
         if isinstance(ast_node, CopyToDevice):
             array_name = ast_node.prop.name()
-            self.print(f"pairs::copy_to_device({array_name}, d_{array_name})")
+            size = self.generate_expression(ast_node.size)
+            self.print(f"pairs::copy_to_device({array_name}, d_{array_name}, {size});")
 
         if isinstance(ast_node, CopyToHost):
             array_name = ast_node.prop.name()
-            self.print(f"pairs::copy_to_host(d_{array_name}, {array_name})")
+            size = self.generate_expression(ast_node.size)
+            self.print(f"pairs::copy_to_host(d_{array_name}, {array_name}, {size});")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
