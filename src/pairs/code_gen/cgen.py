@@ -26,11 +26,12 @@ from pairs.code_gen.printer import Printer
 class CGen:
     temp_id = 0
 
-    def __init__(self, output, target, debug=False):
+    def __init__(self, ref, target, debug=False):
         self.sim = None
         self.target = None
+        self.print = None
+        self.ref = ref
         self.debug = debug
-        self.print = Printer(output)
 
     def assign_simulation(self, sim):
         self.sim = sim
@@ -39,6 +40,8 @@ class CGen:
         self.target = target
 
     def generate_program(self, ast_node):
+        ext = ".cu" if self.target.is_gpu() else ".cpp"
+        self.print = Printer(self.ref + ext)
         self.print.start()
         self.print("#include <math.h>")
         self.print("#include <stdbool.h>")
