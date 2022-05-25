@@ -1,3 +1,4 @@
+from pairs.ir.bin_op import BinOp
 from pairs.ir.visitor import Visitor
 
 
@@ -60,3 +61,21 @@ class SetUsedBinOps(Visitor):
         ast_node.decl.used = not self.writing
         self.writing = False
         self.visit_children(ast_node)
+
+
+class ResetInPlaceBinOps(Visitor):
+    def __init__(self, ast):
+        super().__init__(ast)
+
+    def visit_BinOp(self, ast_node):
+        ast_node.in_place = True
+        self.visit_children(ast_node)
+
+
+class SetInPlaceBinOps(Visitor):
+    def __init__(self, ast):
+        super().__init__(ast)
+
+    def visit_Decl(self, ast_node):
+        if isinstance(ast_node.elem, BinOp):
+            ast_node.elem.in_place = False

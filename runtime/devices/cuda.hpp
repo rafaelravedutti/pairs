@@ -16,13 +16,13 @@ inline void cuda_assert(cudaError_t err, const char *file, int line) {
     }
 }
 
-__host__ __device__ void *device_alloc(size_t size) {
+__host__ void *device_alloc(size_t size) {
     void *ptr;
     CUDA_ASSERT(cudaMalloc(&ptr, size));
     return ptr;
 }
 
-__host__ __device__ void *device_realloc(void *ptr, size_t size) {
+__host__ void *device_realloc(void *ptr, size_t size) {
     void *new_ptr;
     CUDA_ASSERT(cudaFree(ptr));
     CUDA_ASSERT(cudaMalloc(&new_ptr, size));

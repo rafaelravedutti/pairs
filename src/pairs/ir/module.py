@@ -9,6 +9,7 @@ class Module(ASTNode):
 
     def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False):
         super().__init__(sim)
+        self._id = Module.last_module
         self._name = name if name is not None else "module" + str(Module.last_module)
         self._variables = {}
         self._arrays = {}
@@ -19,6 +20,10 @@ class Module(ASTNode):
         self._run_on_device = run_on_device
         sim.add_module(self)
         Module.last_module += 1
+
+    @property
+    def module_id(self):
+        return self._id
 
     @property
     def name(self):

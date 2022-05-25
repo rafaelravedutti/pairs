@@ -41,6 +41,7 @@ class BinOp(VectorExpression):
         self.mem = mem
         self.inlined = False
         self.generated = False
+        self.in_place = False
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
         self.terminals = set()
         self.decl = Decl(sim, self)

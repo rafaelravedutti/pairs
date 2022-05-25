@@ -119,3 +119,63 @@ class SetParentBlock(Visitor):
         assert isinstance(ast_node, (For, While)), "Node must be a loop!"
         loop_id = id(ast_node)
         return self.parents[loop_id] if loop_id in self.parents else None
+
+
+class SetExprOwnerBlock(Visitor):
+    def __init__(self, ast):
+        super().__init__(ast)
+        self.ownership = {}
+        self.expressions_to_lift = []
+        self.block_level = {}
+        self.block_parent = {}
+        self.block_stack = []
+
+    def common_parent_block(self, block1, block2):
+        if block1 is None:
+            return (block2, False)
+
+        if block2 is None:
+            return (block1, False)
+
+        parent_block1 = block1
+        parent_block2 = block2
+        while parent_block1 != parent_block2:
+            l1 = self.block_level[parent_block1]
+            l2 = self.block_level[parent_block2]
+
+            if l1 >= l2:
+                if l1 == 0:
+                    return (parent_block1, False)
+
+                parent_block1 = self.block_parent[parent_block1]
+
+            if l2 >= l1:
+                if l2 == 0:
+                    return (parent_block2, False)
+
+                parent_block2 = self.block_parent[parent_block2]
+
+        return (parent_block1, parent_block1 != block1 and parent_block1 != block2)
+
+    def set_ownership(self, ast_node):
+        if ast_node not in self.ownership:
+            self.ownership[ast_node] = None
+
+        self.ownership[ast_node], must_lift = self.common_parent_block(self.ownership[ast_node], self.block_stack[-1])
+        if must_lift and ast_node not in self.expressions_to_lift:
+            self.expressions_to_lift.append(ast_node)
+
+    def visit_Block(self, ast_node):
+        self.block_level[ast_node] = len(self.block_stack)
+        self.block_parent[ast_node] = self.block_stack[-1] if len(self.block_stack) > 0 else None
+        self.block_stack.append(ast_node)
+        self.visit_children(ast_node)
+        self.block_stack.pop()
+
+    def visit_BinOp(self, ast_node):
+        self.set_ownership(ast_node)
+        self.visit_children(ast_node)
+
+    def visit_PropertyAccess(self, ast_node):
+        self.set_ownership(ast_node)
+        self.visit_children(ast_node)

@@ -33,7 +33,7 @@ class FetchKernelReferences(Visitor):
         self.kernel_stack.append(ast_node)
         self.visit_children(ast_node)
         self.kernel_stack.pop()
-        ast_node.add_bin_op([b for b in self.kernel_used_bin_ops[kernel_id] if b not in self.kernel_decls[kernel_id]])
+        ast_node.add_bin_op([b for b in self.kernel_used_bin_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
 
     def visit_PropertyAccess(self, ast_node):
         # Visit property and save current writing state
@@ -51,8 +51,11 @@ class FetchKernelReferences(Visitor):
                 self.kernel_decls[k.kernel_id].append(ast_node.elem)
 
     def visit_BinOp(self, ast_node):
-        for k in self.kernel_stack:
-            self.kernel_used_bin_ops[k.kernel_id].append(ast_node)
+        if ast_node.inlined is False:
+            for k in self.kernel_stack:
+                self.kernel_used_bin_ops[k.kernel_id].append(ast_node)
+
+        self.visit_children(ast_node)
 
     def visit_Array(self, ast_node):
         for k in self.kernel_stack:

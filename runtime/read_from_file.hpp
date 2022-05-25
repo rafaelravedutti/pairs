@@ -47,7 +47,7 @@ size_t read_particle_data(PairsSim *ps, const char *filename, double *grid_buffe
                         float_ptr(n) = std::stod(in0);
                     } else {
                         std::cerr << "read_particle_data(): Invalid property type!" << std::endl;
-                        return -1;
+                        return 0;
                     }
                 }
 

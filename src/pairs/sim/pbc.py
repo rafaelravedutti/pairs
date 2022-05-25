@@ -58,13 +58,12 @@ class EnforcePBC(Lowerable):
 
         for i in ParticleFor(sim):
             # TODO: VecFilter?
-            pos = positions[i]
             for d in range(0, ndims):
-                for _ in Filter(sim, pos[d] < grid.min(d)):
-                    pos[d].add(grid.length(d))
+                for _ in Filter(sim, positions[i][d] < grid.min(d)):
+                    positions[i][d].add(grid.length(d))
 
-                for _ in Filter(sim, pos[d] > grid.max(d)):
-                    pos[d].sub(grid.length(d))
+                for _ in Filter(sim, positions[i][d] > grid.max(d)):
+                    positions[i][d].sub(grid.length(d))
 
 
 class SetupPBC(Lowerable):
@@ -91,12 +90,11 @@ class SetupPBC(Lowerable):
         for d in range(0, ndims):
             for i in For(sim, 0, nlocal + npbc):
                 pos = positions[i]
-                last_id = nlocal + npbc
-
                 grid_length = grid.length(d)
+
                 # TODO: VecFilter?
                 for _ in Filter(sim, pos[d] < grid.min(d) + cutneigh):
-                    last_pos = positions[last_id]
+                    last_pos = positions[nlocal + npbc]
                     pbc_map[npbc].set(i)
                     pbc_mult[npbc][d].set(1)
                     last_pos[d].set(pos[d] + grid_length)
@@ -108,7 +106,7 @@ class SetupPBC(Lowerable):
                     npbc.add(1)
 
                 for _ in Filter(sim, pos[d] > grid.max(d) - cutneigh):
-                    last_pos = positions[last_id]
+                    last_pos = positions[nlocal + npbc]
                     pbc_map[npbc].set(i)
                     pbc_mult[npbc][d].set(-1)
                     last_pos[d].set(pos[d] - grid_length)
