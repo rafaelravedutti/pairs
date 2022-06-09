@@ -287,15 +287,15 @@ class CGen:
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
             for var in kernel.write_variables():
-                decl = f"&{var.name()}"
+                decl = var.name()
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
             for array in kernel.arrays():
-                decl = f"d_{array.name()}"
+                decl = array.name()
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
             for prop in kernel.properties():
-                decl = f"d_{prop.name()}"
+                decl = prop.name()
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
             for bin_op in kernel.bin_ops():
