@@ -1,4 +1,5 @@
 import pairs
+import sys
 
 
 def lj(i, j):
@@ -10,6 +11,12 @@ def lj(i, j):
 def euler(i):
     velocity[i] += dt * force[i] / mass[i]
     position[i] += dt * velocity[i]
+
+
+cmd = sys.argv[0]
+target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
+if target != 'cpu' and target != 'gpu':
+    print(f"Invalid target, use {cmd} <cpu/gpu>")
 
 
 dt = 0.005
@@ -32,5 +39,10 @@ psim.vtk_output("output/test")
 psim.compute(lj, cutoff_radius, {'sigma6': sigma6, 'epsilon': epsilon})
 psim.compute(euler, symbols={'dt': dt})
 psim.target(pairs.target_cpu())
-#psim.target(pairs.target_gpu())
+
+if target == 'gpu':
+    psim.target(pairs.target_gpu())
+else:
+    psim.target(pairs.target_cpu())
+
 psim.generate()
