@@ -69,7 +69,7 @@ class For(ASTNode):
 
 class ParticleFor(For):
     def __init__(self, sim, block=None, local_only=True):
-        super().__init__(sim, 0, 0, block)
+        super().__init__(sim, 0, sim.nlocal, block)
         self.local_only = local_only
 
     def __str__(self):
