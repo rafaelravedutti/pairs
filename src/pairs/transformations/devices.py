@@ -3,6 +3,7 @@ from pairs.ir.assign import Assign
 from pairs.ir.bin_op import BinOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
+from pairs.ir.cast import Cast
 from pairs.ir.device import CopyToDevice, CopyToHost
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
@@ -55,11 +56,11 @@ class AddDeviceCopies(Mutator):
                     if s.module.run_on_device:
                         new_stmts += \
                             [Assign(s.sim, self.prop_dflags[i], self.prop_dflags[i] | sync_flags[i]) for i in range(self.nflags)] + \
-                            [Assign(s.sim, self.prop_hflags[i], self.prop_hflags[i] & ~dirty_flags[i]) for i in range(self.nflags)]
+                            [Assign(s.sim, self.prop_hflags[i], self.prop_hflags[i] & Cast.uint64(s.sim, ~dirty_flags[i])) for i in range(self.nflags)]
                     else:
                         new_stmts += \
                             [Assign(s.sim, self.prop_hflags[i], self.prop_hflags[i] | sync_flags[i]) for i in range(self.nflags)] + \
-                            [Assign(s.sim, self.prop_dflags[i], self.prop_dflags[i] & ~dirty_flags[i]) for i in range(self.nflags)]
+                            [Assign(s.sim, self.prop_dflags[i], self.prop_dflags[i] & Cast.uint64(s.sim, ~dirty_flags[i])) for i in range(self.nflags)]
 
                 new_stmts.append(s)
 
