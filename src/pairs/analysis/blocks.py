@@ -4,7 +4,7 @@ from pairs.ir.visitor import Visitor
 
 
 class SetBlockVariants(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.in_assignment = None
         self.blocks = []
@@ -71,7 +71,7 @@ class SetBlockVariants(Mutator):
 
 
 class SetParentBlock(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.blocks = []
 
@@ -122,7 +122,7 @@ class SetParentBlock(Visitor):
 
 
 class SetExprOwnerBlock(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.ownership = {}
         self.expressions_to_lift = []

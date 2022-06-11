@@ -4,7 +4,7 @@ from pairs.ir.mutator import Mutator
 
 
 class MergeAdjacentBlocks(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
 
     def mutate_Block(self, ast_node):
@@ -22,14 +22,14 @@ class MergeAdjacentBlocks(Mutator):
 
 
 class LiftExprOwnerBlocks(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.ownership = None
         self.expressions_to_lift = None
 
-    def set_data(self, ownership, expressions_to_lift):
-        self.ownership = ownership
-        self.expressions_to_lift = expressions_to_lift
+    def set_data(self, data):
+        self.ownership = data[0]
+        self.expressions_to_lift = data[1]
 
     def mutate_Block(self, ast_node):
         ast_node.stmts = \

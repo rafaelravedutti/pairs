@@ -16,7 +16,7 @@ import operator
 
 
 class DereferenceWriteVariables(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.module_stack = []
 
@@ -35,7 +35,7 @@ class DereferenceWriteVariables(Mutator):
 
 
 class AddResizeLogic(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.block_stack = []
         self.module_stack = []
@@ -119,13 +119,13 @@ class AddResizeLogic(Mutator):
 
 
 class ReplaceModulesByCalls(Mutator):
-    def __init__(self, ast, grow_fn=None):
+    def __init__(self, ast=None, grow_fn=None):
         super().__init__(ast)
         self.module_resizes = None
         self.grow_fn = grow_fn if grow_fn is not None else (lambda x: x * 2)
 
-    def set_module_resizes(self, module_resizes):
-        self.module_resizes = module_resizes
+    def set_data(self, data):
+        self.module_resizes = data[0]
 
     def mutate_Module(self, ast_node):
         ast_node._block = self.mutate(ast_node._block)

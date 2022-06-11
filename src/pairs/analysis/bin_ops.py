@@ -3,7 +3,7 @@ from pairs.ir.visitor import Visitor
 
 
 class SetBinOpTerminals(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.elems = []
 
@@ -39,7 +39,7 @@ class SetBinOpTerminals(Visitor):
 
 
 class SetUsedBinOps(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.bin_ops = []
         self.writing = False
@@ -64,7 +64,7 @@ class SetUsedBinOps(Visitor):
 
 
 class ResetInPlaceBinOps(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
 
     def visit_BinOp(self, ast_node):
@@ -73,7 +73,7 @@ class ResetInPlaceBinOps(Visitor):
 
 
 class SetInPlaceBinOps(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
 
     def visit_Decl(self, ast_node):

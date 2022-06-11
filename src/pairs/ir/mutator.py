@@ -1,7 +1,10 @@
 class Mutator:
-    def __init__(self, ast, max_depth=0):
+    def __init__(self, ast=None, max_depth=0):
         self.ast = ast
         self.max_depth = 0
+
+    def set_ast(self, ast):
+        self.ast = ast
 
     def get_method(self, method_name):
         method = getattr(self, method_name, None)

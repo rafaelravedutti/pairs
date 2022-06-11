@@ -2,7 +2,7 @@ from pairs.ir.visitor import Visitor
 
 
 class FetchModulesReferences(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.module_stack = []
         self.writing = False

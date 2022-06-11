@@ -3,7 +3,7 @@ from pairs.ir.visitor import Visitor
 
 
 class FetchKernelReferences(Visitor):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.kernel_stack = []
         self.kernel_decls = {}

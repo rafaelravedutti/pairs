@@ -5,7 +5,7 @@ from pairs.ir.properties import PropertyAccess
 
 
 class LICM(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
         self.lifts = {}
         self.loops = []

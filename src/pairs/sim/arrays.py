@@ -1,10 +1,10 @@
 from pairs.ir.block import pairs_inline
 from pairs.ir.memory import Malloc
 from pairs.ir.arrays import ArrayDecl
-from pairs.sim.lowerable import Lowerable
+from pairs.sim.lowerable import FinalLowerable
 
 
-class ArraysDecl(Lowerable):
+class ArraysDecl(FinalLowerable):
     def __init__(self, sim):
         super().__init__(sim)
 

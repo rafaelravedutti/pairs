@@ -4,12 +4,12 @@ from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.properties import RegisterProperty, UpdateProperty
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
-from pairs.sim.lowerable import Lowerable
+from pairs.sim.lowerable import Lowerable, FinalLowerable
 from functools import reduce
 import operator
 
 
-class PropertiesAlloc(Lowerable):
+class PropertiesAlloc(FinalLowerable):
     def __init__(self, sim, realloc=False):
         self.sim = sim
         self.realloc = realloc

@@ -1,9 +1,9 @@
 from pairs.ir.block import pairs_inline
 from pairs.ir.variables import VarDecl
-from pairs.sim.lowerable import Lowerable
+from pairs.sim.lowerable import FinalLowerable
 
 
-class VariablesDecl(Lowerable):
+class VariablesDecl(FinalLowerable):
     def __init__(self, sim):
         super().__init__(sim)
 

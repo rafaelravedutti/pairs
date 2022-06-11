@@ -5,7 +5,7 @@ from pairs.ir.types import Types
 
 
 class ReplaceSymbols(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
 
     def mutate_Symbol(self, ast_node):
@@ -13,7 +13,7 @@ class ReplaceSymbols(Mutator):
 
 
 class SimplifyExpressions(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
 
     def mutate_BinOp(self, ast_node):
@@ -41,7 +41,7 @@ class SimplifyExpressions(Mutator):
 
 
 class PrioritizeScalarOps(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
 
     def can_rearrange(op1, op2):

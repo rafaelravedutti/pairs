@@ -2,10 +2,13 @@ from collections import deque
 
 
 class Visitor:
-    def __init__(self, ast, max_depth=0, breadth_first=False):
+    def __init__(self, ast=None, max_depth=0, breadth_first=False):
         self.ast = ast
         self.max_depth = max_depth
         self.breadth_first = breadth_first
+
+    def set_ast(self, ast):
+        self.ast = ast
 
     def get_method(self, method_name):
         method = getattr(self, method_name, None)

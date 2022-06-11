@@ -14,8 +14,20 @@ from pairs.ir.types import Types
 
 
 class AddDeviceCopies(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
+        if ast is not None:
+            nprops = len(ast.sim.properties.all())
+            self.nflags = math.ceil(nprops / 64.0)
+            self.prop_hflags = ast.sim.add_static_array('prop_hflags', self.nflags, Types.UInt64, init_value=0xffffffffffffffff)
+            self.prop_dflags = ast.sim.add_static_array('prop_dflags', self.nflags, Types.UInt64, init_value=0)
+        else:
+            self.nflags = None
+            self.prop_hflags = None
+            self.prop_dflags = None
+
+    def set_ast(self, ast):
+        super().set_ast(ast)
         nprops = len(ast.sim.properties.all())
         self.nflags = math.ceil(nprops / 64.0)
         self.prop_hflags = ast.sim.add_static_array('prop_hflags', self.nflags, Types.UInt64, init_value=0xffffffffffffffff)
@@ -69,7 +81,7 @@ class AddDeviceCopies(Mutator):
 
 
 class AddDeviceKernels(Mutator):
-    def __init__(self, ast):
+    def __init__(self, ast=None):
         super().__init__(ast)
 
     def mutate_Module(self, ast_node):
