@@ -157,7 +157,7 @@ class CGen:
         self.generate_statement(kernel.block)
         self.print("}")
 
-    def generate_statement(self, ast_node, bypass_checking=False):
+    def generate_statement(self, ast_node):
         if isinstance(ast_node, ArrayDecl):
             t = ast_node.array.type()
             tkw = Types.c_keyword(t)
@@ -188,10 +188,9 @@ class CGen:
 
         # TODO: Why there are Decls for other types?
         if isinstance(ast_node, Decl):
-            if isinstance(ast_node.elem, BinOp) and (bypass_checking or ast_node.used):
+            if isinstance(ast_node.elem, BinOp):
                 bin_op = ast_node.elem
-
-                if bin_op.inlined is False and bin_op.generated is False:
+                if bin_op.inlined is False:
                     if bin_op.is_vector_kind():
                         for i in bin_op.indexes():
                             lhs = self.generate_expression(bin_op.lhs, bin_op.mem, index=i)
@@ -203,9 +202,15 @@ class CGen:
                         tkw = Types.c_keyword(bin_op.type())
                         self.print(f"const {tkw} e{bin_op.id()} = {lhs} {bin_op.operator()} {rhs};")
 
-                ast_node.elem.generated = True
+            if isinstance(ast_node.elem, ArrayAccess):
+                array_access = ast_node.elem
+                array_name = array_access.array.name()
+                tkw = Types.c_keyword(array_access.type())
+                acc_index = self.generate_expression(array_access.index)
+                acc_ref = f"a{array_access.id()}"
+                self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
 
-            if isinstance(ast_node.elem, PropertyAccess) and (bypass_checking or ast_node.used):
+            if isinstance(ast_node.elem, PropertyAccess):
                 prop_access = ast_node.elem
                 prop_name = prop_access.prop.name()
                 acc_ref = f"p{prop_access.id()}"
@@ -218,8 +223,6 @@ class CGen:
                     tkw = Types.c_keyword(prop_access.type())
                     index_g = self.generate_expression(prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
-
-                ast_node.elem.generated = True
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
@@ -302,9 +305,9 @@ class CGen:
                 decl = self.generate_expression(bin_op)
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
-            elems = ast_node.max - ast_node.min
-            blocks = self.generate_expression((elems + ast_node.threads_per_block - 1) / ast_node.threads_per_block)
-            self.print(f"{kernel.name}<<<{blocks}, {ast_node.threads_per_block}>>>({kernel_params});")
+            threads_per_block = self.generate_expression(ast_node.threads_per_block)
+            nblocks = self.generate_expression(ast_node.nblocks)
+            self.print(f"{kernel.name}<<<{nblocks}, {threads_per_block}>>>({kernel_params});")
 
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module
@@ -391,13 +394,7 @@ class CGen:
             if mem or ast_node.inlined is True:
                 return f"{array_name}[{acc_index}]"
 
-            acc_ref = f"a{ast_node.id()}"
-            if not ast_node.generated:
-                tkw = Types.c_keyword(ast_node.type())
-                self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
-                ast_node.generated = True
-
-            return acc_ref
+            return f"a{ast_node.id()}"
 
         if isinstance(ast_node, BinOp):
             lhs = self.generate_expression(ast_node.lhs, mem, index)
@@ -406,11 +403,6 @@ class CGen:
             if ast_node.inlined is True:
                 assert ast_node.type() != Types.Vector, "Vector operations cannot be inlined!"
                 return f"({lhs} {ast_node.operator()} {rhs})"
-
-            # Some expressions can be defined on-the-fly during transformations, hence they do not have
-            # a declaration statement in the tree, so we generate them right before use
-            if not ast_node.generated:
-                self.generate_statement(ast_node.declaration(), bypass_checking=True)
 
             if ast_node.is_vector_kind():
                 assert index is not None, "Index must be set for vector reference!"
@@ -458,9 +450,6 @@ class CGen:
                 index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
                 index_g = self.generate_expression(index_expr)
                 return f"{prop_name}[{index_g}]"
-
-            if not ast_node.generated:
-                self.generate_statement(ast_node.declaration(), bypass_checking=True) 
 
             acc_ref = f"p{ast_node.id()}"
             if ast_node.is_vector_kind():

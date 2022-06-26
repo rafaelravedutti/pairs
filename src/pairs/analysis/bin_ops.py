@@ -38,31 +38,6 @@ class SetBinOpTerminals(Visitor):
         self.push_terminal(ast_node)
 
 
-class SetUsedBinOps(Visitor):
-    def __init__(self, ast=None):
-        super().__init__(ast)
-        self.bin_ops = []
-        self.writing = False
-
-    def visit_Assign(self, ast_node):
-        self.writing = True
-        self.visit(ast_node.destinations())
-        self.writing = False
-        self.visit(ast_node.sources())
-
-    def visit_BinOp(self, ast_node):
-        ast_node.decl.used = True
-        self.visit_children(ast_node)
-
-    def visit_Decl(self, ast_node):
-        pass
-
-    def visit_PropertyAccess(self, ast_node):
-        ast_node.decl.used = not self.writing
-        self.writing = False
-        self.visit_children(ast_node)
-
-
 class ResetInPlaceBinOps(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
@@ -79,3 +54,12 @@ class SetInPlaceBinOps(Visitor):
     def visit_Decl(self, ast_node):
         if isinstance(ast_node.elem, BinOp):
             ast_node.elem.in_place = False
+
+
+class SetDeclaredExprs(Visitor):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+        self.declared_exprs = []
+
+    def visit_Decl(self, ast_node):
+        self.declared_exprs.append(id(ast_node.elem))

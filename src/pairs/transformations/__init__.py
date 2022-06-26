@@ -1,7 +1,7 @@
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftExprOwnerBlocks, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels
-from pairs.transformations.expressions import ReplaceSymbols, SimplifyExpressions, PrioritizeScalarOps
+from pairs.transformations.expressions import ReplaceSymbols, SimplifyExpressions, PrioritizeScalarOps, AddExpressionDeclarations
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
 from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLogic, ReplaceModulesByCalls
@@ -36,7 +36,6 @@ class Transformations:
         self.apply(SimplifyExpressions())
         self.apply(PrioritizeScalarOps())
         self.apply(SimplifyExpressions())
-        self.analysis().set_used_bin_ops()
 
     def lift_expressions_to_owner_blocks(self):
         ownership, expressions_to_lift = self.analysis().set_expressions_owner_block()
@@ -65,12 +64,18 @@ class Transformations:
             self.apply(AddDeviceKernels())
             self.analysis().fetch_kernel_references()
 
+    def add_expression_declarations(self):
+        declared_exprs = self.analysis().set_declared_expressions()
+        self.apply(AddExpressionDeclarations(), [declared_exprs])
+
     def apply_all(self):
         self.lower()
         self.optimize_expressions()
+        self.add_expression_declarations()
         self.lift_expressions_to_owner_blocks()
         self.licm()
         self.modularize()
         self.add_device_copies()
         self.add_device_kernels()
         self.lower(True)
+        self.add_expression_declarations()

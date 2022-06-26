@@ -101,9 +101,7 @@ class PropertyAccess(ASTTerm, VectorExpression):
         self.prop = prop
         self.index = Lit.cvt(sim, index)
         self.inlined = False
-        self.generated = False
         self.terminals = set()
-        self.decl = Decl(sim, self)
 
     def __str__(self):
         return f"PropertyAccess<{self.prop}, {self.index}>"
@@ -139,9 +137,6 @@ class PropertyAccess(ASTTerm, VectorExpression):
 
     def type(self):
         return self.prop.type()
-
-    def declaration(self):
-        return self.decl
 
     def add_terminal(self, terminal):
         self.terminals.add(terminal)

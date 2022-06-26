@@ -53,7 +53,19 @@ class Mutator:
         ast_node.block_else = None if ast_node.block_else is None else self.mutate(ast_node.block_else)
         return ast_node
 
+    def mutate_Call(self, ast_node):
+        ast_node.params = [self.mutate(p) for p in ast_node.params]
+        return ast_node
+
+    def mutate_Call_Void(self, ast_node):
+        ast_node.params = [self.mutate(p) for p in ast_node.params]
+        return ast_node
+
     def mutate_Cast(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
+    def mutate_Ceil(self, ast_node):
         ast_node.expr = self.mutate(ast_node.expr)
         return ast_node
 
@@ -67,6 +79,8 @@ class Mutator:
     def mutate_For(self, ast_node):
         ast_node.iterator = self.mutate(ast_node.iterator)
         ast_node.block = self.mutate(ast_node.block)
+        ast_node.min = self.mutate(ast_node.min)
+        ast_node.max = self.mutate(ast_node.max)
         return ast_node
 
     def mutate_Kernel(self, ast_node):
@@ -78,6 +92,8 @@ class Mutator:
         ast_node._iterator = self.mutate(ast_node._iterator)
         ast_node._range_min = self.mutate(ast_node._range_min)
         ast_node._range_max = self.mutate(ast_node._range_max)
+        ast_node._threads_per_block = self.mutate(ast_node._threads_per_block)
+        ast_node._nblocks = self.mutate(ast_node._nblocks)
         return ast_node
 
     def mutate_ParticleFor(self, ast_node):

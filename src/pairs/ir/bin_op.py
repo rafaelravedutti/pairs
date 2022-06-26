@@ -9,8 +9,6 @@ class Decl(ASTNode):
     def __init__(self, sim, elem):
         super().__init__(sim)
         self.elem = elem
-        self.used = not sim.check_decl_usage
-        sim.add_statement(self)
 
     def __str__(self):
         return f"Decl<self.elem>"
@@ -40,14 +38,11 @@ class BinOp(VectorExpression):
         self.op = op
         self.mem = mem
         self.inlined = False
-        self.generated = False
         self.in_place = False
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
         self.terminals = set()
-        self.decl = Decl(sim, self)
 
     def reassign(self, lhs, rhs, op):
-        assert self.generated is False, "Error on reassign: BinOp {} already generated!".format(self.bin_op_id)
         self.lhs = Lit.cvt(self.sim, lhs)
         self.rhs = Lit.cvt(self.sim, rhs)
         self.op = op
@@ -132,9 +127,6 @@ class BinOp(VectorExpression):
 
     def type(self):
         return self.bin_op_type
-
-    def declaration(self):
-        return self.decl
 
     def operator(self):
         return self.op

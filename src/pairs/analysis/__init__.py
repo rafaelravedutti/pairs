@@ -1,4 +1,4 @@
-from pairs.analysis.bin_ops import ResetInPlaceBinOps, SetBinOpTerminals, SetInPlaceBinOps, SetUsedBinOps
+from pairs.analysis.bin_ops import ResetInPlaceBinOps, SetBinOpTerminals, SetInPlaceBinOps, SetDeclaredExprs
 from pairs.analysis.blocks import SetBlockVariants, SetExprOwnerBlock, SetParentBlock
 from pairs.analysis.devices import FetchKernelReferences
 from pairs.analysis.modules import FetchModulesReferences
@@ -11,9 +11,6 @@ class Analysis:
     def apply(self, analysis):
         analysis.set_ast(self._ast)
         analysis.visit()
-
-    def set_used_bin_ops(self):
-        self.apply(SetUsedBinOps())
 
     def set_bin_op_terminals(self):
         self.apply(SetBinOpTerminals())
@@ -36,3 +33,8 @@ class Analysis:
 
     def fetch_modules_references(self):
         self.apply(FetchModulesReferences())
+
+    def set_declared_expressions(self):
+        set_decl_exprs = SetDeclaredExprs()
+        self.apply(set_decl_exprs)
+        return set_decl_exprs.declared_exprs

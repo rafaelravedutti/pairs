@@ -117,7 +117,6 @@ class ArrayAccess(ASTTerm):
         self.indexes = [Lit.cvt(sim, index)]
         self.index = None
         self.inlined = False
-        self.generated = False
         self.check_and_set_index()
 
     def __str__(self):

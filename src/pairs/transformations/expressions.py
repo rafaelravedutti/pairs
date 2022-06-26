@@ -1,4 +1,4 @@
-from pairs.ir.bin_op import BinOp
+from pairs.ir.bin_op import BinOp, Decl
 from pairs.ir.lit import Lit
 from pairs.ir.mutator import Mutator
 from pairs.ir.types import Types
@@ -78,5 +78,103 @@ class PrioritizeScalarOps(Mutator):
                 if rhs.rhs.type() == Types.Vector and Types.is_real(rhs.lhs.type()):
                     ast_node.reassign(rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
                     #return BinOp(sim, rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
+
+        return ast_node
+
+
+class AddExpressionDeclarations(Mutator):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+        self.declared_exprs = []
+        self.params = []
+        self.decls = {}
+        self.block_stack = []
+        self.writing = False
+
+    def set_data(self, data):
+        self.declared_exprs = data[0]
+
+    def push_decl(self, decl):
+        assert len(self.block_stack) > 0, "push_decl(): Block stack is empty, cannot push declaration!"
+        block_id = self.block_stack[-1]
+        self.decls[block_id].append(decl)
+
+    def mutate_ArrayAccess(self, ast_node):
+        writing = self.writing
+        ast_node.array = self.mutate(ast_node.array)
+        self.writing = False
+        ast_node.indexes = [self.mutate(i) for i in ast_node.indexes]
+        if ast_node.index is not None:
+            ast_node.index = self.mutate(ast_node.index)
+        self.writing = writing
+
+        if self.writing is False and ast_node.inlined is False:
+            array_access_id = id(ast_node)
+            if array_access_id not in self.declared_exprs and array_access_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(array_access_id)
+
+        return ast_node
+
+    def mutate_Assign(self, ast_node):
+        for a in ast_node.assignments:
+            self.writing = True
+            dst = self.mutate(a[0])
+            self.writing = False
+            src = self.mutate(a[1])
+
+        return ast_node
+
+    def mutate_Block(self, ast_node):
+        block_id = id(ast_node)
+        self.decls[block_id] = []
+        self.block_stack.append(block_id)
+        new_stmts = []
+        for s in ast_node.stmts:
+            new_s = self.mutate(s)
+            new_stmts = new_stmts + self.decls[block_id] + [new_s]
+            self.decls[block_id] = []
+
+        self.block_stack.pop()
+        ast_node.stmts = new_stmts
+        return ast_node
+
+    def mutate_BinOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        ast_node.rhs = self.mutate(ast_node.rhs)
+
+        if ast_node.inlined is False:
+            bin_op_id = id(ast_node)
+            if bin_op_id not in self.declared_exprs and bin_op_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(bin_op_id)
+
+        return ast_node
+
+    def mutate_Decl(self, ast_node):
+        self.declared_exprs.append(id(ast_node.elem))
+        ast_node.elem = self.mutate(ast_node.elem)
+        return ast_node
+
+    def mutate_Kernel(self, ast_node):
+        _params = self.params
+        self.params = self.params + [id(b) for b in ast_node.bin_ops()]
+        ast_node._block = self.mutate(ast_node._block)
+        self.params = _params
+        return ast_node
+
+    def mutate_PropertyAccess(self, ast_node):
+        writing = self.writing
+        ast_node.prop = self.mutate(ast_node.prop)
+        self.writing = False
+        ast_node.index = self.mutate(ast_node.index)
+        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        self.writing = writing
+
+        if self.writing is False and ast_node.inlined is False:
+            prop_access_id = id(ast_node)
+            if prop_access_id not in self.declared_exprs and prop_access_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(prop_access_id)
 
         return ast_node

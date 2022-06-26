@@ -1,6 +1,7 @@
 from pairs.ir.arrays import Array
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.bin_op import BinOp
+from pairs.ir.lit import Lit
 from pairs.ir.properties import Property
 from pairs.ir.variables import Var
 
@@ -100,7 +101,9 @@ class KernelLaunch(ASTNode):
         self._iterator = iterator
         self._range_min = range_min
         self._range_max = range_max
-        self._threads_per_block = 32
+        self._threads_per_block = Lit.cvt(sim, 32)
+        self._nelems = (range_max - range_min) 
+        self._nblocks = (self._nelems + self._threads_per_block - 1) / self._threads_per_block
 
     @property
     def kernel(self):
@@ -117,6 +120,10 @@ class KernelLaunch(ASTNode):
     @property
     def threads_per_block(self):
         return self._threads_per_block
+
+    @property
+    def nblocks(self):
+        return self._nblocks
 
     def children(self):
         return [self._kernel, self._iterator, self._range_min, self._range_max]
