@@ -251,18 +251,8 @@ class CGen:
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
-            lower_range = None
-            upper_range = None
-
-            if isinstance(ast_node, ParticleFor):
-                n = self.sim.nlocal if ast_node.local_only else self.sim.nlocal + self.sim.pbc.npbc
-                lower_range = 0
-                upper_range = self.generate_expression(n)
-
-            else:
-                lower_range = self.generate_expression(ast_node.min)
-                upper_range = self.generate_expression(ast_node.max)
-
+            lower_range = self.generate_expression(ast_node.min)
+            upper_range = self.generate_expression(ast_node.max)
             self.print(f"for(int {iterator} = {lower_range}; {iterator} < {upper_range}; {iterator}++) {{")
             self.generate_statement(ast_node.block)
             self.print("}")
