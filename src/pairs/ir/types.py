@@ -17,7 +17,8 @@ class Types:
             else 'int' if t == Types.Int32
             else 'long long int' if t == Types.Int64
             else 'unsigned long long int' if t == Types.UInt64
-            else 'bool'
+            else 'bool' if t == Types.Boolean
+            else '<invalid type>'
         )
 
     def is_integer(t):
