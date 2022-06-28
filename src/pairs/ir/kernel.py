@@ -1,4 +1,4 @@
-from pairs.ir.arrays import Array
+from pairs.ir.arrays import Array, ArrayAccess
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.bin_op import BinOp
 from pairs.ir.lit import Lit
@@ -16,6 +16,7 @@ class Kernel(ASTNode):
         self._variables = {}
         self._arrays = {}
         self._properties = {}
+        self._array_accesses = set()
         self._bin_ops = []
         self._block = block
         self._iterator = iterator
@@ -56,6 +57,9 @@ class Kernel(ASTNode):
     def properties_to_synchronize(self):
         return {p for p in self._properties if self._properties[p][0] == 'r'}
 
+    def array_accesses(self):
+        return self._array_accesses
+
     def bin_ops(self):
         return self._bin_ops
 
@@ -82,6 +86,12 @@ class Kernel(ASTNode):
         for p in prop_list:
             assert isinstance(p, Property), "Kernel.add_property(): given element is not of type Property!"
             self._properties[p] = character if p not in self._properties else self._properties[p] + character
+
+    def add_array_access(self, array_access):
+        array_access_list = array_access if isinstance(array_access, list) else [array_access]
+        for a in array_access_list:
+            assert isinstance(a, ArrayAccess), "Kernel.add_array_access(): given element is not of type ArrayAccess!"
+            self._array_accesses.add(a)
 
     def add_bin_op(self, bin_op):
         bin_op_list = bin_op if isinstance(bin_op, list) else [bin_op]

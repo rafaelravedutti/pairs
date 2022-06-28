@@ -14,6 +14,7 @@ class Module(ASTNode):
         self._variables = {}
         self._arrays = {}
         self._properties = {}
+        self._host_references = set()
         self._block = block
         self._resizes_to_check = resizes_to_check
         self._check_properties_resize = check_properties_resize
@@ -52,6 +53,9 @@ class Module(ASTNode):
     def properties(self):
         return self._properties
 
+    def host_references(self):
+        return self._host_references
+
     def properties_to_synchronize(self):
         return {p for p in self._properties if self._properties[p][0] == 'r'}
 
@@ -78,6 +82,9 @@ class Module(ASTNode):
         for p in prop_list:
             assert isinstance(p, Property), "Module.add_property(): given element is not of type Property!"
             self._properties[p] = character if p not in self._properties else self._properties[p] + character
+
+    def add_host_reference(self, elem):
+        self._host_references.add(elem)
 
     def children(self):
         return [self._block]

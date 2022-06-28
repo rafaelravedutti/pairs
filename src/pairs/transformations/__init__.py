@@ -1,6 +1,6 @@
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftExprOwnerBlocks, MergeAdjacentBlocks
-from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels
+from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules
 from pairs.transformations.expressions import ReplaceSymbols, SimplifyExpressions, PrioritizeScalarOps, AddExpressionDeclarations
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
@@ -68,6 +68,10 @@ class Transformations:
         declared_exprs = self.analysis().set_declared_expressions()
         self.apply(AddExpressionDeclarations(), [declared_exprs])
 
+    def add_host_references_to_modules(self):
+        if self._target.is_gpu():
+            self.apply(AddHostReferencesToModules())
+
     def apply_all(self):
         self.lower()
         self.optimize_expressions()
@@ -79,3 +83,4 @@ class Transformations:
         self.add_device_kernels()
         self.lower(True)
         self.add_expression_declarations()
+        self.add_host_references_to_modules()

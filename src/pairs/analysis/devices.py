@@ -1,3 +1,4 @@
+from pairs.ir.arrays import ArrayAccess
 from pairs.ir.bin_op import BinOp
 from pairs.ir.visitor import Visitor
 
@@ -7,10 +8,15 @@ class FetchKernelReferences(Visitor):
         super().__init__(ast)
         self.kernel_stack = []
         self.kernel_decls = {}
+        self.kernel_used_array_accesses = {}
         self.kernel_used_bin_ops = {}
         self.writing = False
 
     def visit_ArrayAccess(self, ast_node):
+        if not self.writing and ast_node.inlined is False:
+            for k in self.kernel_stack:
+                self.kernel_used_array_accesses[k.kernel_id].append(ast_node)
+
         # Visit array and save current writing state
         self.visit(ast_node.array)
         writing_state = self.writing
@@ -29,10 +35,12 @@ class FetchKernelReferences(Visitor):
     def visit_Kernel(self, ast_node):
         kernel_id = ast_node.kernel_id
         self.kernel_decls[kernel_id] = []
+        self.kernel_used_array_accesses[kernel_id] = []
         self.kernel_used_bin_ops[kernel_id] = []
         self.kernel_stack.append(ast_node)
         self.visit_children(ast_node)
         self.kernel_stack.pop()
+        ast_node.add_array_access([a for a in self.kernel_used_array_accesses[kernel_id] if a not in self.kernel_decls[kernel_id]])
         ast_node.add_bin_op([b for b in self.kernel_used_bin_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
 
     def visit_PropertyAccess(self, ast_node):
@@ -46,7 +54,7 @@ class FetchKernelReferences(Visitor):
         self.writing = writing_state
 
     def visit_Decl(self, ast_node):
-        if isinstance(ast_node.elem, BinOp):
+        if isinstance(ast_node.elem, (ArrayAccess, BinOp)):
             for k in self.kernel_stack:
                 self.kernel_decls[k.kernel_id].append(ast_node.elem)
 

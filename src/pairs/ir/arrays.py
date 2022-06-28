@@ -117,6 +117,7 @@ class ArrayAccess(ASTTerm):
         self.indexes = [Lit.cvt(sim, index)]
         self.index = None
         self.inlined = False
+        self.terminals = set()
         self.check_and_set_index()
 
     def __str__(self):
@@ -164,6 +165,9 @@ class ArrayAccess(ASTTerm):
     def type(self):
         return self.array.type()
         # return self.array.type() if self.index is None else Types.Array
+
+    def add_terminal(self, terminal):
+        self.terminals.add(terminal)
 
     def children(self):
         if self.index is not None:

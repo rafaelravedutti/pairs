@@ -4,7 +4,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
-from pairs.ir.device import CopyToDevice, CopyToHost
+from pairs.ir.device import CopyToDevice, CopyToHost, HostRef
 from pairs.ir.functions import Call
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
@@ -104,10 +104,18 @@ class CGen:
                 decl = f"{type_kw} *{array.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
+                if array in module.host_references():
+                    decl = f"{type_kw} *h_{array.name()}"
+                    module_params += decl if len(module_params) <= 0 else f", {decl}"
+
             for prop in module.properties():
                 type_kw = Types.c_keyword(prop.type())
                 decl = f"{type_kw} *{prop.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
+
+                if prop in module.host_references():
+                    decl = f"{type_kw} *h_{prop.name()}"
+                    module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             self.print(f"void {module.name}({module_params}) {{")
 
@@ -145,6 +153,11 @@ class CGen:
         for prop in kernel.properties():
             type_kw = Types.c_keyword(prop.type())
             decl = f"{type_kw} *{prop.name()}"
+            kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
+        for array_access in kernel.array_accesses():
+            type_kw = Types.c_keyword(array_access.type())
+            decl = f"{type_kw} a{array_access.id()}"
             kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
         for bin_op in kernel.bin_ops():
@@ -204,7 +217,7 @@ class CGen:
 
             if isinstance(ast_node.elem, ArrayAccess):
                 array_access = ast_node.elem
-                array_name = array_access.array.name()
+                array_name = self.generate_expression(array_access.array)
                 tkw = Types.c_keyword(array_access.type())
                 acc_index = self.generate_expression(array_access.index)
                 acc_ref = f"a{array_access.id()}"
@@ -212,7 +225,7 @@ class CGen:
 
             if isinstance(ast_node.elem, PropertyAccess):
                 prop_access = ast_node.elem
-                prop_name = prop_access.prop.name()
+                prop_name = self.generate_expression(prop_access.prop)
                 acc_ref = f"p{prop_access.id()}"
 
                 if prop_access.is_vector_kind():
@@ -291,6 +304,10 @@ class CGen:
                 decl = prop.name()
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
 
+            for array_access in kernel.array_accesses():
+                decl = self.generate_expression(array_access)
+                kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
+
             for bin_op in kernel.bin_ops():
                 decl = self.generate_expression(bin_op)
                 kernel_params += decl if len(kernel_params) <= 0 else f", {decl}"
@@ -315,10 +332,16 @@ class CGen:
             for array in module.arrays():
                 decl = f"d_{array.name()}" if device_cond else array.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
+                if array in module.host_references():
+                    decl = array.name()
+                    module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for prop in module.properties():
                 decl = f"d_{prop.name()}" if device_cond else prop.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
+                if prop in module.host_references():
+                    decl = prop.name()
+                    module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             self.print(f"{module.name}({module_params});")
 
@@ -379,7 +402,7 @@ class CGen:
             return ast_node.name()
 
         if isinstance(ast_node, ArrayAccess):
-            array_name = ast_node.array.name()
+            array_name = self.generate_expression(ast_node.array)
             acc_index = self.generate_expression(ast_node.index)
             if mem or ast_node.inlined is True:
                 return f"{array_name}[{acc_index}]"
@@ -418,6 +441,10 @@ class CGen:
             var = self.generate_expression(ast_node.var)
             return f"(*{var})"
 
+        if isinstance(ast_node, HostRef):
+            elem = self.generate_expression(ast_node.elem)
+            return f"h_{elem}"
+
         if isinstance(ast_node, Iter):
             assert mem is False, "Iterator is not lvalue!"
             return f"i{ast_node.id()}"
@@ -434,7 +461,7 @@ class CGen:
 
         if isinstance(ast_node, PropertyAccess):
             assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
-            prop_name = ast_node.prop.name()
+            prop_name = self.generate_expression(ast_node.prop)
 
             if mem or ast_node.inlined is True:
                 index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)

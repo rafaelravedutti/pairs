@@ -5,6 +5,15 @@ from pairs.ir.bin_op import BinOp
 from pairs.ir.sizeof import Sizeof
 
 
+class HostRef(ASTNode):
+    def __init__(self, sim, elem):
+        super().__init__(sim)
+        self.elem = elem
+
+    def children(self):
+        return [self.elem]
+
+
 class CopyToDevice(ASTNode):
     def __init__(self, sim, prop):
         super().__init__(sim)

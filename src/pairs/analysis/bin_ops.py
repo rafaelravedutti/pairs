@@ -11,6 +11,11 @@ class SetBinOpTerminals(Visitor):
         for e in self.elems:
             e.add_terminal(ast_node.name())
 
+    def visit_ArrayAccess(self, ast_node):
+        self.elems.append(ast_node)
+        self.visit_children(ast_node)
+        self.elems.pop()
+
     def visit_BinOp(self, ast_node):
         self.elems.append(ast_node)
         self.visit_children(ast_node)

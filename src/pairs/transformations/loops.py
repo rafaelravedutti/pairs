@@ -1,3 +1,4 @@
+from pairs.ir.arrays import ArrayAccess
 from pairs.ir.bin_op import BinOp
 from pairs.ir.loops import For, While
 from pairs.ir.mutator import Mutator
@@ -27,12 +28,20 @@ class LICM(Mutator):
         return ast_node
 
     def mutate_Decl(self, ast_node):
-        if self.loops and isinstance(ast_node.elem, (BinOp, PropertyAccess)):
+        if self.loops and isinstance(ast_node.elem, (BinOp, ArrayAccess, PropertyAccess)):
             last_loop = self.loops[-1]
+            loop_lifts = self.lifts[id(last_loop)]
             #print(f"variants = {last_loop.block.variants}, terminals = {ast_node.elem.terminals}")
             if not last_loop.block.variants.intersection(ast_node.elem.terminals):
-                #print(f'lifting {ast_node.elem.id()}')
-                self.lifts[id(last_loop)].append(ast_node)
+                found = False
+                for d in loop_lifts:
+                    if ast_node.elem == d.elem:
+                        found = True
+
+                if not found:
+                    #print(f'lifting {ast_node.elem.id()}')
+                    loop_lifts.append(ast_node)
+
                 return None
 
         return ast_node

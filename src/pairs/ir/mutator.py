@@ -83,6 +83,10 @@ class Mutator:
         ast_node.max = self.mutate(ast_node.max)
         return ast_node
 
+    def mutate_HostRef(self, ast_node):
+        ast_node.elem = self.mutate(ast_node.elem)
+        return ast_node
+
     def mutate_Kernel(self, ast_node):
         ast_node._block = self.mutate(ast_node._block)
         return ast_node
