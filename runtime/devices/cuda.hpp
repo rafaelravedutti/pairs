@@ -37,4 +37,15 @@ __host__ void copy_to_host(const void *d_ptr, void *h_ptr, size_t count) {
     CUDA_ASSERT(cudaMemcpy(h_ptr, d_ptr, count, cudaMemcpyDeviceToHost));
 }
 
+inline __device__ int atomic_add(int *addr, int val) { return atomicAdd(addr, val); }
+inline __device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
+    const int add_res = *addr + val;
+    if(add_res >= capacity) {
+        *resize = add_res;
+        return *addr;
+    }
+
+    return atomic_add(addr, val);
+}
+
 }

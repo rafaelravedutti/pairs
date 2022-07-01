@@ -87,6 +87,24 @@ class AddResizeLogic(Mutator):
 
         return ast_node
 
+    def mutate_AtomicAdd(self, ast_node):
+        dest = ast_node.elem
+        src = dest + ast_node.value
+        match_capacity = None
+
+        if isinstance(dest, (ArrayAccess, Var)):
+            match_capacity = self.lookup_capacity([dest])
+
+        # Resize var is used in index, this statement should be checked for safety
+        if match_capacity is not None:
+            module = self.module_stack[-1]
+            resizes = list(self.module_resizes[module].keys())
+            capacities = list(self.module_resizes[module].values())
+            resize_id = resizes[capacities.index(match_capacity)]
+            ast_node.add_resize_check(ast_node.sim.resizes[resize_id], match_capacity)
+
+        return ast_node
+
     def mutate_Block(self, ast_node):
         self.block_stack.append(ast_node)
         ast_node.stmts = [self.mutate(s) for s in ast_node.stmts]

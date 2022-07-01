@@ -1,4 +1,5 @@
 from pairs.ir.assign import Assign
+from pairs.ir.atomic import AtomicAdd
 from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
@@ -408,6 +409,16 @@ class CGen:
                 return f"{array_name}[{acc_index}]"
 
             return f"a{ast_node.id()}"
+
+        if isinstance(ast_node, AtomicAdd):
+            elem = self.generate_expression(ast_node.elem)
+            value = self.generate_expression(ast_node.value)
+            if ast_node.check_for_resize():
+                resize = self.generate_expression(ast_node.resize)
+                capacity = self.generate_expression(ast_node.capacity)
+                return f"pairs::atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity})"
+            else:
+                return f"pairs::atomic_add(&({elem}), {value})"
 
         if isinstance(ast_node, BinOp):
             lhs = self.generate_expression(ast_node.lhs, mem, index)

@@ -37,6 +37,16 @@ class Mutator:
         ast_node.assignments = [(self.mutate(a[0]), self.mutate(a[1])) for a in ast_node.assignments]
         return ast_node
 
+    def mutate_AtomicAdd(self, ast_node):
+        ast_node.elem = self.mutate(ast_node.elem)
+        ast_node.value = self.mutate(ast_node.value)
+
+        if ast_node.check_for_resize():
+            ast_node.resize = self.mutate(ast_node.resize)
+            ast_node.capacity = self.mutate(ast_node.capacity)
+
+        return ast_node
+
     def mutate_BinOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
         ast_node.rhs = self.mutate(ast_node.rhs)

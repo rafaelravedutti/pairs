@@ -1,5 +1,6 @@
 from functools import reduce
 import math
+from pairs.ir.atomic import AtomicAdd
 from pairs.ir.bin_op import BinOp
 from pairs.ir.block import pairs_device_block, pairs_host_block
 from pairs.ir.branches import Branch, Filter
@@ -90,8 +91,7 @@ class CellListsBuild(Lowerable):
                 flat_idx = (cell_index[d] if flat_idx is None
                             else flat_idx * cl.dim_ncells[d] + cell_index[d])
 
-            cell_size = cl.cell_sizes[flat_idx]
             for _ in Filter(sim, BinOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells)):
+                index_in_cell = AtomicAdd(sim, cl.cell_sizes[flat_idx], 1)
                 cl.particle_cell[i].set(flat_idx)
-                cl.cell_particles[flat_idx][cell_size].set(i)
-                cl.cell_sizes[flat_idx].set(cell_size + 1)
+                cl.cell_particles[flat_idx][index_in_cell].set(i)
