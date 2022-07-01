@@ -93,7 +93,8 @@ class AddDeviceKernels(Mutator):
             for s in ast_node._block.stmts:
                 if s is not None:
                     if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
-                        kernel = Kernel(ast_node.sim, f"{ast_node.name}_kernel{kernel_id}", s.block, s.iterator)
+                        kernel_block = Filter(ast_node.sim, BinOp.inline(s.iterator < s.max), s.block)
+                        kernel = Kernel(ast_node.sim, f"{ast_node.name}_kernel{kernel_id}", kernel_block, s.iterator)
                         new_stmts.append(KernelLaunch(ast_node.sim, kernel, s.iterator, s.min, s.max))
                         kernel_id += 1
                     else:
@@ -109,7 +110,6 @@ class AddHostReferencesToModules(Mutator):
         super().__init__(ast)
         self.module_stack = []
         self.device_context = False
-
 
     def mutate_Array(self, ast_node):
         if self.device_context:

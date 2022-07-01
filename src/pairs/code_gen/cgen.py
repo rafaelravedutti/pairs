@@ -168,7 +168,9 @@ class CGen:
 
         self.print(f"__global__ void {kernel.name}({kernel_params}) {{")
         self.print(f"    const int {kernel.iterator.name()} = blockIdx.x * blockDim.x + threadIdx.x;")
+        self.print.add_indent(4)
         self.generate_statement(kernel.block)
+        self.print.add_indent(-4)
         self.print("}")
 
     def generate_statement(self, ast_node):
