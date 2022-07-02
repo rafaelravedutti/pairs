@@ -1,3 +1,4 @@
+#define PAIRS_TARGET_CUDA
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -362,18 +363,18 @@ __global__ void module1_kernel0(int nlocal, double *velocity, double *force, dou
     }
 }
 void module0(int neighborlist_capacity, int nlocal, int *numneighs, int *neighborlists, double *position, double *force) {
-    const int e577 = nlocal - 0;
-    const int e578 = e577 + 32;
-    const int e579 = e578 - 1;
-    const int e580 = e579 / 32;
-    module0_kernel0<<<e580, 32>>>(nlocal, neighborlist_capacity, neighborlists, numneighs, position, force);
+    const int e526 = nlocal - 0;
+    const int e527 = e526 + 32;
+    const int e528 = e527 - 1;
+    const int e529 = e528 / 32;
+    module0_kernel0<<<e529, 32>>>(nlocal, neighborlist_capacity, neighborlists, numneighs, position, force);
 }
 void module1(int nlocal, double *velocity, double *force, double *mass, double *position) {
-    const int e582 = nlocal - 0;
-    const int e583 = e582 + 32;
-    const int e584 = e583 - 1;
-    const int e585 = e584 / 32;
-    module1_kernel0<<<e585, 32>>>(nlocal, velocity, force, mass, position);
+    const int e531 = nlocal - 0;
+    const int e532 = e531 + 32;
+    const int e533 = e532 - 1;
+    const int e534 = e533 / 32;
+    module1_kernel0<<<e534, 32>>>(nlocal, velocity, force, mass, position);
 }
 void build_cell_lists_stencil(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int ncells_capacity, int *ncells, int *nstencil, int *dim_cells, int *resizes, int *stencil) {
     const double e74 = grid0_d0_max - grid0_d0_min;
@@ -424,11 +425,11 @@ void enforce_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, 
     const double e118 = grid0_d1_max - grid0_d1_min;
     const double e125 = grid0_d2_max - grid0_d2_min;
     const double e132 = grid0_d2_max - grid0_d2_min;
-    const int e542 = nlocal - 0;
-    const int e543 = e542 + 32;
-    const int e544 = e543 - 1;
-    const int e545 = e544 / 32;
-    enforce_pbc_kernel0<<<e545, 32>>>(nlocal, grid0_d0_min, grid0_d0_max, grid0_d1_min, grid0_d1_max, grid0_d2_min, grid0_d2_max, position, e97, e104, e111, e118, e125, e132);
+    const int e491 = nlocal - 0;
+    const int e492 = e491 + 32;
+    const int e493 = e492 - 1;
+    const int e494 = e493 / 32;
+    enforce_pbc_kernel0<<<e494, 32>>>(nlocal, grid0_d0_min, grid0_d0_max, grid0_d1_min, grid0_d1_max, grid0_d2_min, grid0_d2_max, position, e97, e104, e111, e118, e125, e132);
 }
 void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_capacity, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int *npbc, int *pbc_map, int *pbc_mult, int *resizes, double *position) {
     (*npbc) = 0;
@@ -659,47 +660,47 @@ void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, d
     const double e297 = grid0_d0_max - grid0_d0_min;
     const double e307 = grid0_d1_max - grid0_d1_min;
     const double e317 = grid0_d2_max - grid0_d2_min;
-    const int e547 = npbc - 0;
-    const int e548 = e547 + 32;
-    const int e549 = e548 - 1;
-    const int e550 = e549 / 32;
-    update_pbc_kernel0<<<e550, 32>>>(npbc, nlocal, grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, pbc_map, pbc_mult, position, e297, e307, e317);
+    const int e496 = npbc - 0;
+    const int e497 = e496 + 32;
+    const int e498 = e497 - 1;
+    const int e499 = e498 / 32;
+    update_pbc_kernel0<<<e499, 32>>>(npbc, nlocal, grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, pbc_map, pbc_mult, position, e297, e307, e317);
 }
 void build_cell_lists(int ncells, int nlocal, int npbc, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int cell_capacity, int *cell_sizes, int *dim_cells, int *h_dim_cells, int *particle_cell, int *resizes, int *cell_particles, double *position) {
-    const int e552 = ncells - 0;
-    const int e553 = e552 + 32;
-    const int e554 = e553 - 1;
-    const int e555 = e554 / 32;
-    build_cell_lists_kernel0<<<e555, 32>>>(ncells, cell_sizes);
+    const int e501 = ncells - 0;
+    const int e502 = e501 + 32;
+    const int e503 = e502 - 1;
+    const int e504 = e503 / 32;
+    build_cell_lists_kernel0<<<e504, 32>>>(ncells, cell_sizes);
     const int a46 = h_dim_cells[1];
     const int a47 = h_dim_cells[2];
-    const int e557 = (nlocal + npbc) - 0;
-    const int e558 = e557 + 32;
-    const int e559 = e558 - 1;
-    const int e560 = e559 / 32;
-    build_cell_lists_kernel1<<<e560, 32>>>(nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, ncells, cell_capacity, dim_cells, particle_cell, cell_particles, cell_sizes, resizes, position, a47, a46);
+    const int e506 = (nlocal + npbc) - 0;
+    const int e507 = e506 + 32;
+    const int e508 = e507 - 1;
+    const int e509 = e508 / 32;
+    build_cell_lists_kernel1<<<e509, 32>>>(nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, ncells, cell_capacity, dim_cells, particle_cell, cell_particles, cell_sizes, resizes, position, a47, a46);
 }
 void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighborlist_capacity, int nstencil, int *numneighs, int *particle_cell, int *stencil, int *cell_sizes, int *cell_particles, int *neighborlists, int *resizes, double *position) {
-    const int e562 = nlocal - 0;
-    const int e563 = e562 + 32;
-    const int e564 = e563 - 1;
-    const int e565 = e564 / 32;
-    neighbor_lists_build_kernel0<<<e565, 32>>>(nlocal, numneighs);
-    const int e567 = nlocal - 0;
-    const int e568 = e567 + 32;
-    const int e569 = e568 - 1;
-    const int e570 = e569 / 32;
-    neighbor_lists_build_kernel1<<<e570, 32>>>(nlocal, ncells, cell_capacity, neighborlist_capacity, nstencil, particle_cell, stencil, cell_particles, neighborlists, numneighs, resizes, cell_sizes, position);
+    const int e511 = nlocal - 0;
+    const int e512 = e511 + 32;
+    const int e513 = e512 - 1;
+    const int e514 = e513 / 32;
+    neighbor_lists_build_kernel0<<<e514, 32>>>(nlocal, numneighs);
+    const int e516 = nlocal - 0;
+    const int e517 = e516 + 32;
+    const int e518 = e517 - 1;
+    const int e519 = e518 / 32;
+    neighbor_lists_build_kernel1<<<e519, 32>>>(nlocal, ncells, cell_capacity, neighborlist_capacity, nstencil, particle_cell, stencil, cell_particles, neighborlists, numneighs, resizes, cell_sizes, position);
 }
 void reset_volatile_properties(int nlocal, double *force) {
-    const int e572 = nlocal - 0;
-    const int e573 = e572 + 32;
-    const int e574 = e573 - 1;
-    const int e575 = e574 / 32;
-    reset_volatile_properties_kernel0<<<e575, 32>>>(nlocal, force);
+    const int e521 = nlocal - 0;
+    const int e522 = e521 + 32;
+    const int e523 = e522 - 1;
+    const int e524 = e523 / 32;
+    reset_volatile_properties_kernel0<<<e524, 32>>>(nlocal, force);
 }
 int main() {
-    PairsSim *ps = new PairsSim();
+    PairsSim *ps = new PairsSim(4, 11);
     int particle_capacity = 10000;
     int nlocal = 0;
     int nghost = 0;
@@ -718,38 +719,45 @@ int main() {
     int pbc_capacity = 100;
     int *resizes = (int *) malloc((sizeof(int) * 3));
     int *d_resizes = (int *) pairs::device_alloc((sizeof(int) * 3));
+    ps->addArray(Array(0, "resizes", resizes, d_resizes, (sizeof(int) * 3)));
     double grid_buffer[6];
     int dim_cells[3];
     int *cell_particles = (int *) malloc((sizeof(int) * (ncells_capacity * cell_capacity)));
     int *d_cell_particles = (int *) pairs::device_alloc((sizeof(int) * (ncells_capacity * cell_capacity)));
+    ps->addArray(Array(3, "cell_particles", cell_particles, d_cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity))));
     int *cell_sizes = (int *) malloc((sizeof(int) * ncells_capacity));
     int *d_cell_sizes = (int *) pairs::device_alloc((sizeof(int) * ncells_capacity));
+    ps->addArray(Array(4, "cell_sizes", cell_sizes, d_cell_sizes, (sizeof(int) * ncells_capacity)));
     int *stencil = (int *) malloc((sizeof(int) * 27));
     int *d_stencil = (int *) pairs::device_alloc((sizeof(int) * 27));
+    ps->addArray(Array(5, "stencil", stencil, d_stencil, (sizeof(int) * 27)));
     int *particle_cell = (int *) malloc((sizeof(int) * particle_capacity));
     int *d_particle_cell = (int *) pairs::device_alloc((sizeof(int) * particle_capacity));
+    ps->addArray(Array(6, "particle_cell", particle_cell, d_particle_cell, (sizeof(int) * particle_capacity)));
     int *neighborlists = (int *) malloc((sizeof(int) * (particle_capacity * neighborlist_capacity)));
     int *d_neighborlists = (int *) pairs::device_alloc((sizeof(int) * (particle_capacity * neighborlist_capacity)));
+    ps->addArray(Array(7, "neighborlists", neighborlists, d_neighborlists, (sizeof(int) * (particle_capacity * neighborlist_capacity))));
     int *numneighs = (int *) malloc((sizeof(int) * particle_capacity));
     int *d_numneighs = (int *) pairs::device_alloc((sizeof(int) * particle_capacity));
+    ps->addArray(Array(8, "numneighs", numneighs, d_numneighs, (sizeof(int) * particle_capacity)));
     int *pbc_map = (int *) malloc((sizeof(int) * pbc_capacity));
     int *d_pbc_map = (int *) pairs::device_alloc((sizeof(int) * pbc_capacity));
+    ps->addArray(Array(9, "pbc_map", pbc_map, d_pbc_map, (sizeof(int) * pbc_capacity)));
     int *pbc_mult = (int *) malloc((sizeof(int) * (pbc_capacity * 3)));
     int *d_pbc_mult = (int *) pairs::device_alloc((sizeof(int) * (pbc_capacity * 3)));
-    unsigned long long int prop_hflags[1] = {18446744073709551615ULL};
-    unsigned long long int prop_dflags[1] = {0ULL};
+    ps->addArray(Array(10, "pbc_mult", pbc_mult, d_pbc_mult, (sizeof(int) * (pbc_capacity * 3))));
     double *mass = (double *) malloc((sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
     double *d_mass = (double *) pairs::device_alloc((sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
-    ps->addProperty(Property(0, "mass", mass, Prop_Float));
+    ps->addProperty(Property(0, "mass", mass, d_mass, Prop_Float, AoS, ((0 + particle_capacity) + pbc_capacity)));
     double *position = (double *) malloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
     double *d_position = (double *) pairs::device_alloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-    ps->addProperty(Property(1, "position", position, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
+    ps->addProperty(Property(1, "position", position, d_position, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
     double *velocity = (double *) malloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
     double *d_velocity = (double *) pairs::device_alloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-    ps->addProperty(Property(2, "velocity", velocity, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
+    ps->addProperty(Property(2, "velocity", velocity, d_velocity, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
     double *force = (double *) malloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
     double *d_force = (double *) pairs::device_alloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-    ps->addProperty(Property(3, "force", force, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
+    ps->addProperty(Property(3, "force", force, d_force, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
     const int prop_list_0[] = {0, 1, 2};
     nlocal = pairs::read_particle_data(ps, "data/minimd_setup_4x4x4.input", grid_buffer, prop_list_0, 3);
     const double a0 = grid_buffer[0];
@@ -767,12 +775,9 @@ int main() {
     resizes[0] = 1;
     while((resizes[0] > 0)) {
         resizes[0] = 0;
-        const unsigned long long int a91 = prop_hflags[0];
-        const unsigned long long int e480 = a91 | 0;
-        prop_hflags[0] = e480;
-        const unsigned long long int a93 = prop_dflags[0];
-        const unsigned long long int e481 = a93 & (unsigned long long int)(-1);
-        prop_dflags[0] = e481;
+        ps->clearArrayDeviceFlag(5); // stencil
+        ps->clearArrayDeviceFlag(0); // resizes
+        ps->clearArrayDeviceFlag(2); // dim_cells
         build_cell_lists_stencil(grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, ncells_capacity, &ncells, &nstencil, dim_cells, resizes, stencil);
         const int a73 = resizes[0];
         const bool e444 = a73 > 0;
@@ -784,6 +789,8 @@ int main() {
             d_cell_particles = (int *) pairs::device_realloc(d_cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)));
             cell_sizes = (int *) realloc(cell_sizes, (sizeof(int) * ncells_capacity));
             d_cell_sizes = (int *) pairs::device_realloc(d_cell_sizes, (sizeof(int) * ncells_capacity));
+            ps->updateArray(3, cell_particles, d_cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)));
+            ps->updateArray(4, cell_sizes, d_cell_sizes, (sizeof(int) * ncells_capacity));
         }
     }
     pairs::vtk_write_data(ps, "output/test_local", 0, nlocal, 0);
@@ -791,101 +798,73 @@ int main() {
     pairs::vtk_write_data(ps, "output/test_pbc", nlocal, e91, 0);
     for(int i1 = 0; i1 < 101; i1++) {
         if(((i1 % 20) == 0)) {
-            const unsigned long long int a94 = prop_dflags[0];
-            const unsigned long long int e482 = a94 & 2;
-            const bool e483 = e482 == 0;
-            if(e483) {
-                pairs::copy_to_device(position, d_position, (sizeof(double) * (3 * particle_capacity)));
-            }
-            const unsigned long long int a96 = prop_dflags[0];
-            const unsigned long long int e486 = a96 | 2;
-            prop_dflags[0] = e486;
-            const unsigned long long int a98 = prop_hflags[0];
-            const unsigned long long int e487 = a98 & (unsigned long long int)(-3);
-            prop_hflags[0] = e487;
+            ps->copyPropertyToDevice(1); // position
+            ps->clearPropertyHostFlag(1); // position
             enforce_pbc(grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, nlocal, d_position);
         }
         if(((i1 % 20) == 0)) {
             resizes[0] = 1;
             while((resizes[0] > 0)) {
                 resizes[0] = 0;
-                const unsigned long long int a99 = prop_hflags[0];
-                const unsigned long long int e488 = a99 & 2;
-                const bool e489 = e488 == 0;
-                if(e489) {
-                    pairs::copy_to_host(d_position, position, (sizeof(double) * (3 * particle_capacity)));
-                }
-                const unsigned long long int a101 = prop_hflags[0];
-                const unsigned long long int e492 = a101 | 2;
-                prop_hflags[0] = e492;
-                const unsigned long long int a103 = prop_dflags[0];
-                const unsigned long long int e493 = a103 & (unsigned long long int)(-3);
-                prop_dflags[0] = e493;
+                ps->copyPropertyToHost(1); // position
+                ps->clearArrayDeviceFlag(9); // pbc_map
+                ps->clearArrayDeviceFlag(10); // pbc_mult
+                ps->clearArrayDeviceFlag(0); // resizes
+                ps->clearPropertyDeviceFlag(1); // position
                 setup_pbc(nlocal, grid0_d0_max, grid0_d0_min, pbc_capacity, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, &npbc, pbc_map, pbc_mult, resizes, position);
                 const int a78 = resizes[0];
-                const bool e465 = a78 > 0;
-                if(e465) {
+                const bool e468 = a78 > 0;
+                if(e468) {
                     const int a79 = resizes[0];
-                    const int e466 = a79 * 2;
-                    pbc_capacity = e466;
+                    const int e469 = a79 * 2;
+                    pbc_capacity = e469;
                     pbc_map = (int *) realloc(pbc_map, (sizeof(int) * pbc_capacity));
                     d_pbc_map = (int *) pairs::device_realloc(d_pbc_map, (sizeof(int) * pbc_capacity));
                     pbc_mult = (int *) realloc(pbc_mult, (sizeof(int) * (pbc_capacity * 3)));
                     d_pbc_mult = (int *) pairs::device_realloc(d_pbc_mult, (sizeof(int) * (pbc_capacity * 3)));
+                    ps->updateArray(9, pbc_map, d_pbc_map, (sizeof(int) * pbc_capacity));
+                    ps->updateArray(10, pbc_mult, d_pbc_mult, (sizeof(int) * (pbc_capacity * 3)));
                     mass = (double *) realloc(mass, (sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
                     d_mass = (double *) pairs::device_realloc(d_mass, (sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
-                    ps->updateProperty(0, mass);
+                    ps->updateProperty(0, mass, d_mass, ((0 + particle_capacity) + pbc_capacity));
                     position = (double *) realloc(position, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
                     d_position = (double *) pairs::device_realloc(d_position, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-                    ps->updateProperty(1, position, ((0 + particle_capacity) + pbc_capacity), 3);
+                    ps->updateProperty(1, position, d_position, ((0 + particle_capacity) + pbc_capacity), 3);
                     velocity = (double *) realloc(velocity, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
                     d_velocity = (double *) pairs::device_realloc(d_velocity, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-                    ps->updateProperty(2, velocity, ((0 + particle_capacity) + pbc_capacity), 3);
+                    ps->updateProperty(2, velocity, d_velocity, ((0 + particle_capacity) + pbc_capacity), 3);
                     force = (double *) realloc(force, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
                     d_force = (double *) pairs::device_realloc(d_force, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-                    ps->updateProperty(3, force, ((0 + particle_capacity) + pbc_capacity), 3);
+                    ps->updateProperty(3, force, d_force, ((0 + particle_capacity) + pbc_capacity), 3);
                 }
             }
         } else {
-            const unsigned long long int a104 = prop_dflags[0];
-            const unsigned long long int e494 = a104 & 2;
-            const bool e495 = e494 == 0;
-            if(e495) {
-                pairs::copy_to_device(position, d_position, (sizeof(double) * (3 * particle_capacity)));
-            }
-            const unsigned long long int a106 = prop_dflags[0];
-            const unsigned long long int e498 = a106 | 2;
-            prop_dflags[0] = e498;
-            const unsigned long long int a108 = prop_hflags[0];
-            const unsigned long long int e499 = a108 & (unsigned long long int)(-3);
-            prop_hflags[0] = e499;
+            ps->copyArrayToDevice(9); // pbc_map
+            ps->copyArrayToDevice(10); // pbc_mult
+            ps->copyPropertyToDevice(1); // position
+            ps->clearPropertyHostFlag(1); // position
             update_pbc(grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, nlocal, npbc, d_pbc_map, d_pbc_mult, d_position);
         }
         if(((i1 % 20) == 0)) {
             resizes[0] = 1;
             while((resizes[0] > 0)) {
                 resizes[0] = 0;
-                const unsigned long long int a109 = prop_dflags[0];
-                const unsigned long long int e500 = a109 & 2;
-                const bool e501 = e500 == 0;
-                if(e501) {
-                    pairs::copy_to_device(position, d_position, (sizeof(double) * (3 * particle_capacity)));
-                }
-                const unsigned long long int a111 = prop_dflags[0];
-                const unsigned long long int e504 = a111 | 2;
-                prop_dflags[0] = e504;
-                const unsigned long long int a113 = prop_hflags[0];
-                const unsigned long long int e505 = a113 & (unsigned long long int)(-1);
-                prop_hflags[0] = e505;
+                ps->copyArrayToDevice(0); // resizes
+                ps->copyArrayToDevice(2); // dim_cells
+                ps->copyPropertyToDevice(1); // position
+                ps->clearArrayHostFlag(6); // particle_cell
+                ps->clearArrayHostFlag(3); // cell_particles
+                ps->clearArrayHostFlag(4); // cell_sizes
                 build_cell_lists(ncells, nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, cell_capacity, d_cell_sizes, d_dim_cells, dim_cells, d_particle_cell, d_resizes, d_cell_particles, d_position);
                 const int a83 = resizes[0];
-                const bool e471 = a83 > 0;
-                if(e471) {
+                const bool e477 = a83 > 0;
+                if(e477) {
                     const int a84 = resizes[0];
-                    const int e472 = a84 * 2;
-                    cell_capacity = e472;
+                    const int e478 = a84 * 2;
+                    cell_capacity = e478;
                     cell_particles = (int *) realloc(cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)));
                     d_cell_particles = (int *) pairs::device_realloc(d_cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)));
+                    ps->updateArray(3, cell_particles, d_cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)));
                 }
             }
         }
@@ -893,86 +872,41 @@ int main() {
             resizes[0] = 1;
             while((resizes[0] > 0)) {
                 resizes[0] = 0;
-                const unsigned long long int a114 = prop_dflags[0];
-                const unsigned long long int e506 = a114 & 2;
-                const bool e507 = e506 == 0;
-                if(e507) {
-                    pairs::copy_to_device(position, d_position, (sizeof(double) * (3 * particle_capacity)));
-                }
-                const unsigned long long int a116 = prop_dflags[0];
-                const unsigned long long int e510 = a116 | 2;
-                prop_dflags[0] = e510;
-                const unsigned long long int a118 = prop_hflags[0];
-                const unsigned long long int e511 = a118 & (unsigned long long int)(-1);
-                prop_hflags[0] = e511;
+                ps->copyArrayToDevice(6); // particle_cell
+                ps->copyArrayToDevice(3); // cell_particles
+                ps->copyArrayToDevice(4); // cell_sizes
+                ps->copyArrayToDevice(5); // stencil
+                ps->copyPropertyToDevice(1); // position
+                ps->clearArrayHostFlag(7); // neighborlists
+                ps->clearArrayHostFlag(8); // numneighs
+                ps->clearArrayHostFlag(0); // resizes
                 neighbor_lists_build(nlocal, ncells, cell_capacity, neighborlist_capacity, nstencil, d_numneighs, d_particle_cell, d_stencil, d_cell_sizes, d_cell_particles, d_neighborlists, d_resizes, d_position);
                 const int a88 = resizes[0];
-                const bool e476 = a88 > 0;
-                if(e476) {
+                const bool e484 = a88 > 0;
+                if(e484) {
                     const int a89 = resizes[0];
-                    const int e477 = a89 * 2;
-                    neighborlist_capacity = e477;
+                    const int e485 = a89 * 2;
+                    neighborlist_capacity = e485;
                     neighborlists = (int *) realloc(neighborlists, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
                     d_neighborlists = (int *) pairs::device_realloc(d_neighborlists, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
+                    ps->updateArray(7, neighborlists, d_neighborlists, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
                 }
             }
         }
-        const unsigned long long int a120 = prop_dflags[0];
-        const unsigned long long int e512 = a120 | 0;
-        prop_dflags[0] = e512;
-        const unsigned long long int a122 = prop_hflags[0];
-        const unsigned long long int e513 = a122 & (unsigned long long int)(-9);
-        prop_hflags[0] = e513;
+        ps->clearPropertyHostFlag(3); // force
         reset_volatile_properties(nlocal, d_force);
-        const unsigned long long int a123 = prop_dflags[0];
-        const unsigned long long int e514 = a123 & 2;
-        const bool e515 = e514 == 0;
-        if(e515) {
-            pairs::copy_to_device(position, d_position, (sizeof(double) * (3 * particle_capacity)));
-        }
-        const unsigned long long int a124 = prop_dflags[0];
-        const unsigned long long int e518 = a124 & 8;
-        const bool e519 = e518 == 0;
-        if(e519) {
-            pairs::copy_to_device(force, d_force, (sizeof(double) * (3 * particle_capacity)));
-        }
-        const unsigned long long int a126 = prop_dflags[0];
-        const unsigned long long int e522 = a126 | 10;
-        prop_dflags[0] = e522;
-        const unsigned long long int a128 = prop_hflags[0];
-        const unsigned long long int e523 = a128 & (unsigned long long int)(-9);
-        prop_hflags[0] = e523;
+        ps->copyArrayToDevice(7); // neighborlists
+        ps->copyArrayToDevice(8); // numneighs
+        ps->copyPropertyToDevice(3); // force
+        ps->copyPropertyToDevice(1); // position
+        ps->clearPropertyHostFlag(3); // force
         module0(neighborlist_capacity, nlocal, d_numneighs, d_neighborlists, d_position, d_force);
-        const unsigned long long int a129 = prop_dflags[0];
-        const unsigned long long int e524 = a129 & 2;
-        const bool e525 = e524 == 0;
-        if(e525) {
-            pairs::copy_to_device(position, d_position, (sizeof(double) * (3 * particle_capacity)));
-        }
-        const unsigned long long int a130 = prop_dflags[0];
-        const unsigned long long int e528 = a130 & 1;
-        const bool e529 = e528 == 0;
-        if(e529) {
-            pairs::copy_to_device(mass, d_mass, (sizeof(double) * particle_capacity));
-        }
-        const unsigned long long int a131 = prop_dflags[0];
-        const unsigned long long int e531 = a131 & 4;
-        const bool e532 = e531 == 0;
-        if(e532) {
-            pairs::copy_to_device(velocity, d_velocity, (sizeof(double) * (3 * particle_capacity)));
-        }
-        const unsigned long long int a132 = prop_dflags[0];
-        const unsigned long long int e535 = a132 & 8;
-        const bool e536 = e535 == 0;
-        if(e536) {
-            pairs::copy_to_device(force, d_force, (sizeof(double) * (3 * particle_capacity)));
-        }
-        const unsigned long long int a134 = prop_dflags[0];
-        const unsigned long long int e539 = a134 | 15;
-        prop_dflags[0] = e539;
-        const unsigned long long int a136 = prop_hflags[0];
-        const unsigned long long int e540 = a136 & (unsigned long long int)(-7);
-        prop_hflags[0] = e540;
+        ps->copyPropertyToDevice(1); // position
+        ps->copyPropertyToDevice(3); // force
+        ps->copyPropertyToDevice(0); // mass
+        ps->copyPropertyToDevice(2); // velocity
+        ps->clearPropertyHostFlag(1); // position
+        ps->clearPropertyHostFlag(2); // velocity
         module1(nlocal, d_velocity, d_force, d_mass, d_position);
         const int e73 = i1 + 1;
         pairs::vtk_write_data(ps, "output/test_local", 0, nlocal, e73);

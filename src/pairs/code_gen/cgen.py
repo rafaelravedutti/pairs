@@ -1,11 +1,12 @@
 from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd
-from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl
+from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl, RegisterArray, UpdateArray
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
-from pairs.ir.device import CopyToDevice, CopyToHost, HostRef
+from pairs.ir.device import ClearArrayDeviceFlag, ClearArrayHostFlag, ClearPropertyDeviceFlag, ClearPropertyHostFlag
+from pairs.ir.device import CopyArrayToDevice, CopyArrayToHost, CopyPropertyToDevice, CopyPropertyToHost, HostRef
 from pairs.ir.functions import Call
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
@@ -44,6 +45,10 @@ class CGen:
         ext = ".cu" if self.target.is_gpu() else ".cpp"
         self.print = Printer(self.ref + ext)
         self.print.start()
+
+        if self.target.is_gpu():
+            self.print("#define PAIRS_TARGET_CUDA")
+
         self.print("#include <math.h>")
         self.print("#include <stdbool.h>")
         self.print("#include <stdio.h>")
@@ -82,8 +87,10 @@ class CGen:
 
     def generate_module(self, module):
         if module.name == 'main':
+            nprops = module.sim.properties.nprops()
+            narrays = module.sim.arrays.narrays()
             self.print("int main() {")
-            self.print("    PairsSim *ps = new PairsSim();")
+            self.print(f"    PairsSim *ps = new PairsSim({nprops}, {narrays});")
             self.generate_statement(module.block)
             self.print("    return 0;")
             self.print("}")
@@ -255,15 +262,45 @@ class CGen:
             call = self.generate_expression(ast_node)
             self.print(f"{call};")
 
-        if isinstance(ast_node, CopyToDevice):
-            array_name = ast_node.prop.name()
-            size = self.generate_expression(ast_node.size)
-            self.print(f"pairs::copy_to_device({array_name}, d_{array_name}, {size});")
+        if isinstance(ast_node, CopyArrayToDevice):
+            array_id = ast_node.array.id()
+            array_name = ast_node.array.name()
+            self.print(f"ps->copyArrayToDevice({array_id}); // {array_name}")
 
-        if isinstance(ast_node, CopyToHost):
-            array_name = ast_node.prop.name()
-            size = self.generate_expression(ast_node.size)
-            self.print(f"pairs::copy_to_host(d_{array_name}, {array_name}, {size});")
+        if isinstance(ast_node, CopyArrayToHost):
+            array_id = ast_node.array.id()
+            array_name = ast_node.array.name()
+            self.print(f"ps->copyArrayToHost({array_id}); // {array_name}")
+
+        if isinstance(ast_node, CopyPropertyToDevice):
+            prop_id = ast_node.prop.id()
+            prop_name = ast_node.prop.name()
+            self.print(f"ps->copyPropertyToDevice({prop_id}); // {prop_name}")
+
+        if isinstance(ast_node, CopyPropertyToHost):
+            prop_id = ast_node.prop.id()
+            prop_name = ast_node.prop.name()
+            self.print(f"ps->copyPropertyToHost({prop_id}); // {prop_name}")
+
+        if isinstance(ast_node, ClearArrayDeviceFlag):
+            array_id = ast_node.array.id()
+            array_name = ast_node.array.name()
+            self.print(f"ps->clearArrayDeviceFlag({array_id}); // {array_name}")
+
+        if isinstance(ast_node, ClearArrayHostFlag):
+            array_id = ast_node.array.id()
+            array_name = ast_node.array.name()
+            self.print(f"ps->clearArrayHostFlag({array_id}); // {array_name}")
+
+        if isinstance(ast_node, ClearPropertyDeviceFlag):
+            prop_id = ast_node.prop.id()
+            prop_name = ast_node.prop.name()
+            self.print(f"ps->clearPropertyDeviceFlag({prop_id}); // {prop_name}")
+
+        if isinstance(ast_node, ClearPropertyHostFlag):
+            prop_id = ast_node.prop.id()
+            prop_name = ast_node.prop.name()
+            self.print(f"ps->clearPropertyHostFlag({prop_id}); // {prop_name}")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
@@ -360,8 +397,17 @@ class CGen:
             if self.target.is_gpu() and ast_node.array.device_flag:
                 self.print(f"d_{array_name} = ({tkw} *) pairs::device_realloc(d_{array_name}, {size});")
 
+        if isinstance(ast_node, RegisterArray):
+            a = ast_node.array()
+            size = self.generate_expression(ast_node.size())
+            ptr = a.name()
+            d_ptr = f"d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
+            self.print(f"ps->addArray(Array({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size}));")
+
         if isinstance(ast_node, RegisterProperty):
             p = ast_node.property()
+            ptr = p.name()
+            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
             ptype = "Prop_Integer"  if p.type() == Types.Int32 else \
                     "Prop_Float"    if p.type() == Types.Double else \
                     "Prop_Vector"   if p.type() == Types.Vector else \
@@ -373,22 +419,25 @@ class CGen:
                       "SoA" if p.layout() == Layouts.SoA else \
                       "Invalid"
 
-            if p.type() != Types.Vector or p.layout() == Layouts.Invalid:
-                self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {p.name()}, {ptype}));")
-            else:
-                sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
-                self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {p.name()}, {ptype}, {playout}, {sizes}));")
+            sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
+            self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {ptr}, {d_ptr}, {ptype}, {playout}, {sizes}));")
 
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)
 
         if isinstance(ast_node, UpdateProperty):
             p = ast_node.property()
-            if p.type() != Types.Vector or p.layout() == Layouts.Invalid:
-                self.print(f"ps->updateProperty({p.id()}, {p.name()});")
-            else:
-                sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
-                self.print(f"ps->updateProperty({p.id()}, {p.name()}, {sizes});")
+            ptr = p.name()
+            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
+            self.print(f"ps->updateProperty({p.id()}, {ptr}, {d_ptr}, {sizes});")
+
+        if isinstance(ast_node, UpdateArray):
+            a = ast_node.array()
+            size = self.generate_expression(ast_node.size())
+            ptr = a.name()
+            d_ptr = f"d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
+            self.print(f"ps->updateArray({a.id()}, {ptr}, {d_ptr}, {size});")
 
         if isinstance(ast_node, VarDecl):
             tkw = Types.c_keyword(ast_node.var.type())

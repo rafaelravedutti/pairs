@@ -1,7 +1,5 @@
 #include <cuda_runtime.h>
 #include <iostream>
-//---
-#include "../pairs.hpp"
 
 #pragma once
 

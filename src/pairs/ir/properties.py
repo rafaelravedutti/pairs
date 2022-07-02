@@ -35,6 +35,9 @@ class Properties:
     def volatiles(self):
         return [p for p in self.props if p.volatile is True]
 
+    def nprops(self):
+        return len(self.props)
+
     def find(self, p_name):
         prop = [p for p in self.props if p.name() == p_name]
         if prop:

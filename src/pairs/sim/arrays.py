@@ -1,6 +1,6 @@
 from pairs.ir.block import pairs_inline
 from pairs.ir.memory import Malloc
-from pairs.ir.arrays import ArrayDecl
+from pairs.ir.arrays import ArrayDecl, RegisterArray
 from pairs.sim.lowerable import FinalLowerable
 
 
@@ -14,4 +14,6 @@ class ArraysDecl(FinalLowerable):
             if a.is_static():
                 ArrayDecl(self.sim, a)
             else:
-                Malloc(self.sim, a, a.alloc_size(), True)
+                alloc_size = a.alloc_size()
+                Malloc(self.sim, a, alloc_size, True)
+                RegisterArray(self.sim, a, alloc_size)

@@ -17,6 +17,9 @@ void vtk_write_data(PairsSim *ps, const char *filename, int start, int end, int 
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));
     const int n = end - start;
 
+    ps->copyPropertyToHost(masses);
+    ps->copyPropertyToHost(positions);
+
     if(out_file.is_open()) {
         out_file << "# vtk DataFile Version 2.0\n";
         out_file << "Particle data\n";

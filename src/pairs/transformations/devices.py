@@ -4,7 +4,8 @@ from pairs.ir.bin_op import BinOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
-from pairs.ir.device import CopyToDevice, CopyToHost, HostRef
+from pairs.ir.device import ClearArrayDeviceFlag, ClearArrayHostFlag, ClearPropertyDeviceFlag, ClearPropertyHostFlag
+from pairs.ir.device import CopyArrayToDevice, CopyArrayToHost, CopyPropertyToDevice, CopyPropertyToHost, HostRef
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For
@@ -16,22 +17,9 @@ from pairs.ir.types import Types
 class AddDeviceCopies(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)
-        if ast is not None:
-            nprops = len(ast.sim.properties.all())
-            self.nflags = math.ceil(nprops / 64.0)
-            self.prop_hflags = ast.sim.add_static_array('prop_hflags', self.nflags, Types.UInt64, init_value=0xffffffffffffffff)
-            self.prop_dflags = ast.sim.add_static_array('prop_dflags', self.nflags, Types.UInt64, init_value=0)
-        else:
-            self.nflags = None
-            self.prop_hflags = None
-            self.prop_dflags = None
 
     def set_ast(self, ast):
         super().set_ast(ast)
-        nprops = len(ast.sim.properties.all())
-        self.nflags = math.ceil(nprops / 64.0)
-        self.prop_hflags = ast.sim.add_static_array('prop_hflags', self.nflags, Types.UInt64, init_value=0xffffffffffffffff)
-        self.prop_dflags = ast.sim.add_static_array('prop_dflags', self.nflags, Types.UInt64, init_value=0)
 
     def mutate_Block(self, ast_node):
         new_stmts = []
@@ -40,39 +28,29 @@ class AddDeviceCopies(Mutator):
         for s in stmts:
             if s is not None:
                 if isinstance(s, ModuleCall):
-                    sync_flags = [0] * self.nflags
-                    dirty_flags = [0] * self.nflags
+                    for a in s.module.arrays_to_synchronize():
+                        if s.module.run_on_device:
+                            new_stmts += [CopyArrayToDevice(s.sim, a)]
+                        else:
+                            new_stmts += [CopyArrayToHost(s.sim, a)]
 
                     for p in s.module.properties_to_synchronize():
-                        flag_index = p.id() // 64
-                        bit = p.id() % 64
-
                         if s.module.run_on_device:
-                            new_stmts += [
-                                Filter(s.sim,
-                                    BinOp.cmp(self.prop_dflags[flag_index] & (1 << bit), 0),
-                                    Block(s.sim, CopyToDevice(s.sim, p)))]
+                            new_stmts += [CopyPropertyToDevice(s.sim, p)]
                         else:
-                            new_stmts += [
-                                Filter(s.sim,
-                                    BinOp.cmp(self.prop_hflags[flag_index] & (1 << bit), 0),
-                                    Block(s.sim, CopyToHost(s.sim, p)))]
+                            new_stmts += [CopyPropertyToHost(s.sim, p)]
 
-                        sync_flags[flag_index] |= (1 << bit)
+                    for a in s.module.write_arrays():
+                        if s.module.run_on_device:
+                            new_stmts += [ClearArrayHostFlag(s.sim, a)]
+                        else:
+                            new_stmts += [ClearArrayDeviceFlag(s.sim, a)]
 
                     for p in s.module.write_properties():
-                        flag_index = p.id() // 64
-                        bit = p.id() % 64
-                        dirty_flags[flag_index] |= (1 << bit)
-
-                    if s.module.run_on_device:
-                        new_stmts += \
-                            [Assign(s.sim, self.prop_dflags[i], self.prop_dflags[i] | sync_flags[i]) for i in range(self.nflags)] + \
-                            [Assign(s.sim, self.prop_hflags[i], self.prop_hflags[i] & Cast.uint64(s.sim, ~dirty_flags[i])) for i in range(self.nflags)]
-                    else:
-                        new_stmts += \
-                            [Assign(s.sim, self.prop_hflags[i], self.prop_hflags[i] | sync_flags[i]) for i in range(self.nflags)] + \
-                            [Assign(s.sim, self.prop_dflags[i], self.prop_dflags[i] & Cast.uint64(s.sim, ~dirty_flags[i])) for i in range(self.nflags)]
+                        if s.module.run_on_device:
+                            new_stmts += [ClearPropertyHostFlag(s.sim, p)]
+                        else:
+                            new_stmts += [ClearPropertyDeviceFlag(s.sim, p)]
 
                 new_stmts.append(s)
 

@@ -5,6 +5,7 @@ from pairs.ir.bin_op import BinOp, ASTTerm
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.memory import Realloc
+from pairs.ir.sizeof import Sizeof
 from pairs.ir.variables import Var
 
 
@@ -12,7 +13,6 @@ class Arrays:
     def __init__(self, sim):
         self.sim = sim
         self.arrays = []
-        self.narrays = 0
 
     def add(self, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
         array = ArrayND(self.sim, a_name, a_sizes, a_type, a_layout)
@@ -30,6 +30,9 @@ class Arrays:
     def statics(self):
         return [a for a in self.arrays if a.is_static()]
 
+    def narrays(self):
+        return len(self.arrays)
+
     def find(self, a_name):
         array = [a for a in self.arrays if a.name() == a_name]
         if array:
@@ -39,23 +42,29 @@ class Arrays:
 
 
 class Array(ASTNode):
+    last_array_id = 0
+
     def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
         super().__init__(sim)
+        self.arr_id = Array.last_array_id
         self.arr_name = a_name
-        self.arr_sizes = \
-            [Lit.cvt(sim, a_sizes)] if not isinstance(a_sizes, list) \
-            else [Lit.cvt(sim, s) for s in a_sizes]
+        self.arr_sizes = [Lit.cvt(sim, a_sizes)] if not isinstance(a_sizes, list) \
+                         else [Lit.cvt(sim, s) for s in a_sizes]
         self.arr_type = a_type
         self.arr_layout = a_layout
         self.arr_ndims = len(self.arr_sizes)
         self.static = False
         self.device_flag = False
+        Array.last_array_id += 1
+
         for var in [s for s in self.arr_sizes if isinstance(s, Var)]:
             var.add_bonded_array(self)
 
-
     def __getitem__(self, expr_ast):
         return ArrayAccess(self.sim, self, expr_ast)
+
+    def id(self):
+        return self.arr_id
 
     def name(self):
         return self.arr_name
@@ -91,6 +100,9 @@ class ArrayStatic(Array):
     def realloc(self):
         raise Exception("Static array cannot be reallocated!")
 
+    def update(self):
+        raise Exception("Static array cannot be updated!")
+
 
 class ArrayND(Array):
     def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
@@ -101,6 +113,9 @@ class ArrayND(Array):
 
     def realloc(self):
         return Realloc(self.sim, self, self.alloc_size())
+
+    def update(self):
+        return UpdateArray(self.sim, self, self.alloc_size())
 
 
 class ArrayAccess(ASTTerm):
@@ -181,3 +196,39 @@ class ArrayDecl(ASTNode):
         super().__init__(sim)
         self.array = array
         self.sim.add_statement(self)
+
+
+class RegisterArray(ASTNode):
+    def __init__(self, sim, array, size):
+        super().__init__(sim)
+        self._array = array
+        self._prim_size = Sizeof(sim, array.type())
+        self._size = BinOp.inline(self._prim_size * size)
+        self.sim.add_statement(self)
+
+    def array(self):
+        return self._array
+
+    def size(self):
+        return self._size
+
+    def __str__(self):
+        return f"RegisterArray<{self._array.name()}>"
+
+
+class UpdateArray(ASTNode):
+    def __init__(self, sim, array, size):
+        super().__init__(sim)
+        self._array = array
+        self._prim_size = Sizeof(sim, array.type())
+        self._size = BinOp.inline(self._prim_size * size)
+        self.sim.add_statement(self)
+
+    def array(self):
+        return self._array
+
+    def size(self):
+        return self._size
+
+    def __str__(self):
+        return f"UpdateArray<{self._array.name()}>"

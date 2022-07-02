@@ -17,25 +17,73 @@ class HostRef(ASTNode):
         return [self.elem]
 
 
-class CopyToDevice(ASTNode):
+class CopyArrayToDevice(ASTNode):
+    def __init__(self, sim, array):
+        super().__init__(sim)
+        self.array = array
+
+    def children(self):
+        return [self.array]
+
+
+class CopyArrayToHost(ASTNode):
+    def __init__(self, sim, array):
+        super().__init__(sim)
+        self.array = array
+
+    def children(self):
+        return [self.array]
+
+class CopyPropertyToDevice(ASTNode):
     def __init__(self, sim, prop):
         super().__init__(sim)
-        sizes = prop.sizes()
         self.prop = prop
-        self.prim_size = Sizeof(sim, prop.type())
-        self.size = BinOp.inline(self.prim_size * (reduce(operator.mul, sizes) if isinstance(sizes, list) else sizes))
 
     def children(self):
         return [self.prop]
 
 
-class CopyToHost(ASTNode):
+class CopyPropertyToHost(ASTNode):
     def __init__(self, sim, prop):
         super().__init__(sim)
-        sizes = prop.sizes()
         self.prop = prop
-        self.prim_size = Sizeof(sim, prop.type())
-        self.size = BinOp.inline(self.prim_size * (reduce(operator.mul, sizes) if isinstance(sizes, list) else sizes))
 
     def children(self):
         return [self.prop]
+
+
+class ClearArrayDeviceFlag(ASTNode):
+    def __init__(self, sim, array):
+        super().__init__(sim)
+        self.array = array
+
+    def children(self):
+        return [self.array]
+
+
+class ClearArrayHostFlag(ASTNode):
+    def __init__(self, sim, array):
+        super().__init__(sim)
+        self.array = array
+
+    def children(self):
+        return [self.array]
+
+
+class ClearPropertyDeviceFlag(ASTNode):
+    def __init__(self, sim, prop):
+        super().__init__(sim)
+        self.prop = prop
+
+    def children(self):
+        return [self.prop]
+
+
+class ClearPropertyHostFlag(ASTNode):
+    def __init__(self, sim, prop):
+        super().__init__(sim)
+        self.prop = prop
+
+    def children(self):
+        return [self.prop]
+

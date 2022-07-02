@@ -176,6 +176,7 @@ class ReplaceModulesByCalls(Mutator):
                     Filter(sim, sim.resizes[r] > 0, Block(sim,
                         [Assign(sim, c, self.grow_fn(sim.resizes[r]))] +
                         [a.realloc() for a in c.bonded_arrays()] +
+                        [a.update() for a in c.bonded_arrays()] +
                         props_realloc)))
 
             return Block(sim, init_stmts + [While(sim, branch_cond, Block(sim, reset_stmts + [call] + resize_stmts))])
