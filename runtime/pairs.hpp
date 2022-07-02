@@ -289,6 +289,16 @@ public:
         }
     }
 
+    void clearPropertyDeviceFlag(property_t id) { clearPropertyDeviceFlag(getProperty(id)); }
+    void clearPropertyDeviceFlag(Property &prop) { prop_flags->clearDeviceFlag(prop.getId()); }
+    void copyPropertyToDevice(property_t id) { copyPropertyToDevice(getProperty(id)); }
+    void copyPropertyToDevice(Property &prop) {
+        if(!prop_flags->isDeviceFlagSet(prop.getId())) {
+            pairs::copy_to_device(prop.getPointer(), prop.getDevicePointer(), prop.getTotalSize());
+            prop_flags->setDeviceFlag(prop.getId());
+        }
+    }
+
     void clearPropertyHostFlag(property_t id) { clearPropertyHostFlag(getProperty(id)); }
     void clearPropertyHostFlag(Property &prop) { prop_flags->clearHostFlag(prop.getId()); }
     void copyPropertyToHost(property_t id) { copyPropertyToHost(getProperty(id)); }
@@ -299,15 +309,6 @@ public:
         }
     }
 
-    void clearPropertyDeviceFlag(property_t id) { clearPropertyDeviceFlag(getProperty(id)); }
-    void clearPropertyDeviceFlag(Property &prop) { prop_flags->clearDeviceFlag(prop.getId()); }
-    void copyPropertyToDevice(property_t id) { copyPropertyToDevice(getProperty(id)); }
-    void copyPropertyToDevice(Property &prop) {
-        if(!prop_flags->isDeviceFlagSet(prop.getId())) {
-            pairs::copy_to_device(prop.getPointer(), prop.getDevicePointer(), prop.getTotalSize());
-            prop_flags->setDeviceFlag(prop.getId());
-        }
-    }
 };
 
 }
