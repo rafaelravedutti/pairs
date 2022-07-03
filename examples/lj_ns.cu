@@ -127,7 +127,7 @@ __global__ void build_cell_lists_kernel0(int ncells, int *cell_sizes) {
         cell_sizes[i10] = 0;
     }
 }
-__global__ void build_cell_lists_kernel1(int nlocal, int npbc, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int ncells, int cell_capacity, int *dim_cells, int *particle_cell, int *cell_particles, int *cell_sizes, int *resizes, double *position, int a47, int a46) {
+__global__ void build_cell_lists_kernel1(int nlocal, int npbc, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int ncells, int cell_capacity, int *dim_cells, int *particle_cell, int *cell_particles, int *cell_sizes, int *resizes, double *position, int a46, int a47) {
     const int i11 = blockIdx.x * blockDim.x + threadIdx.x;
     if((i11 < (nlocal + npbc))) {
         const int e321 = i11 * 3;
@@ -678,7 +678,7 @@ void build_cell_lists(int ncells, int nlocal, int npbc, double grid0_d0_min, dou
     const int e507 = e506 + 32;
     const int e508 = e507 - 1;
     const int e509 = e508 / 32;
-    build_cell_lists_kernel1<<<e509, 32>>>(nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, ncells, cell_capacity, dim_cells, particle_cell, cell_particles, cell_sizes, resizes, position, a47, a46);
+    build_cell_lists_kernel1<<<e509, 32>>>(nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, ncells, cell_capacity, dim_cells, particle_cell, cell_particles, cell_sizes, resizes, position, a46, a47);
 }
 void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighborlist_capacity, int nstencil, int *numneighs, int *particle_cell, int *stencil, int *cell_sizes, int *cell_particles, int *neighborlists, int *resizes, double *position) {
     const int e511 = nlocal - 0;
@@ -719,33 +719,35 @@ int main() {
     int pbc_capacity = 100;
     int *resizes = (int *) malloc((sizeof(int) * 3));
     int *d_resizes = (int *) pairs::device_alloc((sizeof(int) * 3));
-    ps->addArray(Array(0, "resizes", resizes, d_resizes, (sizeof(int) * 3)));
+    ps->addArray(Array(0, "resizes", resizes, d_resizes, (sizeof(int) * 3), false));
     double grid_buffer[6];
+    ps->addArray(Array(1, "grid_buffer", grid_buffer, nullptr, (sizeof(double) * 6), true));
     int dim_cells[3];
+    ps->addArray(Array(2, "dim_cells", dim_cells, d_dim_cells, (sizeof(int) * 3), true));
     int *cell_particles = (int *) malloc((sizeof(int) * (ncells_capacity * cell_capacity)));
     int *d_cell_particles = (int *) pairs::device_alloc((sizeof(int) * (ncells_capacity * cell_capacity)));
-    ps->addArray(Array(3, "cell_particles", cell_particles, d_cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity))));
+    ps->addArray(Array(3, "cell_particles", cell_particles, d_cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)), false));
     int *cell_sizes = (int *) malloc((sizeof(int) * ncells_capacity));
     int *d_cell_sizes = (int *) pairs::device_alloc((sizeof(int) * ncells_capacity));
-    ps->addArray(Array(4, "cell_sizes", cell_sizes, d_cell_sizes, (sizeof(int) * ncells_capacity)));
+    ps->addArray(Array(4, "cell_sizes", cell_sizes, d_cell_sizes, (sizeof(int) * ncells_capacity), false));
     int *stencil = (int *) malloc((sizeof(int) * 27));
     int *d_stencil = (int *) pairs::device_alloc((sizeof(int) * 27));
-    ps->addArray(Array(5, "stencil", stencil, d_stencil, (sizeof(int) * 27)));
+    ps->addArray(Array(5, "stencil", stencil, d_stencil, (sizeof(int) * 27), false));
     int *particle_cell = (int *) malloc((sizeof(int) * particle_capacity));
     int *d_particle_cell = (int *) pairs::device_alloc((sizeof(int) * particle_capacity));
-    ps->addArray(Array(6, "particle_cell", particle_cell, d_particle_cell, (sizeof(int) * particle_capacity)));
+    ps->addArray(Array(6, "particle_cell", particle_cell, d_particle_cell, (sizeof(int) * particle_capacity), false));
     int *neighborlists = (int *) malloc((sizeof(int) * (particle_capacity * neighborlist_capacity)));
     int *d_neighborlists = (int *) pairs::device_alloc((sizeof(int) * (particle_capacity * neighborlist_capacity)));
-    ps->addArray(Array(7, "neighborlists", neighborlists, d_neighborlists, (sizeof(int) * (particle_capacity * neighborlist_capacity))));
+    ps->addArray(Array(7, "neighborlists", neighborlists, d_neighborlists, (sizeof(int) * (particle_capacity * neighborlist_capacity)), false));
     int *numneighs = (int *) malloc((sizeof(int) * particle_capacity));
     int *d_numneighs = (int *) pairs::device_alloc((sizeof(int) * particle_capacity));
-    ps->addArray(Array(8, "numneighs", numneighs, d_numneighs, (sizeof(int) * particle_capacity)));
+    ps->addArray(Array(8, "numneighs", numneighs, d_numneighs, (sizeof(int) * particle_capacity), false));
     int *pbc_map = (int *) malloc((sizeof(int) * pbc_capacity));
     int *d_pbc_map = (int *) pairs::device_alloc((sizeof(int) * pbc_capacity));
-    ps->addArray(Array(9, "pbc_map", pbc_map, d_pbc_map, (sizeof(int) * pbc_capacity)));
+    ps->addArray(Array(9, "pbc_map", pbc_map, d_pbc_map, (sizeof(int) * pbc_capacity), false));
     int *pbc_mult = (int *) malloc((sizeof(int) * (pbc_capacity * 3)));
     int *d_pbc_mult = (int *) pairs::device_alloc((sizeof(int) * (pbc_capacity * 3)));
-    ps->addArray(Array(10, "pbc_mult", pbc_mult, d_pbc_mult, (sizeof(int) * (pbc_capacity * 3))));
+    ps->addArray(Array(10, "pbc_mult", pbc_mult, d_pbc_mult, (sizeof(int) * (pbc_capacity * 3)), false));
     double *mass = (double *) malloc((sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
     double *d_mass = (double *) pairs::device_alloc((sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
     ps->addProperty(Property(0, "mass", mass, d_mass, Prop_Float, AoS, ((0 + particle_capacity) + pbc_capacity)));
@@ -852,9 +854,9 @@ int main() {
                 ps->copyArrayToDevice(0); // resizes
                 ps->copyArrayToDevice(2); // dim_cells
                 ps->copyPropertyToDevice(1); // position
+                ps->clearArrayHostFlag(4); // cell_sizes
                 ps->clearArrayHostFlag(6); // particle_cell
                 ps->clearArrayHostFlag(3); // cell_particles
-                ps->clearArrayHostFlag(4); // cell_sizes
                 build_cell_lists(ncells, nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, cell_capacity, d_cell_sizes, d_dim_cells, dim_cells, d_particle_cell, d_resizes, d_cell_particles, d_position);
                 const int a83 = resizes[0];
                 const bool e477 = a83 > 0;
@@ -872,10 +874,10 @@ int main() {
             resizes[0] = 1;
             while((resizes[0] > 0)) {
                 resizes[0] = 0;
-                ps->copyArrayToDevice(6); // particle_cell
-                ps->copyArrayToDevice(3); // cell_particles
                 ps->copyArrayToDevice(4); // cell_sizes
                 ps->copyArrayToDevice(5); // stencil
+                ps->copyArrayToDevice(6); // particle_cell
+                ps->copyArrayToDevice(3); // cell_particles
                 ps->copyPropertyToDevice(1); // position
                 ps->clearArrayHostFlag(7); // neighborlists
                 ps->clearArrayHostFlag(8); // numneighs
@@ -901,10 +903,10 @@ int main() {
         ps->copyPropertyToDevice(1); // position
         ps->clearPropertyHostFlag(3); // force
         module0(neighborlist_capacity, nlocal, d_numneighs, d_neighborlists, d_position, d_force);
-        ps->copyPropertyToDevice(1); // position
         ps->copyPropertyToDevice(3); // force
         ps->copyPropertyToDevice(0); // mass
         ps->copyPropertyToDevice(2); // velocity
+        ps->copyPropertyToDevice(1); // position
         ps->clearPropertyHostFlag(1); // position
         ps->clearPropertyHostFlag(2); // velocity
         module1(nlocal, d_velocity, d_force, d_mass, d_position);
