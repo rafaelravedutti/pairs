@@ -35,6 +35,14 @@ __host__ void copy_to_host(const void *d_ptr, void *h_ptr, size_t count) {
     CUDA_ASSERT(cudaMemcpy(h_ptr, d_ptr, count, cudaMemcpyDeviceToHost));
 }
 
+__host__ void copy_static_symbol_to_device(void *h_ptr, const void *d_ptr, size_t count) {
+    CUDA_ASSERT(cudaMemcpyToSymbol(d_ptr, h_ptr, count));
+}
+
+__host__ void copy_static_symbol_to_host(void *d_ptr, const void *h_ptr, size_t count) {
+    //CUDA_ASSERT(cudaMemcpyFromSymbol(h_ptr, d_ptr, count));
+}
+
 inline __device__ int atomic_add(int *addr, int val) { return atomicAdd(addr, val); }
 inline __device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
     const int add_res = *addr + val;

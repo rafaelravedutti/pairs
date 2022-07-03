@@ -399,10 +399,11 @@ class CGen:
 
         if isinstance(ast_node, RegisterArray):
             a = ast_node.array()
-            size = self.generate_expression(ast_node.size())
             ptr = a.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
-            self.print(f"ps->addArray(Array({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size}));")
+            size = self.generate_expression(ast_node.size())
+            is_static = "true" if a.is_static() else "false"
+            self.print(f"ps->addArray(Array({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size}, {is_static}));")
 
         if isinstance(ast_node, RegisterProperty):
             p = ast_node.property()

@@ -51,14 +51,16 @@ protected:
     std::string name;
     void *ptr, *d_ptr;
     size_t size;
+    bool is_static;
 
 public:
-    Array(array_t id_, std::string name_, void *ptr_, void *d_ptr_, size_t size_) :
+    Array(array_t id_, std::string name_, void *ptr_, void *d_ptr_, size_t size_, bool is_static_ = false) :
         id(id_),
         name(name_),
         ptr(ptr_),
         d_ptr(d_ptr_),
-        size(size_) {
+        size(size_),
+        is_static(is_static_) {
 
         PAIRS_ASSERT(size_ > 0);
     }
@@ -70,6 +72,7 @@ public:
     void setPointers(void *ptr_, void *d_ptr_) { ptr = ptr_, d_ptr = d_ptr_; }
     void setSize(int size_) { size = size_; }
     size_t getSize() { return size; };
+    bool isStatic() { return is_static; }
 };
 
 class Property {
@@ -274,7 +277,12 @@ public:
     void copyArrayToDevice(array_t id) { copyArrayToDevice(getArray(id)); }
     void copyArrayToDevice(Array &array) {
         if(!array_flags->isDeviceFlagSet(array.getId())) {
-            pairs::copy_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
+            if(array.isStatic()) {
+                pairs::copy_static_symbol_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
+            } else {
+                pairs::copy_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
+            }
+
             array_flags->setDeviceFlag(array.getId());
         }
     }
@@ -284,7 +292,12 @@ public:
     void copyArrayToHost(array_t id) { copyArrayToHost(getArray(id)); }
     void copyArrayToHost(Array &array) {
         if(!array_flags->isHostFlagSet(array.getId())) {
-            pairs::copy_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
+            if(array.isStatic()) {
+                pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
+            } else {
+                pairs::copy_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
+            }
+
             array_flags->setHostFlag(array.getId());
         }
     }

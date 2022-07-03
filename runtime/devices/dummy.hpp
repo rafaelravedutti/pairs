@@ -6,6 +6,8 @@ void *device_alloc(size_t size) { return NULL; }
 void *device_realloc(void *ptr, size_t size) { return NULL; }
 void copy_to_device(void *h_ptr, const void *d_ptr, size_t count) {}
 void copy_to_host(void *d_ptr, const void *h_ptr, size_t count) {}
+void copy_static_symbol_to_device(void *h_ptr, const void *d_ptr, size_t count) {}
+void copy_static_symbol_to_host(void *d_ptr, const void *h_ptr, size_t count) {}
 int atomic_add(int *addr, int val) {
     *addr += val;
     return *addr - val;
