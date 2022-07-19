@@ -14,6 +14,7 @@
 
 #define PAIRS_ASSERT(a)
 #define PAIRS_ERROR(a)
+#define PAIRS_DEBUG(...)    fprintf(stderr, __VA_ARGS__)
 
 namespace pairs {
 
@@ -278,8 +279,10 @@ public:
     void copyArrayToDevice(Array &array) {
         if(!array_flags->isDeviceFlagSet(array.getId())) {
             if(array.isStatic()) {
+                PAIRS_DEBUG("Copying static array %s to device\n", array.getName().c_str());
                 pairs::copy_static_symbol_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
             } else {
+                PAIRS_DEBUG("Copying array %s to device\n", array.getName().c_str());
                 pairs::copy_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
             }
 
@@ -293,8 +296,10 @@ public:
     void copyArrayToHost(Array &array) {
         if(!array_flags->isHostFlagSet(array.getId())) {
             if(array.isStatic()) {
+                PAIRS_DEBUG("Copying static array %s to host\n", array.getName().c_str());
                 pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
             } else {
+                PAIRS_DEBUG("Copying array %s to host\n", array.getName().c_str());
                 pairs::copy_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
             }
 
@@ -307,6 +312,7 @@ public:
     void copyPropertyToDevice(property_t id) { copyPropertyToDevice(getProperty(id)); }
     void copyPropertyToDevice(Property &prop) {
         if(!prop_flags->isDeviceFlagSet(prop.getId())) {
+            PAIRS_DEBUG("Copying property %s to device\n", prop.getName().c_str());
             pairs::copy_to_device(prop.getPointer(), prop.getDevicePointer(), prop.getTotalSize());
             prop_flags->setDeviceFlag(prop.getId());
         }
@@ -317,6 +323,7 @@ public:
     void copyPropertyToHost(property_t id) { copyPropertyToHost(getProperty(id)); }
     void copyPropertyToHost(Property &prop) {
         if(!prop_flags->isHostFlagSet(prop.getId())) {
+            PAIRS_DEBUG("Copying property %s to host\n", prop.getName().c_str());
             pairs::copy_to_host(prop.getDevicePointer(), prop.getPointer(), prop.getTotalSize());
             prop_flags->setHostFlag(prop.getId());
         }

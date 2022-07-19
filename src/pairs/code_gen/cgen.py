@@ -28,7 +28,7 @@ from pairs.code_gen.printer import Printer
 class CGen:
     temp_id = 0
 
-    def __init__(self, ref, target, debug=False):
+    def __init__(self, ref, debug=False):
         self.sim = None
         self.target = None
         self.print = None
