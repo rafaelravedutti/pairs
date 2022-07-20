@@ -386,8 +386,8 @@ class CGen:
             self.print(f"{module.name}({module_params});")
 
         if isinstance(ast_node, Print):
-            self.print(f"fprintf(stdout, \"{ast_node.string}\\n\");")
-            self.print(f"fflush(stdout);")
+            self.print(f"fprintf(stderr, \"{ast_node.string}\\n\");")
+            self.print(f"fflush(stderr);")
 
         if isinstance(ast_node, Realloc):
             tkw = Types.c_keyword(ast_node.array.type())
