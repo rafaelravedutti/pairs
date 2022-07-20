@@ -129,16 +129,10 @@ class CGen:
 
             if self.debug:
                 self.print.add_indent(4)
-                self.generate_statement(Print(self.sim, module.name + " --- enter"))
+                self.print(f"PAIRS_DEBUG(\"{module.name}\\n\");")
                 self.print.add_indent(-4)
 
             self.generate_statement(module.block)
-
-            if self.debug:
-                self.print.add_indent(4)
-                self.generate_statement(Print(self.sim, module.name + " --- exit"))
-                self.print.add_indent(-4)
-
             self.print("}")
 
     def generate_kernel(self, kernel):
@@ -386,8 +380,7 @@ class CGen:
             self.print(f"{module.name}({module_params});")
 
         if isinstance(ast_node, Print):
-            self.print(f"fprintf(stderr, \"{ast_node.string}\\n\");")
-            self.print(f"fflush(stderr);")
+            self.print(f"pairs::print(\"{ast_node.string}\\n\");")
 
         if isinstance(ast_node, Realloc):
             tkw = Types.c_keyword(ast_node.array.type())

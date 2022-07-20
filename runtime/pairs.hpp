@@ -12,9 +12,16 @@
 
 #pragma once
 
-#define PAIRS_ASSERT(a)
-#define PAIRS_ERROR(a)
-#define PAIRS_DEBUG(...)    fprintf(stderr, __VA_ARGS__)
+#ifdef DEBUG
+#   include <assert.h>
+#   define PAIRS_DEBUG(...)     fprintf(stderr, __VA_ARGS__)
+#   define PAIRS_ASSERT(a)      assert(a)
+#else
+#   define PAIRS_DEBUG(...)
+#   define PAIRS_ASSERT(a)
+#endif
+
+#define PAIRS_ERROR(...)    fprintf(stderr, __VA_ARGS__)
 
 namespace pairs {
 
@@ -139,7 +146,7 @@ public:
 class VectorProperty : public Property {
 public:
     double &operator()(int i, int j) {
-        PAIRS_ASSERT(type != Prop_Invalid && layout_ != Invalid && sx_ > 0 && sy_ > 0);
+        PAIRS_ASSERT(type != Prop_Invalid && layout != Invalid && sx > 0 && sy > 0);
         double *dptr = static_cast<double *>(ptr);
         if(layout == AoS) { return dptr[i * sy + j]; }
         if(layout == SoA) { return dptr[j * sx + i]; }
@@ -157,7 +164,7 @@ private:
     static const int narrays_per_flag = 64;
 public:
     DeviceFlags(int narrays_) : narrays(narrays_) {
-        nflags = std::ceil(narrays_ / narrays_per_flag);
+        nflags = std::ceil((double) narrays_ / (double) narrays_per_flag);
         hflags = new unsigned long long int[nflags];
         dflags = new unsigned long long int[nflags];
 
@@ -328,7 +335,6 @@ public:
             prop_flags->setHostFlag(prop.getId());
         }
     }
-
 };
 
 }
