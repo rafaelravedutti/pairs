@@ -210,6 +210,33 @@ public:
         dflags[flag_index] &= ~(1 << bit);
     }
 
+    void printFlags() {
+        fprintf(stderr, "hflags = ");
+        for(int i = 0; i < nflags; i++) {
+            for(int b = 63; b >= 0; b--) {
+                if(hflags[i] & (1 << b)) {
+                    fprintf(stderr, "1");
+                } else {
+                    fprintf(stderr, "0");
+                }
+            }
+        }
+
+        fprintf(stderr, "\n");
+        fprintf(stderr, "dflags = ");
+        for(int i = 0; i < nflags; i++) {
+            for(int b = 63; b >= 0; b--) {
+                if(dflags[i] & (1 << b)) {
+                    fprintf(stderr, "1");
+                } else {
+                    fprintf(stderr, "0");
+                }
+            }
+        }
+
+        fprintf(stderr, "\n");
+    }
+
     ~DeviceFlags() {
         delete[] hflags;
         delete[] dflags;
@@ -280,11 +307,14 @@ public:
     inline FloatProperty &getFloatProperty(property_t property) { return static_cast<FloatProperty&>(getProperty(property)); }
     inline VectorProperty &getVectorProperty(property_t property) { return static_cast<VectorProperty&>(getProperty(property)); }
 
+    void setArrayDeviceFlag(array_t id) { setArrayDeviceFlag(getArray(id)); }
+    void setArrayDeviceFlag(Array &array) { array_flags->setDeviceFlag(array.getId()); }
     void clearArrayDeviceFlag(array_t id) { clearArrayDeviceFlag(getArray(id)); }
     void clearArrayDeviceFlag(Array &array) { array_flags->clearDeviceFlag(array.getId()); }
     void copyArrayToDevice(array_t id) { copyArrayToDevice(getArray(id)); }
     void copyArrayToDevice(Array &array) {
-        if(!array_flags->isDeviceFlagSet(array.getId())) {
+        int array_id = array.getId();
+        if(!array_flags->isDeviceFlagSet(array_id)) {
             if(array.isStatic()) {
                 PAIRS_DEBUG("Copying static array %s to device\n", array.getName().c_str());
                 pairs::copy_static_symbol_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
@@ -292,16 +322,17 @@ public:
                 PAIRS_DEBUG("Copying array %s to device\n", array.getName().c_str());
                 pairs::copy_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
             }
-
-            array_flags->setDeviceFlag(array.getId());
         }
     }
 
+    void setArrayHostFlag(array_t id) { setArrayHostFlag(getArray(id)); }
+    void setArrayHostFlag(Array &array) { array_flags->setHostFlag(array.getId()); }
     void clearArrayHostFlag(array_t id) { clearArrayHostFlag(getArray(id)); }
     void clearArrayHostFlag(Array &array) { array_flags->clearHostFlag(array.getId()); }
     void copyArrayToHost(array_t id) { copyArrayToHost(getArray(id)); }
     void copyArrayToHost(Array &array) {
-        if(!array_flags->isHostFlagSet(array.getId())) {
+        int array_id = array.getId();
+        if(!array_flags->isHostFlagSet(array_id)) {
             if(array.isStatic()) {
                 PAIRS_DEBUG("Copying static array %s to host\n", array.getName().c_str());
                 pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
@@ -309,11 +340,11 @@ public:
                 PAIRS_DEBUG("Copying array %s to host\n", array.getName().c_str());
                 pairs::copy_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
             }
-
-            array_flags->setHostFlag(array.getId());
         }
     }
 
+    void setPropertyDeviceFlag(property_t id) { setPropertyDeviceFlag(getProperty(id)); }
+    void setPropertyDeviceFlag(Property &prop) { prop_flags->setDeviceFlag(prop.getId()); }
     void clearPropertyDeviceFlag(property_t id) { clearPropertyDeviceFlag(getProperty(id)); }
     void clearPropertyDeviceFlag(Property &prop) { prop_flags->clearDeviceFlag(prop.getId()); }
     void copyPropertyToDevice(property_t id) { copyPropertyToDevice(getProperty(id)); }
@@ -321,10 +352,11 @@ public:
         if(!prop_flags->isDeviceFlagSet(prop.getId())) {
             PAIRS_DEBUG("Copying property %s to device\n", prop.getName().c_str());
             pairs::copy_to_device(prop.getPointer(), prop.getDevicePointer(), prop.getTotalSize());
-            prop_flags->setDeviceFlag(prop.getId());
         }
     }
 
+    void setPropertyHostFlag(property_t id) { setPropertyHostFlag(getProperty(id)); }
+    void setPropertyHostFlag(Property &prop) { prop_flags->setHostFlag(prop.getId()); }
     void clearPropertyHostFlag(property_t id) { clearPropertyHostFlag(getProperty(id)); }
     void clearPropertyHostFlag(Property &prop) { prop_flags->clearHostFlag(prop.getId()); }
     void copyPropertyToHost(property_t id) { copyPropertyToHost(getProperty(id)); }
@@ -332,7 +364,6 @@ public:
         if(!prop_flags->isHostFlagSet(prop.getId())) {
             PAIRS_DEBUG("Copying property %s to host\n", prop.getName().c_str());
             pairs::copy_to_host(prop.getDevicePointer(), prop.getPointer(), prop.getTotalSize());
-            prop_flags->setHostFlag(prop.getId());
         }
     }
 };

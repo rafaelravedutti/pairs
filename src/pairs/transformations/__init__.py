@@ -11,6 +11,7 @@ class Transformations:
     def __init__(self, ast, target):
         self._ast = ast
         self._target = target
+        self._module_resizes = None
 
     def apply(self, transformation, data=None):
         transformation.set_ast(self._ast)
@@ -50,14 +51,15 @@ class Transformations:
     def modularize(self):
         add_resize_logic = AddResizeLogic()
         self.apply(add_resize_logic)
+        self._module_resizes = add_resize_logic.module_resizes
         self.analysis().fetch_modules_references()
         self.apply(DereferenceWriteVariables())
-        self.apply(ReplaceModulesByCalls(), [add_resize_logic.module_resizes])
+        self.apply(ReplaceModulesByCalls(), [self._module_resizes])
         self.apply(MergeAdjacentBlocks())
 
     def add_device_copies(self):
         if self._target.is_gpu():
-            self.apply(AddDeviceCopies())
+            self.apply(AddDeviceCopies(), [self._module_resizes])
 
     def add_device_kernels(self):
         if self._target.is_gpu():

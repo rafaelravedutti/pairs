@@ -4,8 +4,8 @@ from pairs.ir.bin_op import BinOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
-from pairs.ir.device import ClearArrayDeviceFlag, ClearArrayHostFlag, ClearPropertyDeviceFlag, ClearPropertyHostFlag
-from pairs.ir.device import CopyArrayToDevice, CopyArrayToHost, CopyPropertyToDevice, CopyPropertyToHost, HostRef
+from pairs.ir.contexts import Contexts
+from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For
@@ -17,9 +17,13 @@ from pairs.ir.types import Types
 class AddDeviceCopies(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)
+        self.module_resizes = None
 
     def set_ast(self, ast):
         super().set_ast(ast)
+
+    def set_data(self, data):
+        self.module_resizes = data[0]
 
     def mutate_Block(self, ast_node):
         new_stmts = []
@@ -28,31 +32,29 @@ class AddDeviceCopies(Mutator):
         for s in stmts:
             if s is not None:
                 if isinstance(s, ModuleCall):
+                    copy_context = Contexts.Device if s.module.run_on_device else Contexts.Host
+                    clear_context = Contexts.Host if s.module.run_on_device else Contexts.Device
+
                     for a in s.module.arrays_to_synchronize():
-                        if s.module.run_on_device:
-                            new_stmts += [CopyArrayToDevice(s.sim, a)]
-                        else:
-                            new_stmts += [CopyArrayToHost(s.sim, a)]
+                        new_stmts += [CopyArray(s.sim, a, copy_context)]
 
                     for p in s.module.properties_to_synchronize():
-                        if s.module.run_on_device:
-                            new_stmts += [CopyPropertyToDevice(s.sim, p)]
-                        else:
-                            new_stmts += [CopyPropertyToHost(s.sim, p)]
+                        new_stmts += [CopyProperty(s.sim, p, copy_context)]
 
                     for a in s.module.write_arrays():
-                        if s.module.run_on_device:
-                            new_stmts += [ClearArrayHostFlag(s.sim, a)]
-                        else:
-                            new_stmts += [ClearArrayDeviceFlag(s.sim, a)]
+                        new_stmts += [SetArrayFlag(s.sim, a, copy_context), ClearArrayFlag(s.sim, a, clear_context)]
 
                     for p in s.module.write_properties():
-                        if s.module.run_on_device:
-                            new_stmts += [ClearPropertyHostFlag(s.sim, p)]
-                        else:
-                            new_stmts += [ClearPropertyDeviceFlag(s.sim, p)]
+                        new_stmts += [SetPropertyFlag(s.sim, p, copy_context), ClearPropertyFlag(s.sim, p, clear_context)]
+
+                    if self.module_resizes[s.module] and s.module.run_on_device:
+                        new_stmts += [ClearArrayFlag(s.sim, s.sim.resizes, Contexts.Device),
+                                      CopyArray(s.sim, s.sim.resizes, Contexts.Device)]
 
                 new_stmts.append(s)
+
+                if isinstance(s, ModuleCall) and self.module_resizes[s.module] and s.module.run_on_device:
+                    new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host)]
 
         ast_node.stmts = new_stmts
         return ast_node

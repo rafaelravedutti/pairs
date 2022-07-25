@@ -4,9 +4,9 @@ from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl, RegisterArray, Update
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
+from pairs.ir.contexts import Contexts
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
-from pairs.ir.device import ClearArrayDeviceFlag, ClearArrayHostFlag, ClearPropertyDeviceFlag, ClearPropertyHostFlag
-from pairs.ir.device import CopyArrayToDevice, CopyArrayToHost, CopyPropertyToDevice, CopyPropertyToHost, HostRef
+from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.functions import Call
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
@@ -256,45 +256,59 @@ class CGen:
             call = self.generate_expression(ast_node)
             self.print(f"{call};")
 
-        if isinstance(ast_node, CopyArrayToDevice):
+        if isinstance(ast_node, CopyArray):
             array_id = ast_node.array.id()
             array_name = ast_node.array.name()
-            self.print(f"ps->copyArrayToDevice({array_id}); // {array_name}")
 
-        if isinstance(ast_node, CopyArrayToHost):
+            if ast_node.context() == Contexts.Device:
+                self.print(f"ps->copyArrayToDevice({array_id}); // {array_name}")
+            else:
+                self.print(f"ps->copyArrayToHost({array_id}); // {array_name}")
+
+        if isinstance(ast_node, CopyProperty):
+            prop_id = ast_node.prop.id()
+            prop_name = ast_node.prop.name()
+
+            if ast_node.context() == Contexts.Device:
+                self.print(f"ps->copyPropertyToDevice({prop_id}); // {prop_name}")
+            else:
+                self.print(f"ps->copyPropertyToHost({prop_id}); // {prop_name}")
+
+        if isinstance(ast_node, ClearArrayFlag):
             array_id = ast_node.array.id()
             array_name = ast_node.array.name()
-            self.print(f"ps->copyArrayToHost({array_id}); // {array_name}")
 
-        if isinstance(ast_node, CopyPropertyToDevice):
+            if ast_node.context() == Contexts.Device:
+                self.print(f"ps->clearArrayDeviceFlag({array_id}); // {array_name}")
+            else:
+                self.print(f"ps->clearArrayHostFlag({array_id}); // {array_name}")
+
+        if isinstance(ast_node, ClearPropertyFlag):
             prop_id = ast_node.prop.id()
             prop_name = ast_node.prop.name()
-            self.print(f"ps->copyPropertyToDevice({prop_id}); // {prop_name}")
 
-        if isinstance(ast_node, CopyPropertyToHost):
-            prop_id = ast_node.prop.id()
-            prop_name = ast_node.prop.name()
-            self.print(f"ps->copyPropertyToHost({prop_id}); // {prop_name}")
+            if ast_node.context() == Contexts.Device:
+                self.print(f"ps->clearPropertyDeviceFlag({prop_id}); // {prop_name}")
+            else:
+                self.print(f"ps->clearPropertyHostFlag({prop_id}); // {prop_name}")
 
-        if isinstance(ast_node, ClearArrayDeviceFlag):
+        if isinstance(ast_node, SetArrayFlag):
             array_id = ast_node.array.id()
             array_name = ast_node.array.name()
-            self.print(f"ps->clearArrayDeviceFlag({array_id}); // {array_name}")
 
-        if isinstance(ast_node, ClearArrayHostFlag):
-            array_id = ast_node.array.id()
-            array_name = ast_node.array.name()
-            self.print(f"ps->clearArrayHostFlag({array_id}); // {array_name}")
+            if ast_node.context() == Contexts.Device:
+                self.print(f"ps->setArrayDeviceFlag({array_id}); // {array_name}")
+            else:
+                self.print(f"ps->setArrayHostFlag({array_id}); // {array_name}")
 
-        if isinstance(ast_node, ClearPropertyDeviceFlag):
+        if isinstance(ast_node, SetPropertyFlag):
             prop_id = ast_node.prop.id()
             prop_name = ast_node.prop.name()
-            self.print(f"ps->clearPropertyDeviceFlag({prop_id}); // {prop_name}")
 
-        if isinstance(ast_node, ClearPropertyHostFlag):
-            prop_id = ast_node.prop.id()
-            prop_name = ast_node.prop.name()
-            self.print(f"ps->clearPropertyHostFlag({prop_id}); // {prop_name}")
+            if ast_node.context() == Contexts.Device:
+                self.print(f"ps->setPropertyDeviceFlag({prop_id}); // {prop_name}")
+            else:
+                self.print(f"ps->setPropertyHostFlag({prop_id}); // {prop_name}")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)

@@ -17,73 +17,79 @@ class HostRef(ASTNode):
         return [self.elem]
 
 
-class CopyArrayToDevice(ASTNode):
-    def __init__(self, sim, array):
+class CopyArray(ASTNode):
+    def __init__(self, sim, array, ctx):
         super().__init__(sim)
         self.array = array
+        self.ctx = ctx
+
+    def context(self):
+        return self.ctx
 
     def children(self):
         return [self.array]
 
 
-class CopyArrayToHost(ASTNode):
-    def __init__(self, sim, array):
-        super().__init__(sim)
-        self.array = array
-
-    def children(self):
-        return [self.array]
-
-class CopyPropertyToDevice(ASTNode):
-    def __init__(self, sim, prop):
+class CopyProperty(ASTNode):
+    def __init__(self, sim, prop, ctx):
         super().__init__(sim)
         self.prop = prop
+        self.ctx = ctx
+
+    def context(self):
+        return self.ctx
 
     def children(self):
         return [self.prop]
 
 
-class CopyPropertyToHost(ASTNode):
-    def __init__(self, sim, prop):
-        super().__init__(sim)
-        self.prop = prop
-
-    def children(self):
-        return [self.prop]
-
-
-class ClearArrayDeviceFlag(ASTNode):
-    def __init__(self, sim, array):
+class ClearArrayFlag(ASTNode):
+    def __init__(self, sim, array, ctx):
         super().__init__(sim)
         self.array = array
+        self.ctx = ctx
+
+    def context(self):
+        return self.ctx
 
     def children(self):
         return [self.array]
 
 
-class ClearArrayHostFlag(ASTNode):
-    def __init__(self, sim, array):
+class ClearPropertyFlag(ASTNode):
+    def __init__(self, sim, prop, ctx):
+        super().__init__(sim)
+        self.prop = prop
+        self.ctx = ctx
+
+    def context(self):
+        return self.ctx
+
+    def children(self):
+        return [self.prop]
+
+
+class SetArrayFlag(ASTNode):
+    def __init__(self, sim, array, ctx):
         super().__init__(sim)
         self.array = array
+        self.ctx = ctx
+
+    def context(self):
+        return self.ctx
 
     def children(self):
         return [self.array]
 
 
-class ClearPropertyDeviceFlag(ASTNode):
-    def __init__(self, sim, prop):
+class SetPropertyFlag(ASTNode):
+    def __init__(self, sim, prop, ctx):
         super().__init__(sim)
         self.prop = prop
+        self.ctx = ctx
+
+    def context(self):
+        return self.ctx
 
     def children(self):
         return [self.prop]
-
-
-class ClearPropertyHostFlag(ASTNode):
-    def __init__(self, sim, prop):
-        super().__init__(sim)
-        self.prop = prop
-
-    def children(self):
-        return [self.prop]
-
