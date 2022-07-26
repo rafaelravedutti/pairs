@@ -63,10 +63,10 @@ class Module(ASTNode):
         return {p for p in self._properties if 'w' in self._properties[p]}
 
     def arrays_to_synchronize(self):
-        return {a for a in self._arrays if self._arrays[a][0] == 'r'}
+        return {a for a in self._arrays if a.sync() and self._arrays[a][0] == 'r'}
 
     def write_arrays(self):
-        return {a for a in self._arrays if 'w' in self._arrays[a]}
+        return {a for a in self._arrays if a.sync() and 'w' in self._arrays[a]}
 
     def add_array(self, array, write=False):
         array_list = array if isinstance(array, list) else [array]

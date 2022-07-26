@@ -9,6 +9,7 @@ class HostRef(ASTNode):
     def __init__(self, sim, elem):
         super().__init__(sim)
         self.elem = elem
+        self.sim.add_statement(self)
 
     def type(self):
         return self.elem.type()
@@ -22,6 +23,7 @@ class CopyArray(ASTNode):
         super().__init__(sim)
         self.array = array
         self.ctx = ctx
+        self.sim.add_statement(self)
 
     def context(self):
         return self.ctx
@@ -35,6 +37,7 @@ class CopyProperty(ASTNode):
         super().__init__(sim)
         self.prop = prop
         self.ctx = ctx
+        self.sim.add_statement(self)
 
     def context(self):
         return self.ctx
@@ -48,6 +51,7 @@ class ClearArrayFlag(ASTNode):
         super().__init__(sim)
         self.array = array
         self.ctx = ctx
+        self.sim.add_statement(self)
 
     def context(self):
         return self.ctx
@@ -61,6 +65,7 @@ class ClearPropertyFlag(ASTNode):
         super().__init__(sim)
         self.prop = prop
         self.ctx = ctx
+        self.sim.add_statement(self)
 
     def context(self):
         return self.ctx
@@ -74,6 +79,7 @@ class SetArrayFlag(ASTNode):
         super().__init__(sim)
         self.array = array
         self.ctx = ctx
+        self.sim.add_statement(self)
 
     def context(self):
         return self.ctx
@@ -87,6 +93,7 @@ class SetPropertyFlag(ASTNode):
         super().__init__(sim)
         self.prop = prop
         self.ctx = ctx
+        self.sim.add_statement(self)
 
     def context(self):
         return self.ctx

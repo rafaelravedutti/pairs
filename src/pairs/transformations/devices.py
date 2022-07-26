@@ -48,8 +48,7 @@ class AddDeviceCopies(Mutator):
                         new_stmts += [SetPropertyFlag(s.sim, p, copy_context), ClearPropertyFlag(s.sim, p, clear_context)]
 
                     if self.module_resizes[s.module] and s.module.run_on_device:
-                        new_stmts += [ClearArrayFlag(s.sim, s.sim.resizes, Contexts.Device),
-                                      CopyArray(s.sim, s.sim.resizes, Contexts.Device)]
+                        new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Device)]
 
                 new_stmts.append(s)
 

@@ -35,7 +35,7 @@ class Simulation:
         self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
-        self.resizes = self.add_array('resizes', 3, Types.Int32)
+        self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
         self.grid = None
         self.cell_lists = None
         self.neighbor_lists = None
@@ -105,9 +105,9 @@ class Simulation:
     def position(self):
         return self.position_prop
 
-    def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layouts.AoS):
+    def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layouts.AoS, arr_sync=True):
         assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
-        return self.arrays.add(arr_name, arr_sizes, arr_type, arr_layout)
+        return self.arrays.add(arr_name, arr_sizes, arr_type, arr_layout, arr_sync)
 
     def add_static_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layouts.AoS, init_value=None):
         assert self.array(arr_name) is None, f"Array already defined: {arr_name}"

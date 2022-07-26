@@ -14,8 +14,8 @@ class Arrays:
         self.sim = sim
         self.arrays = []
 
-    def add(self, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
-        array = ArrayND(self.sim, a_name, a_sizes, a_type, a_layout)
+    def add(self, a_name, a_sizes, a_type, a_layout=Layouts.AoS, a_sync=True):
+        array = ArrayND(self.sim, a_name, a_sizes, a_type, a_layout, a_sync)
         self.arrays.append(array)
         return array
 
@@ -44,7 +44,7 @@ class Arrays:
 class Array(ASTNode):
     last_array_id = 0
 
-    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS, a_sync=True):
         super().__init__(sim)
         self.arr_id = Array.last_array_id
         self.arr_name = a_name
@@ -52,6 +52,7 @@ class Array(ASTNode):
                          else [Lit.cvt(sim, s) for s in a_sizes]
         self.arr_type = a_type
         self.arr_layout = a_layout
+        self.arr_sync = a_sync
         self.arr_ndims = len(self.arr_sizes)
         self.static = False
         self.device_flag = False
@@ -78,6 +79,9 @@ class Array(ASTNode):
     def layout(self):
         return self.arr_layout
 
+    def sync(self):
+        return self.arr_sync
+
     def ndims(self):
         return self.arr_ndims
 
@@ -89,8 +93,8 @@ class Array(ASTNode):
 
 
 class ArrayStatic(Array):
-    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS, init_value=None):
-        super().__init__(sim, a_name, a_sizes, a_type, a_layout)
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS, a_sync=True, init_value=None):
+        super().__init__(sim, a_name, a_sizes, a_type, a_layout, a_sync)
         self.init_value = init_value
         self.static = True
 
@@ -105,8 +109,8 @@ class ArrayStatic(Array):
 
 
 class ArrayND(Array):
-    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS):
-        super().__init__(sim, a_name, a_sizes, a_type, a_layout)
+    def __init__(self, sim, a_name, a_sizes, a_type, a_layout=Layouts.AoS, a_sync=True):
+        super().__init__(sim, a_name, a_sizes, a_type, a_layout, a_sync)
 
     def __str__(self):
         return f"ArrayND<{self.arr_name}>"
