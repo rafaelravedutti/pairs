@@ -5,11 +5,11 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.lit import Lit
 from pairs.ir.loops import While
-from pairs.ir.memory import Realloc
 from pairs.ir.module import Module, ModuleCall
 from pairs.ir.mutator import Mutator
-from pairs.ir.properties import UpdateProperty
+from pairs.ir.properties import ReallocProperty
 from pairs.ir.types import Types
+from pairs.ir.utils import Print
 from pairs.ir.variables import Var, Deref
 from functools import reduce
 import operator
@@ -159,24 +159,24 @@ class ReplaceModulesByCalls(Mutator):
             resize_stmts = []
             branch_cond = None
 
-            for r, c in self.module_resizes[ast_node].items():
-                init_stmts.append(Assign(sim, sim.resizes[r], 1))
-                reset_stmts.append(Assign(sim, sim.resizes[r], 0))
-                cond = BinOp.inline(sim.resizes[r] > 0)
+            for resize_id, capacity in self.module_resizes[ast_node].items():
+                init_stmts.append(Assign(sim, sim.resizes[resize_id], 1))
+                reset_stmts.append(Assign(sim, sim.resizes[resize_id], 0))
+                cond = BinOp.inline(sim.resizes[resize_id] > 0)
                 branch_cond = cond if branch_cond is None else BinOp.or_op(cond, branch_cond)
                 props_realloc = []
 
-                if properties.is_capacity(c):
+                if properties.is_capacity(capacity):
                     for p in properties.all():
                         new_capacity = sum(properties.capacities)
                         sizes = [new_capacity, sim.ndims()] if p.type() == Types.Vector else [new_capacity]
-                        props_realloc += [Realloc(sim, p, reduce(operator.mul, sizes)), UpdateProperty(sim, p, sizes)]
+                        props_realloc += [ReallocProperty(sim, p, sizes)]
 
                 resize_stmts.append(
-                    Filter(sim, sim.resizes[r] > 0, Block(sim,
-                        [Assign(sim, c, self.grow_fn(sim.resizes[r]))] +
-                        [a.realloc() for a in c.bonded_arrays()] +
-                        [a.update() for a in c.bonded_arrays()] +
+                    Filter(sim, sim.resizes[resize_id] > 0, Block(sim,
+                        [Print(sim, f"Resizing {resize_id} -> {capacity.name()}")] +
+                        [Assign(sim, capacity, self.grow_fn(sim.resizes[resize_id]))] +
+                        [a.realloc() for a in capacity.bonded_arrays()] +
                         props_realloc)))
 
             return Block(sim, init_stmts + [While(sim, branch_cond, Block(sim, reset_stmts + [call] + resize_stmts))])

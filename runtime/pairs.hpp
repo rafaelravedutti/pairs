@@ -57,15 +57,15 @@ class Array {
 protected:
     array_t id;
     std::string name;
-    void *ptr, *d_ptr;
+    void *h_ptr, *d_ptr;
     size_t size;
     bool is_static;
 
 public:
-    Array(array_t id_, std::string name_, void *ptr_, void *d_ptr_, size_t size_, bool is_static_ = false) :
+    Array(array_t id_, std::string name_, void *h_ptr_, void *d_ptr_, size_t size_, bool is_static_ = false) :
         id(id_),
         name(name_),
-        ptr(ptr_),
+        h_ptr(h_ptr_),
         d_ptr(d_ptr_),
         size(size_),
         is_static(is_static_) {
@@ -75,9 +75,9 @@ public:
 
     property_t getId() { return id; }
     std::string getName() { return name; }
-    void *getPointer() { return ptr; }
+    void *getHostPointer() { return h_ptr; }
     void *getDevicePointer() { return d_ptr; }
-    void setPointers(void *ptr_, void *d_ptr_) { ptr = ptr_, d_ptr = d_ptr_; }
+    void setPointers(void *h_ptr_, void *d_ptr_) { h_ptr = h_ptr_, d_ptr = d_ptr_; }
     void setSize(int size_) { size = size_; }
     size_t getSize() { return size; };
     bool isStatic() { return is_static; }
@@ -87,16 +87,16 @@ class Property {
 protected:
     property_t id;
     std::string name;
-    void *ptr, *d_ptr;
+    void *h_ptr, *d_ptr;
     PropertyType type;
     layout_t layout;
     size_t sx, sy;
 
 public:
-    /*Property(property_t id_, std::string name_, void *ptr_, void *d_ptr_, PropertyType type_, layout_t layout, size_t sx_) :
+    /*Property(property_t id_, std::string name_, void *h_ptr_, void *d_ptr_, PropertyType type_, layout_t layout, size_t sx_) :
         id(id_),
         name(name_),
-        ptr(ptr_),
+        h_ptr(h_ptr_),
         d_ptr(d_ptr_),
         type(type_),
         layout(Invalid),
@@ -105,10 +105,10 @@ public:
         PAIRS_ASSERT(type != Prop_Invalid && layout_ != Invalid && sx_ > 0);
     }*/
 
-    Property(property_t id_, std::string name_, void *ptr_, void *d_ptr_, PropertyType type_, layout_t layout_, size_t sx_, size_t sy_=1) :
+    Property(property_t id_, std::string name_, void *h_ptr_, void *d_ptr_, PropertyType type_, layout_t layout_, size_t sx_, size_t sy_=1) :
         id(id_),
         name(name_),
-        ptr(ptr_),
+        h_ptr(h_ptr_),
         d_ptr(d_ptr_),
         type(type_),
         layout(layout_),
@@ -119,9 +119,9 @@ public:
 
     property_t getId() { return id; }
     std::string getName() { return name; }
-    void *getPointer() { return ptr; }
+    void *getHostPointer() { return h_ptr; }
     void *getDevicePointer() { return d_ptr; }
-    void setPointers(void *ptr_, void *d_ptr_) { ptr = ptr_, d_ptr = d_ptr_; }
+    void setPointers(void *h_ptr_, void *d_ptr_) { h_ptr = h_ptr_, d_ptr = d_ptr_; }
     void setSizes(int sx_, int sy_) { sx = sx_, sy = sy_; }
     size_t getTotalSize() { return sx * sy * getElemSize(); };
     PropertyType getType() { return type; }
@@ -135,19 +135,19 @@ public:
 
 class IntProperty : public Property {
 public:
-    inline int &operator()(int i) { return static_cast<int *>(ptr)[i]; }
+    inline int &operator()(int i) { return static_cast<int *>(h_ptr)[i]; }
 };
 
 class FloatProperty : public Property {
 public:
-    inline double &operator()(int i) { return static_cast<double *>(ptr)[i]; }
+    inline double &operator()(int i) { return static_cast<double *>(h_ptr)[i]; }
 };
 
 class VectorProperty : public Property {
 public:
     double &operator()(int i, int j) {
         PAIRS_ASSERT(type != Prop_Invalid && layout != Invalid && sx > 0 && sy > 0);
-        double *dptr = static_cast<double *>(ptr);
+        double *dptr = static_cast<double *>(h_ptr);
         if(layout == AoS) { return dptr[i * sy + j]; }
         if(layout == SoA) { return dptr[j * sx + i]; }
         PAIRS_ERROR("VectorProperty::operator[]: Invalid data layout!");
@@ -261,11 +261,28 @@ public:
     }
 
     void addArray(Array array) { arrays.push_back(array); }
-    void updateArray(array_t id, void *ptr, void *d_ptr, int size) {
-        auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
-        PAIRS_ASSERT(a != std::end(arrays));
-        a->setPointers(ptr, d_ptr);
-        a->setSize(size);
+
+    template<typename T_ptr>
+    void reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, int size) {
+        auto a = getArray(id);
+        *h_ptr = (T_ptr *) realloc(*h_ptr, size);
+        a.setPointers(*h_ptr, nullptr);
+        a.setSize(size);
+    }
+
+    template<typename T_ptr>
+    void reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, int size) {
+        auto a = getArray(id);
+        void *new_h_ptr = realloc(*h_ptr, size);
+        void *new_d_ptr = pairs::device_realloc(*d_ptr, size);
+        a.setPointers(new_h_ptr, new_d_ptr);
+        a.setSize(size);
+
+        *h_ptr = (T_ptr *) new_h_ptr;
+        *d_ptr = (T_ptr *) new_d_ptr;
+        if(array_flags->isDeviceFlagSet(id)) {
+            copyArrayToDevice(id);
+        }
     }
 
     Array &getArray(array_t id) {
@@ -281,11 +298,28 @@ public:
     }
 
     void addProperty(Property prop) { properties.push_back(prop); }
-    void updateProperty(property_t id, void *ptr, void *d_ptr, int sx = 0, int sy = 0) {
-        auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
-        PAIRS_ASSERT(p != std::end(properties));
-        p->setPointers(ptr, d_ptr);
-        p->setSizes(sx, sy);
+
+    template<typename T_ptr>
+    void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, int sx = 1, int sy = 1) {
+        auto p = getProperty(id);
+        *h_ptr = (T_ptr *) realloc(*h_ptr, sx * sy * p.getElemSize());
+        p.setPointers(*h_ptr, nullptr);
+        p.setSizes(sx, sy);
+    }
+
+    template<typename T_ptr>
+    void reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, int sx = 1, int sy = 1) {
+        auto p = getProperty(id);
+        void *new_h_ptr = realloc(*h_ptr, sx * sy * p.getElemSize());
+        void *new_d_ptr = pairs::device_realloc(*d_ptr, sx * sy * p.getElemSize());
+        p.setPointers(new_h_ptr, new_d_ptr);
+        p.setSizes(sx, sy);
+
+        *h_ptr = (T_ptr *) new_h_ptr;
+        *d_ptr = (T_ptr *) new_d_ptr;
+        if(prop_flags->isDeviceFlagSet(id)) {
+            copyPropertyToDevice(id);
+        }
     }
 
     Property &getProperty(property_t id) {
@@ -317,10 +351,10 @@ public:
         if(!array_flags->isDeviceFlagSet(array_id)) {
             if(array.isStatic()) {
                 PAIRS_DEBUG("Copying static array %s to device\n", array.getName().c_str());
-                pairs::copy_static_symbol_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
+                pairs::copy_static_symbol_to_device(array.getHostPointer(), array.getDevicePointer(), array.getSize());
             } else {
                 PAIRS_DEBUG("Copying array %s to device\n", array.getName().c_str());
-                pairs::copy_to_device(array.getPointer(), array.getDevicePointer(), array.getSize());
+                pairs::copy_to_device(array.getHostPointer(), array.getDevicePointer(), array.getSize());
             }
         }
     }
@@ -335,10 +369,10 @@ public:
         if(!array_flags->isHostFlagSet(array_id)) {
             if(array.isStatic()) {
                 PAIRS_DEBUG("Copying static array %s to host\n", array.getName().c_str());
-                pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
+                pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getHostPointer(), array.getSize());
             } else {
                 PAIRS_DEBUG("Copying array %s to host\n", array.getName().c_str());
-                pairs::copy_to_host(array.getDevicePointer(), array.getPointer(), array.getSize());
+                pairs::copy_to_host(array.getDevicePointer(), array.getHostPointer(), array.getSize());
             }
         }
     }
@@ -351,7 +385,7 @@ public:
     void copyPropertyToDevice(Property &prop) {
         if(!prop_flags->isDeviceFlagSet(prop.getId())) {
             PAIRS_DEBUG("Copying property %s to device\n", prop.getName().c_str());
-            pairs::copy_to_device(prop.getPointer(), prop.getDevicePointer(), prop.getTotalSize());
+            pairs::copy_to_device(prop.getHostPointer(), prop.getDevicePointer(), prop.getTotalSize());
         }
     }
 
@@ -363,7 +397,7 @@ public:
     void copyPropertyToHost(Property &prop) {
         if(!prop_flags->isHostFlagSet(prop.getId())) {
             PAIRS_DEBUG("Copying property %s to host\n", prop.getName().c_str());
-            pairs::copy_to_host(prop.getDevicePointer(), prop.getPointer(), prop.getTotalSize());
+            pairs::copy_to_host(prop.getDevicePointer(), prop.getHostPointer(), prop.getTotalSize());
         }
     }
 };

@@ -116,10 +116,7 @@ class ArrayND(Array):
         return f"ArrayND<{self.arr_name}>"
 
     def realloc(self):
-        return Realloc(self.sim, self, self.alloc_size())
-
-    def update(self):
-        return UpdateArray(self.sim, self, self.alloc_size())
+        return ReallocArray(self.sim, self, self.alloc_size())
 
 
 class ArrayAccess(ASTTerm):
@@ -220,7 +217,7 @@ class RegisterArray(ASTNode):
         return f"RegisterArray<{self._array.name()}>"
 
 
-class UpdateArray(ASTNode):
+class ReallocArray(ASTNode):
     def __init__(self, sim, array, size):
         super().__init__(sim)
         self._array = array
@@ -235,4 +232,4 @@ class UpdateArray(ASTNode):
         return self._size
 
     def __str__(self):
-        return f"UpdateArray<{self._array.name()}>"
+        return f"ReallocArray<{self._array.name()}>"

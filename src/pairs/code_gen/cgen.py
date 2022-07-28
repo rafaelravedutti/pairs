@@ -1,6 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd
-from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl, RegisterArray, UpdateArray
+from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl, RegisterArray, ReallocArray
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
@@ -15,7 +15,7 @@ from pairs.ir.loops import For, Iter, ParticleFor, While
 from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
-from pairs.ir.properties import Property, PropertyAccess, PropertyList, RegisterProperty, UpdateProperty
+from pairs.ir.properties import Property, PropertyAccess, PropertyList, RegisterProperty, ReallocProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
@@ -394,7 +394,7 @@ class CGen:
             self.print(f"{module.name}({module_params});")
 
         if isinstance(ast_node, Print):
-            self.print(f"pairs::print(\"{ast_node.string}\\n\");")
+            self.print(f"PAIRS_DEBUG(\"{ast_node.string}\\n\");")
 
         if isinstance(ast_node, Realloc):
             tkw = Types.c_keyword(ast_node.array.type())
@@ -433,19 +433,21 @@ class CGen:
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)
 
-        if isinstance(ast_node, UpdateProperty):
+        if isinstance(ast_node, ReallocProperty):
             p = ast_node.property()
             ptr = p.name()
-            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
-            sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
-            self.print(f"ps->updateProperty({p.id()}, {ptr}, {d_ptr}, {sizes});")
+            d_ptr_addr = f"&d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            sizes = ", ".join([str(self.generate_expression(BinOp.inline(size))) for size in ast_node.sizes()])
+            self.print(f"ps->reallocProperty({p.id()}, &{ptr}, {d_ptr_addr}, {sizes});")
+            #self.print(f"ps->reallocProperty({p.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {sizes});")
 
-        if isinstance(ast_node, UpdateArray):
+        if isinstance(ast_node, ReallocArray):
             a = ast_node.array()
             size = self.generate_expression(ast_node.size())
             ptr = a.name()
-            d_ptr = f"d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
-            self.print(f"ps->updateArray({a.id()}, {ptr}, {d_ptr}, {size});")
+            d_ptr_addr = f"&d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
+            self.print(f"ps->reallocArray({a.id()}, &{ptr}, {d_ptr_addr}, {size});")
+            #self.print(f"ps->reallocArray({a.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {size});")
 
         if isinstance(ast_node, VarDecl):
             tkw = Types.c_keyword(ast_node.var.type())

@@ -1,7 +1,7 @@
 from pairs.ir.block import pairs_device_block, pairs_inline
 from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
-from pairs.ir.properties import RegisterProperty, UpdateProperty
+from pairs.ir.properties import RegisterProperty
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.lowerable import Lowerable, FinalLowerable

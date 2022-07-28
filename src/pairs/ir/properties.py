@@ -187,7 +187,7 @@ class RegisterProperty(ASTNode):
         return f"RegisterProperty<{self.prop.name()}>"
 
 
-class UpdateProperty(ASTNode):
+class ReallocProperty(ASTNode):
     def __init__(self, sim, prop, sizes):
         super().__init__(sim)
         self.prop = prop
@@ -201,4 +201,4 @@ class UpdateProperty(ASTNode):
         return self.sizes_list
 
     def __str__(self):
-        return f"UpdateProperty<{self.prop.name()}>"
+        return f"ReallocProperty<{self.prop.name()}>"
