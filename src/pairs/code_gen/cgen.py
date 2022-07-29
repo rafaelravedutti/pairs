@@ -408,14 +408,26 @@ class CGen:
             a = ast_node.array()
             ptr = a.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
+            tkw = Types.c_keyword(a.type())
             size = self.generate_expression(ast_node.size())
-            is_static = "true" if a.is_static() else "false"
-            self.print(f"ps->addArray(Array({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size}, {is_static}));")
+
+            if a.is_static():
+                self.print(f"ps->addStaticArray({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size});") 
+
+            else:
+                if self.target.is_gpu() and a.device_flag:
+                    self.print(f"{tkw} *{ptr}, *{d_ptr};")
+                    d_ptr = f"&{d_ptr}"
+                else:
+                    self.print(f"{tkw} *{ptr};")
+
+                self.print(f"ps->addArray({a.id()}, \"{a.name()}\", &{ptr}, {d_ptr}, {size});")
 
         if isinstance(ast_node, RegisterProperty):
             p = ast_node.property()
             ptr = p.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            tkw = Types.c_keyword(p.type())
             ptype = "Prop_Integer"  if p.type() == Types.Int32 else \
                     "Prop_Float"    if p.type() == Types.Double else \
                     "Prop_Vector"   if p.type() == Types.Vector else \
@@ -427,8 +439,15 @@ class CGen:
                       "SoA" if p.layout() == Layouts.SoA else \
                       "Invalid"
 
-            sizes = ", ".join([str(self.generate_expression(size)) for size in ast_node.sizes()])
-            self.print(f"ps->addProperty(Property({p.id()}, \"{p.name()}\", {ptr}, {d_ptr}, {ptype}, {playout}, {sizes}));")
+            sizes = ", ".join([str(self.generate_expression(BinOp.inline(size))) for size in ast_node.sizes()])
+
+            if self.target.is_gpu() and p.device_flag:
+                self.print(f"{tkw} *{ptr}, *{d_ptr};")
+                d_ptr = f"&{d_ptr}"
+            else:
+                self.print(f"{tkw} *{ptr};")
+
+            self.print(f"ps->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
 
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)

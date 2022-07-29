@@ -27,10 +27,8 @@ class PropertiesAlloc(FinalLowerable):
                 raise Exception("Invalid property type!")
 
             if self.realloc:
-                Realloc(self.sim, p, reduce(operator.mul, sizes))
                 UpdateProperty(self.sim, p, sizes)
             else:
-                Malloc(self.sim, p, reduce(operator.mul, sizes), True)
                 RegisterProperty(self.sim, p, sizes)
 
 

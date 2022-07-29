@@ -78,7 +78,7 @@ public:
     void *getHostPointer() { return h_ptr; }
     void *getDevicePointer() { return d_ptr; }
     void setPointers(void *h_ptr_, void *d_ptr_) { h_ptr = h_ptr_, d_ptr = d_ptr_; }
-    void setSize(int size_) { size = size_; }
+    void setSize(size_t size_) { size = size_; }
     size_t getSize() { return size; };
     bool isStatic() { return is_static; }
 };
@@ -122,7 +122,7 @@ public:
     void *getHostPointer() { return h_ptr; }
     void *getDevicePointer() { return d_ptr; }
     void setPointers(void *h_ptr_, void *d_ptr_) { h_ptr = h_ptr_, d_ptr = d_ptr_; }
-    void setSizes(int sx_, int sy_) { sx = sx_, sy = sy_; }
+    void setSizes(size_t sx_, size_t sy_) { sx = sx_, sy = sy_; }
     size_t getTotalSize() { return sx * sy * getElemSize(); };
     PropertyType getType() { return type; }
     layout_t getLayout() { return layout; }
@@ -260,6 +260,35 @@ public:
         delete array_flags;
     }
 
+    template<typename T_ptr>
+    void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
+        PAIRS_ASSERT(size > 0);
+
+        *h_ptr = (T_ptr *) malloc(size);
+        PAIRS_ASSERT(*h_ptr != nullptr);
+        addArray(Array(id, name, *h_ptr, nullptr, size, false));
+    }
+
+    template<typename T_ptr>
+    void addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
+        PAIRS_ASSERT(size > 0);
+
+        *h_ptr = (T_ptr *) malloc(size);
+        *d_ptr = (T_ptr *) pairs::device_alloc(size);
+        PAIRS_ASSERT(*h_ptr != nullptr && *d_ptr != nullptr);
+        addArray(Array(id, name, *h_ptr, *d_ptr, size, false));
+    }
+
+    template<typename T_ptr>
+    void addStaticArray(array_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, size_t size) {
+        addArray(Array(id, name, h_ptr, nullptr, size, true));
+    }
+
+    template<typename T_ptr>
+    void addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, size_t size) {
+        addArray(Array(id, name, h_ptr, d_ptr, size, true));
+    }
+
     void addArray(Array array) {
         int id = array.getId();
         auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
@@ -268,7 +297,7 @@ public:
     }
 
     template<typename T_ptr>
-    void reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, int size) {
+    void reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size) {
         // This should be a pointer (and not a reference) in order to be modified
         auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
         PAIRS_ASSERT(a != std::end(arrays));
@@ -282,7 +311,7 @@ public:
     }
 
     template<typename T_ptr>
-    void reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, int size) {
+    void reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
         // This should be a pointer (and not a reference) in order to be modified
         auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
         PAIRS_ASSERT(a != std::end(arrays));
@@ -314,6 +343,27 @@ public:
         return *a;
     }
 
+    template<typename T_ptr>
+    void addProperty(property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy=1) {
+        size_t size = sx * sy * sizeof(T_ptr);
+        PAIRS_ASSERT(size > 0);
+
+        *h_ptr = (T_ptr *) malloc(size);
+        PAIRS_ASSERT(*h_ptr != nullptr);
+        addProperty(Property(id, name, *h_ptr, nullptr, type, layout, sx, sy));
+    }
+
+    template<typename T_ptr>
+    void addProperty(property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, PropertyType type, layout_t layout, size_t sx, size_t sy=1) {
+        size_t size = sx * sy * sizeof(T_ptr);
+        PAIRS_ASSERT(size > 0);
+
+        *h_ptr = (T_ptr *) malloc(size);
+        *d_ptr = (T_ptr *) pairs::device_alloc(size);
+        PAIRS_ASSERT(*h_ptr != nullptr && *d_ptr != nullptr);
+        addProperty(Property(id, name, *h_ptr, *d_ptr, type, layout, sx, sy));
+    }
+
     void addProperty(Property prop) {
         int id = prop.getId();
         auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
@@ -322,12 +372,12 @@ public:
     }
 
     template<typename T_ptr>
-    void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, int sx = 1, int sy = 1) {
+    void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx = 1, size_t sy = 1) {
         // This should be a pointer (and not a reference) in order to be modified
         auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
         PAIRS_ASSERT(p != std::end(properties));
 
-        int size = sx * sy * p->getElemSize();
+        size_t size = sx * sy * p->getElemSize();
         PAIRS_ASSERT(size > 0);
 
         *h_ptr = (T_ptr *) realloc(*h_ptr, size);
@@ -338,12 +388,12 @@ public:
     }
 
     template<typename T_ptr>
-    void reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, int sx = 1, int sy = 1) {
+    void reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx = 1, size_t sy = 1) {
         // This should be a pointer (and not a reference) in order to be modified
         auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
         PAIRS_ASSERT(p != std::end(properties));
 
-        int size = sx * sy * p->getElemSize();
+        size_t size = sx * sy * p->getElemSize();
         PAIRS_ASSERT(size > 0);
 
         void *new_h_ptr = realloc(*h_ptr, size);

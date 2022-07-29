@@ -13,13 +13,10 @@ class ArraysDecl(FinalLowerable):
     @pairs_inline
     def lower(self):
         for a in self.sim.arrays.all():
-            alloc_size = a.alloc_size()
             if a.is_static():
                 ArrayDecl(self.sim, a)
-            else:
-                Malloc(self.sim, a, alloc_size, True)
 
-            RegisterArray(self.sim, a, alloc_size)
+            RegisterArray(self.sim, a, a.alloc_size())
 
             if not a.sync():
                 ClearArrayFlag(self.sim, self.sim.resizes, Contexts.Host)
