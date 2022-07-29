@@ -1,1 +1,11 @@
 **/__pycache__
+functions
+functions.pdf
+lj_ns
+lj_ns.cu
+lj_ns.cpp
+**/*.vtk
+build
+dist
+pairs.egg-info
+output*
