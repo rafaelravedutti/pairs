@@ -12,6 +12,7 @@ using namespace pairs;
 
 
 void module0(int neighborlist_capacity, int nlocal, int *numneighs, int *neighborlists, double *position, double *force) {
+    PAIRS_DEBUG("module0\n");
     for(int i14 = 0; i14 < nlocal; i14++) {
         const int a55 = numneighs[i14];
         const int e358 = i14 * 3;
@@ -73,6 +74,7 @@ void module0(int neighborlist_capacity, int nlocal, int *numneighs, int *neighbo
     }
 }
 void module1(int nlocal, double *velocity, double *force, double *mass, double *position) {
+    PAIRS_DEBUG("module1\n");
     for(int i0 = 0; i0 < nlocal; i0++) {
         const int e31 = i0 * 3;
         const int e37 = i0 * 3;
@@ -131,6 +133,7 @@ void module1(int nlocal, double *velocity, double *force, double *mass, double *
     }
 }
 void build_cell_lists_stencil(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int ncells_capacity, int *ncells, int *nstencil, int *dim_cells, int *resizes, int *stencil) {
+    PAIRS_DEBUG("build_cell_lists_stencil\n");
     const double e74 = grid0_d0_max - grid0_d0_min;
     const double e75 = e74 / 2.8;
     const int e76 = ceil(e75) + 2;
@@ -173,6 +176,7 @@ void build_cell_lists_stencil(double grid0_d0_max, double grid0_d0_min, double g
     }
 }
 void enforce_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int nlocal, double *position) {
+    PAIRS_DEBUG("enforce_pbc\n");
     const double e97 = grid0_d0_max - grid0_d0_min;
     const double e104 = grid0_d0_max - grid0_d0_min;
     const double e111 = grid0_d1_max - grid0_d1_min;
@@ -245,6 +249,7 @@ void enforce_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, 
     }
 }
 void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_capacity, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int *npbc, int *pbc_map, int *pbc_mult, int *resizes, double *position) {
+    PAIRS_DEBUG("setup_pbc\n");
     (*npbc) = 0;
     const int e134 = nlocal + (*npbc);
     const double e135 = grid0_d0_max - grid0_d0_min;
@@ -470,6 +475,7 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
     }
 }
 void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int nlocal, int npbc, int *pbc_map, int *pbc_mult, double *position) {
+    PAIRS_DEBUG("update_pbc\n");
     const double e297 = grid0_d0_max - grid0_d0_min;
     const double e307 = grid0_d1_max - grid0_d1_min;
     const double e317 = grid0_d2_max - grid0_d2_min;
@@ -513,6 +519,7 @@ void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, d
     }
 }
 void build_cell_lists(int ncells, int nlocal, int npbc, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int cell_capacity, int *cell_sizes, int *dim_cells, int *particle_cell, int *resizes, int *cell_particles, double *position) {
+    PAIRS_DEBUG("build_cell_lists\n");
     for(int i10 = 0; i10 < ncells; i10++) {
         cell_sizes[i10] = 0;
     }
@@ -550,6 +557,7 @@ void build_cell_lists(int ncells, int nlocal, int npbc, double grid0_d0_min, dou
     }
 }
 void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighborlist_capacity, int nstencil, int *numneighs, int *particle_cell, int *stencil, int *cell_sizes, int *cell_particles, int *neighborlists, int *resizes, double *position) {
+    PAIRS_DEBUG("neighbor_lists_build\n");
     for(int i12 = 0; i12 < nlocal; i12++) {
         numneighs[i12] = 0;
     }
@@ -615,6 +623,7 @@ void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighbo
     }
 }
 void reset_volatile_properties(int nlocal, double *force) {
+    PAIRS_DEBUG("reset_volatile_properties\n");
     for(int i13 = 0; i13 < nlocal; i13++) {
         const int e345 = i13 * 3;
         const int e347 = i13 * 3;
@@ -644,36 +653,42 @@ int main() {
     int neighborlist_capacity = 32;
     int npbc = 0;
     int pbc_capacity = 100;
-    int *resizes = (int *) malloc((sizeof(int) * 3));
-    ps->addArray(Array(0, "resizes", resizes, nullptr, (sizeof(int) * 3), false));
+    int *resizes;
+    ps->addArray(0, "resizes", &resizes, nullptr, (sizeof(int) * 3));
+    ps->clearArrayHostFlag(0); // resizes
+    ps->clearArrayDeviceFlag(0); // resizes
     double grid_buffer[6];
-    ps->addArray(Array(1, "grid_buffer", grid_buffer, nullptr, (sizeof(double) * 6), true));
+    ps->addStaticArray(1, "grid_buffer", grid_buffer, nullptr, (sizeof(double) * 6));
+    ps->clearArrayHostFlag(0); // resizes
+    ps->clearArrayDeviceFlag(0); // resizes
     int dim_cells[3];
-    ps->addArray(Array(2, "dim_cells", dim_cells, nullptr, (sizeof(int) * 3), true));
-    int *cell_particles = (int *) malloc((sizeof(int) * (ncells_capacity * cell_capacity)));
-    ps->addArray(Array(3, "cell_particles", cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)), false));
-    int *cell_sizes = (int *) malloc((sizeof(int) * ncells_capacity));
-    ps->addArray(Array(4, "cell_sizes", cell_sizes, nullptr, (sizeof(int) * ncells_capacity), false));
-    int *stencil = (int *) malloc((sizeof(int) * 27));
-    ps->addArray(Array(5, "stencil", stencil, nullptr, (sizeof(int) * 27), false));
-    int *particle_cell = (int *) malloc((sizeof(int) * particle_capacity));
-    ps->addArray(Array(6, "particle_cell", particle_cell, nullptr, (sizeof(int) * particle_capacity), false));
-    int *neighborlists = (int *) malloc((sizeof(int) * (particle_capacity * neighborlist_capacity)));
-    ps->addArray(Array(7, "neighborlists", neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)), false));
-    int *numneighs = (int *) malloc((sizeof(int) * particle_capacity));
-    ps->addArray(Array(8, "numneighs", numneighs, nullptr, (sizeof(int) * particle_capacity), false));
-    int *pbc_map = (int *) malloc((sizeof(int) * pbc_capacity));
-    ps->addArray(Array(9, "pbc_map", pbc_map, nullptr, (sizeof(int) * pbc_capacity), false));
-    int *pbc_mult = (int *) malloc((sizeof(int) * (pbc_capacity * 3)));
-    ps->addArray(Array(10, "pbc_mult", pbc_mult, nullptr, (sizeof(int) * (pbc_capacity * 3)), false));
-    double *mass = (double *) malloc((sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
-    ps->addProperty(Property(0, "mass", mass, nullptr, Prop_Float, AoS, ((0 + particle_capacity) + pbc_capacity)));
-    double *position = (double *) malloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-    ps->addProperty(Property(1, "position", position, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
-    double *velocity = (double *) malloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-    ps->addProperty(Property(2, "velocity", velocity, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
-    double *force = (double *) malloc((sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-    ps->addProperty(Property(3, "force", force, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3));
+    ps->addStaticArray(2, "dim_cells", dim_cells, nullptr, (sizeof(int) * 3));
+    ps->clearArrayHostFlag(0); // resizes
+    ps->clearArrayDeviceFlag(0); // resizes
+    int *cell_particles;
+    ps->addArray(3, "cell_particles", &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
+    int *cell_sizes;
+    ps->addArray(4, "cell_sizes", &cell_sizes, nullptr, (sizeof(int) * ncells_capacity));
+    int *stencil;
+    ps->addArray(5, "stencil", &stencil, nullptr, (sizeof(int) * 27));
+    int *particle_cell;
+    ps->addArray(6, "particle_cell", &particle_cell, nullptr, (sizeof(int) * particle_capacity));
+    int *neighborlists;
+    ps->addArray(7, "neighborlists", &neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
+    int *numneighs;
+    ps->addArray(8, "numneighs", &numneighs, nullptr, (sizeof(int) * particle_capacity));
+    int *pbc_map;
+    ps->addArray(9, "pbc_map", &pbc_map, nullptr, (sizeof(int) * pbc_capacity));
+    int *pbc_mult;
+    ps->addArray(10, "pbc_mult", &pbc_mult, nullptr, (sizeof(int) * (pbc_capacity * 3)));
+    double *mass;
+    ps->addProperty(0, "mass", &mass, nullptr, Prop_Float, AoS, ((0 + particle_capacity) + pbc_capacity));
+    double *position;
+    ps->addProperty(1, "position", &position, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3);
+    double *velocity;
+    ps->addProperty(2, "velocity", &velocity, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3);
+    double *force;
+    ps->addProperty(3, "force", &force, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3);
     const int prop_list_0[] = {0, 1, 2};
     nlocal = pairs::read_particle_data(ps, "data/minimd_setup_4x4x4.input", grid_buffer, prop_list_0, 3);
     const double a0 = grid_buffer[0];
@@ -695,18 +710,17 @@ int main() {
         const int a73 = resizes[0];
         const bool e444 = a73 > 0;
         if(e444) {
+            PAIRS_DEBUG("resizes[0] -> ncells_capacity\n");
             const int a74 = resizes[0];
             const int e445 = a74 * 2;
             ncells_capacity = e445;
-            cell_particles = (int *) realloc(cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)));
-            cell_sizes = (int *) realloc(cell_sizes, (sizeof(int) * ncells_capacity));
-            ps->updateArray(3, cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
-            ps->updateArray(4, cell_sizes, nullptr, (sizeof(int) * ncells_capacity));
+            ps->reallocArray(3, &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
+            ps->reallocArray(4, &cell_sizes, nullptr, (sizeof(int) * ncells_capacity));
         }
     }
-    pairs::vtk_write_data(ps, "output/test_local", 0, nlocal, 0);
+    pairs::vtk_write_data(ps, "output/test_cpu_local", 0, nlocal, 0);
     const int e91 = nlocal + npbc;
-    pairs::vtk_write_data(ps, "output/test_pbc", nlocal, e91, 0);
+    pairs::vtk_write_data(ps, "output/test_cpu_pbc", nlocal, e91, 0);
     for(int i1 = 0; i1 < 101; i1++) {
         if(((i1 % 20) == 0)) {
             enforce_pbc(grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, nlocal, position);
@@ -717,23 +731,18 @@ int main() {
                 resizes[0] = 0;
                 setup_pbc(nlocal, grid0_d0_max, grid0_d0_min, pbc_capacity, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, &npbc, pbc_map, pbc_mult, resizes, position);
                 const int a78 = resizes[0];
-                const bool e468 = a78 > 0;
-                if(e468) {
+                const bool e458 = a78 > 0;
+                if(e458) {
+                    PAIRS_DEBUG("resizes[0] -> pbc_capacity\n");
                     const int a79 = resizes[0];
-                    const int e469 = a79 * 2;
-                    pbc_capacity = e469;
-                    pbc_map = (int *) realloc(pbc_map, (sizeof(int) * pbc_capacity));
-                    pbc_mult = (int *) realloc(pbc_mult, (sizeof(int) * (pbc_capacity * 3)));
-                    ps->updateArray(9, pbc_map, nullptr, (sizeof(int) * pbc_capacity));
-                    ps->updateArray(10, pbc_mult, nullptr, (sizeof(int) * (pbc_capacity * 3)));
-                    mass = (double *) realloc(mass, (sizeof(double) * ((0 + particle_capacity) + pbc_capacity)));
-                    ps->updateProperty(0, mass, nullptr, ((0 + particle_capacity) + pbc_capacity));
-                    position = (double *) realloc(position, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-                    ps->updateProperty(1, position, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
-                    velocity = (double *) realloc(velocity, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-                    ps->updateProperty(2, velocity, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
-                    force = (double *) realloc(force, (sizeof(double) * (((0 + particle_capacity) + pbc_capacity) * 3)));
-                    ps->updateProperty(3, force, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
+                    const int e459 = a79 * 2;
+                    pbc_capacity = e459;
+                    ps->reallocArray(9, &pbc_map, nullptr, (sizeof(int) * pbc_capacity));
+                    ps->reallocArray(10, &pbc_mult, nullptr, (sizeof(int) * (pbc_capacity * 3)));
+                    ps->reallocProperty(0, &mass, nullptr, ((0 + particle_capacity) + pbc_capacity));
+                    ps->reallocProperty(1, &position, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
+                    ps->reallocProperty(2, &velocity, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
+                    ps->reallocProperty(3, &force, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
                 }
             }
         } else {
@@ -745,13 +754,13 @@ int main() {
                 resizes[0] = 0;
                 build_cell_lists(ncells, nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, cell_capacity, cell_sizes, dim_cells, particle_cell, resizes, cell_particles, position);
                 const int a83 = resizes[0];
-                const bool e477 = a83 > 0;
-                if(e477) {
+                const bool e464 = a83 > 0;
+                if(e464) {
+                    PAIRS_DEBUG("resizes[0] -> cell_capacity\n");
                     const int a84 = resizes[0];
-                    const int e478 = a84 * 2;
-                    cell_capacity = e478;
-                    cell_particles = (int *) realloc(cell_particles, (sizeof(int) * (ncells_capacity * cell_capacity)));
-                    ps->updateArray(3, cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
+                    const int e465 = a84 * 2;
+                    cell_capacity = e465;
+                    ps->reallocArray(3, &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
                 }
             }
         }
@@ -761,13 +770,13 @@ int main() {
                 resizes[0] = 0;
                 neighbor_lists_build(nlocal, ncells, cell_capacity, neighborlist_capacity, nstencil, numneighs, particle_cell, stencil, cell_sizes, cell_particles, neighborlists, resizes, position);
                 const int a88 = resizes[0];
-                const bool e484 = a88 > 0;
-                if(e484) {
+                const bool e469 = a88 > 0;
+                if(e469) {
+                    PAIRS_DEBUG("resizes[0] -> neighborlist_capacity\n");
                     const int a89 = resizes[0];
-                    const int e485 = a89 * 2;
-                    neighborlist_capacity = e485;
-                    neighborlists = (int *) realloc(neighborlists, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
-                    ps->updateArray(7, neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
+                    const int e470 = a89 * 2;
+                    neighborlist_capacity = e470;
+                    ps->reallocArray(7, &neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
                 }
             }
         }
@@ -775,9 +784,9 @@ int main() {
         module0(neighborlist_capacity, nlocal, numneighs, neighborlists, position, force);
         module1(nlocal, velocity, force, mass, position);
         const int e73 = i1 + 1;
-        pairs::vtk_write_data(ps, "output/test_local", 0, nlocal, e73);
+        pairs::vtk_write_data(ps, "output/test_cpu_local", 0, nlocal, e73);
         const int e384 = nlocal + npbc;
-        pairs::vtk_write_data(ps, "output/test_pbc", nlocal, e384, e73);
+        pairs::vtk_write_data(ps, "output/test_cpu_pbc", nlocal, e384, e73);
     }
     return 0;
 }
