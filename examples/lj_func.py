@@ -35,7 +35,7 @@ psim.from_file("data/minimd_setup_4x4x4.input", ['mass', 'position', 'velocity']
 psim.create_cell_lists(2.8, 2.8)
 psim.create_neighbor_lists()
 psim.periodic(2.8)
-psim.vtk_output("output/test")
+psim.vtk_output(f"output/test_{target}")
 psim.compute(lj, cutoff_radius, {'sigma6': sigma6, 'epsilon': epsilon})
 psim.compute(euler, symbols={'dt': dt})
 psim.target(pairs.target_cpu())

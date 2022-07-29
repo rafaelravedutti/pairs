@@ -174,7 +174,7 @@ class ReplaceModulesByCalls(Mutator):
 
                 resize_stmts.append(
                     Filter(sim, sim.resizes[resize_id] > 0, Block(sim,
-                        [Print(sim, f"Resizing {resize_id} -> {capacity.name()}")] +
+                        [Print(sim, f"resizes[{resize_id}] -> {capacity.name()}")] +
                         [Assign(sim, capacity, self.grow_fn(sim.resizes[resize_id]))] +
                         [a.realloc() for a in capacity.bonded_arrays()] +
                         props_realloc)))
