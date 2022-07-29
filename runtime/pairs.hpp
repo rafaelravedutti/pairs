@@ -260,23 +260,40 @@ public:
         delete array_flags;
     }
 
-    void addArray(Array array) { arrays.push_back(array); }
+    void addArray(Array array) {
+        int id = array.getId();
+        auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+        PAIRS_ASSERT(a == std::end(arrays));
+        arrays.push_back(array);
+    }
 
     template<typename T_ptr>
     void reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, int size) {
-        auto a = getArray(id);
+        // This should be a pointer (and not a reference) in order to be modified
+        auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+        PAIRS_ASSERT(a != std::end(arrays));
+        PAIRS_ASSERT(size > 0);
+
         *h_ptr = (T_ptr *) realloc(*h_ptr, size);
-        a.setPointers(*h_ptr, nullptr);
-        a.setSize(size);
+        PAIRS_ASSERT(*h_ptr != nullptr);
+
+        a->setPointers(*h_ptr, nullptr);
+        a->setSize(size);
     }
 
     template<typename T_ptr>
     void reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, int size) {
-        auto a = getArray(id);
+        // This should be a pointer (and not a reference) in order to be modified
+        auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+        PAIRS_ASSERT(a != std::end(arrays));
+        PAIRS_ASSERT(size > 0);
+
         void *new_h_ptr = realloc(*h_ptr, size);
         void *new_d_ptr = pairs::device_realloc(*d_ptr, size);
-        a.setPointers(new_h_ptr, new_d_ptr);
-        a.setSize(size);
+        PAIRS_ASSERT(new_h_ptr != nullptr && new_d_ptr != nullptr);
+
+        a->setPointers(new_h_ptr, new_d_ptr);
+        a->setSize(size);
 
         *h_ptr = (T_ptr *) new_h_ptr;
         *d_ptr = (T_ptr *) new_d_ptr;
@@ -297,23 +314,44 @@ public:
         return *a;
     }
 
-    void addProperty(Property prop) { properties.push_back(prop); }
+    void addProperty(Property prop) {
+        int id = prop.getId();
+        auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
+        PAIRS_ASSERT(p == std::end(properties));
+        properties.push_back(prop);
+    }
 
     template<typename T_ptr>
     void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, int sx = 1, int sy = 1) {
-        auto p = getProperty(id);
-        *h_ptr = (T_ptr *) realloc(*h_ptr, sx * sy * p.getElemSize());
-        p.setPointers(*h_ptr, nullptr);
-        p.setSizes(sx, sy);
+        // This should be a pointer (and not a reference) in order to be modified
+        auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
+        PAIRS_ASSERT(p != std::end(properties));
+
+        int size = sx * sy * p->getElemSize();
+        PAIRS_ASSERT(size > 0);
+
+        *h_ptr = (T_ptr *) realloc(*h_ptr, size);
+        PAIRS_ASSERT(*h_ptr != nullptr);
+
+        p->setPointers(*h_ptr, nullptr);
+        p->setSizes(sx, sy);
     }
 
     template<typename T_ptr>
     void reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, int sx = 1, int sy = 1) {
-        auto p = getProperty(id);
-        void *new_h_ptr = realloc(*h_ptr, sx * sy * p.getElemSize());
-        void *new_d_ptr = pairs::device_realloc(*d_ptr, sx * sy * p.getElemSize());
-        p.setPointers(new_h_ptr, new_d_ptr);
-        p.setSizes(sx, sy);
+        // This should be a pointer (and not a reference) in order to be modified
+        auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
+        PAIRS_ASSERT(p != std::end(properties));
+
+        int size = sx * sy * p->getElemSize();
+        PAIRS_ASSERT(size > 0);
+
+        void *new_h_ptr = realloc(*h_ptr, size);
+        void *new_d_ptr = pairs::device_realloc(*d_ptr, size);
+        PAIRS_ASSERT(new_h_ptr != nullptr && new_d_ptr != nullptr);
+
+        p->setPointers(new_h_ptr, new_d_ptr);
+        p->setSizes(sx, sy);
 
         *h_ptr = (T_ptr *) new_h_ptr;
         *d_ptr = (T_ptr *) new_d_ptr;
