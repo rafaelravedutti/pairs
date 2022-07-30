@@ -1,6 +1,7 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.assign import Assign
 from pairs.ir.lit import Lit
+from pairs.ir.operators import Operators
 from pairs.ir.types import Types
 from pairs.ir.vector_expr import VectorExpression
 
@@ -81,14 +82,8 @@ class BinOp(VectorExpression):
         lhs_type = lhs.type()
         rhs_type = rhs.type()
 
-        if op in ['>', '<', '>=', '<=', '==', '!=']:
+        if op.is_conditional():
             return Types.Boolean
-
-        if op == '[]':
-            if lhs_type == Types.Vector:
-                return Types.Double
-
-            return lhs_type
 
         if lhs_type == rhs_type:
             return lhs_type
@@ -142,52 +137,52 @@ class BinOp(VectorExpression):
         return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
 
     def __add__(self, other):
-        return BinOp(self.sim, self, other, '+')
+        return BinOp(self.sim, self, other, Operators.Add)
 
     def __radd__(self, other):
-        return BinOp(self.sim, other, self, '+')
+        return BinOp(self.sim, other, self, Operators.Add)
 
     def __sub__(self, other):
-        return BinOp(self.sim, self, other, '-')
+        return BinOp(self.sim, self, other, Operators.Sub)
 
     def __mul__(self, other):
-        return BinOp(self.sim, self, other, '*')
+        return BinOp(self.sim, self, other, Operators.Mul) 
 
     def __rmul__(self, other):
-        return BinOp(self.sim, other, self, '*')
+        return BinOp(self.sim, other, self, Operators.Mul)
 
     def __truediv__(self, other):
-        return BinOp(self.sim, self, other, '/')
+        return BinOp(self.sim, self, other, Operators.Div)
 
     def __rtruediv__(self, other):
-        return BinOp(self.sim, other, self, '/')
+        return BinOp(self.sim, other, self, Operators.Div)
 
     def __lt__(self, other):
-        return BinOp(self.sim, self, other, '<')
+        return BinOp(self.sim, self, other, Operators.Lt)
 
     def __le__(self, other):
-        return BinOp(self.sim, self, other, '<=')
+        return BinOp(self.sim, self, other, Operators.Leq)
 
     def __gt__(self, other):
-        return BinOp(self.sim, self, other, '>')
+        return BinOp(self.sim, self, other, Operators.Gt)
 
     def __ge__(self, other):
-        return BinOp(self.sim, self, other, '>=')
+        return BinOp(self.sim, self, other, Operators.Geq)
 
     def and_op(self, other):
-        return BinOp(self.sim, self, other, '&&')
+        return BinOp(self.sim, self, other, Operators.And)
 
     def cmp(lhs, rhs):
-        return BinOp(lhs.sim, lhs, rhs, '==')
+        return BinOp(lhs.sim, lhs, rhs, Operators.Eq)
 
     def neq(lhs, rhs):
-        return BinOp(lhs.sim, lhs, rhs, '!=')
+        return BinOp(lhs.sim, lhs, rhs, Operators.Neq)
 
     def inv(self):
-        return BinOp(self.sim, 1.0, self, '/')
+        return BinOp(self.sim, 1.0, self, Operators.Div)
 
     def __mod__(self, other):
-        return BinOp(self.sim, self, other, '%')
+        return BinOp(self.sim, self, other, Operators.Mod)
 
 
 class ASTTerm(ASTNode):
@@ -195,67 +190,67 @@ class ASTTerm(ASTNode):
         super().__init__(sim)
 
     def __add__(self, other):
-        return BinOp(self.sim, self, other, '+')
+        return BinOp(self.sim, self, other, Operators.Add)
 
     def __radd__(self, other):
-        return BinOp(self.sim, other, self, '+')
+        return BinOp(self.sim, other, self, Operators.Add)
 
     def __sub__(self, other):
-        return BinOp(self.sim, self, other, '-')
+        return BinOp(self.sim, self, other, Operators.Sub)
 
     def __mul__(self, other):
-        return BinOp(self.sim, self, other, '*')
+        return BinOp(self.sim, self, other, Operators.Mul)
 
     def __rmul__(self, other):
-        return BinOp(self.sim, other, self, '*')
+        return BinOp(self.sim, other, self, Operators.Mul)
 
     def __truediv__(self, other):
-        return BinOp(self.sim, self, other, '/')
+        return BinOp(self.sim, self, other, Operators.Div)
 
     def __rtruediv__(self, other):
-        return BinOp(self.sim, other, self, '/')
+        return BinOp(self.sim, other, self, Operators.Div)
 
     def __lt__(self, other):
-        return BinOp(self.sim, self, other, '<')
+        return BinOp(self.sim, self, other, Operators.Lt)
 
     def __le__(self, other):
-        return BinOp(self.sim, self, other, '<=')
+        return BinOp(self.sim, self, other, Operators.Leq)
 
     def __gt__(self, other):
-        return BinOp(self.sim, self, other, '>')
+        return BinOp(self.sim, self, other, Operators.Gt)
 
     def __ge__(self, other):
-        return BinOp(self.sim, self, other, '>=')
+        return BinOp(self.sim, self, other, Operators.Geq)
 
     def __and__(self, other):
-        return BinOp(self.sim, self, other, '&')
+        return BinOp(self.sim, self, other, Operators.BinAnd)
 
     def __or__(self, other):
-        return BinOp(self.sim, self, other, '|')
+        return BinOp(self.sim, self, other, Operators.BinOr)
 
     def __xor__(self, other):
-        return BinOp(self.sim, self, other, '^')
+        return BinOp(self.sim, self, other, Operators.BinXor)
 
     def __invert__(self):
-        return BinOp(self.sim, self, None, '~')
+        return BinOp(self.sim, self, None, Operators.BinNeg)
 
     def and_op(self, other):
-        return BinOp(self.sim, self, other, '&&')
+        return BinOp(self.sim, self, other, Operators.And)
 
     def or_op(self, other):
-        return BinOp(self.sim, self, other, '||')
+        return BinOp(self.sim, self, other, Operators.Or)
 
     def cmp(lhs, rhs):
-        return BinOp(lhs.sim, lhs, rhs, '==')
+        return BinOp(lhs.sim, lhs, rhs, Operators.Eq)
 
     def neq(lhs, rhs):
-        return BinOp(lhs.sim, lhs, rhs, '!=')
+        return BinOp(lhs.sim, lhs, rhs, Operators.Neq)
 
     def inv(self):
-        return BinOp(self.sim, 1.0, self, '/')
+        return BinOp(self.sim, 1.0, self, Operators.Div)
 
     def __mod__(self, other):
-        return BinOp(self.sim, self, other, '%')
+        return BinOp(self.sim, self, other, Operators.Mod)
 
 
 class VectorAccess(ASTTerm):

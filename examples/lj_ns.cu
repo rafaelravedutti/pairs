@@ -127,7 +127,7 @@ __global__ void build_cell_lists_kernel0(int ncells, int *cell_sizes) {
         cell_sizes[i10] = 0;
     }
 }
-__global__ void build_cell_lists_kernel1(int nlocal, int npbc, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int ncells, int cell_capacity, int *dim_cells, int *particle_cell, int *cell_particles, int *cell_sizes, int *resizes, double *position, int a47, int a46) {
+__global__ void build_cell_lists_kernel1(int nlocal, int npbc, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int ncells, int cell_capacity, int *dim_cells, int *particle_cell, int *cell_particles, int *cell_sizes, int *resizes, double *position, int a46, int a47) {
     const int i11 = blockIdx.x * blockDim.x + threadIdx.x;
     if((i11 < (nlocal + npbc))) {
         const int e321 = i11 * 3;
@@ -241,7 +241,7 @@ __global__ void reset_volatile_properties_kernel0(int nlocal, double *force) {
         force[e350] = 0.0;
     }
 }
-__global__ void module0_kernel0(int nlocal, int neighborlist_capacity, int *neighborlists, int *numneighs, double *position, double *force) {
+__global__ void lj_kernel0(int nlocal, int neighborlist_capacity, int *neighborlists, int *numneighs, double *position, double *force) {
     const int i14 = blockIdx.x * blockDim.x + threadIdx.x;
     if((i14 < nlocal)) {
         const int a55 = numneighs[i14];
@@ -303,7 +303,7 @@ __global__ void module0_kernel0(int nlocal, int neighborlist_capacity, int *neig
         }
     }
 }
-__global__ void module1_kernel0(int nlocal, double *velocity, double *force, double *mass, double *position) {
+__global__ void euler_kernel0(int nlocal, double *velocity, double *force, double *mass, double *position) {
     const int i0 = blockIdx.x * blockDim.x + threadIdx.x;
     if((i0 < nlocal)) {
         const int e31 = i0 * 3;
@@ -362,21 +362,21 @@ __global__ void module1_kernel0(int nlocal, double *velocity, double *force, dou
         position[e64] = e46_2;
     }
 }
-void module0(int neighborlist_capacity, int nlocal, int *numneighs, int *neighborlists, double *position, double *force) {
-    PAIRS_DEBUG("module0\n");
+void lj(int neighborlist_capacity, int nlocal, int *numneighs, int *neighborlists, double *position, double *force) {
+    PAIRS_DEBUG("lj\n");
     const int e509 = nlocal - 0;
     const int e510 = e509 + 32;
     const int e511 = e510 - 1;
     const int e512 = e511 / 32;
-    module0_kernel0<<<e512, 32>>>(nlocal, neighborlist_capacity, neighborlists, numneighs, position, force);
+    lj_kernel0<<<e512, 32>>>(nlocal, neighborlist_capacity, neighborlists, numneighs, position, force);
 }
-void module1(int nlocal, double *velocity, double *force, double *mass, double *position) {
-    PAIRS_DEBUG("module1\n");
+void euler(int nlocal, double *velocity, double *force, double *mass, double *position) {
+    PAIRS_DEBUG("euler\n");
     const int e514 = nlocal - 0;
     const int e515 = e514 + 32;
     const int e516 = e515 - 1;
     const int e517 = e516 / 32;
-    module1_kernel0<<<e517, 32>>>(nlocal, velocity, force, mass, position);
+    euler_kernel0<<<e517, 32>>>(nlocal, velocity, force, mass, position);
 }
 void build_cell_lists_stencil(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int ncells_capacity, int *ncells, int *nstencil, int *dim_cells, int *resizes, int *stencil) {
     PAIRS_DEBUG("build_cell_lists_stencil\n");
@@ -685,7 +685,7 @@ void build_cell_lists(int ncells, int nlocal, int npbc, double grid0_d0_min, dou
     const int e490 = e489 + 32;
     const int e491 = e490 - 1;
     const int e492 = e491 / 32;
-    build_cell_lists_kernel1<<<e492, 32>>>(nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, ncells, cell_capacity, dim_cells, particle_cell, cell_particles, cell_sizes, resizes, position, a47, a46);
+    build_cell_lists_kernel1<<<e492, 32>>>(nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, ncells, cell_capacity, dim_cells, particle_cell, cell_particles, cell_sizes, resizes, position, a46, a47);
 }
 void neighbor_lists_build(int nlocal, int ncells, int cell_capacity, int neighborlist_capacity, int nstencil, int *numneighs, int *particle_cell, int *stencil, int *cell_sizes, int *cell_particles, int *neighborlists, int *resizes, double *position) {
     PAIRS_DEBUG("neighbor_lists_build\n");
@@ -872,10 +872,10 @@ int main() {
                 ps->copyArrayToDevice(3); // cell_particles
                 ps->copyArrayToDevice(4); // cell_sizes
                 ps->copyPropertyToDevice(1); // position
-                ps->setArrayDeviceFlag(7); // neighborlists
-                ps->clearArrayHostFlag(7); // neighborlists
                 ps->setArrayDeviceFlag(8); // numneighs
                 ps->clearArrayHostFlag(8); // numneighs
+                ps->setArrayDeviceFlag(7); // neighborlists
+                ps->clearArrayHostFlag(7); // neighborlists
                 ps->copyArrayToDevice(0); // resizes
                 neighbor_lists_build(nlocal, ncells, cell_capacity, neighborlist_capacity, nstencil, d_numneighs, d_particle_cell, d_stencil, d_cell_sizes, d_cell_particles, d_neighborlists, d_resizes, d_position);
                 ps->copyArrayToHost(0); // resizes
@@ -893,22 +893,22 @@ int main() {
         ps->setPropertyDeviceFlag(3); // force
         ps->clearPropertyHostFlag(3); // force
         reset_volatile_properties(nlocal, d_force);
-        ps->copyArrayToDevice(7); // neighborlists
         ps->copyArrayToDevice(8); // numneighs
-        ps->copyPropertyToDevice(3); // force
+        ps->copyArrayToDevice(7); // neighborlists
         ps->copyPropertyToDevice(1); // position
+        ps->copyPropertyToDevice(3); // force
         ps->setPropertyDeviceFlag(3); // force
         ps->clearPropertyHostFlag(3); // force
-        module0(neighborlist_capacity, nlocal, d_numneighs, d_neighborlists, d_position, d_force);
-        ps->copyPropertyToDevice(3); // force
+        lj(neighborlist_capacity, nlocal, d_numneighs, d_neighborlists, d_position, d_force);
+        ps->copyPropertyToDevice(2); // velocity
         ps->copyPropertyToDevice(1); // position
         ps->copyPropertyToDevice(0); // mass
-        ps->copyPropertyToDevice(2); // velocity
-        ps->setPropertyDeviceFlag(1); // position
-        ps->clearPropertyHostFlag(1); // position
+        ps->copyPropertyToDevice(3); // force
         ps->setPropertyDeviceFlag(2); // velocity
         ps->clearPropertyHostFlag(2); // velocity
-        module1(nlocal, d_velocity, d_force, d_mass, d_position);
+        ps->setPropertyDeviceFlag(1); // position
+        ps->clearPropertyHostFlag(1); // position
+        euler(nlocal, d_velocity, d_force, d_mass, d_position);
         const int e73 = i1 + 1;
         pairs::vtk_write_data(ps, "output/test_gpu_local", 0, nlocal, e73);
         const int e384 = nlocal + npbc;

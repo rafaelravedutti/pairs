@@ -11,8 +11,8 @@
 using namespace pairs;
 
 
-void module0(int neighborlist_capacity, int nlocal, int *numneighs, int *neighborlists, double *position, double *force) {
-    PAIRS_DEBUG("module0\n");
+void lj(int neighborlist_capacity, int nlocal, int *numneighs, int *neighborlists, double *position, double *force) {
+    PAIRS_DEBUG("lj\n");
     for(int i14 = 0; i14 < nlocal; i14++) {
         const int a55 = numneighs[i14];
         const int e358 = i14 * 3;
@@ -73,8 +73,8 @@ void module0(int neighborlist_capacity, int nlocal, int *numneighs, int *neighbo
         }
     }
 }
-void module1(int nlocal, double *velocity, double *force, double *mass, double *position) {
-    PAIRS_DEBUG("module1\n");
+void euler(int nlocal, double *velocity, double *force, double *mass, double *position) {
+    PAIRS_DEBUG("euler\n");
     for(int i0 = 0; i0 < nlocal; i0++) {
         const int e31 = i0 * 3;
         const int e37 = i0 * 3;
@@ -781,8 +781,8 @@ int main() {
             }
         }
         reset_volatile_properties(nlocal, force);
-        module0(neighborlist_capacity, nlocal, numneighs, neighborlists, position, force);
-        module1(nlocal, velocity, force, mass, position);
+        lj(neighborlist_capacity, nlocal, numneighs, neighborlists, position, force);
+        euler(nlocal, velocity, force, mass, position);
         const int e73 = i1 + 1;
         pairs::vtk_write_data(ps, "output/test_cpu_local", 0, nlocal, e73);
         const int e384 = nlocal + npbc;

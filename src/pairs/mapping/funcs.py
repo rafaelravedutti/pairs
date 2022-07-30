@@ -3,6 +3,7 @@ import inspect
 from pairs.ir.assign import Assign
 from pairs.ir.bin_op import BinOp
 from pairs.ir.loops import ParticleFor
+from pairs.ir.operators import Operators
 from pairs.sim.interaction import ParticleInteraction
 
 
@@ -28,16 +29,16 @@ class FetchParticleFuncInfo(ast.NodeVisitor):
 class BuildParticleIR(ast.NodeVisitor):
     def get_op(op):
         if isinstance(op, ast.Add):
-            return '+'
+            return Operators.Add
 
         if isinstance(op, ast.Sub):
-            return '-'
+            return Operators.Sub
 
         if isinstance(op, ast.Mult):
-            return '*'
+            return Operators.Mul
 
         if isinstance(op, ast.Div):
-            return '/'
+            return Operators.Div
 
         raise Exception("Invalid operator: {}".format(ast.dump(op)))
 

@@ -212,12 +212,14 @@ class CGen:
                         for i in bin_op.indexes():
                             lhs = self.generate_expression(bin_op.lhs, bin_op.mem, index=i)
                             rhs = self.generate_expression(bin_op.rhs, index=i)
-                            self.print(f"const double e{bin_op.id()}_{i} = {lhs} {bin_op.operator()} {rhs};")
+                            operator = bin_op.operator()
+                            self.print(f"const double e{bin_op.id()}_{i} = {lhs} {operator.symbol()} {rhs};")
                     else:
                         lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
                         rhs = self.generate_expression(bin_op.rhs)
+                        operator = bin_op.operator()
                         tkw = Types.c_keyword(bin_op.type())
-                        self.print(f"const {tkw} e{bin_op.id()} = {lhs} {bin_op.operator()} {rhs};")
+                        self.print(f"const {tkw} e{bin_op.id()} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, ArrayAccess):
                 array_access = ast_node.elem
@@ -503,10 +505,11 @@ class CGen:
         if isinstance(ast_node, BinOp):
             lhs = self.generate_expression(ast_node.lhs, mem, index)
             rhs = self.generate_expression(ast_node.rhs, index=index)
+            operator = ast_node.operator()
 
             if ast_node.inlined is True:
                 assert ast_node.type() != Types.Vector, "Vector operations cannot be inlined!"
-                return f"({lhs} {ast_node.operator()} {rhs})"
+                return f"({lhs} {operator.symbol()} {rhs})"
 
             if ast_node.is_vector_kind():
                 assert index is not None, "Index must be set for vector reference!"

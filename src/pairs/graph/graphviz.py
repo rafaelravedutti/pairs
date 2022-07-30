@@ -41,7 +41,7 @@ class ASTGraph:
             return ast_node.name()
 
         if isinstance(ast_node, BinOp):
-            return ast_node.operator()
+            return ast_node.operator().symbol()
 
         if isinstance(ast_node, Iter):
             return f"Iter({ast_node.id()})"

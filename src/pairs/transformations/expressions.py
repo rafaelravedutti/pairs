@@ -1,6 +1,7 @@
 from pairs.ir.bin_op import BinOp, Decl
 from pairs.ir.lit import Lit
 from pairs.ir.mutator import Mutator
+from pairs.ir.operators import Operators
 from pairs.ir.types import Types
 
 
@@ -22,19 +23,19 @@ class SimplifyExpressions(Mutator):
         ast_node.rhs = self.mutate(ast_node.rhs)
         ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
 
-        if ast_node.op in ['+', '-'] and ast_node.rhs == 0:
+        if ast_node.op in [Operators.Add, Operators.Sub] and ast_node.rhs == 0:
             return ast_node.lhs
 
-        if ast_node.op in ['+'] and ast_node.lhs == 0:
+        if ast_node.op in [Operators.Add] and ast_node.lhs == 0:
             return ast_node.rhs
 
-        if ast_node.op in ['*', '/'] and ast_node.rhs == 1:
+        if ast_node.op in [Operators.Mul, Operators.Div] and ast_node.rhs == 1:
             return ast_node.lhs
 
-        if ast_node.op == '*' and ast_node.lhs == 1:
+        if ast_node.op == Operators.Mul and ast_node.lhs == 1:
             return ast_node.rhs
 
-        if ast_node.op == '*' and ast_node.lhs == 0:
+        if ast_node.op == Operators.Mul and ast_node.lhs == 0:
             return Lit(sim, 0 if Types.is_integer(ast_node.type()) else 0.0)
 
         return ast_node
@@ -45,7 +46,7 @@ class PrioritizeScalarOps(Mutator):
         super().__init__(ast)
 
     def can_rearrange(op1, op2):
-        return op1 == op2 and op1 in ['+', '*']
+        return op1 == op2 and op1 in [Operators.Add, Operators.Mul]
 
     def mutate_BinOp(self, ast_node):
         sim = ast_node.sim
