@@ -137,6 +137,8 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
     assert nparams > 0, "Number of parameters from compute functions must be higher than zero!"
 
     sim.init_block()
+    sim.module_name(func.__name__)
+
     if nparams == 1:
         for i in ParticleFor(sim):
             ir.add_symbols({params[0]: i})
