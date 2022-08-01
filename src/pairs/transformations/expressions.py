@@ -103,12 +103,13 @@ class AddExpressionDeclarations(Mutator):
     def mutate_ArrayAccess(self, ast_node):
         writing = self.writing
         ast_node.array = self.mutate(ast_node.array)
-        self.writing = False
-        ast_node.indexes = [self.mutate(i) for i in ast_node.indexes]
-        if ast_node.index is not None:
-            ast_node.index = self.mutate(ast_node.index)
-        self.writing = writing
 
+        self.writing = False
+        ast_node.partial_indexes = [self.mutate(i) for i in ast_node.partial_indexes]
+        if ast_node.flat_index is not None:
+            ast_node.flat_index = self.mutate(ast_node.flat_index)
+
+        self.writing = writing
         if self.writing is False and ast_node.inlined is False:
             array_access_id = id(ast_node)
             if array_access_id not in self.declared_exprs and array_access_id not in self.params:

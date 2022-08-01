@@ -225,7 +225,7 @@ class CGen:
                 array_access = ast_node.elem
                 array_name = self.generate_expression(array_access.array)
                 tkw = Types.c_keyword(array_access.type())
-                acc_index = self.generate_expression(array_access.index)
+                acc_index = self.generate_expression(array_access.flat_index)
                 acc_ref = f"a{array_access.id()}"
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
 
@@ -486,7 +486,7 @@ class CGen:
 
         if isinstance(ast_node, ArrayAccess):
             array_name = self.generate_expression(ast_node.array)
-            acc_index = self.generate_expression(ast_node.index)
+            acc_index = self.generate_expression(ast_node.flat_index)
             if mem or ast_node.inlined is True:
                 return f"{array_name}[{acc_index}]"
 

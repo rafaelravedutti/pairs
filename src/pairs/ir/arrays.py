@@ -1,7 +1,7 @@
 from functools import reduce
 from pairs.ir.assign import Assign
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import BinOp, ASTTerm
+from pairs.ir.bin_op import ASTTerm, BinOp
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.memory import Realloc
@@ -130,44 +130,47 @@ class ArrayAccess(ASTTerm):
         super().__init__(sim)
         self.acc_id = ArrayAccess.new_id()
         self.array = array
-        self.indexes = [Lit.cvt(sim, index)]
-        self.index = None
+        self.partial_indexes = [Lit.cvt(sim, index)]
+        self.flat_index = None
         self.inlined = False
         self.terminals = set()
-        self.check_and_set_index()
+        self.check_and_set_flat_index()
 
     def __str__(self):
-        return f"ArrayAccess<{self.array}, {self.indexes}>"
+        return f"ArrayAccess<{self.array}, {self.partial_indexes}>"
 
     def __getitem__(self, index):
-        assert self.index is None, "Number of indexes higher than array dimension!"
-        self.indexes.append(Lit.cvt(self.sim, index))
-        self.check_and_set_index()
+        assert self.flat_index is None, "Number of partial indexes higher than array dimension!"
+        self.partial_indexes.append(Lit.cvt(self.sim, index))
+        self.check_and_set_flat_index()
         return self
 
     def inline_rec(self):
         self.inlined = True
         return self
 
-    def check_and_set_index(self):
-        if len(self.indexes) == self.array.ndims():
+    def check_and_set_flat_index(self):
+        if len(self.partial_indexes) == self.array.ndims():
             sizes = self.array.sizes()
             layout = self.array.layout()
 
             if layout == Layouts.AoS:
                 for s in range(0, len(sizes)):
-                    self.index = (self.indexes[s] if self.index is None
-                                  else self.index * sizes[s] + self.indexes[s])
+                    self.flat_index = (self.partial_indexes[s] if self.flat_index is None
+                                       else self.flat_index * sizes[s] + self.partial_indexes[s])
 
             elif layout == Layouts.SoA:
                 for s in reversed(range(0, len(sizes))):
-                    self.index = (self.indexes[s] if self.index is None
-                                  else self.index * sizes[s] + self.indexes[s])
+                    self.flat_index = (self.partial_indexes[s] if self.flat_index is None
+                                       else self.flat_index * sizes[s] + self.partial_indexes[s])
 
             else:
                 raise Exception("Invalid data layout!")
 
-            self.index = Lit.cvt(self.sim, self.index)
+            self.flat_index = Lit.cvt(self.sim, self.flat_index)
+            return True
+
+        return False
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
@@ -180,16 +183,15 @@ class ArrayAccess(ASTTerm):
 
     def type(self):
         return self.array.type()
-        # return self.array.type() if self.index is None else Types.Array
 
     def add_terminal(self, terminal):
         self.terminals.add(terminal)
 
     def children(self):
-        if self.index is not None:
-            return [self.array, self.index]
+        if self.flat_index is not None:
+            return [self.array, self.flat_index]
 
-        return [self.array] + self.indexes
+        return [self.array] + self.partial_indexes
 
 
 class ArrayDecl(ASTNode):

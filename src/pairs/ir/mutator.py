@@ -26,10 +26,10 @@ class Mutator:
 
     def mutate_ArrayAccess(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
-        ast_node.indexes = [self.mutate(i) for i in ast_node.indexes]
+        ast_node.partial_indexes = [self.mutate(i) for i in ast_node.partial_indexes]
 
-        if ast_node.index is not None:
-            ast_node.index = self.mutate(ast_node.index)
+        if ast_node.flat_index is not None:
+            ast_node.flat_index = self.mutate(ast_node.flat_index)
 
         return ast_node 
 
