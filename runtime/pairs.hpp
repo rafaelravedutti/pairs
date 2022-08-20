@@ -243,19 +243,19 @@ public:
     }
 };
 
-class PairsSim {
+class PairsSimulation {
 private:
     std::vector<Property> properties;
     std::vector<Array> arrays;
     DeviceFlags *prop_flags, *array_flags;
     int nprops, narrays;
 public:
-    PairsSim(int nprops_, int narrays_) {
+    PairsSimulation(int nprops_, int narrays_) {
         prop_flags = new DeviceFlags(nprops_);
         array_flags = new DeviceFlags(narrays_);
     }
 
-    ~PairsSim() {
+    ~PairsSimulation() {
         delete prop_flags;
         delete array_flags;
     }

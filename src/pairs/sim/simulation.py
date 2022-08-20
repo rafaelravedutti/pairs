@@ -12,10 +12,11 @@ from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
 from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
+from pairs.sim.comm import Comm, DetermineGhostParticles, ExchangeParticles, UpdateGhostParticles
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild
-from pairs.sim.pbc import PBC, UpdatePBC, EnforcePBC, SetupPBC
+from pairs.sim.pbc import EnforcePBC
 from pairs.sim.properties import PropertiesAlloc, PropertiesResetVolatile
 from pairs.sim.read_from_file import ReadFromFile
 from pairs.sim.timestep import Timestep
@@ -34,12 +35,10 @@ class Simulation:
         self.arrays = Arrays(self)
         self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
         self.nlocal = self.add_var('nlocal', Types.Int32)
-        self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
         self.grid = None
         self.cell_lists = None
         self.neighbor_lists = None
-        self.pbc = None
         self.scope = []
         self.nested_count = 0
         self.nest = False
@@ -58,7 +57,8 @@ class Simulation:
         self.iter_id = 0
         self.vtk_file = None
         self._target = None
-        self.nparticles = self.nlocal + self.nghost
+        self.comm = Comm(self)
+        self.nparticles = self.nlocal + self.comm.nghost
         self.properties.add_capacity(self.particle_capacity)
 
     def add_module(self, module):
@@ -145,18 +145,14 @@ class Simulation:
         self.setups.add_statement(read_object)
         self.grid = read_object.grid
 
-    def create_cell_lists(self, spacing, cutoff_radius):
-        self.cell_lists = CellLists(self, self.grid, spacing, cutoff_radius)
+    def build_cell_lists(self, spacing):
+        self.cell_lists = CellLists(self, self.grid, spacing, spacing)
         return self.cell_lists
 
-    def create_neighbor_lists(self):
+    def build_neighbor_lists(self, spacing):
+        self.cell_lists = CellLists(self, self.grid, spacing, spacing)
         self.neighbor_lists = NeighborLists(self.cell_lists)
         return self.neighbor_lists
-
-    def periodic(self, cutneigh, flags=[1, 1, 1]):
-        self.pbc = PBC(self, self.grid, cutneigh, flags)
-        self.properties.add_capacity(self.pbc.pbc_capacity)
-        return self.pbc
 
     def compute(self, func, cutoff_radius=None, symbols={}):
         return compute(self, func, cutoff_radius, symbols)
@@ -220,12 +216,15 @@ class Simulation:
         self._target = target
         self.code_gen.assign_target(target)
 
+    def cell_spacing(self):
+        return self.cell_lists.cutoff_radius
+
     def generate(self):
         assert self._target is not None, "Target not specified!"
 
         timestep = Timestep(self, self.ntimesteps, [
-            (EnforcePBC(self, self.pbc), 20),
-            (SetupPBC(self, self.pbc), UpdatePBC(self, self.pbc), 20),
+            (EnforcePBC(self), 20),
+            (DetermineGhostParticles(self, self.comm), UpdateGhostParticles(self, self.comm), 20),
             (CellListsBuild(self, self.cell_lists), 20),
             (NeighborListsBuild(self, self.neighbor_lists), 20),
             PropertiesResetVolatile(self),

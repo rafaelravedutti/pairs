@@ -69,14 +69,14 @@ class For(ASTNode):
 
 class ParticleFor(For):
     def __init__(self, sim, block=None, local_only=True):
-        super().__init__(sim, 0, sim.nlocal if local_only else sim.nlocal + sim.pbc.npbc, block)
+        super().__init__(sim, 0, sim.nlocal if local_only else sim.nlocal + sim.comm.nghost, block)
         self.local_only = local_only
 
     def __str__(self):
         return f"ParticleFor<self.iterator>"
 
     def children(self):
-        return [self.block, self.sim.nlocal] + ([] if self.local_only else [self.sim.pbc.npbc])
+        return [self.block, self.sim.nlocal] + ([] if self.local_only else [self.sim.comm.nghost])
 
 
 class While(ASTNode):

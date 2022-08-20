@@ -90,7 +90,7 @@ class CGen:
             nprops = module.sim.properties.nprops()
             narrays = module.sim.arrays.narrays()
             self.print("int main() {")
-            self.print(f"    PairsSim *ps = new PairsSim({nprops}, {narrays});")
+            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {narrays});")
             self.generate_statement(module.block)
             self.print("    return 0;")
             self.print("}")
@@ -263,54 +263,54 @@ class CGen:
             array_name = ast_node.array.name()
 
             if ast_node.context() == Contexts.Device:
-                self.print(f"ps->copyArrayToDevice({array_id}); // {array_name}")
+                self.print(f"pairs->copyArrayToDevice({array_id}); // {array_name}")
             else:
-                self.print(f"ps->copyArrayToHost({array_id}); // {array_name}")
+                self.print(f"pairs->copyArrayToHost({array_id}); // {array_name}")
 
         if isinstance(ast_node, CopyProperty):
             prop_id = ast_node.prop.id()
             prop_name = ast_node.prop.name()
 
             if ast_node.context() == Contexts.Device:
-                self.print(f"ps->copyPropertyToDevice({prop_id}); // {prop_name}")
+                self.print(f"pairs->copyPropertyToDevice({prop_id}); // {prop_name}")
             else:
-                self.print(f"ps->copyPropertyToHost({prop_id}); // {prop_name}")
+                self.print(f"pairs->copyPropertyToHost({prop_id}); // {prop_name}")
 
         if isinstance(ast_node, ClearArrayFlag):
             array_id = ast_node.array.id()
             array_name = ast_node.array.name()
 
             if ast_node.context() == Contexts.Device:
-                self.print(f"ps->clearArrayDeviceFlag({array_id}); // {array_name}")
+                self.print(f"pairs->clearArrayDeviceFlag({array_id}); // {array_name}")
             else:
-                self.print(f"ps->clearArrayHostFlag({array_id}); // {array_name}")
+                self.print(f"pairs->clearArrayHostFlag({array_id}); // {array_name}")
 
         if isinstance(ast_node, ClearPropertyFlag):
             prop_id = ast_node.prop.id()
             prop_name = ast_node.prop.name()
 
             if ast_node.context() == Contexts.Device:
-                self.print(f"ps->clearPropertyDeviceFlag({prop_id}); // {prop_name}")
+                self.print(f"pairs->clearPropertyDeviceFlag({prop_id}); // {prop_name}")
             else:
-                self.print(f"ps->clearPropertyHostFlag({prop_id}); // {prop_name}")
+                self.print(f"pairs->clearPropertyHostFlag({prop_id}); // {prop_name}")
 
         if isinstance(ast_node, SetArrayFlag):
             array_id = ast_node.array.id()
             array_name = ast_node.array.name()
 
             if ast_node.context() == Contexts.Device:
-                self.print(f"ps->setArrayDeviceFlag({array_id}); // {array_name}")
+                self.print(f"pairs->setArrayDeviceFlag({array_id}); // {array_name}")
             else:
-                self.print(f"ps->setArrayHostFlag({array_id}); // {array_name}")
+                self.print(f"pairs->setArrayHostFlag({array_id}); // {array_name}")
 
         if isinstance(ast_node, SetPropertyFlag):
             prop_id = ast_node.prop.id()
             prop_name = ast_node.prop.name()
 
             if ast_node.context() == Contexts.Device:
-                self.print(f"ps->setPropertyDeviceFlag({prop_id}); // {prop_name}")
+                self.print(f"pairs->setPropertyDeviceFlag({prop_id}); // {prop_name}")
             else:
-                self.print(f"ps->setPropertyHostFlag({prop_id}); // {prop_name}")
+                self.print(f"pairs->setPropertyHostFlag({prop_id}); // {prop_name}")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
@@ -414,7 +414,7 @@ class CGen:
             size = self.generate_expression(ast_node.size())
 
             if a.is_static():
-                self.print(f"ps->addStaticArray({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size});") 
+                self.print(f"pairs->addStaticArray({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size});") 
 
             else:
                 if self.target.is_gpu() and a.device_flag:
@@ -423,7 +423,7 @@ class CGen:
                 else:
                     self.print(f"{tkw} *{ptr};")
 
-                self.print(f"ps->addArray({a.id()}, \"{a.name()}\", &{ptr}, {d_ptr}, {size});")
+                self.print(f"pairs->addArray({a.id()}, \"{a.name()}\", &{ptr}, {d_ptr}, {size});")
 
         if isinstance(ast_node, RegisterProperty):
             p = ast_node.property()
@@ -449,7 +449,7 @@ class CGen:
             else:
                 self.print(f"{tkw} *{ptr};")
 
-            self.print(f"ps->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
+            self.print(f"pairs->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
 
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)
@@ -459,16 +459,16 @@ class CGen:
             ptr = p.name()
             d_ptr_addr = f"&d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
             sizes = ", ".join([str(self.generate_expression(BinOp.inline(size))) for size in ast_node.sizes()])
-            self.print(f"ps->reallocProperty({p.id()}, &{ptr}, {d_ptr_addr}, {sizes});")
-            #self.print(f"ps->reallocProperty({p.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {sizes});")
+            self.print(f"pairs->reallocProperty({p.id()}, &{ptr}, {d_ptr_addr}, {sizes});")
+            #self.print(f"pairs->reallocProperty({p.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {sizes});")
 
         if isinstance(ast_node, ReallocArray):
             a = ast_node.array()
             size = self.generate_expression(ast_node.size())
             ptr = a.name()
             d_ptr_addr = f"&d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
-            self.print(f"ps->reallocArray({a.id()}, &{ptr}, {d_ptr_addr}, {size});")
-            #self.print(f"ps->reallocArray({a.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {size});")
+            self.print(f"pairs->reallocArray({a.id()}, &{ptr}, {d_ptr_addr}, {size});")
+            #self.print(f"pairs->reallocArray({a.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {size});")
 
         if isinstance(ast_node, VarDecl):
             tkw = Types.c_keyword(ast_node.var.type())
@@ -518,7 +518,7 @@ class CGen:
             return f"e{ast_node.id()}"
 
         if isinstance(ast_node, Call):
-            params = ", ".join(["ps"] + [str(self.generate_expression(p)) for p in ast_node.parameters()])
+            params = ", ".join(["pairs"] + [str(self.generate_expression(p)) for p in ast_node.parameters()])
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):

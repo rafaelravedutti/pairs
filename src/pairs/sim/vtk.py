@@ -14,7 +14,7 @@ class VTKWrite(Lowerable):
     @pairs_inline
     def lower(self):
         nlocal = self.sim.nlocal
-        npbc = self.sim.pbc.npbc
-        nall = nlocal + npbc
+        nghost = self.sim.comm.nghost
+        nall = nlocal + nghost
         Call_Void(self.sim, "pairs::vtk_write_data", [self.filename + "_local", 0, nlocal, self.timestep])
-        Call_Void(self.sim, "pairs::vtk_write_data", [self.filename + "_pbc", nlocal, nall, self.timestep])
+        Call_Void(self.sim, "pairs::vtk_write_data", [self.filename + "_ghost", nlocal, nall, self.timestep])

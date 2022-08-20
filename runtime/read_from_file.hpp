@@ -9,12 +9,12 @@
 
 namespace pairs {
 
-size_t read_particle_data(PairsSim *ps, const char *filename, double *grid_buffer, const property_t properties[], size_t nprops) {
+size_t read_particle_data(PairsSimulation *ps, const char *filename, double *grid_buffer, const property_t properties[], size_t nprops) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
     size_t n = 0;
     int read_grid_data = 0;
-    // TODO: store this from PairsSim class
+    // TODO: store this from PairsSimulation class
     const int num_dims = 3;
 
     if(in_file.is_open()) {
