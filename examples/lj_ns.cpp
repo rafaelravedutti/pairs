@@ -248,10 +248,10 @@ void enforce_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, 
         }
     }
 }
-void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_capacity, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int *npbc, int *pbc_map, int *pbc_mult, int *resizes, double *position) {
-    PAIRS_DEBUG("setup_pbc\n");
-    (*npbc) = 0;
-    const int e134 = nlocal + (*npbc);
+void setup_comm(int nlocal, double grid0_d0_max, double grid0_d0_min, int ghost_capacity, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int *nghost, int *ghost_map, int *ghost_mult, int *resizes, double *position) {
+    PAIRS_DEBUG("setup_comm\n");
+    (*nghost) = 0;
+    const int e134 = nlocal + (*nghost);
     const double e135 = grid0_d0_max - grid0_d0_min;
     const double e138 = grid0_d0_min + 2.8;
     const double e163 = grid0_d0_max - 2.8;
@@ -266,10 +266,10 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
         const double p18_2 = position[e184];
         const bool e139 = p18_0 < e138;
         if(e139) {
-            pbc_map[(*npbc)] = i6;
-            const int e141 = (*npbc) * 3;
-            pbc_mult[e141] = 1;
-            const int e140 = nlocal + (*npbc);
+            ghost_map[(*nghost)] = i6;
+            const int e141 = (*nghost) * 3;
+            ghost_mult[e141] = 1;
+            const int e140 = nlocal + (*nghost);
             const int e143 = e140 * 3;
             const int e150 = e140 * 3;
             const int e151 = e150 + 1;
@@ -277,29 +277,29 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
             const int e157 = e156 + 2;
             const double e147 = p18_0 + e135;
             position[e143] = e147;
-            const int e148 = (*npbc) * 3;
+            const int e148 = (*nghost) * 3;
             const int e149 = e148 + 1;
-            pbc_mult[e149] = 0;
+            ghost_mult[e149] = 0;
             position[e151] = p18_1;
-            const int e154 = (*npbc) * 3;
+            const int e154 = (*nghost) * 3;
             const int e155 = e154 + 2;
-            pbc_mult[e155] = 0;
+            ghost_mult[e155] = 0;
             position[e157] = p18_2;
-            const int e160 = (*npbc) + 1;
+            const int e160 = (*nghost) + 1;
             const int e428 = e160 + 1;
-            const bool e429 = e428 >= pbc_capacity;
+            const bool e429 = e428 >= ghost_capacity;
             if(e429) {
                 resizes[0] = e160;
             } else {
-                (*npbc) = e160;
+                (*nghost) = e160;
             }
         }
         const bool e164 = p18_0 > e163;
         if(e164) {
-            pbc_map[(*npbc)] = i6;
-            const int e166 = (*npbc) * 3;
-            pbc_mult[e166] = -1;
-            const int e165 = nlocal + (*npbc);
+            ghost_map[(*nghost)] = i6;
+            const int e166 = (*nghost) * 3;
+            ghost_mult[e166] = -1;
+            const int e165 = nlocal + (*nghost);
             const int e168 = e165 * 3;
             const int e175 = e165 * 3;
             const int e176 = e175 + 1;
@@ -307,25 +307,25 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
             const int e182 = e181 + 2;
             const double e172 = p18_0 - e135;
             position[e168] = e172;
-            const int e173 = (*npbc) * 3;
+            const int e173 = (*nghost) * 3;
             const int e174 = e173 + 1;
-            pbc_mult[e174] = 0;
+            ghost_mult[e174] = 0;
             position[e176] = p18_1;
-            const int e179 = (*npbc) * 3;
+            const int e179 = (*nghost) * 3;
             const int e180 = e179 + 2;
-            pbc_mult[e180] = 0;
+            ghost_mult[e180] = 0;
             position[e182] = p18_2;
-            const int e185 = (*npbc) + 1;
+            const int e185 = (*nghost) + 1;
             const int e430 = e185 + 1;
-            const bool e431 = e430 >= pbc_capacity;
+            const bool e431 = e430 >= ghost_capacity;
             if(e431) {
                 resizes[0] = e185;
             } else {
-                (*npbc) = e185;
+                (*nghost) = e185;
             }
         }
     }
-    const int e186 = nlocal + (*npbc);
+    const int e186 = nlocal + (*nghost);
     const double e187 = grid0_d1_max - grid0_d1_min;
     const double e190 = grid0_d1_min + 2.8;
     const double e215 = grid0_d1_max - 2.8;
@@ -340,11 +340,11 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
         const double p21_2 = position[e236];
         const bool e191 = p21_1 < e190;
         if(e191) {
-            pbc_map[(*npbc)] = i7;
-            const int e193 = (*npbc) * 3;
+            ghost_map[(*nghost)] = i7;
+            const int e193 = (*nghost) * 3;
             const int e194 = e193 + 1;
-            pbc_mult[e194] = 1;
-            const int e192 = nlocal + (*npbc);
+            ghost_mult[e194] = 1;
+            const int e192 = nlocal + (*nghost);
             const int e195 = e192 * 3;
             const int e196 = e195 + 1;
             const int e202 = e192 * 3;
@@ -352,29 +352,29 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
             const int e209 = e208 + 2;
             const double e199 = p21_1 + e187;
             position[e196] = e199;
-            const int e200 = (*npbc) * 3;
-            pbc_mult[e200] = 0;
+            const int e200 = (*nghost) * 3;
+            ghost_mult[e200] = 0;
             position[e202] = p21_0;
-            const int e206 = (*npbc) * 3;
+            const int e206 = (*nghost) * 3;
             const int e207 = e206 + 2;
-            pbc_mult[e207] = 0;
+            ghost_mult[e207] = 0;
             position[e209] = p21_2;
-            const int e212 = (*npbc) + 1;
+            const int e212 = (*nghost) + 1;
             const int e432 = e212 + 1;
-            const bool e433 = e432 >= pbc_capacity;
+            const bool e433 = e432 >= ghost_capacity;
             if(e433) {
                 resizes[0] = e212;
             } else {
-                (*npbc) = e212;
+                (*nghost) = e212;
             }
         }
         const bool e216 = p21_1 > e215;
         if(e216) {
-            pbc_map[(*npbc)] = i7;
-            const int e218 = (*npbc) * 3;
+            ghost_map[(*nghost)] = i7;
+            const int e218 = (*nghost) * 3;
             const int e219 = e218 + 1;
-            pbc_mult[e219] = -1;
-            const int e217 = nlocal + (*npbc);
+            ghost_mult[e219] = -1;
+            const int e217 = nlocal + (*nghost);
             const int e220 = e217 * 3;
             const int e221 = e220 + 1;
             const int e227 = e217 * 3;
@@ -382,24 +382,24 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
             const int e234 = e233 + 2;
             const double e224 = p21_1 - e187;
             position[e221] = e224;
-            const int e225 = (*npbc) * 3;
-            pbc_mult[e225] = 0;
+            const int e225 = (*nghost) * 3;
+            ghost_mult[e225] = 0;
             position[e227] = p21_0;
-            const int e231 = (*npbc) * 3;
+            const int e231 = (*nghost) * 3;
             const int e232 = e231 + 2;
-            pbc_mult[e232] = 0;
+            ghost_mult[e232] = 0;
             position[e234] = p21_2;
-            const int e237 = (*npbc) + 1;
+            const int e237 = (*nghost) + 1;
             const int e434 = e237 + 1;
-            const bool e435 = e434 >= pbc_capacity;
+            const bool e435 = e434 >= ghost_capacity;
             if(e435) {
                 resizes[0] = e237;
             } else {
-                (*npbc) = e237;
+                (*nghost) = e237;
             }
         }
     }
-    const int e238 = nlocal + (*npbc);
+    const int e238 = nlocal + (*nghost);
     const double e239 = grid0_d2_max - grid0_d2_min;
     const double e242 = grid0_d2_min + 2.8;
     const double e267 = grid0_d2_max - 2.8;
@@ -414,11 +414,11 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
         const double p24_2 = position[e275];
         const bool e243 = p24_2 < e242;
         if(e243) {
-            pbc_map[(*npbc)] = i8;
-            const int e245 = (*npbc) * 3;
+            ghost_map[(*nghost)] = i8;
+            const int e245 = (*nghost) * 3;
             const int e246 = e245 + 2;
-            pbc_mult[e246] = 1;
-            const int e244 = nlocal + (*npbc);
+            ghost_mult[e246] = 1;
+            const int e244 = nlocal + (*nghost);
             const int e247 = e244 * 3;
             const int e248 = e247 + 2;
             const int e254 = e244 * 3;
@@ -426,29 +426,29 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
             const int e261 = e260 + 1;
             const double e251 = p24_2 + e239;
             position[e248] = e251;
-            const int e252 = (*npbc) * 3;
-            pbc_mult[e252] = 0;
+            const int e252 = (*nghost) * 3;
+            ghost_mult[e252] = 0;
             position[e254] = p24_0;
-            const int e258 = (*npbc) * 3;
+            const int e258 = (*nghost) * 3;
             const int e259 = e258 + 1;
-            pbc_mult[e259] = 0;
+            ghost_mult[e259] = 0;
             position[e261] = p24_1;
-            const int e264 = (*npbc) + 1;
+            const int e264 = (*nghost) + 1;
             const int e436 = e264 + 1;
-            const bool e437 = e436 >= pbc_capacity;
+            const bool e437 = e436 >= ghost_capacity;
             if(e437) {
                 resizes[0] = e264;
             } else {
-                (*npbc) = e264;
+                (*nghost) = e264;
             }
         }
         const bool e268 = p24_2 > e267;
         if(e268) {
-            pbc_map[(*npbc)] = i8;
-            const int e270 = (*npbc) * 3;
+            ghost_map[(*nghost)] = i8;
+            const int e270 = (*nghost) * 3;
             const int e271 = e270 + 2;
-            pbc_mult[e271] = -1;
-            const int e269 = nlocal + (*npbc);
+            ghost_mult[e271] = -1;
+            const int e269 = nlocal + (*nghost);
             const int e272 = e269 * 3;
             const int e273 = e272 + 2;
             const int e279 = e269 * 3;
@@ -456,74 +456,74 @@ void setup_pbc(int nlocal, double grid0_d0_max, double grid0_d0_min, int pbc_cap
             const int e286 = e285 + 1;
             const double e276 = p24_2 - e239;
             position[e273] = e276;
-            const int e277 = (*npbc) * 3;
-            pbc_mult[e277] = 0;
+            const int e277 = (*nghost) * 3;
+            ghost_mult[e277] = 0;
             position[e279] = p24_0;
-            const int e283 = (*npbc) * 3;
+            const int e283 = (*nghost) * 3;
             const int e284 = e283 + 1;
-            pbc_mult[e284] = 0;
+            ghost_mult[e284] = 0;
             position[e286] = p24_1;
-            const int e289 = (*npbc) + 1;
+            const int e289 = (*nghost) + 1;
             const int e438 = e289 + 1;
-            const bool e439 = e438 >= pbc_capacity;
+            const bool e439 = e438 >= ghost_capacity;
             if(e439) {
                 resizes[0] = e289;
             } else {
-                (*npbc) = e289;
+                (*nghost) = e289;
             }
         }
     }
 }
-void update_pbc(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int nlocal, int npbc, int *pbc_map, int *pbc_mult, double *position) {
-    PAIRS_DEBUG("update_pbc\n");
+void update_comm(double grid0_d0_max, double grid0_d0_min, double grid0_d1_max, double grid0_d1_min, double grid0_d2_max, double grid0_d2_min, int nlocal, int nghost, int *ghost_map, int *ghost_mult, double *position) {
+    PAIRS_DEBUG("update_comm\n");
     const double e297 = grid0_d0_max - grid0_d0_min;
     const double e307 = grid0_d1_max - grid0_d1_min;
     const double e317 = grid0_d2_max - grid0_d2_min;
-    for(int i9 = 0; i9 < npbc; i9++) {
+    for(int i9 = 0; i9 < nghost; i9++) {
         const int e290 = nlocal + i9;
         const int e291 = e290 * 3;
-        const int a39 = pbc_map[i9];
+        const int a39 = ghost_map[i9];
         const int e293 = a39 * 3;
         const double p28_0 = position[e293];
         const int e295 = i9 * 3;
-        const int a40 = pbc_mult[e295];
+        const int a40 = ghost_mult[e295];
         const double e298 = a40 * e297;
         const double e299 = p28_0 + e298;
         position[e291] = e299;
         const int e300 = nlocal + i9;
         const int e301 = e300 * 3;
         const int e302 = e301 + 1;
-        const int a41 = pbc_map[i9];
+        const int a41 = ghost_map[i9];
         const int e303 = a41 * 3;
         const int e304 = e303 + 1;
         const double p30_1 = position[e304];
         const int e305 = i9 * 3;
         const int e306 = e305 + 1;
-        const int a42 = pbc_mult[e306];
+        const int a42 = ghost_mult[e306];
         const double e308 = a42 * e307;
         const double e309 = p30_1 + e308;
         position[e302] = e309;
         const int e310 = nlocal + i9;
         const int e311 = e310 * 3;
         const int e312 = e311 + 2;
-        const int a43 = pbc_map[i9];
+        const int a43 = ghost_map[i9];
         const int e313 = a43 * 3;
         const int e314 = e313 + 2;
         const double p32_2 = position[e314];
         const int e315 = i9 * 3;
         const int e316 = e315 + 2;
-        const int a44 = pbc_mult[e316];
+        const int a44 = ghost_mult[e316];
         const double e318 = a44 * e317;
         const double e319 = p32_2 + e318;
         position[e312] = e319;
     }
 }
-void build_cell_lists(int ncells, int nlocal, int npbc, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int cell_capacity, int *cell_sizes, int *dim_cells, int *particle_cell, int *resizes, int *cell_particles, double *position) {
+void build_cell_lists(int ncells, int nlocal, int nghost, double grid0_d0_min, double grid0_d1_min, double grid0_d2_min, int cell_capacity, int *cell_sizes, int *dim_cells, int *particle_cell, int *resizes, int *cell_particles, double *position) {
     PAIRS_DEBUG("build_cell_lists\n");
     for(int i10 = 0; i10 < ncells; i10++) {
         cell_sizes[i10] = 0;
     }
-    const int e320 = nlocal + npbc;
+    const int e320 = nlocal + nghost;
     const int a46 = dim_cells[1];
     const int a47 = dim_cells[2];
     for(int i11 = 0; i11 < e320; i11++) {
@@ -636,10 +636,11 @@ void reset_volatile_properties(int nlocal, double *force) {
     }
 }
 int main() {
-    PairsSim *ps = new PairsSim(4, 11);
+    PairsSimulation *pairs = new PairsSimulation(4, 11);
     int particle_capacity = 10000;
     int nlocal = 0;
     int nghost = 0;
+    int ghost_capacity = 100;
     double grid0_d0_min = 0;
     double grid0_d0_max = 0;
     double grid0_d1_min = 0;
@@ -651,46 +652,44 @@ int main() {
     int ncells_capacity = 100;
     int cell_capacity = 20;
     int neighborlist_capacity = 32;
-    int npbc = 0;
-    int pbc_capacity = 100;
     int *resizes;
-    ps->addArray(0, "resizes", &resizes, nullptr, (sizeof(int) * 3));
-    ps->clearArrayHostFlag(0); // resizes
-    ps->clearArrayDeviceFlag(0); // resizes
+    pairs->addArray(0, "resizes", &resizes, nullptr, (sizeof(int) * 3));
+    pairs->clearArrayHostFlag(0); // resizes
+    pairs->clearArrayDeviceFlag(0); // resizes
+    int *ghost_map;
+    pairs->addArray(1, "ghost_map", &ghost_map, nullptr, (sizeof(int) * ghost_capacity));
+    int *ghost_mult;
+    pairs->addArray(2, "ghost_mult", &ghost_mult, nullptr, (sizeof(int) * (ghost_capacity * 3)));
     double grid_buffer[6];
-    ps->addStaticArray(1, "grid_buffer", grid_buffer, nullptr, (sizeof(double) * 6));
-    ps->clearArrayHostFlag(0); // resizes
-    ps->clearArrayDeviceFlag(0); // resizes
+    pairs->addStaticArray(3, "grid_buffer", grid_buffer, nullptr, (sizeof(double) * 6));
+    pairs->clearArrayHostFlag(0); // resizes
+    pairs->clearArrayDeviceFlag(0); // resizes
     int dim_cells[3];
-    ps->addStaticArray(2, "dim_cells", dim_cells, nullptr, (sizeof(int) * 3));
-    ps->clearArrayHostFlag(0); // resizes
-    ps->clearArrayDeviceFlag(0); // resizes
+    pairs->addStaticArray(4, "dim_cells", dim_cells, nullptr, (sizeof(int) * 3));
+    pairs->clearArrayHostFlag(0); // resizes
+    pairs->clearArrayDeviceFlag(0); // resizes
     int *cell_particles;
-    ps->addArray(3, "cell_particles", &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
+    pairs->addArray(5, "cell_particles", &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
     int *cell_sizes;
-    ps->addArray(4, "cell_sizes", &cell_sizes, nullptr, (sizeof(int) * ncells_capacity));
+    pairs->addArray(6, "cell_sizes", &cell_sizes, nullptr, (sizeof(int) * ncells_capacity));
     int *stencil;
-    ps->addArray(5, "stencil", &stencil, nullptr, (sizeof(int) * 27));
+    pairs->addArray(7, "stencil", &stencil, nullptr, (sizeof(int) * 27));
     int *particle_cell;
-    ps->addArray(6, "particle_cell", &particle_cell, nullptr, (sizeof(int) * particle_capacity));
+    pairs->addArray(8, "particle_cell", &particle_cell, nullptr, (sizeof(int) * particle_capacity));
     int *neighborlists;
-    ps->addArray(7, "neighborlists", &neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
+    pairs->addArray(9, "neighborlists", &neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
     int *numneighs;
-    ps->addArray(8, "numneighs", &numneighs, nullptr, (sizeof(int) * particle_capacity));
-    int *pbc_map;
-    ps->addArray(9, "pbc_map", &pbc_map, nullptr, (sizeof(int) * pbc_capacity));
-    int *pbc_mult;
-    ps->addArray(10, "pbc_mult", &pbc_mult, nullptr, (sizeof(int) * (pbc_capacity * 3)));
+    pairs->addArray(10, "numneighs", &numneighs, nullptr, (sizeof(int) * particle_capacity));
     double *mass;
-    ps->addProperty(0, "mass", &mass, nullptr, Prop_Float, AoS, ((0 + particle_capacity) + pbc_capacity));
+    pairs->addProperty(0, "mass", &mass, nullptr, Prop_Float, AoS, (0 + particle_capacity));
     double *position;
-    ps->addProperty(1, "position", &position, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3);
+    pairs->addProperty(1, "position", &position, nullptr, Prop_Vector, AoS, (0 + particle_capacity), 3);
     double *velocity;
-    ps->addProperty(2, "velocity", &velocity, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3);
+    pairs->addProperty(2, "velocity", &velocity, nullptr, Prop_Vector, AoS, (0 + particle_capacity), 3);
     double *force;
-    ps->addProperty(3, "force", &force, nullptr, Prop_Vector, AoS, ((0 + particle_capacity) + pbc_capacity), 3);
+    pairs->addProperty(3, "force", &force, nullptr, Prop_Vector, AoS, (0 + particle_capacity), 3);
     const int prop_list_0[] = {0, 1, 2};
-    nlocal = pairs::read_particle_data(ps, "data/minimd_setup_4x4x4.input", grid_buffer, prop_list_0, 3);
+    nlocal = pairs::read_particle_data(pairs, "data/minimd_setup_4x4x4.input", grid_buffer, prop_list_0, 3);
     const double a0 = grid_buffer[0];
     grid0_d0_min = a0;
     const double a1 = grid_buffer[1];
@@ -714,13 +713,13 @@ int main() {
             const int a74 = resizes[0];
             const int e445 = a74 * 2;
             ncells_capacity = e445;
-            ps->reallocArray(3, &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
-            ps->reallocArray(4, &cell_sizes, nullptr, (sizeof(int) * ncells_capacity));
+            pairs->reallocArray(5, &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
+            pairs->reallocArray(6, &cell_sizes, nullptr, (sizeof(int) * ncells_capacity));
         }
     }
-    pairs::vtk_write_data(ps, "output/test_cpu_local", 0, nlocal, 0);
-    const int e91 = nlocal + npbc;
-    pairs::vtk_write_data(ps, "output/test_cpu_pbc", nlocal, e91, 0);
+    pairs::vtk_write_data(pairs, "output/test_cpu_local", 0, nlocal, 0);
+    const int e91 = nlocal + nghost;
+    pairs::vtk_write_data(pairs, "output/test_cpu_ghost", nlocal, e91, 0);
     for(int i1 = 0; i1 < 101; i1++) {
         if(((i1 % 20) == 0)) {
             enforce_pbc(grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, nlocal, position);
@@ -729,38 +728,34 @@ int main() {
             resizes[0] = 1;
             while((resizes[0] > 0)) {
                 resizes[0] = 0;
-                setup_pbc(nlocal, grid0_d0_max, grid0_d0_min, pbc_capacity, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, &npbc, pbc_map, pbc_mult, resizes, position);
+                setup_comm(nlocal, grid0_d0_max, grid0_d0_min, ghost_capacity, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, &nghost, ghost_map, ghost_mult, resizes, position);
                 const int a78 = resizes[0];
-                const bool e458 = a78 > 0;
-                if(e458) {
-                    PAIRS_DEBUG("resizes[0] -> pbc_capacity\n");
+                const bool e450 = a78 > 0;
+                if(e450) {
+                    PAIRS_DEBUG("resizes[0] -> ghost_capacity\n");
                     const int a79 = resizes[0];
-                    const int e459 = a79 * 2;
-                    pbc_capacity = e459;
-                    ps->reallocArray(9, &pbc_map, nullptr, (sizeof(int) * pbc_capacity));
-                    ps->reallocArray(10, &pbc_mult, nullptr, (sizeof(int) * (pbc_capacity * 3)));
-                    ps->reallocProperty(0, &mass, nullptr, ((0 + particle_capacity) + pbc_capacity));
-                    ps->reallocProperty(1, &position, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
-                    ps->reallocProperty(2, &velocity, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
-                    ps->reallocProperty(3, &force, nullptr, ((0 + particle_capacity) + pbc_capacity), 3);
+                    const int e451 = a79 * 2;
+                    ghost_capacity = e451;
+                    pairs->reallocArray(1, &ghost_map, nullptr, (sizeof(int) * ghost_capacity));
+                    pairs->reallocArray(2, &ghost_mult, nullptr, (sizeof(int) * (ghost_capacity * 3)));
                 }
             }
         } else {
-            update_pbc(grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, nlocal, npbc, pbc_map, pbc_mult, position);
+            update_comm(grid0_d0_max, grid0_d0_min, grid0_d1_max, grid0_d1_min, grid0_d2_max, grid0_d2_min, nlocal, nghost, ghost_map, ghost_mult, position);
         }
         if(((i1 % 20) == 0)) {
             resizes[0] = 1;
             while((resizes[0] > 0)) {
                 resizes[0] = 0;
-                build_cell_lists(ncells, nlocal, npbc, grid0_d0_min, grid0_d1_min, grid0_d2_min, cell_capacity, cell_sizes, dim_cells, particle_cell, resizes, cell_particles, position);
+                build_cell_lists(ncells, nlocal, nghost, grid0_d0_min, grid0_d1_min, grid0_d2_min, cell_capacity, cell_sizes, dim_cells, particle_cell, resizes, cell_particles, position);
                 const int a83 = resizes[0];
-                const bool e464 = a83 > 0;
-                if(e464) {
+                const bool e456 = a83 > 0;
+                if(e456) {
                     PAIRS_DEBUG("resizes[0] -> cell_capacity\n");
                     const int a84 = resizes[0];
-                    const int e465 = a84 * 2;
-                    cell_capacity = e465;
-                    ps->reallocArray(3, &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
+                    const int e457 = a84 * 2;
+                    cell_capacity = e457;
+                    pairs->reallocArray(5, &cell_particles, nullptr, (sizeof(int) * (ncells_capacity * cell_capacity)));
                 }
             }
         }
@@ -770,13 +765,13 @@ int main() {
                 resizes[0] = 0;
                 neighbor_lists_build(nlocal, ncells, cell_capacity, neighborlist_capacity, nstencil, numneighs, particle_cell, stencil, cell_sizes, cell_particles, neighborlists, resizes, position);
                 const int a88 = resizes[0];
-                const bool e469 = a88 > 0;
-                if(e469) {
+                const bool e461 = a88 > 0;
+                if(e461) {
                     PAIRS_DEBUG("resizes[0] -> neighborlist_capacity\n");
                     const int a89 = resizes[0];
-                    const int e470 = a89 * 2;
-                    neighborlist_capacity = e470;
-                    ps->reallocArray(7, &neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
+                    const int e462 = a89 * 2;
+                    neighborlist_capacity = e462;
+                    pairs->reallocArray(9, &neighborlists, nullptr, (sizeof(int) * (particle_capacity * neighborlist_capacity)));
                 }
             }
         }
@@ -784,9 +779,9 @@ int main() {
         lj(neighborlist_capacity, nlocal, numneighs, neighborlists, position, force);
         euler(nlocal, velocity, force, mass, position);
         const int e73 = i1 + 1;
-        pairs::vtk_write_data(ps, "output/test_cpu_local", 0, nlocal, e73);
-        const int e384 = nlocal + npbc;
-        pairs::vtk_write_data(ps, "output/test_cpu_pbc", nlocal, e384, e73);
+        pairs::vtk_write_data(pairs, "output/test_cpu_local", 0, nlocal, e73);
+        const int e384 = nlocal + nghost;
+        pairs::vtk_write_data(pairs, "output/test_cpu_ghost", nlocal, e384, e73);
     }
     return 0;
 }
