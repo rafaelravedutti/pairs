@@ -23,7 +23,6 @@ public:
         for(int i = 1; i < world_size; i++) {
             if(world_size % i == 0) {
                 const int rem_yz = world_size / i;
-
                 for(int j = 0; j < rem_yz; j++) {
                     if(rem_yz % j == 0) {
                         const int k = rem_yz / j;
