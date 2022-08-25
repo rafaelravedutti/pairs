@@ -46,7 +46,7 @@ class DetermineGhostParticles(Lowerable):
             n = AtomicAdd(self.sim, nsend_all, 1)
             send_map[n].set(i)
             for d in self.sim.ndims():
-                send_mult[n][dim].set(pbc[d])
+                send_mult[n][d].set(pbc[d])
 
             self.nsend[nb_rank_id].add(1)
             nb_rank_id += 1
@@ -116,30 +116,6 @@ class UnpackGhostParticles(Lowerable):
                     cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Double else x
                     p[nlocal + i].set(cast_fn(recv_buffer[i * elems_per_particle + p_offset]))
                     p_offset += 1
-
-
-class UpdateGhostParticles(Lowerable):
-    def __init__(self, sim, comm):
-        super().__init__(sim)
-        self.comm = comm
-
-    @pairs_device_block
-    def lower(self):
-        sim = self.sim
-        ndims = sim.ndims()
-        grid = self.sim.grid
-        nghost = self.comm.nghost
-        ghost_map = self.comm.ghost_map
-        ghost_mult = self.comm.ghost_mult
-        positions = self.sim.position()
-        nlocal = self.sim.nlocal
-        sim.module_name("update_ghost_particles")
-
-        for i in For(sim, 0, nghost):
-            # TODO: allow syntax:
-            # positions[nlocal + i].set(positions[ghost_map[i]] + ghost_mult[i] * grid.length)
-            for d in range(0, ndims):
-                positions[nlocal + i][d].set(positions[ghost_map[i]][d] + ghost_mult[i][d] * grid.length(d))
 
 
 class ExchangeParticles(Lowerable):
