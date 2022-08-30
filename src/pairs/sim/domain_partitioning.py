@@ -18,12 +18,12 @@ class DimensionRanges:
         return self.sim.ndims()
 
     def ghost_particles(self, step, position, offset=0.0):
-        for i in For(sim, 0, self.sim.nlocal + self.sim.comm.nghost):
+        for i in For(self.sim, 0, self.sim.nlocal + self.sim.nghost):
             j = step * 2 + 0
             for _ in Filter(self.sim, position < self.subdom[j] + offset):
-                yield i, self.neighbor_ranks[j], [0 if d != step else self.pbc[j] for d in self.sim.ndims()]
+                yield i, self.neighbor_ranks[j], [0 if d != step else self.pbc[j] for d in range(self.sim.ndims())]
 
-        for i in For(sim, 0, self.sim.nlocal + self.sim.comm.nghost):
+        for i in For(self.sim, 0, self.sim.nlocal + self.sim.nghost):
             j = step * 2 + 1
             for _ in Filter(self.sim, position > self.subdom[j] - offset):
-                yield i, self.neighbor_ranks[j], [0 if d != step else self.pbc[j] for d in self.sim.ndims()]
+                yield i, self.neighbor_ranks[j], [0 if d != step else self.pbc[j] for d in range(self.sim.ndims())]

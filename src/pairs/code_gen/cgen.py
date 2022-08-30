@@ -512,6 +512,9 @@ class CGen:
                 return f"({lhs} {operator.symbol()} {rhs})"
 
             if ast_node.is_vector_kind():
+                if index is None:
+                    print(ast_node)
+
                 assert index is not None, "Index must be set for vector reference!"
                 return f"e{ast_node.id()}[{index}]" if ast_node.mem else f"e{ast_node.id()}_{index}"
 

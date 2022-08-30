@@ -1,28 +1,39 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.assign import Assign
 from pairs.ir.bin_op import ASTTerm 
+from pairs.ir.lit import Lit
 
 
 class Variables:
+    temp_id = 0
+
+    def new_temp_id():
+        Variables.temp_id += 1
+        return Variables.temp_id - 1
+
     def __init__(self, sim):
         self.sim = sim
         self.vars = []
         self.nvars = 0
 
     def add(self, v_name, v_type, v_value=0):
-        v = Var(self.sim, v_name, v_type, v_value)
-        self.vars.append(v)
-        return v
+        var = Var(self.sim, v_name, v_type, v_value)
+        self.vars.append(var)
+        return var
+
+    def add_temp(self, init):
+        lit = Lit.cvt(self.sim, init)
+        tmp_id = Variables.new_temp_id()
+        tmp_var = Var(self.sim, f"tmp{tmp_id}", lit.type())
+        self.sim.add_statement(Assign(self.sim, tmp_var, lit))
+        return tmp_var
 
     def all(self):
         return self.vars
 
     def find(self, v_name):
         var = [v for v in self.vars if v.name() == v_name]
-        if var:
-            return var[0]
-
-        return None
+        return var[0] if var else None
 
 
 class Var(ASTTerm):

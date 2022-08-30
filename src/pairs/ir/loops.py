@@ -28,10 +28,7 @@ class Iter(ASTTerm):
         return Types.Int32
 
     def __eq__(self, other):
-        if isinstance(other, Iter):
-            return self.iter_id == other.iter_id
-
-        return False
+        return isinstance(other, Iter) and self.iter_id == other.iter_id
 
     def __req__(self, other):
         return self.__cmp__(other)
@@ -69,14 +66,14 @@ class For(ASTNode):
 
 class ParticleFor(For):
     def __init__(self, sim, block=None, local_only=True):
-        super().__init__(sim, 0, sim.nlocal if local_only else sim.nlocal + sim.comm.nghost, block)
+        super().__init__(sim, 0, sim.nlocal if local_only else sim.nlocal + sim.nghost, block)
         self.local_only = local_only
 
     def __str__(self):
         return f"ParticleFor<self.iterator>"
 
     def children(self):
-        return [self.block, self.sim.nlocal] + ([] if self.local_only else [self.sim.comm.nghost])
+        return [self.block, self.sim.nlocal] + ([] if self.local_only else [self.sim.nghost])
 
 
 class While(ASTNode):

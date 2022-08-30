@@ -109,7 +109,6 @@ public:
             send_offset += next_nsend * elem_size;
             recv_offset += prev_nrecv * elem_size;
         }
-
     }
 };
 

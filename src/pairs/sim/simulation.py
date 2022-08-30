@@ -12,7 +12,8 @@ from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
 from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
-from pairs.sim.comm import Comm, DetermineGhostParticles, ExchangeParticles, UpdateGhostParticles
+from pairs.sim.comm import Comm
+from pairs.sim.domain_partitioning import DimensionRanges
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild
@@ -35,6 +36,7 @@ class Simulation:
         self.arrays = Arrays(self)
         self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
         self.nlocal = self.add_var('nlocal', Types.Int32)
+        self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
         self.grid = None
         self.cell_lists = None
@@ -57,8 +59,7 @@ class Simulation:
         self.iter_id = 0
         self.vtk_file = None
         self._target = None
-        self.comm = Comm(self)
-        self.nparticles = self.nlocal + self.comm.nghost
+        self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
 
     def add_module(self, module):
@@ -119,6 +120,9 @@ class Simulation:
     def add_var(self, var_name, var_type, init_value=0):
         assert self.var(var_name) is None, f"Variable already defined: {var_name}"
         return self.vars.add(var_name, var_type, init_value)
+
+    def add_temp_var(self, init_value):
+        return self.vars.add_temp(init_value)
 
     def add_symbol(self, sym_type):
         return Symbol(self, sym_type)
@@ -222,9 +226,13 @@ class Simulation:
     def generate(self):
         assert self._target is not None, "Target not specified!"
 
+        dom_part = DimensionRanges(self)
+        comm = Comm(self, dom_part)
+
         timestep = Timestep(self, self.ntimesteps, [
+            (comm.exchange(), 20),
             (EnforcePBC(self), 20),
-            (DetermineGhostParticles(self, self.comm), UpdateGhostParticles(self, self.comm), 20),
+            (comm.borders(), comm.synchronize(), 20),
             (CellListsBuild(self, self.cell_lists), 20),
             (NeighborListsBuild(self, self.neighbor_lists), 20),
             PropertiesResetVolatile(self),
