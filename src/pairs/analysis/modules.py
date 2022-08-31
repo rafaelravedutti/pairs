@@ -52,6 +52,7 @@ class FetchModulesReferences(Visitor):
 
     def visit_Var(self, ast_node):
         for m in self.module_stack:
-            m.add_variable(ast_node, self.writing)
-            if m.run_on_device:
-                ast_node.device_flag = True
+            if not ast_node.temporary():
+                m.add_variable(ast_node, self.writing)
+                if m.run_on_device:
+                    ast_node.device_flag = True

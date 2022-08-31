@@ -132,6 +132,11 @@ class CGen:
                 self.print(f"PAIRS_DEBUG(\"{module.name}\\n\");")
                 self.print.add_indent(-4)
 
+            self.print.add_indent(4)
+            for t in module.temporaries:
+                self.generate_statement(VarDecl(module.sim, t))
+            self.print.add_indent(-4)
+
             self.generate_statement(module.block)
             self.print("}")
 

@@ -1,6 +1,6 @@
 .PHONY: all build clean
 
-all: build lj_cpu lj_gpu
+all: clean build lj_cpu lj_gpu
 	@echo "Everything was done!"
 
 build:

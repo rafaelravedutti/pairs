@@ -24,7 +24,7 @@ class Variables:
     def add_temp(self, init):
         lit = Lit.cvt(self.sim, init)
         tmp_id = Variables.new_temp_id()
-        tmp_var = Var(self.sim, f"tmp{tmp_id}", lit.type())
+        tmp_var = Var(self.sim, f"tmp{tmp_id}", lit.type(), temp=True)
         self.sim.add_statement(Assign(self.sim, tmp_var, lit))
         return tmp_var
 
@@ -37,11 +37,12 @@ class Variables:
 
 
 class Var(ASTTerm):
-    def __init__(self, sim, var_name, var_type, init_value=0):
+    def __init__(self, sim, var_name, var_type, init_value=0, temp=False):
         super().__init__(sim)
         self.var_name = var_name
         self.var_type = var_type
         self.var_init_value = init_value
+        self.var_temporary = temp
         self.mutable = True
         self.var_bonded_arrays = []
         self.device_flag = False
@@ -60,6 +61,9 @@ class Var(ASTTerm):
 
     def type(self):
         return self.var_type
+
+    def temporary(self):
+        return self.var_temporary
 
     def set_initial_value(self, value):
         self.var_init_value = value

@@ -7,10 +7,11 @@ from pairs.ir.variables import Var
 class Module(ASTNode):
     last_module = 0
 
-    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False):
+    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False, temps=[]):
         super().__init__(sim)
         self._id = Module.last_module
         self._name = name if name is not None else "module" + str(Module.last_module)
+        self._temps = temps
         self._variables = {}
         self._arrays = {}
         self._properties = {}
@@ -37,6 +38,10 @@ class Module(ASTNode):
     @property
     def run_on_device(self):
         return self._run_on_device
+
+    @property
+    def temporaries(self):
+        return self._temps
 
     def variables(self):
         return self._variables

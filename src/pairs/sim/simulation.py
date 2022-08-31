@@ -53,6 +53,7 @@ class Simulation:
         self._check_properties_resize = False
         self._resizes_to_check = {}
         self._module_name = None
+        self._module_temps = []
         self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -64,7 +65,8 @@ class Simulation:
 
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"
-        self.module_list.append(module)
+        if module.name not in [m.name for m in self.module_list]:
+            self.module_list.append(module)
 
     def modules(self):
         sorted_mods = []
@@ -122,7 +124,9 @@ class Simulation:
         return self.vars.add(var_name, var_type, init_value)
 
     def add_temp_var(self, init_value):
-        return self.vars.add_temp(init_value)
+        var = self.vars.add_temp(init_value)
+        self._module_temps.append(var)
+        return var
 
     def add_symbol(self, sym_type):
         return Symbol(self, sym_type)
@@ -169,6 +173,7 @@ class Simulation:
 
     def module_name(self, name):
         self._module_name = name
+        self._module_temps = []
 
     def check_properties_resize(self):
         self._check_properties_resize = True
@@ -186,7 +191,8 @@ class Simulation:
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
-                run_on_device=run_on_device))
+                run_on_device=run_on_device,
+                temps=self._module_temps))
 
     def add_statement(self, stmt):
         if not self.scope:
