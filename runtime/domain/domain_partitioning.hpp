@@ -57,57 +57,43 @@ public:
         }
     }
 
-    void communicateSizes(const real_t *send_sizes, const real_t *recv_sizes) {
-        for(int d = 0; d < ndims; d++) {
-            if(prev[d] != rank) {
-                MPI_Send(&send_sizes[d * 2 + 0], 1, MPI_INT, prev[d], 0, MPI_COMM_WORLD);
-                MPI_Recv(&recv_sizes[d * 2 + 0], 1, MPI_INT, next[d], 0, MPI_COMM_WORLD);
-            } else {
-                recv_sizes[d * 2 + 0] = send_sizes[d * 2 + 0];
-            }
+    void communicateSizes(int dim, const real_t *send_sizes, const real_t *recv_sizes) {
+        if(prev[dim] != rank) {
+            MPI_Send(&send_sizes[dim * 2 + 0], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_sizes[dim * 2 + 0], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD);
+        } else {
+            recv_sizes[d * 2 + 0] = send_sizes[dim * 2 + 0];
+        }
 
-            if(next[d] != rank) {
-                MPI_Send(&send_sizes[d * 2 + 1], 1, MPI_INT, next[d], 0, MPI_COMM_WORLD);
-                MPI_Recv(&recv_sizes[d * 2 + 1], 1, MPI_INT, prev[d], 0, MPI_COMM_WORLD);
-            } else {
-                recv_sizes[d * 2 + 1] = send_sizes[d * 2 + 1];
-            }
+        if(next[dim] != rank) {
+            MPI_Send(&send_sizes[dim * 2 + 1], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_sizes[dim * 2 + 1], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
+        } else {
+            recv_sizes[dim * 2 + 1] = send_sizes[d * 2 + 1];
         }
     }
 
-    void communicateData(const real_t *send_buf, size_t *nsend, const real_t *recv_buf, size_t *nrecv, size_t elem_size) {
-        int send_offset = 0;
-        int recv_offset = 0;
+    void communicateData(
+        int dim, size_t elem_size,
+        const real_t *send_buf, const size_t *send_offsets, const size_t *nsend,
+        const real_t *recv_buf, const size_t *recv_offsets, const size_t *nrecv) {
 
-        for(int d = 0; d < ndims; d++) {
-            const int prev_nsend = nsend[d * 2 + 0];
-            const int next_nsend = nsend[d * 2 + 1];
-            const int prev_nrecv = nrecv[d * 2 + 1];
-            const int next_nrecv = nrecv[d * 2 + 0];
-
-            if(prev[d] != rank) {
-                MPI_Send(&send_buf[send_offset], prev_nsend * elem_size, MPI_DOUBLE, prev[d], 0, MPI_COMM_WORLD);
-                MPI_Recv(&recv_buf[recv_offset], next_nrecv * elem_size, MPI_DOUBLE, next[d], 0, MPI_COMM_WORLD);
-            } else {
-                for(int i = 0; i < prev_nsend * elem_size; i++) {
-                    recv_buf[recv_offset + i] = send_buf[send_offset + i];
-                }
+        if(prev[dim] != rank) {
+            MPI_Send(&send_buf[send_offsets[dim * 2 + 0]], nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 0]], nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
+        } else {
+            for(int i = 0; i < nsend[dim * 2 + 0] * elem_size; i++) {
+                recv_buf[recv_offsets[dim * 2 + 0] + i] = send_buf[send_offsets[dim * 2 + 0] + i];
             }
+        }
 
-            send_offset += prev_nsend * elem_size;
-            recv_offset += next_nrecv * elem_size;
-
-            if(next[d] != rank) {
-                MPI_Send(&send_buf[send_offset], next_nsend * elem_size, MPI_DOUBLE, next[d], 0, MPI_COMM_WORLD);
-                MPI_Recv(&recv_buf[recv_offset], prev_nrecv * elem_size, MPI_DOUBLE, prev[d], 0, MPI_COMM_WORLD);
-            } else {
-                for(int i = 0; i < next_nsend * elem_size; i++) {
-                    recv_buf[recv_offset + i] = send_buf[send_offset + i];
-                }
+        if(next[dim] != rank) {
+            MPI_Send(&send_buf[send_offsets[dim * 2 + 1]], nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 1]], nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
+        } else {
+            for(int i = 0; i < nsend[dim * 2 + 1] * elem_size; i++) {
+                recv_buf[recv_offsets[dim * 2 + 1] + i] = send_buf[send_offsets[dim * 2 + 1] + i];
             }
-
-            send_offset += next_nsend * elem_size;
-            recv_offset += prev_nrecv * elem_size;
         }
     }
 };
