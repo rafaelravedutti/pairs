@@ -127,6 +127,16 @@ class AddExpressionDeclarations(Mutator):
 
         return ast_node
 
+    def mutate_AtomicAdd(self, ast_node):
+        ast_node.elem = self.mutate(ast_node.elem)
+        ast_node.value = self.mutate(ast_node.value)
+        atomic_add_id = id(ast_node)
+        if atomic_add_id not in self.declared_exprs and atomic_add_id not in self.params:
+            self.push_decl(Decl(ast_node.sim, ast_node))
+            self.declared_exprs.append(atomic_add_id)
+
+        return ast_node
+
     def mutate_Block(self, ast_node):
         block_id = id(ast_node)
         self.decls[block_id] = []

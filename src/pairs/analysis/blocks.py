@@ -29,6 +29,18 @@ class SetBlockVariants(Mutator):
         self.in_assignment = None
         return ast_node
 
+    def mutate_AtomicAdd(self, ast_node):
+        self.in_assignment = ast_node
+        ast_node.elem = self.mutate(ast_node.elem)
+        self.in_assignment = None
+        ast_node.value = self.mutate(ast_node.value)
+
+        if ast_node.check_for_resize():
+            ast_node.resize = self.mutate(ast_node.resize)
+            ast_node.capacity = self.mutate(ast_node.capacity)
+
+        return ast_node
+
     def mutate_For(self, ast_node):
         self.push_variant(ast_node.iterator)
         ast_node.block.add_variant(ast_node.iterator.name())

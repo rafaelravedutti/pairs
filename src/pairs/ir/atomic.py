@@ -3,8 +3,15 @@ from pairs.ir.lit import Lit
 
 
 class AtomicAdd(ASTTerm):
+    last_atomic_add = 0
+
+    def new_id():
+        AtomicAdd.last_atomic_add += 1
+        return AtomicAdd.last_atomic_add - 1
+
     def __init__(self, sim, elem, value):
         super().__init__(sim)
+        self.atomic_add_id = AtomicAdd.new_id()
         self.elem = BinOp.inline(elem)
         self.value = Lit.cvt(sim, value)
         self.resize = None
@@ -19,6 +26,9 @@ class AtomicAdd(ASTTerm):
 
     def check_for_resize(self):
         return self.resize is not None
+
+    def id(self):
+        return self.atomic_add_id
 
     def type(self):
         return self.elem.type()

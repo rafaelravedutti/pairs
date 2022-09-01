@@ -248,6 +248,20 @@ class CGen:
                     index_g = self.generate_expression(prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
 
+            if isinstance(ast_node.elem, AtomicAdd):
+                atomic_add = ast_node.elem
+                elem = self.generate_expression(atomic_add.elem)
+                value = self.generate_expression(atomic_add.value)
+                tkw = Types.c_keyword(atomic_add.type())
+                acc_ref = f"atm_add{atomic_add.id()}"
+
+                if atomic_add.check_for_resize():
+                    resize = self.generate_expression(atomic_add.resize)
+                    capacity = self.generate_expression(atomic_add.capacity)
+                    self.print(f"const {tkw} {acc_ref} = pairs::atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
+                else:
+                    self.print(f"const {tkw} {acc_ref} = pairs::atomic_add(&({elem}), {value});")
+
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
             self.print(f"if({cond}) {{")
@@ -490,36 +504,25 @@ class CGen:
             return ast_node.name()
 
         if isinstance(ast_node, ArrayAccess):
-            array_name = self.generate_expression(ast_node.array)
-            acc_index = self.generate_expression(ast_node.flat_index)
             if mem or ast_node.inlined is True:
+                array_name = self.generate_expression(ast_node.array)
+                acc_index = self.generate_expression(ast_node.flat_index)
                 return f"{array_name}[{acc_index}]"
 
             return f"a{ast_node.id()}"
 
         if isinstance(ast_node, AtomicAdd):
-            elem = self.generate_expression(ast_node.elem)
-            value = self.generate_expression(ast_node.value)
-            if ast_node.check_for_resize():
-                resize = self.generate_expression(ast_node.resize)
-                capacity = self.generate_expression(ast_node.capacity)
-                return f"pairs::atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity})"
-            else:
-                return f"pairs::atomic_add(&({elem}), {value})"
+            return f"atm_add{ast_node.id()}"
 
         if isinstance(ast_node, BinOp):
-            lhs = self.generate_expression(ast_node.lhs, mem, index)
-            rhs = self.generate_expression(ast_node.rhs, index=index)
-            operator = ast_node.operator()
-
             if ast_node.inlined is True:
                 assert ast_node.type() != Types.Vector, "Vector operations cannot be inlined!"
+                lhs = self.generate_expression(ast_node.lhs, mem, index)
+                rhs = self.generate_expression(ast_node.rhs, index=index)
+                operator = ast_node.operator()
                 return f"({lhs} {operator.symbol()} {rhs})"
 
             if ast_node.is_vector_kind():
-                if index is None:
-                    print(ast_node)
-
                 assert index is not None, "Index must be set for vector reference!"
                 return f"e{ast_node.id()}[{index}]" if ast_node.mem else f"e{ast_node.id()}_{index}"
 
