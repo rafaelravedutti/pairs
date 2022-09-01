@@ -98,7 +98,7 @@ class DetermineGhostParticles(Lowerable):
         nsend = self.comm.nsend
         send_map = self.comm.send_map
         send_mult = self.comm.send_mult
-        self.sim.module_name("determine_ghost_particles")
+        self.sim.module_name(f"determine_ghost_particles{self.step}")
         self.sim.check_resize(self.comm.send_capacity, nsend)
 
         nb_rank_id = 0
@@ -131,7 +131,7 @@ class PackGhostParticles(Lowerable):
         elems_per_particle = self.get_elems_per_particle()
         self.sim.module_name("pack_ghost_particles" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        for i in For(self.sim, 0, self.comm.nsend):
+        for i in For(self.sim, 0, self.comm.nsend_all):
             p_offset = 0
             m = send_map[i]
             buffer_index = i * elems_per_particle
@@ -169,7 +169,7 @@ class UnpackGhostParticles(Lowerable):
         elems_per_particle = self.get_elems_per_particle()
         self.sim.module_name("unpack_ghost_particles" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        for i in For(self.sim, 0, self.comm.nrecv):
+        for i in For(self.sim, 0, self.sim.nghost):
             p_offset = 0
             buffer_index = i * elems_per_particle
             for p in self.prop_list:
@@ -195,8 +195,8 @@ class RemoveExchangedParticles_part1(Lowerable):
     def lower(self):
         self.sim.module_name("remove_exchanged_particles_pt1")
         send_pos = self.sim.add_temp_var(self.sim.nparticles)
-        for i in For(self.sim, 0, self.comm.nsend):
-            for is_local in Branch(self.sim, self.comm.send_map[i] < self.sim.nlocal - self.comm.nsend):
+        for i in For(self.sim, 0, self.comm.nsend_all):
+            for is_local in Branch(self.sim, self.comm.send_map[i] < self.sim.nlocal - self.comm.nsend_all):
                 if is_local:
                     for _ in While(self.sim, BinOp.cmp(self.comm.exchg_flag[send_pos], 1)):
                         send_pos.set(send_pos - 1)
@@ -230,7 +230,7 @@ class RemoveExchangedParticles_part2(Lowerable):
                     else:
                         p[dst].set(p[src])
 
-        self.sim.nlocal.set(self.sim.nlocal - self.comm.nsend)
+        self.sim.nlocal.set(self.sim.nlocal - self.comm.nsend_all)
 
 
 class ChangeSizeAfterExchange(Lowerable):
