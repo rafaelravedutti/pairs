@@ -35,35 +35,36 @@ class Comm:
     @pairs_inline
     def synchronize(self):
         prop_list = [self.sim.property(p) for p in ['position']]
-        for d in range(self.sim.ndims()):
-            PackGhostParticles(self, d, prop_list)
-            CommunicateData(self, d, prop_list)
-            UnpackGhostParticles(self, d, prop_list)
+        for step in range(self.dom_part.number_of_steps()):
+            PackGhostParticles(self, step, prop_list)
+            CommunicateData(self, step, prop_list)
+            UnpackGhostParticles(self, step, prop_list)
 
     @pairs_inline
     def borders(self):
         prop_list = [self.sim.property(p) for p in ['mass', 'position']]
         self.nsend_all.set(0)
-        for d in range(self.sim.ndims()):
-            DetermineGhostParticles(self, d, self.sim.cell_spacing())
-            CommunicateSizes(self, d)
-            SetCommunicationOffsets(self, d)
-            PackGhostParticles(self, d, prop_list)
-            CommunicateData(self, d, prop_list)
-            UnpackGhostParticles(self, d, prop_list)
+        for step in range(self.dom_part.number_of_steps()):
+            DetermineGhostParticles(self, step, self.sim.cell_spacing())
+            CommunicateSizes(self, step)
+            SetCommunicationOffsets(self, step)
+            PackGhostParticles(self, step, prop_list)
+            CommunicateData(self, step, prop_list)
+            UnpackGhostParticles(self, step, prop_list)
 
     @pairs_inline
     def exchange(self):
         prop_list = [self.sim.property(p) for p in ['mass', 'position', 'velocity']]
-        for d in range(self.sim.ndims()):
-            DetermineGhostParticles(self, d, 0.0)
-            PackGhostParticles(self, d, prop_list)
+        for step in range(self.dom_part.number_of_steps()):
+            self.nsend_all.set(0)
+            DetermineGhostParticles(self, step, 0.0)
+            PackGhostParticles(self, step, prop_list)
             RemoveExchangedParticles_part1(self)
             RemoveExchangedParticles_part2(self, prop_list)
-            CommunicateSizes(self, d)
-            CommunicateData(self, d, prop_list)
-            ChangeSizeAfterExchange(self)
-            UnpackGhostParticles(self, d, prop_list)
+            CommunicateSizes(self, step)
+            CommunicateData(self, step, prop_list)
+            ChangeSizeAfterExchange(self, step)
+            UnpackGhostParticles(self, step, prop_list)
 
 
 class CommunicateSizes(Lowerable):
@@ -135,9 +136,13 @@ class SetCommunicationOffsets(Lowerable):
         recv_offsets = self.comm.recv_offsets
         self.sim.module_name(f"set_communication_offsets{self.step}")
 
+        isend = 0
+        irecv = 0
         for j in self.comm.dom_part.step_indexes(self.step):
-            send_offsets[j].set(send_offsets[j - 1] + nsend[j - 1] if j > 0 else 0)
-            recv_offsets[j].set(recv_offsets[j - 1] + nrecv[j - 1] if j > 0 else 0)
+            send_offsets[j].set(isend)
+            recv_offsets[j].set(irecv)
+            isend += nsend[j]
+            irecv += nrecv[j]
 
 
 class PackGhostParticles(Lowerable):
@@ -159,7 +164,9 @@ class PackGhostParticles(Lowerable):
         elems_per_particle = self.get_elems_per_particle()
         self.sim.module_name(f"pack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        for i in For(self.sim, 0, sum([self.comm.nsend[j] for j in self.comm.dom_part.step_indexes(self.step)])):
+        step_indexes = self.comm.dom_part.step_indexes(self.step)
+        start = self.comm.send_offsets[step_indexes[0]]
+        for i in For(self.sim, start, start + sum([self.comm.nsend[j] for j in step_indexes])):
             p_offset = 0
             m = send_map[i]
             buffer_index = i * elems_per_particle
@@ -198,7 +205,9 @@ class UnpackGhostParticles(Lowerable):
         elems_per_particle = self.get_elems_per_particle()
         self.sim.module_name(f"unpack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        for i in For(self.sim, 0, sum([self.comm.nrecv[j] for j in self.comm.dom_part.step_indexes(self.step)])):
+        step_indexes = self.comm.dom_part.step_indexes(self.step)
+        start = self.comm.recv_offsets[step_indexes[0]]
+        for i in For(self.sim, start, start + sum([self.comm.nrecv[j] for j in step_indexes])):
             p_offset = 0
             buffer_index = i * elems_per_particle
             for p in self.prop_list:
@@ -225,8 +234,8 @@ class RemoveExchangedParticles_part1(Lowerable):
         self.sim.module_name("remove_exchanged_particles_pt1")
         send_pos = self.sim.add_temp_var(self.sim.nparticles)
         for i in For(self.sim, 0, self.comm.nsend_all):
-            for is_local in Branch(self.sim, self.comm.send_map[i] < self.sim.nlocal - self.comm.nsend_all):
-                if is_local:
+            for need_copy in Branch(self.sim, self.comm.send_map[i] < self.sim.nlocal - self.comm.nsend_all):
+                if need_copy:
                     for _ in While(self.sim, BinOp.cmp(self.comm.exchg_flag[send_pos], 1)):
                         send_pos.set(send_pos - 1)
 
@@ -263,14 +272,15 @@ class RemoveExchangedParticles_part2(Lowerable):
 
 
 class ChangeSizeAfterExchange(Lowerable):
-    def __init__(self, comm):
+    def __init__(self, comm, step):
         super().__init__(comm.sim)
         self.comm = comm
+        self.step = step
         self.sim.add_statement(self)
 
     @pairs_host_block
     def lower(self):
         sim = self.sim
-        sim.module_name("change_size_after_exchange")
+        sim.module_name(f"change_size_after_exchange{self.step}")
         sim.check_resize(self.sim.particle_capacity, self.sim.nlocal)
-        self.sim.nlocal.set(sim.nlocal + self.comm.nrecv)
+        self.sim.nlocal.set(sim.nlocal + sum([self.comm.nrecv[j] for j in self.comm.dom_part.step_indexes(self.step)]))

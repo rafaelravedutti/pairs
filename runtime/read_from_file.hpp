@@ -14,8 +14,6 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, double *gri
     std::string line;
     size_t n = 0;
     int read_grid_data = 0;
-    // TODO: store this from PairsSimulation class
-    const int num_dims = 3;
 
     if(in_file.is_open()) {
         while(std::getline(in_file, line)) {
@@ -25,6 +23,8 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, double *gri
 
             while(std::getline(line_stream, in0, ',')) {
                 if(!read_grid_data) {
+                    // TODO: store this from PairsSimulation class
+                    const int num_dims = 3;
                     PAIRS_ASSERT(i < num_dims * 2);
                     grid_buffer[i] = std::stod(in0);
                 } else {
