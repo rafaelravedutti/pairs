@@ -10,15 +10,19 @@
 #   include "devices/dummy.hpp"
 #endif
 
+#include "domain/domain_partitioning.hpp"
+
 #pragma once
 
 #ifdef DEBUG
 #   include <assert.h>
 #   define PAIRS_DEBUG(...)     fprintf(stderr, __VA_ARGS__)
 #   define PAIRS_ASSERT(a)      assert(a)
+#   define PAIRS_EXCEPTION(a)
 #else
 #   define PAIRS_DEBUG(...)
 #   define PAIRS_ASSERT(a)
+#   define PAIRS_EXCEPTION(a)
 #endif
 
 #define PAIRS_ERROR(...)    fprintf(stderr, __VA_ARGS__)
@@ -40,6 +44,11 @@ enum DataLayout {
     Invalid = -1,
     AoS = 0,
     SoA
+};
+
+enum DomainPartitioning {
+    DimRanges = 0,
+    BoxList,
 };
 
 template<typename real_t>
@@ -243,22 +252,39 @@ public:
     }
 };
 
+template<int ndims>
 class PairsSimulation {
 private:
+    DomainPartitioner<ndims> *dom_part;
     std::vector<Property> properties;
     std::vector<Array> arrays;
     DeviceFlags *prop_flags, *array_flags;
+    DomainPartitioning dom_part_type;
     int nprops, narrays;
 public:
-    PairsSimulation(int nprops_, int narrays_) {
+    PairsSimulation(int nprops_, int narrays_, DomainPartitioning dom_part_type_) {
+        dom_part_type = dom_part_type_;
         prop_flags = new DeviceFlags(nprops_);
         array_flags = new DeviceFlags(narrays_);
     }
 
     ~PairsSimulation() {
+        dom_part->finalize();
         delete prop_flags;
         delete array_flags;
     }
+
+    void initDomain(real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
+        if(dom_part_type == DimRanges) {
+            dom_part = new DimensionRanges<ndims>(xmin, xmax, ymin, ymax, zmin, zmax);
+        } else {
+            PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");
+        }
+
+        dom_part->initialize();
+    }
+
+    DomainPartitioner<ndims> *getDomainPartitioner() { return dom_part; }
 
     template<typename T_ptr>
     void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {

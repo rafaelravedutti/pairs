@@ -55,6 +55,7 @@ class CGen:
         self.print("#include <stdlib.h>")
         self.print("//---")
         self.print("#include \"runtime/pairs.hpp\"")
+        self.print("#include \"runtime/comm.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
         self.print("#include \"runtime/vtk.hpp\"")
 
@@ -87,10 +88,11 @@ class CGen:
 
     def generate_module(self, module):
         if module.name == 'main':
+            ndims = module.sim.ndims()
             nprops = module.sim.properties.nprops()
             narrays = module.sim.arrays.narrays()
             self.print("int main() {")
-            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {narrays});")
+            self.print(f"    PairsSimulation<{ndims}> *pairs = new PairsSimulation<{ndims}>({nprops}, {narrays}, DimRanges);")
             self.generate_statement(module.block)
             self.print("    return 0;")
             self.print("}")

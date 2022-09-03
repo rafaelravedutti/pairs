@@ -12,7 +12,7 @@ class DimensionRanges:
         self.sim = sim
         self.neighbor_ranks = sim.add_static_array('neighbor_ranks', [sim.ndims() * 2], Types.Int32)
         self.pbc            = sim.add_static_array('pbc', [sim.ndims() * 2], Types.Int32)
-        self.subdom         = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Int32)
+        self.subdom         = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Double)
 
     def number_of_steps(self):
         return self.sim.ndims()

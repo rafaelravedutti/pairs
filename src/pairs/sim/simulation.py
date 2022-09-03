@@ -1,6 +1,7 @@
 from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
+from pairs.ir.functions import Call_Void
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
 from pairs.ir.module import Module
@@ -153,6 +154,7 @@ class Simulation:
         self.setups.add_statement(read_object)
         self.grid = read_object.grid
 
+
     def build_cell_lists(self, spacing):
         self.cell_lists = CellLists(self, self.grid, spacing, spacing)
         return self.cell_lists
@@ -249,8 +251,11 @@ class Simulation:
         timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1))
         self.leave()
 
+        grid_array = [[self.grid.min(d), self.grid.max(d)] for d in range(self.ndims())]
         body = Block.from_list(self, [
             self.setups,
+            Call_Void(self, "pairs::initDomain", [param for delim in grid_array for param in delim]),
+            Call_Void(self, "pairs::fillCommunicationArrays", [dom_part.neighbor_ranks, dom_part.pbc, dom_part.subdom]),
             CellListsStencilBuild(self, self.cell_lists),
             VTKWrite(self, self.vtk_file, 0),
             timestep.as_block()

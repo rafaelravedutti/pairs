@@ -8,7 +8,8 @@
 
 namespace pairs {
 
-void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int end, int timestep) {
+template <int ndims>
+void vtk_write_data(PairsSimulation<ndims> *ps, const char *filename, int start, int end, int timestep) {
     std::string output_filename(filename);
     std::ostringstream filename_oss;
     filename_oss << filename << "_" << timestep << ".vtk";

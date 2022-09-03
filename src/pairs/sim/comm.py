@@ -3,6 +3,7 @@ from pairs.ir.bin_op import BinOp
 from pairs.ir.block import pairs_device_block, pairs_host_block, pairs_inline
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
+from pairs.ir.functions import Call_Void
 from pairs.ir.loops import For, ParticleFor, While
 from pairs.ir.utils import Print
 from pairs.ir.select import Select
@@ -72,10 +73,11 @@ class CommunicateSizes(Lowerable):
         super().__init__(comm.sim)
         self.comm = comm
         self.step = step
+        self.sim.add_statement(self)
 
     @pairs_inline
     def lower(self):
-        Call_Void(self.sim, "pairs->communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
+        Call_Void(self.sim, "pairs::communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
 
 
 class CommunicateData(Lowerable):
@@ -84,11 +86,12 @@ class CommunicateData(Lowerable):
         self.comm = comm
         self.step = step
         self.prop_list = prop_list
+        self.sim.add_statement(self)
 
     @pairs_inline
     def lower(self):
         elem_size = sum([self.sim.ndims() if p.type() == Types.Vector else 1 for p in self.prop_list])
-        Call_Void(self.sim, "pairs->communicateData", [self.step, elem_size,
+        Call_Void(self.sim, "pairs::communicateData", [self.step, elem_size,
                                                        self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
                                                        self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
 

@@ -9,7 +9,8 @@
 
 namespace pairs {
 
-size_t read_particle_data(PairsSimulation *ps, const char *filename, double *grid_buffer, const property_t properties[], size_t nprops) {
+template<int ndims>
+size_t read_particle_data(PairsSimulation<ndims> *ps, const char *filename, double *grid_buffer, const property_t properties[], size_t nprops) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
     size_t n = 0;
@@ -23,9 +24,7 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, double *gri
 
             while(std::getline(line_stream, in0, ',')) {
                 if(!read_grid_data) {
-                    // TODO: store this from PairsSimulation class
-                    const int num_dims = 3;
-                    PAIRS_ASSERT(i < num_dims * 2);
+                    PAIRS_ASSERT(i < ndims * 2);
                     grid_buffer[i] = std::stod(in0);
                 } else {
                     PAIRS_ASSERT(i < nprops);
