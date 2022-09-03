@@ -91,7 +91,7 @@ class CGen:
             ndims = module.sim.ndims()
             nprops = module.sim.properties.nprops()
             narrays = module.sim.arrays.narrays()
-            self.print("int main() {")
+            self.print("int main(int argc, char **argv) {")
             self.print(f"    PairsSimulation<{ndims}> *pairs = new PairsSimulation<{ndims}>({nprops}, {narrays}, DimRanges);")
             self.generate_statement(module.block)
             self.print("    return 0;")
@@ -531,7 +531,8 @@ class CGen:
             return f"e{ast_node.id()}"
 
         if isinstance(ast_node, Call):
-            params = ", ".join(["pairs"] + [str(self.generate_expression(p)) for p in ast_node.parameters()])
+            extra_params = [] if ast_node.name() != "pairs::initDomain" else ["&argc", "&argv"]
+            params = ", ".join(["pairs"] + extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):

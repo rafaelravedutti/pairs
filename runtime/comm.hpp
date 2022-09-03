@@ -5,8 +5,8 @@
 namespace pairs {
 
 template<int ndims>
-void initDomain(PairsSimulation<ndims> *pairs, real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
-    pairs->initDomain(xmin, xmax, ymin, ymax, zmin, zmax);
+void initDomain(PairsSimulation<ndims> *pairs, int *argc, char ***argv, real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
+    pairs->initDomain(argc, argv, xmin, xmax, ymin, ymax, zmin, zmax);
 }
 
 template<int ndims>

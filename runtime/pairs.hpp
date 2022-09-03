@@ -10,7 +10,7 @@
 #   include "devices/dummy.hpp"
 #endif
 
-#include "domain/domain_partitioning.hpp"
+#include "domain/regular_6d_stencil.hpp"
 
 #pragma once
 
@@ -255,7 +255,8 @@ public:
 template<int ndims>
 class PairsSimulation {
 private:
-    DomainPartitioner<ndims> *dom_part;
+    Regular6DStencil<ndims> *dom_part;
+    //DomainPartitioner<ndims> *dom_part;
     std::vector<Property> properties;
     std::vector<Array> arrays;
     DeviceFlags *prop_flags, *array_flags;
@@ -274,14 +275,14 @@ public:
         delete array_flags;
     }
 
-    void initDomain(real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
+    void initDomain(int *argc, char ***argv, real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
         if(dom_part_type == DimRanges) {
-            dom_part = new DimensionRanges<ndims>(xmin, xmax, ymin, ymax, zmin, zmax);
+            dom_part = new Regular6DStencil<ndims>(xmin, xmax, ymin, ymax, zmin, zmax);
         } else {
             PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");
         }
 
-        dom_part->initialize();
+        dom_part->initialize(argc, argv);
     }
 
     DomainPartitioner<ndims> *getDomainPartitioner() { return dom_part; }

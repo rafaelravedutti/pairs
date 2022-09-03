@@ -40,7 +40,7 @@ public:
 };
 
 template<int ndims>
-class DimensionRanges : DomainPartitioner<ndims> {
+class DimensionRanges : public DomainPartitioner<ndims> {
 protected:
     int nranks[ndims];
     int prev[ndims];
@@ -68,14 +68,14 @@ public:
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
         if(prev[dim] != this->getRank()) {
             MPI_Send(&send_sizes[dim * 2 + 0], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
-            MPI_Recv(&recv_sizes[dim * 2 + 0], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_sizes[dim * 2 + 0], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         } else {
             recv_sizes[dim * 2 + 0] = send_sizes[dim * 2 + 0];
         }
 
         if(next[dim] != this->getRank()) {
             MPI_Send(&send_sizes[dim * 2 + 1], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD);
-            MPI_Recv(&recv_sizes[dim * 2 + 1], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_sizes[dim * 2 + 1], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         } else {
             recv_sizes[dim * 2 + 1] = send_sizes[dim * 2 + 1];
         }
@@ -88,7 +88,7 @@ public:
 
         if(prev[dim] != this->getRank()) {
             MPI_Send(&send_buf[send_offsets[dim * 2 + 0]], nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
-            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 0]], nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 0]], nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         } else {
             for(int i = 0; i < nsend[dim * 2 + 0] * elem_size; i++) {
                 recv_buf[recv_offsets[dim * 2 + 0] + i] = send_buf[send_offsets[dim * 2 + 0] + i];
@@ -97,7 +97,7 @@ public:
 
         if(next[dim] != this->getRank()) {
             MPI_Send(&send_buf[send_offsets[dim * 2 + 1]], nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
-            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 1]], nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 1]], nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         } else {
             for(int i = 0; i < nsend[dim * 2 + 1] * elem_size; i++) {
                 recv_buf[recv_offsets[dim * 2 + 1] + i] = send_buf[send_offsets[dim * 2 + 1] + i];
@@ -107,6 +107,8 @@ public:
 };
 
 template<int ndims>
-class ListOfBoxes : DomainPartitioner<ndims> {};
+class ListOfBoxes : public DomainPartitioner<ndims> {};
+
+class DomainPartitioner<3>;
 
 }

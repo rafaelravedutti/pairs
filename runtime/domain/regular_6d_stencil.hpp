@@ -1,14 +1,17 @@
-//---
-#include "pairs.hpp"
 #include "domain_partitioning.hpp"
 
 #pragma once
 
+typedef double real_t;
+
 namespace pairs {
 
 template <int ndims>
-class Regular6DStencil : DimensionRanges<ndims> {
+class Regular6DStencil : public DimensionRanges<ndims> {
 public:
+    Regular6DStencil(real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) :
+        DimensionRanges<ndims>(xmin, xmax, ymin, ymax, zmin, zmax) {}
+
     void setConfig() {
         static_assert(ndims == 3, "setConfig() only implemented for three dimensions!");
         real_t area[ndims];
@@ -20,9 +23,9 @@ public:
             best_surf += 2.0 * area[d];
         }
 
-        for(int i = 1; i < world_size; i++) {
-            if(world_size % i == 0) {
-                const int rem_yz = world_size / i;
+        for(int i = 1; i < this->world_size; i++) {
+            if(this->world_size % i == 0) {
+                const int rem_yz = this->world_size / i;
                 for(int j = 0; j < rem_yz; j++) {
                     if(rem_yz % j == 0) {
                         const int k = rem_yz / j;
@@ -31,7 +34,7 @@ public:
                             this->nranks[0] = i;
                             this->nranks[1] = j;
                             this->nranks[2] = k;
-                            bestsurf = surf;
+                            best_surf = surf;
                         }
                     }
                 }
@@ -61,10 +64,10 @@ public:
             this->subdom_max[d] = this->subdom_min[d] + rank_length[d];
         }
 
-        MPI_Comm_free(cartesian);
+        MPI_Comm_free(&cartesian);
     }
 
-    void initialize(int *argc, const char **argv) {
+    void initialize(int *argc, char ***argv) {
         MPI_Init(argc, argv);
         MPI_Comm_size(MPI_COMM_WORLD, &(this->world_size));
         MPI_Comm_rank(MPI_COMM_WORLD, &(this->rank));
