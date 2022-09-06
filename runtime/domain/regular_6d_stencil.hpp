@@ -7,10 +7,20 @@ typedef double real_t;
 namespace pairs {
 
 template <int ndims>
-class Regular6DStencil : public DimensionRanges<ndims> {
+class Regular6DStencil : public DomainPartitioner<ndims> {
+private:
+    int world_size, rank;
+    int nranks[ndims];
+    int prev[ndims];
+    int next[ndims];
+    int pbc_prev[ndims];
+    int pbc_next[ndims];
+    real_t subdom_min[ndims];
+    real_t subdom_max[ndims];
+
 public:
     Regular6DStencil(real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) :
-        DimensionRanges<ndims>(xmin, xmax, ymin, ymax, zmin, zmax) {}
+        DomainPartitioner<ndims>(xmin, xmax, ymin, ymax, zmin, zmax) {}
 
     void setConfig() {
         static_assert(ndims == 3, "setConfig() only implemented for three dimensions!");
@@ -69,14 +79,65 @@ public:
 
     void initialize(int *argc, char ***argv) {
         MPI_Init(argc, argv);
-        MPI_Comm_size(MPI_COMM_WORLD, &(this->world_size));
-        MPI_Comm_rank(MPI_COMM_WORLD, &(this->rank));
+        MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         this->setConfig();
         this->setBoundingBox();
     }
 
     void finalize() {
         MPI_Finalize();
+    }
+
+    void fillArrays(int neighbor_ranks[], int pbc[], real_t subdom[]) {
+        for(int d = 0; d < ndims; d++) {
+            neighbor_ranks[d * 2 + 0] = this->prev[d];
+            neighbor_ranks[d * 2 + 1] = this->next[d];
+            pbc[d * 2 + 0] = this->pbc_prev[d];
+            pbc[d * 2 + 1] = this->pbc_next[d];
+            subdom[d * 2 + 0] = this->subdom_min[d];
+            subdom[d * 2 + 1] = this->subdom_max[d];
+        }
+    }
+
+    void communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
+        if(prev[dim] != rank) {
+            MPI_Send(&send_sizes[dim * 2 + 0], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_sizes[dim * 2 + 0], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        } else {
+            recv_sizes[dim * 2 + 0] = send_sizes[dim * 2 + 0];
+        }
+
+        if(next[dim] != rank) {
+            MPI_Send(&send_sizes[dim * 2 + 1], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_sizes[dim * 2 + 1], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        } else {
+            recv_sizes[dim * 2 + 1] = send_sizes[dim * 2 + 1];
+        }
+    }
+
+    void communicateData(
+        int dim, int elem_size,
+        const real_t *send_buf, const int *send_offsets, const int *nsend,
+        real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
+
+        if(prev[dim] != rank) {
+            MPI_Send(&send_buf[send_offsets[dim * 2 + 0]], nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 0]], nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        } else {
+            for(int i = 0; i < nsend[dim * 2 + 0] * elem_size; i++) {
+                recv_buf[recv_offsets[dim * 2 + 0] + i] = send_buf[send_offsets[dim * 2 + 0] + i];
+            }
+        }
+
+        if(next[dim] != rank) {
+            MPI_Send(&send_buf[send_offsets[dim * 2 + 1]], nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 1]], nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        } else {
+            for(int i = 0; i < nsend[dim * 2 + 1] * elem_size; i++) {
+                recv_buf[recv_offsets[dim * 2 + 1] + i] = send_buf[send_offsets[dim * 2 + 1] + i];
+            }
+        }
     }
 };
 

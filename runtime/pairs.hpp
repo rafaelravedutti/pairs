@@ -285,7 +285,7 @@ public:
         dom_part->initialize(argc, argv);
     }
 
-    DomainPartitioner<ndims> *getDomainPartitioner() { return dom_part; }
+    Regular6DStencil<ndims> *getDomainPartitioner() { return dom_part; }
 
     template<typename T_ptr>
     void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
