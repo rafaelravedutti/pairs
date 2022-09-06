@@ -54,6 +54,7 @@ class Array(ASTNode):
         self.arr_layout = a_layout
         self.arr_sync = a_sync
         self.arr_ndims = len(self.arr_sizes)
+        self.arr_strides = {}
         self.static = False
         self.device_flag = False
         Array.last_array_id += 1
@@ -87,6 +88,12 @@ class Array(ASTNode):
 
     def is_static(self):
         return self.static
+
+    def set_stride(self, dim, stride):
+        self.arr_strides[dim] = stride
+
+    def strides(self):
+        return [self.arr_strides[i] if i in self.arr_strides else self.arr_sizes[i] for i in range(self.arr_ndims)]
 
     def alloc_size(self):
         return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])
@@ -152,17 +159,18 @@ class ArrayAccess(ASTTerm):
     def check_and_set_flat_index(self):
         if len(self.partial_indexes) == self.array.ndims():
             sizes = self.array.sizes()
+            strides = self.array.strides()
             layout = self.array.layout()
 
             if layout == Layouts.AoS:
                 for s in range(0, len(sizes)):
                     self.flat_index = (self.partial_indexes[s] if self.flat_index is None
-                                       else self.flat_index * sizes[s] + self.partial_indexes[s])
+                                       else self.flat_index * strides[s] + self.partial_indexes[s])
 
             elif layout == Layouts.SoA:
                 for s in reversed(range(0, len(sizes))):
                     self.flat_index = (self.partial_indexes[s] if self.flat_index is None
-                                       else self.flat_index * sizes[s] + self.partial_indexes[s])
+                                       else self.flat_index * strides[s] + self.partial_indexes[s])
 
             else:
                 raise Exception("Invalid data layout!")

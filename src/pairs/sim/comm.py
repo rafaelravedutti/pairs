@@ -162,9 +162,9 @@ class PackGhostParticles(Lowerable):
     @pairs_device_block
     def lower(self):
         send_buffer = self.comm.send_buffer
+        send_buffer.set_stride(1, self.get_elems_per_particle())
         send_map = self.comm.send_map
         send_mult = self.comm.send_mult
-        elems_per_particle = self.get_elems_per_particle()
         self.sim.module_name(f"pack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
         step_indexes = self.comm.dom_part.step_indexes(self.step)
@@ -172,7 +172,6 @@ class PackGhostParticles(Lowerable):
         for i in For(self.sim, start, start + sum([self.comm.nsend[j] for j in step_indexes])):
             p_offset = 0
             m = send_map[i]
-            buffer_index = i * elems_per_particle
             for p in self.prop_list:
                 if p.type() == Types.Vector:
                     for d in range(self.sim.ndims()):
@@ -180,13 +179,13 @@ class PackGhostParticles(Lowerable):
                         if p == self.sim.position():
                             src += send_mult[i][d] * self.sim.grid.length(d)
 
-                        send_buffer[buffer_index][p_offset + d].set(src)
+                        send_buffer[i][p_offset + d].set(src)
 
                     p_offset += self.sim.ndims()
 
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, Types.Double) if p.type() != Types.Double else x
-                    send_buffer[buffer_index][p_offset].set(cast_fn(p[m]))
+                    send_buffer[i][p_offset].set(cast_fn(p[m]))
                     p_offset += 1
 
             
@@ -205,24 +204,23 @@ class UnpackGhostParticles(Lowerable):
     def lower(self):
         nlocal = self.sim.nlocal
         recv_buffer = self.comm.recv_buffer
-        elems_per_particle = self.get_elems_per_particle()
+        recv_buffer.set_stride(1, self.get_elems_per_particle())
         self.sim.module_name(f"unpack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
         step_indexes = self.comm.dom_part.step_indexes(self.step)
         start = self.comm.recv_offsets[step_indexes[0]]
         for i in For(self.sim, start, start + sum([self.comm.nrecv[j] for j in step_indexes])):
             p_offset = 0
-            buffer_index = i * elems_per_particle
             for p in self.prop_list:
                 if p.type() == Types.Vector:
                     for d in range(self.sim.ndims()):
-                        p[nlocal + i][d].set(recv_buffer[buffer_index][p_offset + d])
-                        
+                        p[nlocal + i][d].set(recv_buffer[i][p_offset + d])
+
                     p_offset += self.sim.ndims()
 
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Double else x
-                    p[nlocal + i].set(cast_fn(recv_buffer[buffer_index][p_offset]))
+                    p[nlocal + i].set(cast_fn(recv_buffer[i][p_offset]))
                     p_offset += 1
 
 
