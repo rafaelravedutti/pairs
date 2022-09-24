@@ -56,12 +56,12 @@ public:
         MPI_Comm cartesian;
         int myloc[ndims];
         int periods[ndims];
-        int rank_length[ndims];
+        real_t rank_length[ndims];
         int reorder = 0;
 
         for(int d = 0; d < ndims; d++) {
             periods[d] = 1;
-            rank_length[d] = (this->grid_max[d] - this->grid_min[d]) / this->nranks[d];
+            rank_length[d] = (this->grid_max[d] - this->grid_min[d]) / (real_t)this->nranks[d];
         }
 
         MPI_Cart_create(MPI_COMM_WORLD, ndims, this->nranks, periods, reorder, &cartesian);
@@ -70,7 +70,7 @@ public:
             MPI_Cart_shift(cartesian, d, 1, &(this->prev[d]), &(this->next[d]));
             this->pbc_prev[d] = (myloc[d] == 0) ? 1 : 0;
             this->pbc_next[d] = (myloc[d] == this->nranks[d]) ? -1 : 0;
-            this->subdom_min[d] = this->grid_min[d] + rank_length[d] * myloc[d];
+            this->subdom_min[d] = this->grid_min[d] + rank_length[d] * (real_t)myloc[d];
             this->subdom_max[d] = this->subdom_min[d] + rank_length[d];
         }
 

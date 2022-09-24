@@ -32,6 +32,16 @@ class FetchKernelReferences(Visitor):
         self.writing = False
         self.visit(ast_node.sources())
 
+    def visit_AtomicAdd(self, ast_node):
+        self.writing = True
+        self.visit(ast_node.elem)
+        self.writing = False
+        self.visit(ast_node.value)
+
+        if ast_node.resize is not None:
+            self.visit(ast_node.resize)
+            self.visit(ast_node.capacity)
+
     def visit_Kernel(self, ast_node):
         kernel_id = ast_node.kernel_id
         self.kernel_decls[kernel_id] = []

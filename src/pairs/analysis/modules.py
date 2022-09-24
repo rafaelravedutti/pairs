@@ -23,6 +23,16 @@ class FetchModulesReferences(Visitor):
         self.writing = False
         self.visit(ast_node.sources())
 
+    def visit_AtomicAdd(self, ast_node):
+        self.writing = True
+        self.visit(ast_node.elem)
+        self.writing = False
+        self.visit(ast_node.value)
+
+        if ast_node.resize is not None:
+            self.visit(ast_node.resize)
+            self.visit(ast_node.capacity)
+
     def visit_Module(self, ast_node):
         self.module_stack.append(ast_node)
         self.visit_children(ast_node)

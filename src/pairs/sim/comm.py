@@ -16,8 +16,8 @@ class Comm:
         self.sim = sim
         self.dom_part = dom_part
         self.nsend_all      = sim.add_var('nsend_all', Types.Int32)
-        self.send_capacity  = sim.add_var('send_capacity', Types.Int32, 100)
-        self.recv_capacity  = sim.add_var('recv_capacity', Types.Int32, 100)
+        self.send_capacity  = sim.add_var('send_capacity', Types.Int32, 10000)
+        self.recv_capacity  = sim.add_var('recv_capacity', Types.Int32, 10000)
         self.elem_capacity  = sim.add_var('elem_capacity', Types.Int32, 10)
         self.neigh_capacity = sim.add_var('neigh_capacity', Types.Int32, 6)
         self.nsend          = sim.add_array('nsend', [self.neigh_capacity], Types.Int32)
@@ -45,6 +45,7 @@ class Comm:
     def borders(self):
         prop_list = [self.sim.property(p) for p in ['mass', 'position']]
         self.nsend_all.set(0)
+        self.sim.nghost.set(0)
         for step in range(self.dom_part.number_of_steps()):
             DetermineGhostParticles(self, step, self.sim.cell_spacing())
             CommunicateSizes(self, step)
@@ -52,6 +53,7 @@ class Comm:
             PackGhostParticles(self, step, prop_list)
             CommunicateData(self, step, prop_list)
             UnpackGhostParticles(self, step, prop_list)
+            self.sim.nghost.add(sum([self.nrecv[j] for j in self.dom_part.step_indexes(step)]))
 
     @pairs_inline
     def exchange(self):
@@ -257,7 +259,7 @@ class RemoveExchangedParticles_part2(Lowerable):
     @pairs_device_block
     def lower(self):
         self.sim.module_name("remove_exchanged_particles_pt2")
-        for i in ParticleFor(self.sim):
+        for i in For(self.sim, 0, self.comm.nsend_all):
             src = self.comm.exchg_copy_to[i]
             for _ in Filter(self.sim, src > 0):
                 dst = self.comm.send_map[i]
