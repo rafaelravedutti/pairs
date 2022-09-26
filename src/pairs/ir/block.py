@@ -66,6 +66,9 @@ class Block(ASTNode):
         for v in variant if isinstance(variant, list) else [variant]:
             self.variants.add(v)
 
+    def clear(self):
+        self.stmts = []
+
     def statements(self):
         return self.stmts
 
