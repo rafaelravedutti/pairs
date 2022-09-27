@@ -121,21 +121,26 @@ public:
         const real_t *send_buf, const int *send_offsets, const int *nsend,
         real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
+        const real_t *send_prev = &send_buf[send_offsets[dim * 2 + 0] * elem_size];
+        const real_t *send_next = &send_buf[send_offsets[dim * 2 + 1] * elem_size];
+        real_t *recv_prev = &recv_buf[recv_offsets[dim * 2 + 0] * elem_size];
+        real_t *recv_next = &recv_buf[recv_offsets[dim * 2 + 1] * elem_size];
+
         if(prev[dim] != rank) {
-            MPI_Send(&send_buf[send_offsets[dim * 2 + 0]], nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
-            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 0]], nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Send(send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         } else {
             for(int i = 0; i < nsend[dim * 2 + 0] * elem_size; i++) {
-                recv_buf[recv_offsets[dim * 2 + 0] + i] = send_buf[send_offsets[dim * 2 + 0] + i];
+                recv_prev[i] = send_prev[i];
             }
         }
 
         if(next[dim] != rank) {
-            MPI_Send(&send_buf[send_offsets[dim * 2 + 1]], nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
-            MPI_Recv(&recv_buf[recv_offsets[dim * 2 + 1]], nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            MPI_Send(send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
+            MPI_Recv(recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         } else {
             for(int i = 0; i < nsend[dim * 2 + 1] * elem_size; i++) {
-                recv_buf[recv_offsets[dim * 2 + 1] + i] = send_buf[send_offsets[dim * 2 + 1] + i];
+                recv_next[i] = send_next[i];
             }
         }
     }

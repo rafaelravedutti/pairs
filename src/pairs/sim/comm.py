@@ -79,7 +79,7 @@ class CommunicateSizes(Lowerable):
 
     @pairs_inline
     def lower(self):
-        Call_Void(self.sim, "pairs::communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
+        Call_Void(self.sim, "pairs->communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
 
 
 class CommunicateData(Lowerable):
@@ -93,7 +93,7 @@ class CommunicateData(Lowerable):
     @pairs_inline
     def lower(self):
         elem_size = sum([self.sim.ndims() if p.type() == Types.Vector else 1 for p in self.prop_list])
-        Call_Void(self.sim, "pairs::communicateData", [self.step, elem_size,
+        Call_Void(self.sim, "pairs->communicateData", [self.step, elem_size,
                                                        self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
                                                        self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
 

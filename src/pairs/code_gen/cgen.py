@@ -55,7 +55,6 @@ class CGen:
         self.print("#include <stdlib.h>")
         self.print("//---")
         self.print("#include \"runtime/pairs.hpp\"")
-        self.print("#include \"runtime/comm.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
         self.print("#include \"runtime/vtk.hpp\"")
 
@@ -531,8 +530,15 @@ class CGen:
             return f"e{ast_node.id()}"
 
         if isinstance(ast_node, Call):
-            extra_params = [] if ast_node.name() != "pairs::initDomain" else ["&argc", "&argv"]
-            params = ", ".join(["pairs"] + extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
+            extra_params = []
+
+            if ast_node.name().startswith("pairs::"):
+                extra_params += ["pairs"]
+
+            if ast_node.name() == "pairs->initDomain":
+                extra_params += ["&argc", "&argv"]
+
+            params = ", ".join(extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):

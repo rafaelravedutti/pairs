@@ -245,8 +245,8 @@ class Simulation:
         self.capture_statements(False)
         grid_array = [[self.grid.min(d), self.grid.max(d)] for d in range(self.ndims())]
         self.setups.add_statement([
-            Call_Void(self, "pairs::initDomain", [param for delim in grid_array for param in delim]),
-            Call_Void(self, "pairs::fillCommunicationArrays", [dom_part.neighbor_ranks, dom_part.pbc, dom_part.subdom])
+            Call_Void(self, "pairs->initDomain", [param for delim in grid_array for param in delim]),
+            Call_Void(self, "pairs->fillCommunicationArrays", [dom_part.neighbor_ranks, dom_part.pbc, dom_part.subdom])
         ])
 
         self.capture_statements() # TODO: check if this is actually required

@@ -25,7 +25,7 @@
 #   define PAIRS_EXCEPTION(a)
 #endif
 
-#define PAIRS_ERROR(...)    fprintf(stderr, __VA_ARGS__)
+#define PAIRS_ERROR(...)        fprintf(stderr, __VA_ARGS__)
 
 namespace pairs {
 
@@ -514,6 +514,23 @@ public:
             PAIRS_DEBUG("Copying property %s to host\n", prop.getName().c_str());
             pairs::copy_to_host(prop.getDevicePointer(), prop.getHostPointer(), prop.getTotalSize());
         }
+    }
+
+    void communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
+        this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
+        PAIRS_DEBUG("send_sizes=[%d, %d], recv_sizes=[%d, %d]\n", send_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1], recv_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1]);
+    }
+
+    void communicateData(
+        int dim, int elem_size,
+        const real_t *send_buf, const int *send_offsets, const int *nsend,
+        real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
+
+        this->getDomainPartitioner()->communicateData(dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
+    }
+
+    void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]) {
+        this->getDomainPartitioner()->fillArrays(neighbor_ranks, pbc, subdom);
     }
 };
 
