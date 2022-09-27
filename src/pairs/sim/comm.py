@@ -113,8 +113,13 @@ class DetermineGhostParticles(Lowerable):
         nrecv = self.comm.nrecv
         send_map = self.comm.send_map
         send_mult = self.comm.send_mult
-        self.sim.module_name(f"determine_ghost_particles{self.step}")
+        ghost_or_exchg = "exchange" if self.spacing == 0.0 else "ghost" # TODO: module_params(self.spacing)
+        self.sim.module_name(f"determine_{ghost_or_exchg}_particles{self.step}")
         self.sim.check_resize(self.comm.send_capacity, nsend)
+
+        for j in self.comm.dom_part.step_indexes(self.step):
+            nsend[j].set(0)
+            nrecv[j].set(0)
 
         for i, j, _, pbc in self.comm.dom_part.ghost_particles(self.step, self.sim.position(), self.spacing):
             next_idx = AtomicAdd(self.sim, nsend_all, 1)
@@ -123,7 +128,6 @@ class DetermineGhostParticles(Lowerable):
                 send_mult[next_idx][d].set(pbc[d])
 
             nsend[j].add(1)
-            nrecv[j].set(0) # FIXME: when this line is removed, binops with nrecv are lifted to main
 
 
 class SetCommunicationOffsets(Lowerable):
@@ -143,6 +147,11 @@ class SetCommunicationOffsets(Lowerable):
 
         isend = 0
         irecv = 0
+        for i in range(self.step):
+            for j in self.comm.dom_part.step_indexes(i):
+                isend += nsend[j]
+                irecv += nrecv[j]
+
         for j in self.comm.dom_part.step_indexes(self.step):
             send_offsets[j].set(isend)
             recv_offsets[j].set(irecv)
