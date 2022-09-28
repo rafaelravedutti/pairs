@@ -69,7 +69,7 @@ public:
         for(int d = 0; d < ndims; d++) {
             MPI_Cart_shift(cartesian, d, 1, &(this->prev[d]), &(this->next[d]));
             this->pbc_prev[d] = (myloc[d] == 0) ? 1 : 0;
-            this->pbc_next[d] = (myloc[d] == this->nranks[d]) ? -1 : 0;
+            this->pbc_next[d] = (myloc[d] == this->nranks[d] - 1) ? -1 : 0;
             this->subdom_min[d] = this->grid_min[d] + rank_length[d] * (real_t)myloc[d];
             this->subdom_max[d] = this->subdom_min[d] + rank_length[d];
         }
