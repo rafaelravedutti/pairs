@@ -18,7 +18,7 @@ lj_ns.cu:
 # Targets
 lj_cpu: lj_ns.cpp
 #	g++ -o lj_cpu lj_ns.cpp -DDEBUG
-	mpic++ -o lj_cpu lj_ns.cpp -DDEBUG
+	mpic++ -O3 -o lj_cpu lj_ns.cpp -DDEBUG
 
 lj_gpu: lj_ns.cu
 	nvcc -o lj_gpu lj_ns.cu
