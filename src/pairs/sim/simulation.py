@@ -28,7 +28,7 @@ from pairs.transformations import Transformations
 
 
 class Simulation:
-    def __init__(self, code_gen, dims=3, timesteps=100, particle_capacity=10000):
+    def __init__(self, code_gen, dims=3, timesteps=100, particle_capacity=1000000):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.position_prop = None
