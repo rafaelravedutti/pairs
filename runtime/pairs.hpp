@@ -26,6 +26,8 @@
 #endif
 
 #define PAIRS_ERROR(...)        fprintf(stderr, __VA_ARGS__)
+#define MIN(a,b)                ((a) < (b) ? (a) : (b))
+#define MAX(a,b)                ((a) > (b) ? (a) : (b))
 
 namespace pairs {
 
@@ -527,6 +529,56 @@ public:
         real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
         this->getDomainPartitioner()->communicateData(dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
+
+        const int elems_to_print = 5;
+
+        // Send buffer debug
+        for(int i = 0; i < 2; i++) {
+            int nsnd = nsend[dim * 2 + i];
+
+            PAIRS_DEBUG("send_buf=[");
+            for(int j = 0; j < MIN(elems_to_print, nsnd); j++) {
+                for(int k = 0; k < elem_size; k++) {
+                    PAIRS_DEBUG("%f,", send_buf[(send_offsets[dim * 2 + i] + j) * elem_size + k]);
+                }
+            }
+
+            if(elems_to_print * 2 < nsnd) {
+                PAIRS_DEBUG("\b ... ");
+            }
+
+            for(int j = MAX(elems_to_print, nsnd - elems_to_print); j < nsnd; j++) {
+                for(int k = 0; k < elem_size; k++) {
+                    PAIRS_DEBUG("%f,", send_buf[(send_offsets[dim * 2 + i] + j) * elem_size + k]);
+                }
+            }
+
+            PAIRS_DEBUG("\b]\n");
+        }
+
+        // Receive buffer debug
+        for(int i = 0; i < 2; i++) {
+            int nrec = nrecv[dim * 2 + i];
+
+            PAIRS_DEBUG("recv_buf=[");
+            for(int j = 0; j < MIN(elems_to_print, nrec); j++) {
+                for(int k = 0; k < elem_size; k++) {
+                    PAIRS_DEBUG("%f,", recv_buf[(recv_offsets[dim * 2 + i] + j) * elem_size + k]);
+                }
+            }
+
+            if(elems_to_print * 2 < nrec) {
+                PAIRS_DEBUG("\b ... ");
+            }
+
+            for(int j = MAX(elems_to_print, nrec - elems_to_print); j < nrec; j++) {
+                for(int k = 0; k < elem_size; k++) {
+                    PAIRS_DEBUG("%f,", recv_buf[(recv_offsets[dim * 2 + i] + j) * elem_size + k]);
+                }
+            }
+
+            PAIRS_DEBUG("\b]\n");
+        }
     }
 
     void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]) {
