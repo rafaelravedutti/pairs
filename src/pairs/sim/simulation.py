@@ -253,7 +253,6 @@ class Simulation:
 
         timestep = Timestep(self, self.ntimesteps, [
             (comm.exchange(), 20),
-            (EnforcePBC(self), 20),
             (comm.borders(), comm.synchronize(), 20),
             (CellListsBuild(self, self.cell_lists), 20),
             (NeighborListsBuild(self, self.neighbor_lists), 20),

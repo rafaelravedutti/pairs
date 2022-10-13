@@ -263,7 +263,7 @@ class RemoveExchangedParticles_part1(Lowerable):
     @pairs_host_block
     def lower(self):
         self.sim.module_name("remove_exchanged_particles_pt1")
-        send_pos = self.sim.add_temp_var(self.sim.nlocal)
+        send_pos = self.sim.add_temp_var(self.sim.nlocal - 1)
         for i in For(self.sim, 0, self.comm.nsend_all):
             particle_id = self.comm.send_map[i]
             for need_copy in Branch(self.sim, particle_id < self.sim.nlocal - self.comm.nsend_all):
