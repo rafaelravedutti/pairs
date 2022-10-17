@@ -520,7 +520,7 @@ public:
 
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
         this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
-        PAIRS_DEBUG("send_sizes=[%d, %d], recv_sizes=[%d, %d]\n", send_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1], recv_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1]);
+        PAIRS_DEBUG("send_sizes=[%d, %d], recv_sizes=[%d, %d]\n", send_sizes[dim * 2 + 0], send_sizes[dim * 2 + 1], recv_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1]);
     }
 
     void communicateData(
@@ -530,6 +530,8 @@ public:
 
         this->getDomainPartitioner()->communicateData(dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 
+        /*
+        // Debug messages
         const int elems_to_print = 5;
 
         // Send buffer debug
@@ -579,6 +581,7 @@ public:
 
             PAIRS_DEBUG("\b]\n");
         }
+        */
     }
 
     void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]) {

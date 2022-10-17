@@ -11,12 +11,18 @@ namespace pairs {
 template <int ndims>
 void vtk_write_data(PairsSimulation<ndims> *ps, const char *filename, int start, int end, int timestep) {
     std::string output_filename(filename);
-    std::ostringstream filename_oss;
-    filename_oss << filename << "_" << timestep << ".vtk";
-    std::ofstream out_file(filename_oss.str());
     auto masses = ps->getAsFloatProperty(ps->getPropertyByName("mass"));
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));
     const int n = end - start;
+    std::ostringstream filename_oss;
+
+    filename_oss << filename << "_";
+    if(ps->getDomainPartitioner()->getWorldSize() > 1) {
+        filename_oss << "r" << ps->getDomainPartitioner()->getRank() << "_";
+    }
+
+    filename_oss << timestep << ".vtk";
+    std::ofstream out_file(filename_oss.str());
 
     ps->copyPropertyToHost(masses);
     ps->copyPropertyToHost(positions);
