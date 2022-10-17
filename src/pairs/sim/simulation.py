@@ -62,6 +62,7 @@ class Simulation:
         self.iter_id = 0
         self.vtk_file = None
         self._target = None
+        self._dom_part = DimensionRanges(self)
         self.nparticles = self.nlocal + self.nghost
         self.properties.add_capacity(self.particle_capacity)
 
@@ -236,20 +237,12 @@ class Simulation:
     def cell_spacing(self):
         return self.cell_lists.cutoff_radius
 
+    def domain_partitioning(self):
+        return self._dom_part
+
     def generate(self):
         assert self._target is not None, "Target not specified!"
-
-        dom_part = DimensionRanges(self)
-        comm = Comm(self, dom_part)
-
-        self.capture_statements(False)
-        grid_array = [[self.grid.min(d), self.grid.max(d)] for d in range(self.ndims())]
-        self.setups.add_statement([
-            Call_Void(self, "pairs->initDomain", [param for delim in grid_array for param in delim]),
-            Call_Void(self, "pairs->fillCommunicationArrays", [dom_part.neighbor_ranks, dom_part.pbc, dom_part.subdom])
-        ])
-
-        self.capture_statements() # TODO: check if this is actually required
+        comm = Comm(self, self._dom_part)
 
         timestep = Timestep(self, self.ntimesteps, [
             (comm.exchange(), 20),
