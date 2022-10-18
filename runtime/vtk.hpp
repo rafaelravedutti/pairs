@@ -8,8 +8,7 @@
 
 namespace pairs {
 
-template <int ndims>
-void vtk_write_data(PairsSimulation<ndims> *ps, const char *filename, int start, int end, int timestep) {
+void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int end, int timestep) {
     std::string output_filename(filename);
     auto masses = ps->getAsFloatProperty(ps->getPropertyByName("mass"));
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));

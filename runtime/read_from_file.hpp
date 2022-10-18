@@ -4,13 +4,13 @@
 #include <sstream>
 //---
 #include "pairs.hpp"
+#include "pairs_common.hpp"
 
 #pragma once
 
 namespace pairs {
 
-template<int ndims>
-void read_grid_data(PairsSimulation<ndims> *ps, const char *filename, double *grid_buffer) {
+void read_grid_data(PairsSimulation *ps, const char *filename, double *grid_buffer) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
 
@@ -21,7 +21,7 @@ void read_grid_data(PairsSimulation<ndims> *ps, const char *filename, double *gr
         int i = 0;
 
         while(std::getline(line_stream, in0, ',')) {
-            PAIRS_ASSERT(i < ndims * 2);
+            //PAIRS_ASSERT(i < ndims * 2);
             grid_buffer[i] = std::stod(in0);
             i++;
         }
@@ -30,8 +30,7 @@ void read_grid_data(PairsSimulation<ndims> *ps, const char *filename, double *gr
     }
 }
 
-template<int ndims>
-size_t read_particle_data(PairsSimulation<ndims> *ps, const char *filename, const property_t properties[], size_t nprops) {
+size_t read_particle_data(PairsSimulation *ps, const char *filename, const property_t properties[], size_t nprops) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
     size_t n = 0;

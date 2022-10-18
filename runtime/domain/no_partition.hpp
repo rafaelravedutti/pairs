@@ -6,8 +6,7 @@
 
 namespace pairs {
 
-template <int ndims>
-class NoPartitioning : DimensionRanges<ndims> {
+class NoPartitioning : DimensionRanges {
 public:
     void initialize(int *argc, const char **argv) {
         for(int d = 0; d < ndims; d++) {

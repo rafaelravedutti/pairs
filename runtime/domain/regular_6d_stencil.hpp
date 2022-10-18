@@ -1,32 +1,49 @@
+#include "../pairs_common.hpp"
 #include "domain_partitioning.hpp"
 
 #pragma once
 
 #define SMALL   0.00001
 
-typedef double real_t;
-
 namespace pairs {
 
-template <int ndims>
-class Regular6DStencil : public DomainPartitioner<ndims> {
+class Regular6DStencil : public DomainPartitioner {
 private:
     int world_size, rank;
-    int nranks[ndims];
-    int prev[ndims];
-    int next[ndims];
-    int pbc_prev[ndims];
-    int pbc_next[ndims];
-    real_t subdom_min[ndims];
-    real_t subdom_max[ndims];
+    int *nranks;
+    int *prev;
+    int *next;
+    int *pbc_prev;
+    int *pbc_next;
+    real_t *subdom_min;
+    real_t *subdom_max;
 
 public:
     Regular6DStencil(real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) :
-        DomainPartitioner<ndims>(xmin, xmax, ymin, ymax, zmin, zmax) {}
+        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax) {
+
+        nranks = new int[ndims];
+        prev = new int[ndims];
+        next = new int[ndims];
+        pbc_prev = new int[ndims];
+        pbc_next = new int[ndims];
+        subdom_min = new real_t[ndims];
+        subdom_max = new real_t[ndims];
+    }
+
+    ~Regular6DStencil() {
+        delete[] nranks;
+        delete[] prev;
+        delete[] next;
+        delete[] pbc_prev;
+        delete[] pbc_next;
+        delete[] subdom_min;
+        delete[] subdom_max;
+    }
 
     void setConfig() {
-        static_assert(ndims == 3, "setConfig() only implemented for three dimensions!");
-        real_t area[ndims];
+        PAIRS_ASSERT(ndims == 3);
+        real_t area[3];
         real_t best_surf = 0.0;
         int d = 0;
 
@@ -60,9 +77,9 @@ public:
 
     void setBoundingBox() {
         MPI_Comm cartesian;
-        int myloc[ndims];
-        int periods[ndims];
-        real_t rank_length[ndims];
+        int *myloc = new int[ndims];
+        int *periods = new int[ndims];
+        real_t *rank_length = new real_t[ndims];
         int reorder = 0;
 
         for(int d = 0; d < ndims; d++) {
@@ -80,6 +97,9 @@ public:
             subdom_max[d] = subdom_min[d] + rank_length[d];
         }
 
+        delete[] myloc;
+        delete[] periods;
+        delete[] rank_length;
         MPI_Comm_free(&cartesian);
     }
 
@@ -103,7 +123,7 @@ public:
                z >= subdom_min[2] && z < subdom_max[2] - SMALL;
     }
 
-    void fillArrays(int neighbor_ranks[], int pbc[], real_t subdom[]) {
+    void fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {
         for(int d = 0; d < ndims; d++) {
             neighbor_ranks[d * 2 + 0] = prev[d];
             neighbor_ranks[d * 2 + 1] = next[d];

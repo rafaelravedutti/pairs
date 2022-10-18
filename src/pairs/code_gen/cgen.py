@@ -58,10 +58,10 @@ class CGen:
         self.print("#include \"runtime/read_from_file.hpp\"")
         self.print("#include \"runtime/vtk.hpp\"")
 
-        if self.target.is_gpu():
-            self.print("#include \"runtime/devices/cuda.hpp\"")
-        else:
-            self.print("#include \"runtime/devices/dummy.hpp\"")
+        #if self.target.is_gpu():
+        #    self.print("#include \"runtime/devices/cuda.hpp\"")
+        #else:
+        #    self.print("#include \"runtime/devices/dummy.hpp\"")
 
         self.print("")
         self.print("using namespace pairs;")
@@ -91,7 +91,7 @@ class CGen:
             nprops = module.sim.properties.nprops()
             narrays = module.sim.arrays.narrays()
             self.print("int main(int argc, char **argv) {")
-            self.print(f"    PairsSimulation<{ndims}> *pairs = new PairsSimulation<{ndims}>({nprops}, {narrays}, DimRanges);")
+            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {narrays}, DimRanges);")
             self.generate_statement(module.block)
             self.print("    return 0;")
             self.print("}")
