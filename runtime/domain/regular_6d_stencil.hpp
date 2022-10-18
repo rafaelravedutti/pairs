@@ -2,6 +2,8 @@
 
 #pragma once
 
+#define SMALL   0.00001
+
 typedef double real_t;
 
 namespace pairs {
@@ -96,9 +98,9 @@ public:
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }
     int isWithinSubdomain(real_t x, real_t y, real_t z) {
-        return x > subdom_min[0] && x < subdom_max[0] &&
-               y > subdom_min[1] && y < subdom_max[1] &&
-               z > subdom_min[2] && z < subdom_max[2];
+        return x >= subdom_min[0] && x < subdom_max[0] - SMALL &&
+               y >= subdom_min[1] && y < subdom_max[1] - SMALL &&
+               z >= subdom_min[2] && z < subdom_max[2] - SMALL;
     }
 
     void fillArrays(int neighbor_ranks[], int pbc[], real_t subdom[]) {
