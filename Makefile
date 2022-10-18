@@ -18,11 +18,13 @@ lj_ns.cu:
 # Targets
 lj_cpu: lj_ns.cpp
 #	g++ -o lj_cpu lj_ns.cpp -DDEBUG
-	mpic++ -O3 -o lj_cpu lj_ns.cpp runtime/pairs.cpp runtime/devices/dummy.cpp -DDEBUG
+	mpic++ -O3 -o lj_cpu lj_ns.cpp runtime/pairs.cpp runtime/domain/regular_6d_stencil.cpp runtime/devices/dummy.cpp -DDEBUG
 
 lj_gpu: lj_ns.cu
-	nvcc -o lj_gpu lj_ns.cu
+	mpic++ -c -o pairs.o runtime/pairs.cpp -DDEBUG
+	mpic++ -c -o regular_6d_stencil.o runtime/domain/regular_6d_stencil.cpp -DDEBUG
+	nvcc -o lj_gpu runtime/devices/cuda.cu runtime.o regular_6d_stencil.o lj_ns.cu
 
 clean:
 	@echo "Cleaning..."
-	rm -rf build lj_cpu lj_gpu lj_ns.cpp lj_ns.cu dist pairs.egg-info functions functions.pdf
+	rm -rf build lj_cpu lj_gpu lj_ns.cpp lj_ns.cu dist pairs.egg-info functions functions.pdf pairs.o regular_6d_stencil.o

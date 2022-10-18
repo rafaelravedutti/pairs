@@ -1,8 +1,6 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-#pragma once
-
 #define CUDA_ASSERT(a) { pairs::cuda_assert((a), __FILE__, __LINE__); }
 
 namespace pairs {

@@ -1,5 +1,3 @@
-#include <mpi.h>
-//---
 #include "../pairs_common.hpp"
 
 #pragma once
