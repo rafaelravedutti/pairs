@@ -44,6 +44,7 @@ class For(ASTNode):
         self.min = Lit.cvt(sim, range_min)
         self.max = Lit.cvt(sim, range_max)
         self.block = Block(sim, []) if block is None else block
+        self.kernel = None
 
     def __str__(self):
         return f"For<{self.iterator}, {self.min} ... {self.max}>"

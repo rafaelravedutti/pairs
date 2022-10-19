@@ -582,11 +582,7 @@ class CGen:
                 index_g = self.generate_expression(index_expr)
                 return f"{prop_name}[{index_g}]"
 
-            acc_ref = f"p{ast_node.id()}"
-            if ast_node.is_vector_kind():
-                acc_ref += f"_{index}"
-
-            return acc_ref
+            return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
 
         if isinstance(ast_node, PropertyList):
             tid = CGen.temp_id

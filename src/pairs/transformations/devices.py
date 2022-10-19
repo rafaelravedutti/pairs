@@ -72,10 +72,13 @@ class AddDeviceKernels(Mutator):
             for s in ast_node._block.stmts:
                 if s is not None:
                     if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
-                        kernel_block = Filter(ast_node.sim, BinOp.inline(s.iterator < s.max), s.block)
-                        kernel = Kernel(ast_node.sim, f"{ast_node.name}_kernel{kernel_id}", kernel_block, s.iterator)
-                        new_stmts.append(KernelLaunch(ast_node.sim, kernel, s.iterator, s.min, s.max))
-                        kernel_id += 1
+                        if s.kernel is None:
+                            s.kernel = Kernel(ast_node.sim, f"{ast_node.name}_kernel{kernel_id}",
+                                              Filter(ast_node.sim, BinOp.inline(s.iterator < s.max), s.block), s.iterator)
+                            kernel_id += 1
+
+                        new_stmts.append(KernelLaunch(ast_node.sim, s.kernel, s.iterator, s.min, s.max))
+
                     else:
                         new_stmts.append(s)
 
