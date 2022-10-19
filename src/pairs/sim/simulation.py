@@ -89,6 +89,11 @@ class Simulation:
     def kernels(self):
         return self.kernel_list
 
+    def find_kernel_by_name(self, name):
+        matches = [k for k in self.kernel_list if k.name == name]
+        assert len(matches) < 2, "find_kernel_by_name(): More than one match for kernel name!"
+        return matches[0] if len(matches) == 1 else None
+
     def ndims(self):
         return self.dims
 
