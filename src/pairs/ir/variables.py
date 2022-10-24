@@ -99,3 +99,6 @@ class Deref(ASTTerm):
 
     def type(self):
         return self._var.type()
+
+    def children(self):
+        return [self._var]
