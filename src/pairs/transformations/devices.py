@@ -116,6 +116,9 @@ class AddHostReferencesToModules(Mutator):
 
         return ast_node
 
+    def mutate_Decl(self, ast_node):
+        return ast_node
+
     def mutate_HostRef(self, ast_node):
         return ast_node
 

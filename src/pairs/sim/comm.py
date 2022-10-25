@@ -199,7 +199,7 @@ class PackGhostParticles(Lowerable):
 
         step_indexes = self.comm.dom_part.step_indexes(self.step)
         start = self.comm.send_offsets[step_indexes[0]]
-        for i in For(self.sim, start, start + sum([self.comm.nsend[j] for j in step_indexes])):
+        for i in For(self.sim, start, BinOp.inline(start + sum([self.comm.nsend[j] for j in step_indexes]))):
             p_offset = 0
             m = send_map[i]
             for p in self.prop_list:
@@ -239,7 +239,7 @@ class UnpackGhostParticles(Lowerable):
 
         step_indexes = self.comm.dom_part.step_indexes(self.step)
         start = self.comm.recv_offsets[step_indexes[0]]
-        for i in For(self.sim, start, start + sum([self.comm.nrecv[j] for j in step_indexes])):
+        for i in For(self.sim, start, BinOp.inline(start + sum([self.comm.nrecv[j] for j in step_indexes]))):
             p_offset = 0
             for p in self.prop_list:
                 if p.type() == Types.Vector:
