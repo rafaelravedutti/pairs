@@ -41,15 +41,4 @@ __host__ void copy_static_symbol_to_host(void *d_ptr, const void *h_ptr, size_t 
     //CUDA_ASSERT(cudaMemcpyFromSymbol(h_ptr, d_ptr, count));
 }
 
-__device__ int atomic_add(int *addr, int val) { return atomicAdd(addr, val); }
-__device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
-    const int add_res = *addr + val;
-    if(add_res >= capacity) {
-        *resize = add_res;
-        return *addr;
-    }
-
-    return atomic_add(addr, val);
-}
-
 }
