@@ -29,4 +29,4 @@ lj_gpu: lj_ns.cu
 
 clean:
 	@echo "Cleaning..."
-	rm -rf build lj_cpu lj_gpu lj_ns.cpp lj_ns.cu dist pairs.egg-info functions functions.pdf pairs.o regular_6d_stencil.o
+	rm -rf build lj_cpu lj_gpu lj_ns.cpp lj_ns.cu dist pairs.egg-info functions functions.pdf pairs.o regular_6d_stencil.o cuda_runtime.o
