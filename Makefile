@@ -23,7 +23,9 @@ lj_cpu: lj_ns.cpp
 lj_gpu: lj_ns.cu
 	mpic++ -c -o pairs.o runtime/pairs.cpp -DDEBUG
 	mpic++ -c -o regular_6d_stencil.o runtime/domain/regular_6d_stencil.cpp -DDEBUG
-	nvcc -o lj_gpu runtime/devices/cuda.cu runtime.o regular_6d_stencil.o lj_ns.cu
+	nvcc -c -o cuda_runtime.o runtime/devices/cuda.cu -DDEBUG
+	nvcc -c -o lj_gpu.o lj_ns.cu -DDEBUG
+	mpic++ -o lj_gpu lj_gpu.o cuda_runtime.o pairs.o regular_6d_stencil.o -lcudart -L/usr/local/cuda/lib64
 
 clean:
 	@echo "Cleaning..."
