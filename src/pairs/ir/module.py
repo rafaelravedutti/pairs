@@ -46,6 +46,9 @@ class Module(ASTNode):
     def variables(self):
         return self._variables
 
+    def variables_to_synchronize(self):
+        return {v for v in self._variables if 'w' in self._variables[v] and v.device_flag}
+
     def read_only_variables(self):
         return [v for v in self._variables if 'w' not in self._variables[v]]
 

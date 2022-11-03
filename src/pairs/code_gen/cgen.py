@@ -6,7 +6,7 @@ from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
-from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, SetArrayFlag, SetPropertyFlag, HostRef
+from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.functions import Call
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
@@ -296,6 +296,14 @@ class CGen:
             else:
                 self.print(f"pairs->copyPropertyToHost({prop_id}); // {prop_name}")
 
+        if isinstance(ast_node, CopyVar):
+            var_name = ast_node.variable.name()
+
+            if ast_node.context() == Contexts.Device:
+                self.print(f"rv_{var_name}->copyToDevice();")
+            else:
+                self.print(f"rv_{var_name}->copyToHost();")
+
         if isinstance(ast_node, ClearArrayFlag):
             array_id = ast_node.array.id()
             array_name = ast_node.array.name()
@@ -493,6 +501,10 @@ class CGen:
         if isinstance(ast_node, VarDecl):
             tkw = Types.c_keyword(ast_node.var.type())
             self.print(f"{tkw} {ast_node.var.name()} = {ast_node.var.init_value()};")
+
+            if self.target.is_gpu() and ast_node.var.device_flag:
+                self.print(f"RuntimeVar *rv_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
+                #self.print(f"{tkw} *d_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
 
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)

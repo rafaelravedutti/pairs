@@ -5,7 +5,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
-from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, SetArrayFlag, SetPropertyFlag, HostRef
+from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For
@@ -50,10 +50,19 @@ class AddDeviceCopies(Mutator):
                     if self.module_resizes[s.module] and s.module.run_on_device:
                         new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Device)]
 
+                    if s.module.run_on_device:
+                        for v in s.module.variables_to_synchronize():
+                            new_stmts += [CopyVar(s.sim, v, Contexts.Device)]
+
                 new_stmts.append(s)
 
-                if isinstance(s, ModuleCall) and self.module_resizes[s.module] and s.module.run_on_device:
-                    new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host)]
+                if isinstance(s, ModuleCall):
+                    if s.module.run_on_device:
+                        for v in s.module.variables_to_synchronize():
+                            new_stmts += [CopyVar(s.sim, v, Contexts.Host)]
+
+                        if self.module_resizes[s.module]:
+                            new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host)]
 
         ast_node.stmts = new_stmts
         return ast_node

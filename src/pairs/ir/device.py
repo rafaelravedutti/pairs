@@ -46,6 +46,20 @@ class CopyProperty(ASTNode):
         return [self.prop]
 
 
+class CopyVar(ASTNode):
+    def __init__(self, sim, variable, ctx):
+        super().__init__(sim)
+        self.variable = variable
+        self.ctx = ctx
+        self.sim.add_statement(self)
+
+    def context(self):
+        return self.ctx
+
+    def children(self):
+        return [self.variable]
+
+
 class ClearArrayFlag(ASTNode):
     def __init__(self, sim, array, ctx):
         super().__init__(sim)

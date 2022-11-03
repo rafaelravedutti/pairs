@@ -86,3 +86,7 @@ class FetchKernelReferences(Visitor):
     def visit_Var(self, ast_node):
         for k in self.kernel_stack:
             k.add_variable(ast_node, self.writing)
+
+            # Variables only have a device version when changed within kernels
+            if self.writing:
+                ast_node.device_flag = True

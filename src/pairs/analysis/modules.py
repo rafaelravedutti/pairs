@@ -64,5 +64,3 @@ class FetchModulesReferences(Visitor):
         for m in self.module_stack:
             if not ast_node.temporary():
                 m.add_variable(ast_node, self.writing)
-                if m.run_on_device:
-                    ast_node.device_flag = True
