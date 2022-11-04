@@ -392,7 +392,11 @@ class CGen:
 
             threads_per_block = self.generate_expression(ast_node.threads_per_block)
             nblocks = self.generate_expression(ast_node.nblocks)
+            self.print(f"if({nblocks} > 0 && {threads_per_block} > 0) {{")
+            self.print.add_indent(4)
             self.print(f"{kernel.name}<<<{nblocks}, {threads_per_block}>>>({kernel_params});")
+            self.print.add_indent(-4)
+            self.print("}")
 
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module
