@@ -300,9 +300,9 @@ class CGen:
             var_name = ast_node.variable.name()
 
             if ast_node.context() == Contexts.Device:
-                self.print(f"rv_{var_name}->copyToDevice();")
+                self.print(f"rv_{var_name}.copyToDevice();")
             else:
-                self.print(f"rv_{var_name}->copyToHost();")
+                self.print(f"rv_{var_name}.copyToHost();")
 
         if isinstance(ast_node, ClearArrayFlag):
             array_id = ast_node.array.id()
