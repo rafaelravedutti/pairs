@@ -404,7 +404,7 @@ class CGen:
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for var in module.write_variables():
-                decl = f"&{var.name()}"
+                decl = f"rv_{var.name()}.getDevicePointer()" if device_cond and var.device_flag else f"&{var.name()}"
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
 
             for array in module.arrays():
