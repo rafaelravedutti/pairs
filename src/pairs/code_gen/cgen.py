@@ -503,7 +503,7 @@ class CGen:
             self.print(f"{tkw} {ast_node.var.name()} = {ast_node.var.init_value()};")
 
             if self.target.is_gpu() and ast_node.var.device_flag:
-                self.print(f"RuntimeVar *rv_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
+                self.print(f"RuntimeVar<{tkw}> rv_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
                 #self.print(f"{tkw} *d_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
 
         if isinstance(ast_node, While):

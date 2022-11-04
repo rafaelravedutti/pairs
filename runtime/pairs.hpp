@@ -7,6 +7,7 @@
 #include "device_flags.hpp"
 #include "pairs_common.hpp"
 #include "property.hpp"
+#include "runtime_var.hpp"
 #include "vector3.hpp"
 #include "devices/device.hpp"
 #include "domain/regular_6d_stencil.hpp"
@@ -39,6 +40,11 @@ public:
 
     void initDomain(int *argc, char ***argv, real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
     Regular6DStencil *getDomainPartitioner() { return dom_part; }
+
+    template<typename T>
+    RuntimeVar<T> addDeviceVariable(T *h_ptr) {
+       return RuntimeVar<T>(h_ptr); 
+    }
 
     template<typename T_ptr> void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size);
     template<typename T_ptr> void addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size);

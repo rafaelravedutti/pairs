@@ -25,6 +25,10 @@ __host__ void *device_realloc(void *ptr, size_t size) {
     return new_ptr;
 }
 
+__host__ void device_free(void *ptr) {
+    CUDA_ASSERT(cudaFree(ptr));
+}
+
 __host__ void copy_to_device(const void *h_ptr, void *d_ptr, size_t count) {
     CUDA_ASSERT(cudaMemcpy(d_ptr, h_ptr, count, cudaMemcpyHostToDevice));
 }
