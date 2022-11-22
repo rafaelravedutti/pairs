@@ -84,7 +84,7 @@ class AddDeviceKernels(Mutator):
                         kernel_name = f"{ast_node.name}_kernel{kernel_id}"
                         kernel = ast_node.sim.find_kernel_by_name(kernel_name)
                         if kernel is None:
-                            kernel_body = Filter(ast_node.sim, BinOp.inline(s.iterator < s.max), s.block)
+                            kernel_body = Filter(ast_node.sim, BinOp.inline(s.iterator < s.max.copy()), s.block)
                             kernel = Kernel(ast_node.sim, kernel_name, kernel_body, s.iterator)
                             kernel_id += 1
 
@@ -144,6 +144,8 @@ class AddHostReferencesToModules(Mutator):
         return ast_node
 
     def mutate_KernelLaunch(self, ast_node):
+        ast_node._threads_per_block = self.mutate(ast_node._threads_per_block)
+        ast_node._nblocks = self.mutate(ast_node._nblocks)
         return ast_node
 
     def mutate_Property(self, ast_node):

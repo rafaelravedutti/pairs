@@ -9,7 +9,6 @@ class HostRef(ASTNode):
     def __init__(self, sim, elem):
         super().__init__(sim)
         self.elem = elem
-        self.sim.add_statement(self)
 
     def type(self):
         return self.elem.type()

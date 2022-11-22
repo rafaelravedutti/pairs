@@ -133,11 +133,11 @@ class ArrayAccess(ASTTerm):
         ArrayAccess.last_acc += 1
         return ArrayAccess.last_acc - 1
 
-    def __init__(self, sim, array, index):
+    def __init__(self, sim, array, indexes):
         super().__init__(sim)
         self.acc_id = ArrayAccess.new_id()
         self.array = array
-        self.partial_indexes = [Lit.cvt(sim, index)]
+        self.partial_indexes = indexes if isinstance(indexes, list) else [Lit.cvt(sim, indexes)]
         self.flat_index = None
         self.inlined = False
         self.terminals = set()
@@ -155,6 +155,9 @@ class ArrayAccess(ASTTerm):
     def inline_rec(self):
         self.inlined = True
         return self
+
+    def copy(self):
+        return ArrayAccess(self.sim, self.array, self.partial_indexes)
 
     def check_and_set_flat_index(self):
         if len(self.partial_indexes) == self.array.ndims():

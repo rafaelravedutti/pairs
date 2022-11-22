@@ -43,5 +43,8 @@ class Lit(ASTNode):
     def __req__(self, other):
         return self.__cmp__(other)
 
+    def copy(self):
+        return Lit(self.sim, self.value)
+
     def type(self):
         return self.lit_type

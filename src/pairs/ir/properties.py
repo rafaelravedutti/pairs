@@ -109,6 +109,9 @@ class PropertyAccess(ASTTerm, VectorExpression):
     def __str__(self):
         return f"PropertyAccess<{self.prop}, {self.index}>"
 
+    def copy(self):
+        return PropertyAccess(self.sim, self.prop, self.index)
+
     def vector_index(self, v_index):
         sizes = self.prop.sizes()
         layout = self.prop.layout()

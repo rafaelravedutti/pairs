@@ -50,6 +50,10 @@ class Var(ASTTerm):
     def __str__(self):
         return f"Var<{self.var_name}>"
 
+    def copy(self):
+        # Terminal copies are just themselves
+        return self
+
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
 

@@ -54,6 +54,9 @@ class BinOp(VectorExpression):
         b = self.rhs.id() if isinstance(self.rhs, BinOp) else self.rhs
         return f"BinOp<{a} {self.op} {b}>"
 
+    def copy(self):
+        return BinOp(self.sim, self.lhs.copy(), self.rhs.copy(), self.op, self.mem)
+
     def match(self, bin_op):
         return self.lhs == bin_op.lhs and self.rhs == bin_op.rhs and self.op == bin_op.operator()
 
