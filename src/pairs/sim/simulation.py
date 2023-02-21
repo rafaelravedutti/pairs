@@ -9,7 +9,7 @@ from pairs.ir.properties import Properties
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
 from pairs.ir.variables import Variables
-from pairs.graph.graphviz import ASTGraph
+#from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
 from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
@@ -284,5 +284,5 @@ class Simulation:
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False
 
-        ASTGraph(self.functions, "functions").render()
+        #ASTGraph(self.functions, "functions").render()
         self.code_gen.generate_program(program)
