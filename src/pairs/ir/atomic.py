@@ -16,6 +16,7 @@ class AtomicAdd(ASTTerm):
         self.value = Lit.cvt(sim, value)
         self.resize = None
         self.capacity = None
+        self.device_flag = False
 
     def __str__(self):
         return f"AtomicAdd<{self.elem, self.val}>"

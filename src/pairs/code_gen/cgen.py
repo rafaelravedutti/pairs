@@ -255,13 +255,14 @@ class CGen:
                 value = self.generate_expression(atomic_add.value)
                 tkw = Types.c_keyword(atomic_add.type())
                 acc_ref = f"atm_add{atomic_add.id()}"
+                prefix = "" if ast_node.elem.device_flag else "host_"
 
                 if atomic_add.check_for_resize():
                     resize = self.generate_expression(atomic_add.resize)
                     capacity = self.generate_expression(atomic_add.capacity)
-                    self.print(f"const {tkw} {acc_ref} = pairs::atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
+                    self.print(f"const {tkw} {acc_ref} = pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
                 else:
-                    self.print(f"const {tkw} {acc_ref} = pairs::atomic_add(&({elem}), {value});")
+                    self.print(f"const {tkw} {acc_ref} = pairs::{prefix}atomic_add(&({elem}), {value});")
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)

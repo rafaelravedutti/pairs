@@ -29,6 +29,10 @@ class FetchModulesReferences(Visitor):
         self.writing = False
         self.visit(ast_node.value)
 
+        for m in self.module_stack:
+            if m.run_on_device:
+                ast_node.device_flag = True
+
         if ast_node.resize is not None:
             self.visit(ast_node.resize)
             self.visit(ast_node.capacity)
