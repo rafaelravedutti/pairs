@@ -97,34 +97,34 @@ class CGen:
             self.print("}")
 
         else:
-            module_params = ""
+            module_params = "PairsSimulation *pairs"
             for var in module.read_only_variables():
                 type_kw = Types.c_keyword(var.type())
                 decl = f"{type_kw} {var.name()}"
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
+                module_params += f", {decl}"
 
             for var in module.write_variables():
                 type_kw = Types.c_keyword(var.type())
                 decl = f"{type_kw} *{var.name()}"
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
+                module_params += f", {decl}"
 
             for array in module.arrays():
                 type_kw = Types.c_keyword(array.type())
                 decl = f"{type_kw} *{array.name()}"
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
+                module_params += f", {decl}"
 
                 if array in module.host_references():
                     decl = f"{type_kw} *h_{array.name()}"
-                    module_params += decl if len(module_params) <= 0 else f", {decl}"
+                    module_params += f", {decl}"
 
             for prop in module.properties():
                 type_kw = Types.c_keyword(prop.type())
                 decl = f"{type_kw} *{prop.name()}"
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
+                module_params += f", {decl}"
 
                 if prop in module.host_references():
                     decl = f"{type_kw} *h_{prop.name()}"
-                    module_params += decl if len(module_params) <= 0 else f", {decl}"
+                    module_params += f", {decl}"
 
             self.print(f"void {module.name}({module_params}) {{")
 
@@ -396,35 +396,36 @@ class CGen:
             self.print(f"if({nblocks} > 0 && {threads_per_block} > 0) {{")
             self.print.add_indent(4)
             self.print(f"{kernel.name}<<<{nblocks}, {threads_per_block}>>>({kernel_params});")
+            self.print("pairs->sync();")
             self.print.add_indent(-4)
             self.print("}")
 
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module
-            module_params = ""
+            module_params = "pairs"
             device_cond = module.run_on_device and self.target.is_gpu()
 
             for var in module.read_only_variables():
                 decl = var.name()
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
+                module_params += f", {decl}"
 
             for var in module.write_variables():
                 decl = f"rv_{var.name()}.getDevicePointer()" if device_cond and var.device_flag else f"&{var.name()}"
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
+                module_params += f", {decl}"
 
             for array in module.arrays():
                 decl = f"d_{array.name()}" if device_cond else array.name()
                 module_params += decl if len(module_params) <= 0 else f", {decl}"
                 if array in module.host_references():
                     decl = array.name()
-                    module_params += decl if len(module_params) <= 0 else f", {decl}"
+                    module_params += f", {decl}"
 
             for prop in module.properties():
                 decl = f"d_{prop.name()}" if device_cond else prop.name()
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
+                module_params += f", {decl}"
                 if prop in module.host_references():
                     decl = prop.name()
-                    module_params += decl if len(module_params) <= 0 else f", {decl}"
+                    module_params += f", {decl}"
 
             self.print(f"{module.name}({module_params});")
 

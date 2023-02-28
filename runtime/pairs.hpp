@@ -112,6 +112,7 @@ public:
         real_t *recv_buf, const int *recv_offsets, const int *nrecv);
 
     void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]);
+    void sync() { device_synchronize(); }
 };
 
 template<typename T_ptr>
