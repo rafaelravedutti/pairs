@@ -115,6 +115,7 @@ class DetermineGhostParticles(Lowerable):
         self.spacing = spacing
         self.sim.add_statement(self)
 
+    #@pairs_host_block
     @pairs_device_block
     def lower(self):
         nsend_all = self.comm.nsend_all
@@ -189,6 +190,7 @@ class PackGhostParticles(Lowerable):
     def get_elems_per_particle(self):
         return sum([self.sim.ndims() if p.type() == Types.Vector else 1 for p in self.prop_list])
 
+    #@pairs_host_block
     @pairs_device_block
     def lower(self):
         send_buffer = self.comm.send_buffer
@@ -230,6 +232,7 @@ class UnpackGhostParticles(Lowerable):
     def get_elems_per_particle(self):
         return sum([self.sim.ndims() if p.type() == Types.Vector else 1 for p in self.prop_list])
 
+    #@pairs_host_block
     @pairs_device_block
     def lower(self):
         nlocal = self.sim.nlocal
@@ -285,6 +288,7 @@ class RemoveExchangedParticles_part2(Lowerable):
         self.prop_list = prop_list
         self.sim.add_statement(self)
 
+    #@pairs_host_block
     @pairs_device_block
     def lower(self):
         self.sim.module_name("remove_exchanged_particles_pt2")

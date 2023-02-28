@@ -40,6 +40,12 @@ Array &PairsSimulation::getArrayByName(std::string name) {
     return *a;
 }
 
+Array &PairsSimulation::getArrayByHostPointer(const void *h_ptr) {
+    auto a = std::find_if(arrays.begin(), arrays.end(), [h_ptr](Array a) { return a.getHostPointer() == h_ptr; });
+    PAIRS_ASSERT(a != std::end(arrays));
+    return *a;
+}
+
 void PairsSimulation::addProperty(Property prop) {
     int id = prop.getId();
     auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
@@ -100,6 +106,14 @@ void PairsSimulation::copyPropertyToHost(Property &prop) {
 }
 
 void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
+    auto nsend_id = getArrayByHostPointer(send_sizes).getId();
+    auto nrecv_id = getArrayByHostPointer(recv_sizes).getId();
+
+    copyArrayToHost(nsend_id);
+    array_flags->setHostFlag(nsend_id);
+    array_flags->clearDeviceFlag(nsend_id);
+    array_flags->setHostFlag(nrecv_id);
+    array_flags->clearDeviceFlag(nrecv_id);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
     PAIRS_DEBUG("send_sizes=[%d, %d], recv_sizes=[%d, %d]\n", send_sizes[dim * 2 + 0], send_sizes[dim * 2 + 1], recv_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1]);
 }
@@ -109,6 +123,9 @@ void PairsSimulation::communicateData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
+    auto recv_buf_id = getArrayByHostPointer(recv_buf).getId();
+    array_flags->setHostFlag(recv_buf_id);
+    array_flags->clearDeviceFlag(recv_buf_id);
     this->getDomainPartitioner()->communicateData(dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 
     /*

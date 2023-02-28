@@ -57,6 +57,7 @@ public:
 
     Array &getArray(array_t id);
     Array &getArrayByName(std::string name);
+    Array &getArrayByHostPointer(const void *h_ptr);
 
     template<typename T_ptr> void addProperty(
         property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy = 1);

@@ -65,13 +65,15 @@ class Module(ASTNode):
         return self._host_references
 
     def properties_to_synchronize(self):
-        return {p for p in self._properties if self._properties[p][0] == 'r'}
+        #return {p for p in self._properties if self._properties[p][0] == 'r'}
+        return {p for p in self._properties}
 
     def write_properties(self):
         return {p for p in self._properties if 'w' in self._properties[p]}
 
     def arrays_to_synchronize(self):
-        return {a for a in self._arrays if a.sync() and self._arrays[a][0] == 'r'}
+        #return {a for a in self._arrays if a.sync() and self._arrays[a][0] == 'r'}
+        return {a for a in self._arrays if a.sync()}
 
     def write_arrays(self):
         return {a for a in self._arrays if a.sync() and 'w' in self._arrays[a]}
