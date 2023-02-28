@@ -110,8 +110,6 @@ void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv
     auto nrecv_id = getArrayByHostPointer(recv_sizes).getId();
 
     copyArrayToHost(nsend_id);
-    array_flags->setHostFlag(nsend_id);
-    array_flags->clearDeviceFlag(nsend_id);
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
@@ -123,7 +121,18 @@ void PairsSimulation::communicateData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
+    auto send_buf_id = getArrayByHostPointer(send_buf).getId();
     auto recv_buf_id = getArrayByHostPointer(recv_buf).getId();
+    auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
+    auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
+    auto nsend_id = getArrayByHostPointer(nsend).getId();
+    auto nrecv_id = getArrayByHostPointer(nrecv).getId();
+
+    copyArrayToHost(send_buf_id);
+    copyArrayToHost(send_offsets_id);
+    copyArrayToHost(recv_offsets_id);
+    copyArrayToHost(nsend_id);
+    copyArrayToHost(nrecv_id);
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     this->getDomainPartitioner()->communicateData(dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);

@@ -115,8 +115,8 @@ class DetermineGhostParticles(Lowerable):
         self.spacing = spacing
         self.sim.add_statement(self)
 
-    #@pairs_host_block
-    @pairs_device_block
+    @pairs_host_block
+    #@pairs_device_block
     def lower(self):
         nsend_all = self.comm.nsend_all
         nsend = self.comm.nsend
@@ -128,6 +128,7 @@ class DetermineGhostParticles(Lowerable):
         ghost_or_exchg = "exchange" if is_exchange else "ghost"
         self.sim.module_name(f"determine_{ghost_or_exchg}_particles{self.step}")
         self.sim.check_resize(self.comm.send_capacity, nsend)
+        #self.sim.check_resize(self.comm.send_capacity, nsend_all)
 
         for j in self.comm.dom_part.step_indexes(self.step):
             nsend[j].set(0)
