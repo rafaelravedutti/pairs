@@ -3,8 +3,8 @@
 PYCMD=python3
 CC=mpicxx
 NVCC=nvcc
-NVCC_PATH = "$(shell which ${NVCC})"
-CUDA_BIN_PATH = "$(shell dirname ${NVCC_PATH})"
+NVCC_PATH:="$(shell which ${NVCC})"
+CUDA_BIN_PATH:="$(shell dirname ${NVCC_PATH})"
 CUDA_PATH:="$(shell dirname ${CUDA_BIN_PATH})"
 
 all: clean build lj_cpu lj_gpu
