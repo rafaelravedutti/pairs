@@ -3,7 +3,9 @@
 PYCMD=python3
 CC=mpicxx
 NVCC=nvcc
-CUDA_PATH=/apps/SPACK/0.18.0/opt/linux-almalinux8-zen/gcc-8.5.0/cuda-11.6.2-mlkhyhqwqk7cyltlmvw7n4ofdui5ocup
+NVCC_PATH = "$(shell which ${NVCC})"
+CUDA_BIN_PATH = "$(shell dirname ${NVCC_PATH})"
+CUDA_PATH:="$(shell dirname ${CUDA_BIN_PATH})"
 
 all: clean build lj_cpu lj_gpu
 	@echo "Everything was done!"
