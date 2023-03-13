@@ -93,6 +93,7 @@ class CGen:
             self.print("int main(int argc, char **argv) {")
             self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {narrays}, DimRanges);")
             self.generate_statement(module.block)
+            self.print("    delete pairs;")
             self.print("    return 0;")
             self.print("}")
 
