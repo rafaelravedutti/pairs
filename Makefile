@@ -16,11 +16,11 @@ build:
 
 lj_ns.cpp:
 	@echo "Generating and compiling Lennard-Jones example for CPU..."
-	$(PYCMD) examples/lj_func.py cpu
+	$(PYCMD) examples/lj.py cpu
 
 lj_ns.cu:
 	@echo "Generating and compiling Lennard-Jones example for GPU..."
-	$(PYCMD) examples/lj_func.py gpu
+	$(PYCMD) examples/lj.py gpu
 
 # Targets
 lj_cpu: lj_ns.cpp
