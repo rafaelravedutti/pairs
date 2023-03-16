@@ -97,18 +97,25 @@ class Simulation:
     def ndims(self):
         return self.dims
 
-    def add_real_property(self, prop_name, value=0.0, vol=False):
+    def add_property(self, prop_name, prop_type, value=0.0, vol=False):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, Types.Double, value, vol)
+        return self.properties.add(prop_name, prop_type, value, vol)
 
     def add_position(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layouts.AoS):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
         self.position_prop = self.properties.add(prop_name, Types.Vector, value, vol, layout)
         return self.position_prop
 
-    def add_vector_property(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layouts.AoS):
-        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, Types.Vector, value, vol, layout)
+    def add_feature(self, feature_name):
+        assert self.feature(feature_name) is None, f"Feature already defined: {feature_name}"
+        return self.features.add(feature_name)
+
+    def add_feature_property(self, feature_name, prop_name, prop_type):
+        feature = self.feature(feature_name)
+        assert feature is not None, f"Feature not found: {feature_name}"
+        feature_prop = feature.add_property(prop_name, prop_type)
+        self.features.add_property(feature, feature_prop)
+        return feature_prop
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
