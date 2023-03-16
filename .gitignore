@@ -9,3 +9,4 @@ build
 dist
 pairs.egg-info
 output*
+obj
