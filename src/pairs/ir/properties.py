@@ -14,8 +14,8 @@ class Properties:
         self.capacities = []
         self.defs = {}
 
-    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS):
-        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout)
+    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS, p_feature=None):
+        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout, p_feature)
         self.props.append(p)
         self.defs[p_name] = p_value
         return p
@@ -52,12 +52,13 @@ class Properties:
 class Property(ASTNode):
     last_prop_id = 0
 
-    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS):
+    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS, feature=None):
         super().__init__(sim)
         self.prop_id = Property.last_prop_id
         self.prop_name = name
         self.prop_type = dtype
         self.prop_layout = layout
+        self.prop_feature = feature
         self.default_value = default
         self.volatile = volatile
         self.device_flag = False
@@ -78,6 +79,9 @@ class Property(ASTNode):
     def layout(self):
         return self.prop_layout
 
+    def feature(self):
+        return self.prop_feature
+
     def default(self):
         return self.default_value
 
@@ -85,7 +89,8 @@ class Property(ASTNode):
         return 1 if self.prop_type != Types.Vector else 2
 
     def sizes(self):
-        return [self.sim.particle_capacity] if self.prop_type != Types.Vector else [self.sim.ndims(), self.sim.particle_capacity]
+        return [self.sim.particle_capacity] if self.prop_type != Types.Vector \
+               else [self.sim.ndims(), self.sim.particle_capacity]
 
     def __getitem__(self, expr):
         return PropertyAccess(self.sim, self, expr)
@@ -102,7 +107,16 @@ class PropertyAccess(ASTTerm, VectorExpression):
         super().__init__(sim)
         self.acc_id = PropertyAccess.new_id()
         self.prop = prop
-        self.index = Lit.cvt(sim, index)
+
+        if prop.feature() == None:
+            assert isinstance(index, int), "Only one index must be used for feature property!"
+            self.index = Lit.cvt(sim, index)
+
+        else:
+            assert isinstance(index, tuple), "Two indexes must be used for feature property!"
+            feature = self.prop.feature()
+            self.index = Lit.cvt(sim, feature[index[0]] * feature.count() + feature[index[1]])
+
         self.inlined = False
         self.terminals = set()
 

@@ -113,9 +113,8 @@ class Simulation:
     def add_feature_property(self, feature_name, prop_name, prop_type):
         feature = self.feature(feature_name)
         assert feature is not None, f"Feature not found: {feature_name}"
-        feature_prop = feature.add_property(prop_name, prop_type)
-        self.features.add_property(feature, feature_prop)
-        return feature_prop
+        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
+        return self.properties.add(prop_name, prop_type, value, vol, feature=feature)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
