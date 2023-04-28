@@ -14,8 +14,8 @@ class Properties:
         self.capacities = []
         self.defs = {}
 
-    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS, p_feature=None):
-        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout, p_feature)
+    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS):
+        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout)
         self.props.append(p)
         self.defs[p_name] = p_value
         return p
@@ -52,13 +52,12 @@ class Properties:
 class Property(ASTNode):
     last_prop_id = 0
 
-    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS, feature=None):
+    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS):
         super().__init__(sim)
         self.prop_id = Property.last_prop_id
         self.prop_name = name
         self.prop_type = dtype
         self.prop_layout = layout
-        self.prop_feature = feature
         self.default_value = default
         self.volatile = volatile
         self.device_flag = False
@@ -78,9 +77,6 @@ class Property(ASTNode):
 
     def layout(self):
         return self.prop_layout
-
-    def feature(self):
-        return self.prop_feature
 
     def default(self):
         return self.default_value
@@ -107,16 +103,7 @@ class PropertyAccess(ASTTerm, VectorExpression):
         super().__init__(sim)
         self.acc_id = PropertyAccess.new_id()
         self.prop = prop
-
-        if prop.feature() == None:
-            assert isinstance(index, int), "Only one index must be used for feature property!"
-            self.index = Lit.cvt(sim, index)
-
-        else:
-            assert isinstance(index, tuple), "Two indexes must be used for feature property!"
-            feature = self.prop.feature()
-            self.index = Lit.cvt(sim, feature[index[0]] * feature.count() + feature[index[1]])
-
+        self.index = Lit.cvt(sim, index)
         self.inlined = False
         self.terminals = set()
 
@@ -167,24 +154,6 @@ class PropertyAccess(ASTTerm, VectorExpression):
     def __getitem__(self, index):
         super().__getitem__(index)
         return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
-
-
-class PropertyList(ASTNode):
-    def __init__(self, sim, properties_list):
-        super().__init__(sim)
-        self.list = []
-        for p in properties_list:
-            if isinstance(p, Property):
-                self.list.append(p)
-
-            if isinstance(p, str):
-                self.list.append(sim.prop(p))
-
-    def __iter__(self):
-        yield from self.list
-
-    def length(self):
-        return len(self.list)
 
 
 class RegisterProperty(ASTNode):

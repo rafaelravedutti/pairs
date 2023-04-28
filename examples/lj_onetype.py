@@ -4,8 +4,8 @@ import sys
 
 def lj(i, j):
     sr2 = 1.0 / rsq
-    sr6 = sr2 * sr2 * sr2 * sigma6[i, j]
-    force[i] += delta * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon[i, j]
+    sr6 = sr2 * sr2 * sr2 * sigma6
+    force[i] += delta * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon
 
 
 def euler(i):
@@ -22,23 +22,19 @@ if target != 'cpu' and target != 'gpu':
 dt = 0.005
 cutoff_radius = 2.5
 skin = 0.3
-ntypes = 4
 sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
 
 psim = pairs.simulation("lj", debug=True)
+psim.add_real_property('mass', 1.0)
 psim.add_position('position')
-psim.add_property('mass', Types.Double, 1.0)
-psim.add_property('velocity', Types.Vector)
-psim.add_property('force', Types.Vector, vol=True)
-psim.add_feature('type', 4)
-psim.add_feature_property('type', 'epsilon', Types.Double, [sigma for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'sigma6', Types.Double, [epsilon for i in range(ntypes * ntypes)])
-psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'velocity'])
+psim.add_vector_property('velocity')
+psim.add_vector_property('force', vol=True)
+psim.from_file("data/minimd_setup_32x32x32.input", ['mass', 'position', 'velocity'])
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/test_{target}")
-psim.compute(lj, cutoff_radius)
+psim.compute(lj, cutoff_radius, {'sigma6': sigma6, 'epsilon': epsilon})
 psim.compute(euler, symbols={'dt': dt})
 
 if target == 'gpu':

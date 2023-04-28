@@ -1,6 +1,7 @@
 from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
+from pairs.ir.features import Features, FeatureProperties
 from pairs.ir.functions import Call_Void
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
@@ -15,12 +16,13 @@ from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from pairs.sim.comm import Comm
 from pairs.sim.domain_partitioning import DimensionRanges
+from pairs.sim.features import RegisterFeatureProperty
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild
 from pairs.sim.pbc import EnforcePBC
 from pairs.sim.properties import PropertiesAlloc, PropertiesResetVolatile
-from pairs.sim.read_from_file import ReadFromFile
+from pairs.sim.read_from_file import ReadParticleData
 from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
 from pairs.sim.vtk import VTKWrite
@@ -35,6 +37,8 @@ class Simulation:
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
+        self.features = Features(self)
+        self.feature_properties = FeatureProperties(self)
         self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
@@ -110,17 +114,23 @@ class Simulation:
         assert self.feature(feature_name) is None, f"Feature already defined: {feature_name}"
         return self.features.add(feature_name)
 
-    def add_feature_property(self, feature_name, prop_name, prop_type):
+    def add_feature_property(self, feature_name, prop_name, prop_type, prop_data):
         feature = self.feature(feature_name)
         assert feature is not None, f"Feature not found: {feature_name}"
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, prop_type, value, vol, feature=feature)
+        return self.feature_properties.add(feature, prop_name, prop_type, prop_data)
 
     def property(self, prop_name):
         return self.properties.find(prop_name)
 
     def position(self):
         return self.position_prop
+
+    def feature(self, feature_name):
+        return self.feature.find(feature_name)
+
+    def feature_property(self, feature_prop_name):
+        return self.feature_properties.find(feature_prop_name)
 
     def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layouts.AoS, arr_sync=True):
         assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
@@ -161,12 +171,17 @@ class Simulation:
         lattice = ParticleLattice(self, grid, spacing, props, positions)
         self.setups.add_statement(lattice)
 
-    def from_file(self, filename, prop_names):
+    def read_particle_data(self, filename, prop_names):
         props = [self.property(prop_name) for prop_name in prop_names]
-        read_object = ReadFromFile(self, filename, props)
+        read_object = ReadParticleData(self, filename, props)
         self.setups.add_statement(read_object)
         self.grid = read_object.grid
 
+    #def read_feature_data(self, filename, feature_name, feature_props):
+    #    feature = self.feature(feature_name)
+    #    props = [self.property(prop_name) for prop_name in feature_props]
+    #    read_object = ReadFeatureData(self, filename, feature, props)
+    #    self.setups.add_statement(read_object)
 
     def build_cell_lists(self, spacing):
         self.cell_lists = CellLists(self, self.grid, spacing, spacing)
@@ -279,6 +294,7 @@ class Simulation:
             VariablesDecl(self),
             ArraysDecl(self),
             PropertiesAlloc(self),
+            FeaturePropertiesAlloc(self)
         ])
 
         program = Module(self, name='main', block=Block.merge_blocks(decls, body))

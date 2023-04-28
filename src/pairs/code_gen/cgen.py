@@ -15,7 +15,9 @@ from pairs.ir.loops import For, Iter, ParticleFor, While
 from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
-from pairs.ir.properties import Property, PropertyAccess, PropertyList, RegisterProperty, ReallocProperty
+from pairs.ir.features import RegisterFeature
+from pairs.ir.particle_attributes import ParticleAttributeList
+from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
@@ -74,6 +76,13 @@ class CGen:
                     tkw = Types.c_keyword(t)
                     size = self.generate_expression(BinOp.inline(array.alloc_size()))
                     self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
+
+            for feature_prop in self.sim.feature_properties():
+                if feature_prop.device_flag:
+                    t = feature_prop.type()
+                    tkw = Types.c_keyword(t)
+                    size = self.generate_expression(BinOp.inline(feature_prop.array_size()))
+                    self.print(f"__constant__ {tkw} d_{feature_prop.name()}[{size}];")
 
         self.print("")
 
@@ -235,6 +244,14 @@ class CGen:
                 acc_index = self.generate_expression(array_access.flat_index)
                 acc_ref = f"a{array_access.id()}"
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
+
+            if isinstance(ast_node.elem, FeatureAccess):
+                feature_access = ast_node.elem
+                feature_name = self.generate_expression(feature_access.feature.name())
+                tkw = Types.c_keyword(feature_access.type())
+                acc_index = self.generate_expression(feature_access.index)
+                acc_ref = f"f{array_access.id()}"
+                self.print(f"const {tkw} {acc_ref} = {feature_name}[{acc_index}];")
 
             if isinstance(ast_node.elem, PropertyAccess):
                 prop_access = ast_node.elem
@@ -482,6 +499,16 @@ class CGen:
 
             self.print(f"pairs->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
 
+        if isinstance(ast_node, RegisterFeatureProperty):
+            fp = ast_node.feature_property()
+            ptr = fp.name()
+            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            array_size = fp.array_size()
+            nkinds = fp.feature().nkinds()
+            self.print(f"{tkw} {ptr}[{array_size}];")
+            self.print(f"pairs->addFeatureProperty({fp.id()}, \"{fp.name()}\", &{ptr}, {d_ptr}, {nkinds}, {array_size});")
+
+
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)
 
@@ -599,10 +626,18 @@ class CGen:
 
             return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
 
-        if isinstance(ast_node, PropertyList):
+        if isinstance(ast_node, FeatureAccess):
+            feature_name = self.generate_expression(ast_node.feature.name())
+            if mem or ast_node.inlined is True:
+                index = self.generate_expression(ast_node.index)
+                return f"{feature_name}[{index}]"
+
+            return f"f{ast_node.id()}"
+
+        if isinstance(ast_node, ParticleAttributeList):
             tid = CGen.temp_id
-            list_ref = f"prop_list_{tid}"
-            list_def = ", ".join(str(p.id()) for p in ast_node)
+            list_ref = f"attr_list_{tid}"
+            list_def = ", ".join(str([a.id() for p in ast_node]))
             self.print(f"const int {list_ref}[] = {{{list_def}}};")
             CGen.temp_id += 1
             return list_ref
