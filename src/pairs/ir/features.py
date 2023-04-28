@@ -12,10 +12,10 @@ class Features:
         self.sim = sim
         self.features = []
 
-    def add(self, f_name):
-        f = Feature(self.sim, f_name)
+    def add(self, f_name, f_nkinds):
+        f = Feature(self.sim, f_name, f_nkinds)
         self.features.append(f)
-        return p
+        return f
 
     def nfeatures(self):
         return len(self.features)
@@ -75,7 +75,7 @@ class FeatureProperties:
         return len(self.features)
 
     def find(self, fp_name):
-        feature_prop = [fp for fp in self.feature_proeprties if fp.name() == fp_name]
+        feature_prop = [fp for fp in self.feature_properties if fp.name() == fp_name]
         if feature_prop:
             return feature_prop[0]
 

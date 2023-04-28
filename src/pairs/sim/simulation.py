@@ -110,9 +110,9 @@ class Simulation:
         self.position_prop = self.properties.add(prop_name, Types.Vector, value, vol, layout)
         return self.position_prop
 
-    def add_feature(self, feature_name):
+    def add_feature(self, feature_name, nkinds):
         assert self.feature(feature_name) is None, f"Feature already defined: {feature_name}"
-        return self.features.add(feature_name)
+        return self.features.add(feature_name, nkinds)
 
     def add_feature_property(self, feature_name, prop_name, prop_type, prop_data):
         feature = self.feature(feature_name)
@@ -127,7 +127,7 @@ class Simulation:
         return self.position_prop
 
     def feature(self, feature_name):
-        return self.feature.find(feature_name)
+        return self.features.find(feature_name)
 
     def feature_property(self, feature_prop_name):
         return self.feature_properties.find(feature_prop_name)

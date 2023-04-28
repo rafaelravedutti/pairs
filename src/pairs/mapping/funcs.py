@@ -108,6 +108,10 @@ class BuildParticleIR(ast.NodeVisitor):
         if as_prop is not None:
             return as_prop
 
+        as_feature_prop = self.sim.feature_property(node.id)
+        if as_feature_prop is not None:
+            return as_feature_prop
+
         as_var = self.sim.var(node.id)
         if as_var is not None:
             return as_var

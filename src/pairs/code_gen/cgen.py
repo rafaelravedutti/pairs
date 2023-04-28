@@ -15,7 +15,7 @@ from pairs.ir.loops import For, Iter, ParticleFor, While
 from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
-from pairs.ir.features import RegisterFeature
+from pairs.ir.features import RegisterFeatureProperty
 from pairs.ir.particle_attributes import ParticleAttributeList
 from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty
 from pairs.ir.select import Select

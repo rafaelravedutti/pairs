@@ -1,4 +1,5 @@
-from pairs.ir.features import RegisterFeature
+from pairs.ir.block import pairs_device_block, pairs_inline
+from pairs.ir.features import RegisterFeatureProperty
 from pairs.sim.lowerable import FinalLowerable
 
 
