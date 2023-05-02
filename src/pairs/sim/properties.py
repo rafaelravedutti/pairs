@@ -19,7 +19,7 @@ class PropertiesAlloc(FinalLowerable):
         capacity = sum(self.sim.properties.capacities)
         for p in self.sim.properties.all():
             sizes = []
-            if Types.is_real(p.type()):
+            if Types.is_real(p.type()) or Types.is_integer(p.type()):
                 sizes = [capacity]
             elif p.type() == Types.Vector:
                 sizes = [capacity, self.sim.ndims()]

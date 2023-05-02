@@ -16,7 +16,7 @@ from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from pairs.sim.comm import Comm
 from pairs.sim.domain_partitioning import DimensionRanges
-from pairs.sim.features import RegisterFeatureProperty
+from pairs.sim.features import FeaturePropertiesAlloc 
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild

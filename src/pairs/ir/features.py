@@ -58,7 +58,7 @@ class Feature(ASTNode):
         return self.feature_nkinds
 
     def __getitem__(self, expr):
-        return FeatureAccess(self.sim, self, expr)
+        return self.feature_prop[expr]
 
 
 class FeatureProperties:
@@ -125,7 +125,7 @@ class FeatureProperty(ASTTerm):
                else [self.sim.ndims(), self.feature_prop_feature.nkinds()]
 
     def array_size(self):
-        nelems = self.feature_prop.feature.nkinds() * \
+        nelems = self.feature_prop_feature.nkinds() * \
                  (1 if self.feature_prop_type != Types.Vector else self.sim.ndims())
         return nelems * nelems
 
@@ -137,8 +137,8 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
     last_feature_prop_acc = 0
 
     def new_id():
-        PropertyAccess.last_feature_prop_acc += 1
-        return PropertyAccess.last_feature_prop_acc - 1
+        FeaturePropertyAccess.last_feature_prop_acc += 1
+        return FeaturePropertyAccess.last_feature_prop_acc - 1
 
     def __init__(self, sim, feature_prop, index):
         assert isinstance(index, tuple), "Two indexes must be used for feature property access!"
@@ -188,56 +188,6 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
     def __getitem__(self, index):
         super().__getitem__(index)
         return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
-
-
-class FeatureAccess(ASTTerm):
-    last_feat_acc = 0
-
-    def new_id():
-        PropertyAccess.last_feat_acc += 1
-        return PropertyAccess.last_feat_acc - 1
-
-    def __init__(self, sim, feature, index):
-        super().__init__(sim)
-        self.acc_id = FeatureAccess.new_id()
-        self.feature = feature
-        self.index = Lit.cvt(sim, index)
-        self.inlined = False
-        self.terminals = set()
-
-    def __str__(self):
-        return f"FeatureAccess<{self.feature}, {self.index}>"
-
-    def copy(self):
-        return FeatureAccess(self.sim, self.feature, self.index)
-
-    def inline_rec(self):
-        self.inlined = True
-        return self
-
-    def propagate_through(self):
-        return []
-
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
-
-    def sub(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self - other))
-
-    def id(self):
-        return self.acc_id
-
-    def type(self):
-        return Types.Int32
-
-    def add_terminal(self, terminal):
-        self.terminals.add(terminal)
-
-    def children(self):
-        return [self.prop, self.index]
 
 
 class RegisterFeatureProperty(ASTNode):

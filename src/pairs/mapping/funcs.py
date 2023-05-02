@@ -125,6 +125,8 @@ class BuildParticleIR(ast.NodeVisitor):
         #print(ast.dump(node))
         return self.visit(node.value)[self.visit(node.slice)]
 
+    def visit_Tuple(self, node):
+        return node._fields
 
 def compute(sim, func, cutoff_radius=None, symbols={}):
     src = inspect.getsource(func)
