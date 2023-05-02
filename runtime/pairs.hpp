@@ -5,6 +5,7 @@
 //---
 #include "array.hpp"
 #include "device_flags.hpp"
+#include "feature_property.hpp"
 #include "pairs_common.hpp"
 #include "property.hpp"
 #include "runtime_var.hpp"
@@ -22,6 +23,7 @@ private:
     //DomainPartitioner *dom_part;
     std::vector<Property> properties;
     std::vector<Array> arrays;
+    std::vector<FeatureProperty> feature_properties;
     DeviceFlags *prop_flags, *array_flags;
     DomainPartitioning dom_part_type;
     int nprops, narrays;
@@ -77,6 +79,13 @@ public:
     inline IntProperty &getIntegerProperty(property_t property) { return static_cast<IntProperty&>(getProperty(property)); }
     inline FloatProperty &getFloatProperty(property_t property) { return static_cast<FloatProperty&>(getProperty(property)); }
     inline VectorProperty &getVectorProperty(property_t property) { return static_cast<VectorProperty&>(getProperty(property)); }
+
+    template<typename T_ptr> void addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, PropertyType type, int nkinds, int array_size);
+    template<typename T_ptr> void addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, PropertyType type, int nkinds, int array_size);
+    void addFeatureProperty(FeatureProperty feature_prop);
+
+    FeatureProperty &getFeatureProperty(property_t id);
+    FeatureProperty &getFeaturePropertyByName(std::string name);
 
     void setArrayDeviceFlag(array_t id) { setArrayDeviceFlag(getArray(id)); }
     void setArrayDeviceFlag(Array &array) { array_flags->setDeviceFlag(array.getId()); }
@@ -242,6 +251,20 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_pt
     if(prop_flags->isDeviceFlagSet(id)) {
         copyPropertyToDevice(id);
     }
+}
+
+template<typename T_ptr>
+void PairsSimulation::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, PropertyType type, int nkinds, int array_size) {
+    PAIRS_ASSERT(nkinds > 0 && array_size > 0);
+    PAIRS_ASSERT(h_ptr != nullptr);
+    addFeatureProperty(FeatureProperty(id, name, h_ptr, nullptr, type, nkinds, array_size));
+}
+
+template<typename T_ptr>
+void PairsSimulation::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, PropertyType type, int nkinds, int array_size) {
+    PAIRS_ASSERT(nkinds > 0 && array_size > 0);
+    PAIRS_ASSERT(h_ptr != nullptr && d_ptr != nullptr);
+    addFeatureProperty(FeatureProperty(id, name, h_ptr, d_ptr, type, nkinds, array_size));
 }
 
 }

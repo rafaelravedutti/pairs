@@ -86,4 +86,54 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
     return n;
 }
 
+/*
+size_t read_feature_data(PairsSimulation *ps, const char *filename, const int feature_id, const property_t properties[], size_t nprops) {
+    std::ifstream in_file(filename, std::ifstream::in);
+    std::string line;
+
+    if(in_file.is_open()) {
+        while(std::getline(in_file, line)) {
+            std::stringstream line_stream(line);
+            std::string istr, jstr, in0;
+            std::getline(line_stream, istr, ',');
+            std::getline(line_stream, jstr, ',');
+            int i = std::stoi(istr);
+            int j = std::stoi(jstr);
+
+            while(std::getline(line_stream, in0, ',')) {
+                property_t p_id = properties[i];
+                auto prop = ps->getProperty(p_id);
+                auto prop_type = prop.getType();
+
+                if(prop_type == Prop_Vector) {
+                    auto vector_ptr = ps->getAsVectorFeatureProperty(prop);
+                    std::string in1, in2;
+                    std::getline(line_stream, in1, ',');
+                    std::getline(line_stream, in2, ',');
+                    real_t x = std::stod(in0);
+                    real_t y = std::stod(in1);
+                    real_t z = std::stod(in2);
+                    vector_ptr(i, j, 0) = x;
+                    vector_ptr(i, j, 1) = y;
+                    vector_ptr(i, j, 2) = z;
+                } else if(prop_type == Prop_Integer) {
+                    auto int_ptr = ps->getAsIntegerFeatureProperty(prop);
+                    int_ptr(i, j) = std::stoi(in0);
+                } else if(prop_type == Prop_Float) {
+                    auto float_ptr = ps->getAsFloatFeatureProperty(prop);
+                    float_ptr(i, j) = std::stod(in0);
+                } else {
+                    std::cerr << "read_feature_data(): Invalid property type!" << std::endl;
+                    return 0;
+                }
+            }
+        }
+
+        in_file.close();
+    }
+
+    return n;
+}
+*/
+
 }

@@ -7,7 +7,7 @@ from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
 from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, SetArrayFlag, SetPropertyFlag, HostRef
-from pairs.ir.features import FeaturePropertyAccess, RegisterFeatureProperty
+from pairs.ir.features import FeatureProperty, FeaturePropertyAccess, RegisterFeatureProperty
 from pairs.ir.functions import Call
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
@@ -248,9 +248,9 @@ class CGen:
             if isinstance(ast_node.elem, FeaturePropertyAccess):
                 feature_prop_access = ast_node.elem
                 feature_prop = feature_prop_access.feature_prop
-                prop_name = self.generate_expression(feature_prop.name())
-                tkw = Types.c_keyword(feature_access.type())
-                acc_index = self.generate_expression(feature_access.index)
+                prop_name = self.generate_expression(feature_prop)
+                tkw = Types.c_keyword(feature_prop_access.type())
+                acc_index = self.generate_expression(feature_prop_access.index)
                 acc_ref = f"f{feature_prop_access.id()}"
                 self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
 
@@ -515,7 +515,7 @@ class CGen:
             assert fptype != "Prop_Invalid", "Invalid feature property type!"
 
             self.print(f"{tkw} {ptr}[{array_size}];")
-            self.print(f"pairs->addFeatureProperty({fp.id()}, \"{fp.name()}\", &{ptr}, {d_ptr}, {fptype} {nkinds}, {array_size});")
+            self.print(f"pairs->addFeatureProperty({fp.id()}, \"{fp.name()}\", &{ptr}, {d_ptr}, {fptype}, {nkinds}, {array_size});")
 
 
         if isinstance(ast_node, Timestep):
@@ -606,6 +606,9 @@ class CGen:
             var = self.generate_expression(ast_node.var)
             return f"(*{var})"
 
+        if isinstance(ast_node, FeatureProperty):
+            return ast_node.name()
+
         if isinstance(ast_node, HostRef):
             elem = self.generate_expression(ast_node.elem)
             return f"h_{elem}"
@@ -646,7 +649,7 @@ class CGen:
         if isinstance(ast_node, ParticleAttributeList):
             tid = CGen.temp_id
             list_ref = f"attr_list_{tid}"
-            list_def = ", ".join(str([a.id() for a in ast_node]))
+            list_def = ", ".join([str(a.id()) for a in ast_node])
             self.print(f"const int {list_ref}[] = {{{list_def}}};")
             CGen.temp_id += 1
             return list_ref

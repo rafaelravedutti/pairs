@@ -23,46 +23,71 @@ void PairsSimulation::initDomain(int *argc, char ***argv, real_t xmin, real_t xm
 
 void PairsSimulation::addArray(Array array) {
     int id = array.getId();
-    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array _a) { return _a.getId() == id; });
     PAIRS_ASSERT(a == std::end(arrays));
     arrays.push_back(array);
 }
 
 Array &PairsSimulation::getArray(array_t id) {
-    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array _a) { return _a.getId() == id; });
     PAIRS_ASSERT(a != std::end(arrays));
     return *a;
 }
 
 Array &PairsSimulation::getArrayByName(std::string name) {
-    auto a = std::find_if(arrays.begin(), arrays.end(), [name](Array a) { return a.getName() == name; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [name](Array _a) { return _a.getName() == name; });
     PAIRS_ASSERT(a != std::end(arrays));
     return *a;
 }
 
 Array &PairsSimulation::getArrayByHostPointer(const void *h_ptr) {
-    auto a = std::find_if(arrays.begin(), arrays.end(), [h_ptr](Array a) { return a.getHostPointer() == h_ptr; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [h_ptr](Array _a) { return _a.getHostPointer() == h_ptr; });
     PAIRS_ASSERT(a != std::end(arrays));
     return *a;
 }
 
 void PairsSimulation::addProperty(Property prop) {
     int id = prop.getId();
-    auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
+    auto p = std::find_if(properties.begin(), properties.end(), [id](Property _p) { return _p.getId() == id; });
     PAIRS_ASSERT(p == std::end(properties));
     properties.push_back(prop);
 }
 
 Property &PairsSimulation::getProperty(property_t id) {
-    auto p = std::find_if(properties.begin(), properties.end(), [id](Property p) { return p.getId() == id; });
+    auto p = std::find_if(properties.begin(), properties.end(), [id](Property _p) { return _p.getId() == id; });
     PAIRS_ASSERT(p != std::end(properties));
     return *p;
 }
 
 Property &PairsSimulation::getPropertyByName(std::string name) {
-    auto p = std::find_if(properties.begin(), properties.end(), [name](Property p) { return p.getName() == name; });
+    auto p = std::find_if(properties.begin(), properties.end(), [name](Property _p) { return _p.getName() == name; });
     PAIRS_ASSERT(p != std::end(properties));
     return *p;
+}
+
+void PairsSimulation::addFeatureProperty(FeatureProperty feature_prop) {
+    int id = feature_prop.getId();
+    auto fp = std::find_if(feature_properties.begin(),
+                           feature_properties.end(),
+                           [id](FeatureProperty _fp) { return _fp.getId() == id; });
+    PAIRS_ASSERT(fp == std::end(feature_properties));
+    feature_properties.push_back(feature_prop);
+}
+
+FeatureProperty &PairsSimulation::getFeatureProperty(property_t id) {
+    auto fp = std::find_if(feature_properties.begin(),
+                           feature_properties.end(),
+                           [id](FeatureProperty _fp) { return _fp.getId() == id; });
+    PAIRS_ASSERT(fp != std::end(feature_properties));
+    return *fp;
+}
+
+FeatureProperty &PairsSimulation::getFeaturePropertyByName(std::string name) {
+    auto fp = std::find_if(feature_properties.begin(),
+                           feature_properties.end(),
+                           [name](FeatureProperty _fp) { return _fp.getName() == name; });
+    PAIRS_ASSERT(fp != std::end(feature_properties));
+    return *fp;
 }
 
 void PairsSimulation::copyArrayToDevice(Array &array) {

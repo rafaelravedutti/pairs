@@ -190,3 +190,17 @@ class AddExpressionDeclarations(Mutator):
                 self.declared_exprs.append(prop_access_id)
 
         return ast_node
+
+    def mutate_FeaturePropertyAccess(self, ast_node):
+        assert self.writing is False, "Cannot change feature property!"
+        ast_node.prop = self.mutate(ast_node.prop)
+        ast_node.index = self.mutate(ast_node.index)
+        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+
+        if ast_node.inlined is False:
+            feature_prop_access_id = id(ast_node)
+            if feature_prop_access_id not in self.declared_exprs and feature_prop_access_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(feature_prop_access_id)
+
+        return ast_node
