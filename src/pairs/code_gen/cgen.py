@@ -541,6 +541,8 @@ class CGen:
             self.print(f"{tkw} {ptr}[{array_size}];")
             self.print(f"pairs->addFeatureProperty({fp.id()}, \"{fp.name()}\", &{ptr}, {d_ptr}, {fptype}, {nkinds}, {array_size});")
 
+            for i in range(array_size):
+                self.print(f"{ptr}[{i}] = {fp.data()[i]};")
 
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)

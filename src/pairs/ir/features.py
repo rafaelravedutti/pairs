@@ -114,6 +114,9 @@ class FeatureProperty(ASTTerm):
     def type(self):
         return self.feature_prop_type
 
+    def data(self):
+        return self.feature_prop_data
+
     def layout(self):
         return self.feature_prop_layout
 
