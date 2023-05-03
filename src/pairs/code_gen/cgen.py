@@ -81,7 +81,7 @@ class CGen:
                 if feature_prop.device_flag:
                     t = feature_prop.type()
                     tkw = Types.c_keyword(t)
-                    size = self.generate_expression(BinOp.inline(feature_prop.array_size()))
+                    size = feature_prop.array_size()
                     self.print(f"__constant__ {tkw} d_{feature_prop.name()}[{size}];")
 
         self.print("")
@@ -527,7 +527,7 @@ class CGen:
         if isinstance(ast_node, RegisterFeatureProperty):
             fp = ast_node.feature_property()
             ptr = fp.name()
-            d_ptr = f"d_{ptr}" if self.target.is_gpu() and fp.device_flag else "nullptr"
+            d_ptr = f"&d_{ptr}" if self.target.is_gpu() and fp.device_flag else "nullptr"
             array_size = fp.array_size()
             nkinds = fp.feature().nkinds()
             tkw = Types.c_keyword(fp.type())
