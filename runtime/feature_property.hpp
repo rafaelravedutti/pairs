@@ -27,8 +27,8 @@ public:
     void *getHostPointer() { return h_ptr; }
     void *getDevicePointer() { return d_ptr; }
     PropertyType getType() { return type; }
-    const int getNumberOfKinds() { return nkinds; }
-    const int getArraySize() { return array_size; }
+    size_t getNumberOfKinds() { return nkinds; }
+    size_t getArraySize() { return array_size; }
 };
 
 }

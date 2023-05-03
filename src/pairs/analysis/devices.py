@@ -83,6 +83,10 @@ class FetchKernelReferences(Visitor):
         for k in self.kernel_stack:
             k.add_property(ast_node, self.writing)
 
+    def visit_FeatureProperty(self, ast_node):
+        for k in self.kernel_stack:
+            k.add_feature_property(ast_node)
+
     def visit_Var(self, ast_node):
         for k in self.kernel_stack:
             k.add_variable(ast_node, self.writing)

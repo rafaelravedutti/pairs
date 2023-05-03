@@ -77,7 +77,7 @@ class CGen:
                     size = self.generate_expression(BinOp.inline(array.alloc_size()))
                     self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
 
-            for feature_prop in self.sim.feature_properties():
+            for feature_prop in self.sim.feature_properties:
                 if feature_prop.device_flag:
                     t = feature_prop.type()
                     tkw = Types.c_keyword(t)
@@ -136,6 +136,15 @@ class CGen:
                     decl = f"{type_kw} *h_{prop.name()}"
                     module_params += f", {decl}"
 
+            for feature_prop in module.feature_properties():
+                type_kw = Types.c_keyword(feature_prop.type())
+                decl = f"{type_kw} *{feature_prop.name()}"
+                module_params += f", {decl}"
+
+                if feature_prop in module.host_references():
+                    decl = f"{type_kw} *h_{feature_prop.name()}"
+                    module_params += f", {decl}"
+
             self.print(f"void {module.name}({module_params}) {{")
 
             if self.debug:
@@ -171,6 +180,11 @@ class CGen:
         for prop in kernel.properties():
             type_kw = Types.c_keyword(prop.type())
             decl = f"{type_kw} *{prop.name()}"
+            kernel_params += f", {decl}"
+
+        for feature_prop in kernel.feature_properties():
+            type_kw = Types.c_keyword(feature_prop.type())
+            decl = f"{type_kw} *{feature_prop.name()}"
             kernel_params += f", {decl}"
 
         for array_access in kernel.array_accesses():
@@ -400,6 +414,9 @@ class CGen:
             for prop in kernel.properties():
                 kernel_params += f", {prop.name()}"
 
+            for prop in kernel.feature_properties():
+                kernel_params += f", {prop.name()}"
+
             for array_access in kernel.array_accesses():
                 kernel_params += f", {self.generate_expression(array_access)}"
 
@@ -440,6 +457,13 @@ class CGen:
                 module_params += f", {decl}"
                 if prop in module.host_references():
                     decl = prop.name()
+                    module_params += f", {decl}"
+
+            for feature_prop in module.feature_properties():
+                decl = f"d_{feature_prop.name()}" if device_cond else feature_prop.name()
+                module_params += f", {decl}"
+                if feature_prop in module.host_references():
+                    decl = feature_prop.name()
                     module_params += f", {decl}"
 
             self.print(f"{module.name}({module_params});")
@@ -503,7 +527,7 @@ class CGen:
         if isinstance(ast_node, RegisterFeatureProperty):
             fp = ast_node.feature_property()
             ptr = fp.name()
-            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            d_ptr = f"d_{ptr}" if self.target.is_gpu() and fp.device_flag else "nullptr"
             array_size = fp.array_size()
             nkinds = fp.feature().nkinds()
             tkw = Types.c_keyword(fp.type())

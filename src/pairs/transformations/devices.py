@@ -128,6 +128,13 @@ class AddHostReferencesToModules(Mutator):
     def mutate_Decl(self, ast_node):
         return ast_node
 
+    def mutate_FeatureProperty(self, ast_node):
+        if self.device_context:
+            self.module_stack[-1].add_host_reference(ast_node)
+            return HostRef(ast_node.sim, ast_node)
+
+        return ast_node
+
     def mutate_HostRef(self, ast_node):
         return ast_node
 

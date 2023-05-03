@@ -64,6 +64,12 @@ class FetchModulesReferences(Visitor):
             if m.run_on_device:
                 ast_node.device_flag = True
 
+    def visit_FeatureProperty(self, ast_node):
+        for m in self.module_stack:
+            m.add_feature_property(ast_node)
+            if m.run_on_device:
+                ast_node.device_flag = True
+
     def visit_Var(self, ast_node):
         for m in self.module_stack:
             if not ast_node.temporary():

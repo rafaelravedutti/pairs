@@ -1,5 +1,6 @@
 from pairs.ir.arrays import Array
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.features import FeatureProperty
 from pairs.ir.properties import Property
 from pairs.ir.variables import Var
 
@@ -15,6 +16,7 @@ class Module(ASTNode):
         self._variables = {}
         self._arrays = {}
         self._properties = {}
+        self._feature_properties = {}
         self._host_references = set()
         self._block = block
         self._resizes_to_check = resizes_to_check
@@ -61,6 +63,9 @@ class Module(ASTNode):
     def properties(self):
         return self._properties
 
+    def feature_properties(self):
+        return self._feature_properties
+
     def host_references(self):
         return self._host_references
 
@@ -98,6 +103,12 @@ class Module(ASTNode):
         for p in prop_list:
             assert isinstance(p, Property), "Module.add_property(): given element is not of type Property!"
             self._properties[p] = character if p not in self._properties else self._properties[p] + character
+
+    def add_feature_property(self, feature_prop):
+        feature_prop_list = feature_prop if isinstance(feature_prop, list) else [feature_prop]
+        for fp in feature_prop_list:
+            assert isinstance(fp, FeatureProperty), "Module.add_feature_property(): given element is not of type FeatureProperty!"
+            self._feature_properties[fp] = 'r'
 
     def add_host_reference(self, elem):
         self._host_references.add(elem)
