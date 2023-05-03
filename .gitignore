@@ -10,3 +10,8 @@ dist
 pairs.egg-info
 output*
 obj
+todo*
+lj_cpu
+lj_gpu
+lj.cu
+lj.cpp
