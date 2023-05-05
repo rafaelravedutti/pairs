@@ -539,10 +539,13 @@ class CGen:
             assert fptype != "Prop_Invalid", "Invalid feature property type!"
 
             self.print(f"{tkw} {ptr}[{array_size}];")
-            self.print(f"pairs->addFeatureProperty({fp.id()}, \"{fp.name()}\", &{ptr}, {d_ptr}, {fptype}, {nkinds}, {array_size});")
+            self.print(f"pairs->addFeatureProperty({fp.id()}, \"{fp.name()}\", &{ptr}, {d_ptr}, {fptype}, {nkinds}, {array_size} * sizeof({tkw}));")
 
             for i in range(array_size):
                 self.print(f"{ptr}[{i}] = {fp.data()[i]};")
+
+            if self.target.is_gpu() and fp.device_flag:
+                self.print(f"pairs->copyFeaturePropertyToDevice({fp.id()}); // {fp.name()}")
 
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)

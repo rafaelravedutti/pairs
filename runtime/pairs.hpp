@@ -115,6 +115,9 @@ public:
     void copyPropertyToHost(property_t id) { copyPropertyToHost(getProperty(id)); }
     void copyPropertyToHost(Property &prop);
 
+    void copyFeaturePropertyToDevice(property_t id) { copyFeaturePropertyToDevice(getFeatureProperty(id)); }
+    void copyFeaturePropertyToDevice(FeatureProperty &feature_prop);
+
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
     void communicateData(
         int dim, int elem_size,

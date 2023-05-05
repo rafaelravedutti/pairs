@@ -130,6 +130,11 @@ void PairsSimulation::copyPropertyToHost(Property &prop) {
     }
 }
 
+void PairsSimulation::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
+    PAIRS_DEBUG("Copying static array %s to device\n", feature_prop.getName().c_str());
+    pairs::copy_static_symbol_to_device(feature_prop.getHostPointer(), feature_prop.getDevicePointer(), feature_prop.getArraySize());
+}
+
 void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
     auto nsend_id = getArrayByHostPointer(send_sizes).getId();
     auto nrecv_id = getArrayByHostPointer(recv_sizes).getId();
