@@ -83,6 +83,10 @@ class Mutator:
         ast_node.elem = self.mutate(ast_node.elem)
         return ast_node
 
+    def mutate_DeviceStaticRef(self, ast_node):
+        ast_node.elem = self.mutate(ast_node.elem)
+        return ast_node
+
     def mutate_Filter(self, ast_node):
         return self.mutate_Branch(ast_node)
 
@@ -120,7 +124,7 @@ class Mutator:
         return ast_node
 
     def mutate_FeaturePropertyAccess(self, ast_node):
-        ast_node.prop = self.mutate(ast_node.feature_prop)
+        ast_node.feature_prop = self.mutate(ast_node.feature_prop)
         ast_node.index = self.mutate(ast_node.index)
         ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
         return ast_node

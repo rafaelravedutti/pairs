@@ -17,6 +17,18 @@ class HostRef(ASTNode):
         return [self.elem]
 
 
+class DeviceStaticRef(ASTNode):
+    def __init__(self, sim, elem):
+        super().__init__(sim)
+        self.elem = elem
+
+    def type(self):
+        return self.elem.type()
+
+    def children(self):
+        return [self.elem]
+
+
 class CopyArray(ASTNode):
     def __init__(self, sim, array, ctx):
         super().__init__(sim)

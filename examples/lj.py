@@ -18,7 +18,6 @@ target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
 if target != 'cpu' and target != 'gpu':
     print(f"Invalid target, use {cmd} <cpu/gpu>")
 
-
 dt = 0.005
 cutoff_radius = 2.5
 skin = 0.3

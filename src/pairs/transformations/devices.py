@@ -5,7 +5,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
-from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, SetArrayFlag, SetPropertyFlag, HostRef
+from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, DeviceStaticRef, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For
@@ -160,4 +160,67 @@ class AddHostReferencesToModules(Mutator):
             self.module_stack[-1].add_host_reference(ast_node)
             return HostRef(ast_node.sim, ast_node)
 
+        return ast_node
+
+
+class AddDeviceReferencesToModules(Mutator):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+        self.kernel_context = False
+        self.within_decl = False
+        self.add_reference = False
+        self.declared_objects = []
+
+    def must_add_reference(self, ast_node):
+        return id(ast_node) not in self.declared_objects and self.kernel_context and \
+               (ast_node.inlined is True or self.within_decl)
+
+    def mutate_ArrayAccess(self, ast_node):
+        if isinstance(ast_node.array, (DeviceStaticRef, HostRef)):
+            return ast_node
+
+        _add_reference = self.add_reference
+        self.add_reference = ast_node.array.is_static() and self.must_add_reference(ast_node)
+        ast_node.array = self.mutate(ast_node.array)
+        self.add_reference = _add_reference
+        return ast_node
+
+    def mutate_ArrayStatic(self, ast_node):
+        if self.add_reference:
+            return DeviceStaticRef(ast_node.sim, ast_node)
+
+        return ast_node
+
+    def mutate_FeaturePropertyAccess(self, ast_node):
+        _add_reference = self.add_reference
+        self.add_reference = self.must_add_reference(ast_node)
+        ast_node.feature_prop = self.mutate(ast_node.feature_prop)
+        self.add_reference = _add_reference
+        return ast_node
+
+    def mutate_FeatureProperty(self, ast_node):
+        if self.add_reference:
+            return DeviceStaticRef(ast_node.sim, ast_node)
+
+        return ast_node
+
+    def mutate_DeviceStaticRef(self, ast_node):
+        return ast_node
+
+    def mutate_Decl(self, ast_node):
+        _within_decl = self.within_decl
+        self.within_decl = True
+        ast_node.elem = self.mutate(ast_node.elem)
+        self.declared_objects.append(id(ast_node.elem))
+        self.within_decl = _within_decl
+        return ast_node
+
+    def mutate_HostRef(self, ast_node):
+        return ast_node
+
+    def mutate_Kernel(self, ast_node):
+        _kernel_context = self.kernel_context
+        self.kernel_context = True
+        ast_node._block = self.mutate(ast_node._block)
+        self.kernel_context = _kernel_context
         return ast_node

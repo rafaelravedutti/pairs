@@ -6,7 +6,7 @@ from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
-from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, SetArrayFlag, SetPropertyFlag, HostRef
+from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, DeviceStaticRef, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.features import FeatureProperty, FeaturePropertyAccess, RegisterFeatureProperty
 from pairs.ir.functions import Call
 from pairs.ir.kernel import Kernel, KernelLaunch
@@ -635,6 +635,10 @@ class CGen:
             var = self.generate_expression(ast_node.var)
             return f"(*{var})"
 
+        if isinstance(ast_node, DeviceStaticRef):
+            elem = self.generate_expression(ast_node.elem)
+            return f"d_{elem}"
+
         if isinstance(ast_node, FeatureProperty):
             return ast_node.name()
 
@@ -668,7 +672,7 @@ class CGen:
             return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
 
         if isinstance(ast_node, FeaturePropertyAccess):
-            feature_name = self.generate_expression(ast_node.feature_prop.name())
+            feature_name = self.generate_expression(ast_node.feature_prop)
             if mem or ast_node.inlined is True:
                 index = self.generate_expression(ast_node.index)
                 return f"{feature_name}[{index}]"
