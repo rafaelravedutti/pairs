@@ -11,8 +11,7 @@ class NeighborLists:
     def __init__(self, cell_lists):
         self.sim = cell_lists.sim
         self.cell_lists = cell_lists
-        self.capacity = self.sim.add_var('neighborlist_capacity', Types.Int32, 32)
-        self.neighborlists = self.sim.add_array('neighborlists', [self.sim.particle_capacity, self.capacity], Types.Int32)
+        self.neighborlists = self.sim.add_array('neighborlists', [self.sim.particle_capacity, self.sim.neighbor_capacity], Types.Int32)
         self.numneighs = self.sim.add_array('numneighs', self.sim.particle_capacity, Types.Int32)
 
 

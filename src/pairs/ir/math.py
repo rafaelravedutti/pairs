@@ -3,7 +3,7 @@ from pairs.ir.types import Types
 
 
 class Sqrt(ASTTerm):
-    def __init__(self, sim, expr, cast_type):
+    def __init__(self, sim, expr):
         super().__init__(sim)
         self.expr = expr
 

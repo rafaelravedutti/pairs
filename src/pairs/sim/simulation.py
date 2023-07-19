@@ -6,7 +6,7 @@ from pairs.ir.functions import Call_Void
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
 from pairs.ir.module import Module
-from pairs.ir.properties import Properties
+from pairs.ir.properties import Properties, ContactProperties
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
 from pairs.ir.variables import Variables
@@ -39,7 +39,9 @@ class Simulation:
         self.arrays = Arrays(self)
         self.features = Features(self)
         self.feature_properties = FeatureProperties(self)
+        self.contact_properties = ContactProperties(self)
         self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
+        self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, particle_capacity)
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
@@ -120,6 +122,10 @@ class Simulation:
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
         return self.feature_properties.add(feature, prop_name, prop_type, prop_data)
 
+    def add_contact_property(self, prop_name, prop_type, prop_default, layout=Layouts.AoS):
+        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
+        return self.contact_properties.add(prop_name, prop_type, layout, prop_default)
+
     def property(self, prop_name):
         return self.properties.find(prop_name)
 
@@ -131,6 +137,9 @@ class Simulation:
 
     def feature_property(self, feature_prop_name):
         return self.feature_properties.find(feature_prop_name)
+
+    def contact_property(self, contact_prop_name):
+        return self.contact_properties.find(contact_prop_name)
 
     def add_array(self, arr_name, arr_sizes, arr_type, arr_layout=Layouts.AoS, arr_sync=True):
         assert self.array(arr_name) is None, f"Array already defined: {arr_name}"
@@ -269,12 +278,14 @@ class Simulation:
     def generate(self):
         assert self._target is not None, "Target not specified!"
         comm = Comm(self, self._dom_part)
+        contact_history = ContactHistory(self, self.cell_lists)
 
         timestep = Timestep(self, self.ntimesteps, [
             (comm.exchange(), 20),
             (comm.borders(), comm.synchronize(), 20),
             (CellListsBuild(self, self.cell_lists), 20),
             (NeighborListsBuild(self, self.neighbor_lists), 20),
+            (BuildContactHistory(self, contact_history), 20),
             PropertiesResetVolatile(self),
             self.functions
         ])
@@ -294,6 +305,7 @@ class Simulation:
             VariablesDecl(self),
             ArraysDecl(self),
             PropertiesAlloc(self),
+            ContactPropertiesAlloc(self),
             FeaturePropertiesAlloc(self)
         ])
 

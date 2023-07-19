@@ -1,7 +1,7 @@
 from pairs.ir.block import pairs_device_block, pairs_inline
 from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
-from pairs.ir.properties import RegisterProperty
+from pairs.ir.properties import RegisterProperty, RegisterContactProperty
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.lowerable import Lowerable, FinalLowerable
@@ -30,6 +30,25 @@ class PropertiesAlloc(FinalLowerable):
                 UpdateProperty(self.sim, p, sizes)
             else:
                 RegisterProperty(self.sim, p, sizes)
+
+
+class ContactPropertiesAlloc(FinalLowerable):
+    def __init__(self, sim, realloc=False):
+        self.sim = sim
+
+    @pairs_inline
+    def lower(self):
+        capacity = sum(self.sim.contact_properties.capacities)
+        for p in self.sim.contact_properties.all():
+            sizes = []
+            if Types.is_real(p.type()) or Types.is_integer(p.type()):
+                sizes = [capacity]
+            elif p.type() == Types.Vector:
+                sizes = [capacity, self.sim.ndims()]
+            else:
+                raise Exception("Invalid contact property type!")
+
+            RegisterContactProperty(self.sim, p, sizes)
 
 
 class PropertiesResetVolatile(Lowerable):

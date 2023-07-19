@@ -83,6 +83,10 @@ class BinOp(VectorExpression):
 
     def infer_type(lhs, rhs, op):
         lhs_type = lhs.type()
+
+        if op.is_unary():
+            return lhs_type
+
         rhs_type = rhs.type()
 
         if op.is_conditional():
@@ -235,7 +239,7 @@ class ASTTerm(ASTNode):
         return BinOp(self.sim, self, other, Operators.BinXor)
 
     def __invert__(self):
-        return BinOp(self.sim, self, None, Operators.BinNeg)
+        return BinOp(self.sim, self, None, Operators.Invert)
 
     def and_op(self, other):
         return BinOp(self.sim, self, other, Operators.And)

@@ -97,3 +97,8 @@ class While(ASTNode):
 
     def children(self):
         return [self.cond, self.block]
+
+
+class Continue(ASTNode):
+    def __init__(self, sim):
+        super().__init__(sim)

@@ -12,7 +12,7 @@ from pairs.ir.functions import Call
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
-from pairs.ir.loops import For, Iter, ParticleFor, While
+from pairs.ir.loops import For, Iter, ParticleFor, While, Continue
 from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
@@ -233,6 +233,9 @@ class CGen:
                 self.generate_statement(stmt)
             self.print.add_indent(-4)
 
+        if isinstance(ast_node, Continue):
+            self.print("continue;")
+
         # TODO: Why there are Decls for other types?
         if isinstance(ast_node, Decl):
             if isinstance(ast_node.elem, BinOp):
@@ -243,13 +246,21 @@ class CGen:
                             lhs = self.generate_expression(bin_op.lhs, bin_op.mem, index=i)
                             rhs = self.generate_expression(bin_op.rhs, index=i)
                             operator = bin_op.operator()
-                            self.print(f"const double e{bin_op.id()}_{i} = {lhs} {operator.symbol()} {rhs};")
+
+                            if operator.is_unary():
+                                self.print(f"const double e{bin_op.id()}_{i} = {operator.symbol()}({lhs});")
+                            else:
+                                self.print(f"const double e{bin_op.id()}_{i} = {lhs} {operator.symbol()} {rhs};")
                     else:
                         lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
                         rhs = self.generate_expression(bin_op.rhs)
                         operator = bin_op.operator()
                         tkw = Types.c_keyword(bin_op.type())
-                        self.print(f"const {tkw} e{bin_op.id()} = {lhs} {operator.symbol()} {rhs};")
+
+                        if operator.is_unary():
+                            self.print(f"const {tkw} e{bin_op.id()} = {operator.symbol()}({lhs});")
+                        else:
+                            self.print(f"const {tkw} e{bin_op.id()} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, ArrayAccess):
                 array_access = ast_node.elem
@@ -258,6 +269,15 @@ class CGen:
                 acc_index = self.generate_expression(array_access.flat_index)
                 acc_ref = f"a{array_access.id()}"
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
+
+            if isinstance(ast_node.elem, ContactPropertyAccess):
+                contact_prop_access = ast_node.elem
+                contact_prop = contact_prop_access.contact_prop
+                prop_name = self.generate_expression(contact_prop)
+                tkw = Types.c_keyword(contact_prop_access.type())
+                acc_index = self.generate_expression(contact_prop_access.index)
+                acc_ref = f"cp{feature_prop_access.id()}"
+                self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
 
             if isinstance(ast_node.elem, FeaturePropertyAccess):
                 feature_prop_access = ast_node.elem
@@ -524,6 +544,32 @@ class CGen:
 
             self.print(f"pairs->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
 
+        if isinstance(ast_node, RegisterContactProperty):
+            p = ast_node.property()
+            ptr = p.name()
+            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            tkw = Types.c_keyword(p.type())
+            ptype = "Prop_Integer"  if p.type() == Types.Int32 else \
+                    "Prop_Float"    if p.type() == Types.Double else \
+                    "Prop_Vector"   if p.type() == Types.Vector else \
+                    "Prop_Invalid"
+
+            assert ptype != "Prop_Invalid", "Invalid property type!"
+
+            playout = "AoS" if p.layout() == Layouts.AoS else \
+                      "SoA" if p.layout() == Layouts.SoA else \
+                      "Invalid"
+
+            sizes = ", ".join([str(self.generate_expression(BinOp.inline(size))) for size in ast_node.sizes()])
+
+            if self.target.is_gpu() and p.device_flag:
+                self.print(f"{tkw} *{ptr}, *{d_ptr};")
+                d_ptr = f"&{d_ptr}"
+            else:
+                self.print(f"{tkw} *{ptr};")
+
+            self.print(f"pairs->addContactProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
+
         if isinstance(ast_node, RegisterFeatureProperty):
             fp = ast_node.feature_property()
             ptr = fp.name()
@@ -601,7 +647,8 @@ class CGen:
                 lhs = self.generate_expression(ast_node.lhs, mem, index)
                 rhs = self.generate_expression(ast_node.rhs, index=index)
                 operator = ast_node.operator()
-                return f"({lhs} {operator.symbol()} {rhs})"
+                return f"({operator.symbol()}({lhs}))" if operator.is_unary() else \
+                       f"({lhs} {operator.symbol()} {rhs})"
 
             if ast_node.is_vector_kind():
                 assert index is not None, "Index must be set for vector reference!"
@@ -659,6 +706,17 @@ class CGen:
 
         if isinstance(ast_node, Property):
             return ast_node.name()
+
+        if isinstance(ast_node, ContactPropertyAccess):
+            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
+            prop_name = self.generate_expression(ast_node.contact_prop)
+
+            if mem or ast_node.inlined is True:
+                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
+                index_g = self.generate_expression(index_expr)
+                return f"{prop_name}[{index_g}]"
+
+            return f"cp{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
 
         if isinstance(ast_node, PropertyAccess):
             assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"

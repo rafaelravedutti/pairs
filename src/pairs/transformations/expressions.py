@@ -12,6 +12,13 @@ class ReplaceSymbols(Mutator):
     def mutate_Symbol(self, ast_node):
         return ast_node.assign_to
 
+    def mutate_SymbolAccess(self, ast_node):
+        access = ast_node.symbol()
+        for i in ast_node.indexes():
+            access = access[i]
+
+        return access
+
 
 class SimplifyExpressions(Mutator):
     def __init__(self, ast=None):
