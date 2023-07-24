@@ -14,18 +14,18 @@ def linear_spring_dashpot(i, j):
     rel_vel_n = dot(rel_vel, contact_normal) * contact_normal
     rel_vel_t = rel_vel - rel_vel_n
 
-    fN = stiffness_norm[i, j] * (-penetration_depth) * contact_normal + damping_norm[i, j] * relVelN;
+    fN = stiffness_norm[i, j] * (-penetration_depth) * contact_normal + damping_norm[i, j] * rel_vel_n;
 
     tan_spring_disp = tangential_spring_displacement[i, j]
-    impact_vel_magnitude = impact_velocities_magnitude[i, j]
+    impact_vel_magnitude = impact_velocity_magnitude[i, j]
     impact_magnitude = select(impact_vel_magnitude > 0.0, impact_vel_magnitude, length(rel_vel))
     sticking = is_sticking[i, j]
 
     rotated_tan_disp = tan_spring_disp - contact_normal * (contact_normal * tan_spring_disp)
-    new_tan_spring_disp = select(square_length(rotated_tan_disp) <= 0.0,
-                                 0.0, 
+    new_tan_spring_disp = dt * rel_vel_t + \
+                          select(square_length(rotated_tan_disp) <= 0.0,
+                                 zero_vector(),
                                  rotated_tan_disp * length(tan_spring_disp) / length(rotated_tan_disp))
-    new_tan_spring_disp += dt * rel_vel_t
 
     fTLS = stiffness_tan[i, j] * new_tan_spring_disp + damping_tan[i, j] * rel_vel_t
     fTLS_len = length(fTLS)
@@ -38,13 +38,13 @@ def linear_spring_dashpot(i, j):
     cond1 = sticking and rel_vel_t_len < tan_vel_threshold and fTLS_len < f_friction_abs_static
     cond2 = sticking and fTLS_len < f_friction_abs_dynamic
     f_friction_abs = select(cond1, f_friction_abs_static, f_friction_abs_dynamic)
-    n_sticking = select(cond1 or cond2 or fTLS_len < f_friction_abs_dynamic, True, False)
+    n_sticking = select(cond1 or cond2 or fTLS_len < f_friction_abs_dynamic, 1, 0)
     n_T_spring_disp = select(not cond1 and not cond2 and stiffness_tan[i, j] > 0.0,
                              (f_friction_abs * t - damping_tan[i, j] * rel_vel_t) / stiffness_tan[i, j],
                              new_tan_spring_disp2)
 
     tangential_spring_displacement[i, j] = n_T_spring_disp
-    impact_velocities_magnitude[i, j] = impact_magnitude
+    impact_velocity_magnitude[i, j] = impact_magnitude
     is_sticking[i, j] = n_sticking
 
     fTabs = min(fTLS_len, f_friction_abs)
@@ -95,7 +95,7 @@ psim.add_contact_property('impact_velocity_magnitude', pairs.double(), 0.0)
 psim.read_particle_data("data/fluidized_bed.input", ['mass', 'position', 'velocity'])
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/test_{target}")
-psim.compute(linear_spring_dashpot, cutoff_radius)
+psim.compute(linear_spring_dashpot, cutoff_radius, symbols={'dt': dt})
 psim.compute(euler, symbols={'dt': dt})
 
 if target == 'gpu':

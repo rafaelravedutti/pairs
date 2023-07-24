@@ -1,7 +1,7 @@
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftExprOwnerBlocks, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
-from pairs.transformations.expressions import ReplaceSymbols, SimplifyExpressions, PrioritizeScalarOps, AddExpressionDeclarations
+from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PrioritizeScalarOps, AddExpressionDeclarations
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
 from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLogic, ReplaceModulesByCalls
@@ -34,6 +34,7 @@ class Transformations:
 
     def optimize_expressions(self):
         self.apply(ReplaceSymbols())
+        self.apply(LowerNeighborIndexes())
         self.apply(SimplifyExpressions())
         self.apply(PrioritizeScalarOps())
         self.apply(SimplifyExpressions())

@@ -1,4 +1,4 @@
-from pairs.ir.bin_op import BinOp
+from pairs.ir.bin_op import BinOp, ASTTerm
 from pairs.ir.block import Block, pairs_inline
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import For, ParticleFor
@@ -7,7 +7,30 @@ from pairs.ir.utils import Print
 from pairs.sim.lowerable import Lowerable
 
 
-class NeighborFor():
+class Neighbor(ASTTerm):
+    def __init__(self, sim, neighbor_index, cell_id, particle_index):
+        self.sim = sim
+        self._neighbor_index = neighbor_index
+        self._cell_id = cell_id
+        self._particle_index = particle_index
+
+    def __str__(self):
+        return f"Neighbor<{self._neighbor_index}, {self._cell_id}>"
+
+    def type(self):
+        return Types.Int32
+
+    def neighbor_index(self):
+        return self._neighbor_index
+
+    def cell_id(self):
+        return self._cell_id
+
+    def particle_index(self):
+        return self._particle_index
+
+
+class NeighborFor:
     def __init__(self, sim, particle, cell_lists, neighbor_lists=None):
         self.sim = sim
         self.particle = particle
@@ -26,11 +49,11 @@ class NeighborFor():
                     for nc in For(self.sim, 0, cl.cell_sizes[neigh_cell]):
                         it = cl.cell_particles[neigh_cell][nc]
                         for _ in Filter(self.sim, BinOp.neq(it, self.particle)):
-                                yield it
+                                yield Neighbor(self.sim, nc, neigh_cell, it)
         else:
             neighbor_lists = self.neighbor_lists
             for k in For(self.sim, 0, neighbor_lists.numneighs[self.particle]):
-                yield neighbor_lists.neighborlists[self.particle][k]
+                yield Neighbor(self.sim, k, None, neighbor_lists.neighborlists[self.particle][k])
 
 
 class ParticleInteraction(Lowerable):
@@ -68,7 +91,8 @@ class ParticleInteraction(Lowerable):
             neighbor_lists = None if self.bypass_neighbor_lists else self.sim.neighbor_lists
             for i in ParticleFor(self.sim):
                 self.i.assign(i)
-                for j in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
+                for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
+                    j = neigh.particle_index()
                     dp = position[i] - position[j]
                     rsq = dp.x() * dp.x() + dp.y() * dp.y() + dp.z() * dp.z()
                     self.j.assign(j)

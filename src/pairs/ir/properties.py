@@ -266,7 +266,7 @@ class ContactPropertyAccess(ASTTerm, VectorExpression):
         super().__init__(sim)
         self.acc_id = ContactPropertyAccess.new_id()
         self.contact_prop = contact_prop
-        self.index = Lit.cvt(sim, index)
+        self.index = index[0] * self.sim.neighbor_capacity + index[1]
         self.inlined = False
         self.terminals = set()
 

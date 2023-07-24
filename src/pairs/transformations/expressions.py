@@ -20,6 +20,22 @@ class ReplaceSymbols(Mutator):
         return access
 
 
+class LowerNeighborIndexes(Mutator):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+        self._lower_to_relative = False
+
+    def mutate_ContactPropertyAccess(self, ast_node):
+        ast_node.contact_prop = self.mutate(ast_node.contact_prop)
+        self._lower_to_relative = True
+        ast_node.index = self.mutate(ast_node.index)
+        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        self._lower_to_relative = False
+
+    def mutate_Neighbor(self, ast_node):
+        return ast_node.neighbor_index() if self._lower_to_relative else ast_node.particle_index()
+
+
 class SimplifyExpressions(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)
@@ -195,6 +211,19 @@ class AddExpressionDeclarations(Mutator):
             if prop_access_id not in self.declared_exprs and prop_access_id not in self.params:
                 self.push_decl(Decl(ast_node.sim, ast_node))
                 self.declared_exprs.append(prop_access_id)
+
+        return ast_node
+
+    def mutate_Select(self, ast_node):
+        ast_node.cond = self.mutate(ast_node.cond)
+        ast_node.expr_if = self.mutate(ast_node.expr_if)
+        ast_node.expr_else = self.mutate(ast_node.expr_else)
+
+        if ast_node.inlined is False:
+            select_id = id(ast_node)
+            if select_id not in self.declared_exprs and select_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(select_id)
 
         return ast_node
 

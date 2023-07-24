@@ -274,19 +274,33 @@ class CGen:
                 contact_prop_access = ast_node.elem
                 contact_prop = contact_prop_access.contact_prop
                 prop_name = self.generate_expression(contact_prop)
-                tkw = Types.c_keyword(contact_prop_access.type())
-                acc_index = self.generate_expression(contact_prop_access.index)
-                acc_ref = f"cp{feature_prop_access.id()}"
-                self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
+                acc_ref = f"cp{contact_prop_access.id()}"
+
+                if contact_prop_access.is_vector_kind():
+                    for i in contact_prop_access.indexes():
+                        i_expr = self.generate_expression(contact_prop_access.get_index_expression(i))
+                        self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
+
+                else:
+                    tkw = Types.c_keyword(contact_prop_access.type())
+                    acc_index = self.generate_expression(contact_prop_access.index)
+                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
 
             if isinstance(ast_node.elem, FeaturePropertyAccess):
                 feature_prop_access = ast_node.elem
                 feature_prop = feature_prop_access.feature_prop
                 prop_name = self.generate_expression(feature_prop)
-                tkw = Types.c_keyword(feature_prop_access.type())
-                acc_index = self.generate_expression(feature_prop_access.index)
                 acc_ref = f"f{feature_prop_access.id()}"
-                self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
+
+                if feature_prop_access.is_vector_kind():
+                    for i in feature_prop_access.indexes():
+                        i_expr = self.generate_expression(feature_prop_access.get_index_expression(i))
+                        self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
+
+                else:
+                    tkw = Types.c_keyword(feature_prop_access.type())
+                    acc_index = self.generate_expression(feature_prop_access.index)
+                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
 
             if isinstance(ast_node.elem, PropertyAccess):
                 prop_access = ast_node.elem
@@ -316,6 +330,23 @@ class CGen:
                     self.print(f"const {tkw} {acc_ref} = pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
                 else:
                     self.print(f"const {tkw} {acc_ref} = pairs::{prefix}atomic_add(&({elem}), {value});")
+
+            if isinstance(ast_node.elem, Select):
+                select = ast_node.elem
+                acc_ref = f"s{select.id()}"
+
+                if select.is_vector_kind():
+                    for i in select.indexes():
+                        cond = self.generate_expression(select.cond, index=i)
+                        expr_if = self.generate_expression(select.expr_if, index=i)
+                        expr_else = self.generate_expression(select.expr_else, index=i)
+                        self.print(f"const double {acc_ref}_{i} = ({cond}) ? ({expr_if}) : ({expr_else});")
+                else:
+                    cond = self.generate_expression(select.cond)
+                    expr_if = self.generate_expression(select.expr_if)
+                    expr_else = self.generate_expression(select.expr_else)
+                    tkw = Types.c_keyword(select.type())
+                    self.print(f"const {tkw} {acc_ref} = ({cond}) ? ({expr_if}) : ({expr_else});")
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
@@ -730,12 +761,15 @@ class CGen:
             return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
 
         if isinstance(ast_node, FeaturePropertyAccess):
+            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
             feature_name = self.generate_expression(ast_node.feature_prop)
-            if mem or ast_node.inlined is True:
-                index = self.generate_expression(ast_node.index)
-                return f"{feature_name}[{index}]"
 
-            return f"f{ast_node.id()}"
+            if mem or ast_node.inlined is True:
+                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
+                index_g = self.generate_expression(index_expr)
+                return f"{feature_name}[{index_g}]"
+
+            return f"f{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
 
         if isinstance(ast_node, ParticleAttributeList):
             tid = CGen.temp_id
@@ -757,10 +791,19 @@ class CGen:
 
         if isinstance(ast_node, Select):
             assert mem is False, "Select expression is not lvalue!"
-            cond = self.generate_expression(ast_node.cond)
-            expr_if = self.generate_expression(ast_node.expr_if)
-            expr_else = self.generate_expression(ast_node.expr_else)
-            return f"({cond}) ? ({expr_if}) : ({expr_else})"
+
+            if ast_node.inlined is True:
+                assert ast_node.type() != Types.Vector, "Vector operations cannot be inlined!"
+                cond = self.generate_expression(ast_node.cond, index=index)
+                expr_if = self.generate_expression(ast_node.expr_if, index=index)
+                expr_else = self.generate_expression(ast_node.expr_else, index=index)
+                return f"(({cond}) ? ({expr_if}) : ({expr_else}))"
+
+            if ast_node.is_vector_kind():
+                assert index is not None, "Index must be set for vector reference!"
+                return f"s{ast_node.id()}[{index}]" if ast_node.mem else f"s{ast_node.id()}_{index}"
+
+            return f"s{ast_node.id()}"
 
         if isinstance(ast_node, Var):
             return ast_node.name()

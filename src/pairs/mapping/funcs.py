@@ -100,6 +100,10 @@ class Keywords:
         assert vector.type() == Types.Vector, "length(): Argument must be a vector!"
         return sum([vector[d] * vector[d] for d in range(self.sim.ndims())])
 
+    def keyword_zero_vector(self, args):
+        assert len(args) == 0, "zero_vector() keyword requires no parameter!"
+        return ZeroVector(self.sim)
+
 
 class BuildParticleIR(ast.NodeVisitor):
     def get_unary_op(op):

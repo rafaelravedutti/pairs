@@ -123,6 +123,12 @@ class Mutator:
         ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
         return ast_node
 
+    def mutate_ContactPropertyAccess(self, ast_node):
+        ast_node.contact_prop = self.mutate(ast_node.contact_prop)
+        ast_node.index = self.mutate(ast_node.index)
+        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        return ast_node
+
     def mutate_FeaturePropertyAccess(self, ast_node):
         ast_node.feature_prop = self.mutate(ast_node.feature_prop)
         ast_node.index = self.mutate(ast_node.index)
@@ -140,6 +146,15 @@ class Mutator:
 
     def mutate_ModuleCall(self, ast_node):
         ast_node._module = self.mutate(ast_node._module)
+        return ast_node
+
+    def mutate_Neighbor(self, ast_node):
+        ast_node._neighbor_index = self.mutate(ast_node._neighbor_index)
+        ast_node._particle_index = self.mutate(ast_node._particle_index)
+
+        if ast_node._cell_id is not None:
+            ast_node._cell_id = self.mutate(ast_node._cell_id)
+
         return ast_node
 
     def mutate_Realloc(self, ast_node):

@@ -3,7 +3,7 @@ from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import ParticleFor
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
-from pairs.sim.interaction import ParticleInteraction
+from pairs.sim.interaction import NeighborFor
 from pairs.sim.lowerable import Lowerable
 
 
@@ -33,7 +33,8 @@ class BuildContactHistory(Lowerable):
 
         for i in ParticleFor(self.sim):
             last_contact_id.set(0)
-            for j in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
+            for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
+                j = neigh.particle_index()
                 neighbor_contact.set(-1)
                 for k in For(self.sim, 0, num_contacts[i]):
                     if contact_lists[i][k] == j:
@@ -52,7 +53,8 @@ class BuildContactHistory(Lowerable):
                 last_contact_id.set(last_contact_id + 1)
 
             last_contact_id.set(0)
-            for j in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
+            for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
+                j = neigh.particle_index()
                 neighbor_contact.set(-1)
                 for k in For(self.sim, 0, num_contacts[i]):
                     if contact_lists[i][k] == j:
