@@ -11,7 +11,6 @@ class Properties:
     def __init__(self, sim):
         self.sim = sim
         self.props = []
-        self.capacities = []
         self.defs = {}
 
     def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS):
@@ -19,12 +18,6 @@ class Properties:
         self.props.append(p)
         self.defs[p_name] = p_value
         return p
-
-    def add_capacity(self, var):
-        self.capacities.append(var)
-
-    def is_capacity(self, var):
-        return var in self.capacities
 
     def defaults(self):
         return self.defs
@@ -206,6 +199,9 @@ class ContactProperties:
             return contact_prop[0]
 
         return None
+
+    def empty(self):
+        return len(self.contact_properties) == 0
 
     def __iter__(self):
         yield from self.contact_properties

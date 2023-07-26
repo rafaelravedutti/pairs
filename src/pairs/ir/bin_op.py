@@ -52,7 +52,7 @@ class BinOp(VectorExpression):
     def __str__(self):
         a = self.lhs.id() if isinstance(self.lhs, BinOp) else self.lhs
         b = self.rhs.id() if isinstance(self.rhs, BinOp) else self.rhs
-        return f"BinOp<{a} {self.op} {b}>"
+        return f"BinOp<{a} {self.op.symbol()} {b}>"
 
     def copy(self):
         return BinOp(self.sim, self.lhs.copy(), self.rhs.copy(), self.op, self.mem)

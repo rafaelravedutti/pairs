@@ -16,13 +16,12 @@ class PropertiesAlloc(FinalLowerable):
 
     @pairs_inline
     def lower(self):
-        capacity = sum(self.sim.properties.capacities)
         for p in self.sim.properties.all():
             sizes = []
             if Types.is_real(p.type()) or Types.is_integer(p.type()):
-                sizes = [capacity]
+                sizes = [self.sim.particle_capacity]
             elif p.type() == Types.Vector:
-                sizes = [capacity, self.sim.ndims()]
+                sizes = [self.sim.particle_capacity, self.sim.ndims()]
             else:
                 raise Exception("Invalid property type!")
 
@@ -38,13 +37,12 @@ class ContactPropertiesAlloc(FinalLowerable):
 
     @pairs_inline
     def lower(self):
-        capacity = sum(self.sim.contact_properties.capacities)
-        for p in self.sim.contact_properties.all():
+        for p in self.sim.contact_properties:
             sizes = []
             if Types.is_real(p.type()) or Types.is_integer(p.type()):
-                sizes = [capacity]
+                sizes = [self.sim.particle_capacity * self.sim.neighbor_capacity]
             elif p.type() == Types.Vector:
-                sizes = [capacity, self.sim.ndims()]
+                sizes = [self.sim.particle_capacity * self.sim.neighbor_capacity, self.sim.ndims()]
             else:
                 raise Exception("Invalid contact property type!")
 

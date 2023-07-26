@@ -19,7 +19,7 @@ class AtomicAdd(ASTTerm):
         self.device_flag = False
 
     def __str__(self):
-        return f"AtomicAdd<{self.elem, self.val}>"
+        return f"AtomicAdd<{self.elem, self.value}>"
 
     def add_resize_check(self, resize, capacity):
         self.resize = BinOp.inline(resize)

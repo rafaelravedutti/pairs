@@ -17,7 +17,7 @@ from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
 from pairs.ir.particle_attributes import ParticleAttributeList
-from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty
+from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty, ContactPropertyAccess, RegisterContactProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types

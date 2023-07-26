@@ -166,9 +166,9 @@ class ReplaceModulesByCalls(Mutator):
                 branch_cond = cond if branch_cond is None else BinOp.or_op(cond, branch_cond)
                 props_realloc = []
 
-                if properties.is_capacity(capacity):
+                if capacity == sim.particle_capacity:
                     for p in properties.all():
-                        new_capacity = sum(properties.capacities)
+                        new_capacity = sim.particle_capacity
                         sizes = [new_capacity, sim.ndims()] if p.type() == Types.Vector else [new_capacity]
                         props_realloc += [ReallocProperty(sim, p, sizes)]
 

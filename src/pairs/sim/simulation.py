@@ -31,7 +31,7 @@ from pairs.transformations import Transformations
 
 
 class Simulation:
-    def __init__(self, code_gen, dims=3, timesteps=100, particle_capacity=1000000):
+    def __init__(self, code_gen, dims=3, timesteps=100):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.position_prop = None
@@ -41,8 +41,8 @@ class Simulation:
         self.features = Features(self)
         self.feature_properties = FeatureProperties(self)
         self.contact_properties = ContactProperties(self)
-        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
-        self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, particle_capacity)
+        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, 200000)
+        self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, 100)
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
@@ -71,7 +71,6 @@ class Simulation:
         self._target = None
         self._dom_part = DimensionRanges(self)
         self.nparticles = self.nlocal + self.nghost
-        self.properties.add_capacity(self.particle_capacity)
 
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"
@@ -279,18 +278,24 @@ class Simulation:
     def generate(self):
         assert self._target is not None, "Target not specified!"
         comm = Comm(self, self._dom_part)
-        contact_history = ContactHistory(self.cell_lists)
 
-        timestep = Timestep(self, self.ntimesteps, [
+        timestep_procedures = [
             (comm.exchange(), 20),
             (comm.borders(), comm.synchronize(), 20),
             (CellListsBuild(self, self.cell_lists), 20),
             (NeighborListsBuild(self, self.neighbor_lists), 20),
-            (BuildContactHistory(self, contact_history), 20),
+        ]
+
+        if not self.contact_properties.empty():
+            contact_history = ContactHistory(self.cell_lists)
+            timestep_procedures.append((BuildContactHistory(self, contact_history), 20))
+
+        timestep_procedures += [
             PropertiesResetVolatile(self),
             self.functions
-        ])
+        ]
 
+        timestep = Timestep(self, self.ntimesteps, timestep_procedures)
         self.enter(timestep.block)
         timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1))
         self.leave()

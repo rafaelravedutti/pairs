@@ -3,9 +3,9 @@ import sys
 
 
 def lj(i, j):
-    sr2 = 1.0 / rsq
+    sr2 = 1.0 / squared_distance(i, j)
     sr6 = sr2 * sr2 * sr2 * sigma6[i, j]
-    force[i] += delta * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon[i, j]
+    force[i] += delta(i, j) * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon[i, j]
 
 
 def euler(i):
