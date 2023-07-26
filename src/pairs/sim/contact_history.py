@@ -1,6 +1,6 @@
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
-from pairs.ir.loops import ParticleFor
+from pairs.ir.loops import ParticleFor, For
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.interaction import NeighborFor
@@ -24,10 +24,10 @@ class BuildContactHistory(Lowerable):
     def lower(self):
         contact_history = self.contact_history
         cell_lists = self.contact_history.cell_lists
-        neighbor_lists = self.contact_history.neighbor_lists
+        neighbor_lists = self.sim.neighbor_lists
         contact_lists = self.contact_history.contact_lists
         num_contacts = self.contact_history.num_contacts
-        sim.module_name("build_contact_history")
+        self.sim.module_name("build_contact_history")
         last_contact_id = self.sim.add_temp_var(0)
         neighbor_contact = self.sim.add_temp_var(0)
 
@@ -43,10 +43,10 @@ class BuildContactHistory(Lowerable):
                 for _ in Filter(self.sim, neighbor_contact >= 0):
                     contact_lists[i][k].set(contact_lists[i][last_contact_id])
 
-                    for contact_prop in self.sim.contact_properties():
-                        tmp = self.sim.add_temp_var(contact_prop[i][last_contact_id])
-                        contact_prop[i][last_contact_id].set(contact_prop[i][k])
-                        contact_prop[i][k].set(tmp)
+                    for contact_prop in self.sim.contact_properties:
+                        tmp = self.sim.add_temp_var(contact_prop[i, last_contact_id])
+                        contact_prop[i, last_contact_id].set(contact_prop[i, k])
+                        contact_prop[i, k].set(tmp)
 
                     contact_lists[i][last_contact_id].set(j)
 
@@ -62,7 +62,7 @@ class BuildContactHistory(Lowerable):
 
                 for _ in Filter(self.sim, neighbor_contact < 0):
                     for contact_prop in self.sim.contact_properties():
-                        contact_prop[i][last_contact_id].set(contact_prop.default())
+                        contact_prop[i, last_contact_id].set(contact_prop.default())
 
                     contact_lists[i][last_contact_id].set(j)
 

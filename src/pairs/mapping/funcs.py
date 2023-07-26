@@ -51,7 +51,7 @@ class Keywords:
         return method is not None
 
     def keyword_select(self, args):
-        assert len(args) == 3, "select() keyword requires three parameter!"
+        assert len(args) == 3, "select() keyword requires three parameters!"
         return Select(self.sim, args[0], args[1], args[2])
 
     def keyword_skip_when(self, args):
@@ -61,14 +61,14 @@ class Keywords:
     def keyword_min(self, args):
         e_min = args[0]
         for a in args[1:]:
-            e_min = Min(self.sim, e_min, a)
+            e_min = Select(self.sim, a < e_min, a, e_min)
 
         return e_min
 
     def keyword_max(self, args):
         e_max = args[0]
         for a in args[1:]:
-            e_max = Max(self.sim, e_max, a)
+            e_max = Select(self.sim, a > e_max, a, e_max)
 
         return e_max
 
@@ -94,7 +94,7 @@ class Keywords:
         inv_length = Lit(self.sim, 1.0) / length
         return Select(self.sim, length > Lit(self.sim, 0.0), vector * inv_length, ZeroVector(self.sim))
 
-    def keyword_square_length(self, args):
+    def keyword_squared_length(self, args):
         assert len(args) == 1, "length() keyword requires one parameter!"
         vector = args[0]
         assert vector.type() == Types.Vector, "length(): Argument must be a vector!"
@@ -107,32 +107,45 @@ class Keywords:
 
 class BuildParticleIR(ast.NodeVisitor):
     def get_unary_op(op):
-        if isinstance(op, ast.UAdd):
-            return Operators.UAdd
+        unary_ops = {
+            ast.UAdd: Operators.UAdd,
+            ast.USub: Operators.USub,
+            ast.Invert: Operators.Invert,
+            ast.Not: Operators.Not
+        }
 
-        if isinstance(op, ast.USub):
-            return Operators.USub
-
-        if isinstance(op, ast.Invert):
-            return Operators.Invert
-
-        if isinstance(op, ast.Not):
-            return Operators.Not
+        op_type = type(op)
+        if op_type in unary_ops:
+            return unary_ops[op_type]
 
         raise Exception("Invalid operator: {}".format(ast.dump(op)))
 
     def get_binary_op(op):
-        if isinstance(op, ast.Add):
-            return Operators.Add
+        binary_ops = {
+            ast.Add: Operators.Add,
+            ast.Sub: Operators.Sub,
+            ast.Mult: Operators.Mul,
+            ast.Div: Operators.Div,
+            #ast.FloorDiv: Operators.FloorDiv,
+            ast.Mod: Operators.Mod,
+            ast.Eq: Operators.Eq,
+            ast.NotEq: Operators.Neq,
+            ast.Gt: Operators.Gt,
+            ast.Lt: Operators.Lt,
+            ast.GtE: Operators.Geq,
+            ast.LtE: Operators.Leq,
+            ast.BitAnd: Operators.BinAnd,
+            ast.BitOr: Operators.BinOr,
+            ast.BitXor: Operators.BinXor,
+            #ast.LShift: Operators.LShift,
+            #ast.RShift: Operators.RShift,
+            ast.And: Operators.And,
+            ast.Or: Operators.Or
+        }
 
-        if isinstance(op, ast.Sub):
-            return Operators.Sub
-
-        if isinstance(op, ast.Mult):
-            return Operators.Mul
-
-        if isinstance(op, ast.Div):
-            return Operators.Div
+        op_type = type(op)
+        if op_type in binary_ops:
+            return binary_ops[op_type]
 
         raise Exception("Invalid operator: {}".format(ast.dump(op)))
 
@@ -149,7 +162,7 @@ class BuildParticleIR(ast.NodeVisitor):
         self.ctx_symbols.update(symbols)
 
     def visit_Assign(self, node):
-        print(ast.dump(node))
+        #print(ast.dump(node))
         assert len(node.targets) == 1, "Only one target is allowed on assignments!"
         lhs = self.visit(node.targets[0])
         rhs = self.visit(node.value)
@@ -176,12 +189,23 @@ class BuildParticleIR(ast.NodeVisitor):
         assert not isinstance(rhs, UndefinedSymbol), f"Undefined rhs used in BinOp: {rhs.symbol_id}"
         return BinOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
 
+    def visit_BoolOp(self, node):
+        #print(ast.dump(node))
+        lhs = self.visit(node.values[0])
+        assert not isinstance(lhs, UndefinedSymbol), f"Undefined lhs used in BinOp: {lhs.symbol_id}"
+        rhs = self.visit(node.values[1])
+        assert not isinstance(rhs, UndefinedSymbol), f"Undefined rhs used in BinOp: {rhs.symbol_id}"
+        return BinOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
+
     def visit_Call(self, node):
         func = self.visit(node.func).symbol_id
         args = [self.visit(a) for a in node.args]
 
         if self.keywords.exists(func):
             return self.keywords(func, args)
+
+        if func == 'squared_distance' or func == 'delta':
+            return self.ctx_symbols[f"__{func}__"]
 
         for c in self.ctx_calls:
             if c['func'] == func and len(c['args']) == len(args) and all([c['args'][a] == args[a] for a in range(0, len(args))]):
@@ -190,6 +214,35 @@ class BuildParticleIR(ast.NodeVisitor):
         value = BuildParticleIR.parse_function_and_get_return_value(func, args)
         self.ctx_calls.append({'func': func, 'args': args, 'value': value})
         return value
+
+    def visit_Compare(self, node):
+        valid_ops = (
+            ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn
+        )
+
+        if len(node.ops) != 1 or not isinstance(node.ops[0], valid_ops):
+            raise Exception(f"Chained comparisons or unsupported comparison found: {ast.dump(node)}")
+
+        lhs = self.visit(node.left)
+        rhs = self.visit(node.comparators[0])
+        self.bin_op = BinOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.ops[0]))
+        return self.bin_op
+
+    def visit_If(self, node):
+        condition = self.visit(node.test)
+        for _ in Filter(self.sim, condition):
+            for stmt in node.body:
+                self.visit(stmt)
+
+    def visit_IfExp(self, node):
+        condition = self.visit(node.test)
+        for test in Branch(self.sim, condition):
+            if test:
+                for stmt in node.body:
+                    self.visit(stmt)
+            else:
+                for stmt in node.orelse:
+                    self.visit(stmt)
 
     def visit_Index(self, node):
         return self.visit(node.value)
@@ -266,7 +319,13 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
     else:
         pairs = ParticleInteraction(sim, nparams, cutoff_radius)
         for i, j in pairs:
-            ir.add_symbols({params[0]: i, params[1]: j, 'delta': pairs.delta(), 'rsq': pairs.squared_distance()})
+            ir.add_symbols({
+                params[0]: i,
+                params[1]: j,
+                '__delta__': pairs.delta(),
+                '__squared_distance__': pairs.squared_distance()
+            })
+
             ir.visit(tree)
 
     sim.build_module_with_statements()

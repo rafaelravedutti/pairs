@@ -3,10 +3,10 @@ import sys
 
 
 def linear_spring_dashpot(i, j):
-    penetration_depth = rsq - radius[i] - radius[j]
+    penetration_depth = squared_distance(i, j) - radius[i] - radius[j]
     skip_when(penetration_depth >= 0.0)
 
-    contact_normal = normalized(delta)
+    contact_normal = normalized(delta(i, j))
     k = radius[j] + 0.5 * penetration_depth
     contact_point = position[j] + contact_normal * k
 
@@ -23,7 +23,7 @@ def linear_spring_dashpot(i, j):
 
     rotated_tan_disp = tan_spring_disp - contact_normal * (contact_normal * tan_spring_disp)
     new_tan_spring_disp = dt * rel_vel_t + \
-                          select(square_length(rotated_tan_disp) <= 0.0,
+                          select(squared_length(rotated_tan_disp) <= 0.0,
                                  zero_vector(),
                                  rotated_tan_disp * length(tan_spring_disp) / length(rotated_tan_disp))
 
@@ -35,15 +35,18 @@ def linear_spring_dashpot(i, j):
     f_friction_abs_dynamic = friction_dynamic[i, j] * length(fN)
     tan_vel_threshold = 1e-8
 
-    cond1 = sticking and rel_vel_t_len < tan_vel_threshold and fTLS_len < f_friction_abs_static
+    cond1 = sticking and length(rel_vel_t) < tan_vel_threshold and fTLS_len < f_friction_abs_static
     cond2 = sticking and fTLS_len < f_friction_abs_dynamic
     f_friction_abs = select(cond1, f_friction_abs_static, f_friction_abs_dynamic)
     n_sticking = select(cond1 or cond2 or fTLS_len < f_friction_abs_dynamic, 1, 0)
-    n_T_spring_disp = select(not cond1 and not cond2 and stiffness_tan[i, j] > 0.0,
-                             (f_friction_abs * t - damping_tan[i, j] * rel_vel_t) / stiffness_tan[i, j],
-                             new_tan_spring_disp2)
 
-    tangential_spring_displacement[i, j] = n_T_spring_disp
+    if not cond1 and not cond2 and stiffness_tan[i, j] > 0.0:
+        tangential_spring_displacement[i, j] = \
+            (f_friction_abs * t - damping_tan[i, j] * rel_vel_t) / stiffness_tan[i, j]
+
+    else:
+        tangential_spring_displacement[i, j] = new_tan_spring_disp
+
     impact_velocity_magnitude[i, j] = impact_magnitude
     is_sticking[i, j] = n_sticking
 

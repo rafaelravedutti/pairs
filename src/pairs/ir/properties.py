@@ -293,6 +293,15 @@ class ContactPropertyAccess(ASTTerm, VectorExpression):
     def propagate_through(self):
         return []
 
+    def set(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, other))
+
+    def add(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, self + other))
+
+    def sub(self, other):
+        return self.sim.add_statement(Assign(self.sim, self, self - other))
+
     def id(self):
         return self.acc_id
 

@@ -15,13 +15,14 @@ from pairs.mapping.funcs import compute
 from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
 from pairs.sim.comm import Comm
+from pairs.sim.contact_history import ContactHistory, BuildContactHistory
 from pairs.sim.domain_partitioning import DimensionRanges
 from pairs.sim.features import FeaturePropertiesAlloc 
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild
 from pairs.sim.pbc import EnforcePBC
-from pairs.sim.properties import PropertiesAlloc, PropertiesResetVolatile
+from pairs.sim.properties import ContactPropertiesAlloc, PropertiesAlloc, PropertiesResetVolatile
 from pairs.sim.read_from_file import ReadParticleData
 from pairs.sim.timestep import Timestep
 from pairs.sim.variables import VariablesDecl
@@ -278,7 +279,7 @@ class Simulation:
     def generate(self):
         assert self._target is not None, "Target not specified!"
         comm = Comm(self, self._dom_part)
-        contact_history = ContactHistory(self, self.cell_lists)
+        contact_history = ContactHistory(self.cell_lists)
 
         timestep = Timestep(self, self.ntimesteps, [
             (comm.exchange(), 20),

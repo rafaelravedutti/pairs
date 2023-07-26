@@ -28,7 +28,7 @@ class NeighborListsBuild(Lowerable):
         cutoff_radius = cell_lists.cutoff_radius
         position = sim.position()
         sim.module_name("neighbor_lists_build")
-        sim.check_resize(neighbor_lists.capacity, neighbor_lists.numneighs)
+        sim.check_resize(sim.neighbor_capacity, neighbor_lists.numneighs)
 
         for i in ParticleFor(sim):
             neighbor_lists.numneighs[i].set(0)
