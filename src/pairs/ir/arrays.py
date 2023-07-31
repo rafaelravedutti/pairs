@@ -144,7 +144,11 @@ class ArrayAccess(ASTTerm):
         self.check_and_set_flat_index()
 
     def __str__(self):
-        return f"ArrayAccess<{self.array}, {self.partial_indexes}>"
+        part_indexes = \
+            ", ".join(map(str, self.partial_indexes)) if isinstance(self.partial_indexes, list) \
+            else self.partial_indexes
+
+        return f"ArrayAccess<{self.array}, [{part_indexes}]>"
 
     def __getitem__(self, index):
         assert self.flat_index is None, "Number of partial indexes higher than array dimension!"
@@ -152,7 +156,7 @@ class ArrayAccess(ASTTerm):
         self.check_and_set_flat_index()
         return self
 
-    def inline_rec(self):
+    def inline_recursively(self):
         self.inlined = True
         return self
 

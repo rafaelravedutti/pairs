@@ -49,7 +49,10 @@ class Mutator:
 
     def mutate_BinOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
-        ast_node.rhs = self.mutate(ast_node.rhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
         return ast_node
 

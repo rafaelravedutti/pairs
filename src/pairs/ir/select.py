@@ -15,18 +15,35 @@ class Select(ASTTerm, VectorExpression):
         super().__init__(sim)
         self.select_id = Select.new_id()
         self.cond = Lit.cvt(sim, cond)
-        self.expr_if = BinOp.inline(Lit.cvt(sim, expr_if))
-        self.expr_else = BinOp.inline(Lit.cvt(sim, expr_else))
+        #self.expr_if = BinOp.inline(Lit.cvt(sim, expr_if))
+        #self.expr_else = BinOp.inline(Lit.cvt(sim, expr_else))
+        self.expr_if = Lit.cvt(sim, expr_if)
+        self.expr_else = Lit.cvt(sim, expr_else)
+        self.inlined = False
         assert self.expr_if.type() == self.expr_else.type(), "Select: expressions must be of same type!"
 
     def __str__(self):
         return f"Select<{self.cond}, {self.expr_if}, {self.expr_else}>"
 
+    def id(self):
+        return self.select_id
+
     def type(self):
         return self.expr_if.type()
 
-    def inline_rec(self):
+    def inline_recursively(self):
+        method_name = "inline_recursively"
         self.inlined = True
+
+        if hasattr(self.cond, method_name) and callable(getattr(self.cond, method_name)):
+            self.cond.inline_recursively()
+
+        if hasattr(self.expr_if, method_name) and callable(getattr(self.expr_if, method_name)):
+            self.expr_if.inline_recursively()
+
+        if hasattr(self.expr_else, method_name) and callable(getattr(self.expr_else, method_name)):
+            self.expr_else.inline_recursively()
+
         return self
 
     def children(self):

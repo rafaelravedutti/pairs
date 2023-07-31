@@ -286,9 +286,9 @@ class Simulation:
             (NeighborListsBuild(self, self.neighbor_lists), 20),
         ]
 
-        if not self.contact_properties.empty():
-            contact_history = ContactHistory(self.cell_lists)
-            timestep_procedures.append((BuildContactHistory(self, contact_history), 20))
+        #if not self.contact_properties.empty():
+        #    contact_history = ContactHistory(self.cell_lists)
+        #    timestep_procedures.append((BuildContactHistory(self, contact_history), 20))
 
         timestep_procedures += [
             PropertiesResetVolatile(self),

@@ -116,7 +116,7 @@ class PropertyAccess(ASTTerm, VectorExpression):
         assert index is not None, "Invalid data layout"
         return index
 
-    def inline_rec(self):
+    def inline_recursively(self):
         self.inlined = True
         return self
 
@@ -207,7 +207,7 @@ class ContactProperties:
         yield from self.contact_properties
 
 
-class ContactProperty(ASTTerm):
+class ContactProperty(ASTNode):
     last_contact_prop_id = 0
 
     def __init__(self, sim, name, dtype, layout, default):
@@ -282,7 +282,7 @@ class ContactPropertyAccess(ASTTerm, VectorExpression):
         assert index is not None, "Invalid data layout"
         return index
 
-    def inline_rec(self):
+    def inline_recursively(self):
         self.inlined = True
         return self
 

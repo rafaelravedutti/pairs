@@ -169,7 +169,7 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
         assert index is not None, "Invalid data layout"
         return index
 
-    def inline_rec(self):
+    def inline_recursively(self):
         self.inlined = True
         return self
 

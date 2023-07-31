@@ -1,22 +1,20 @@
 import ast
 import inspect
-from pairs.ir.assign import Assign
 from pairs.ir.bin_op import BinOp
-from pairs.ir.block import Block
 from pairs.ir.branches import Filter
-from pairs.ir.const_vector import ZeroVector
-from pairs.ir.lit import Lit
-from pairs.ir.loops import ParticleFor, Continue
-from pairs.ir.math import Sqrt
+from pairs.ir.loops import ParticleFor
 from pairs.ir.operators import Operators
-from pairs.ir.select import Select
 from pairs.ir.types import Types
+from pairs.mapping.keywords import Keywords
 from pairs.sim.interaction import ParticleInteraction
 
 
 class UndefinedSymbol():
     def __init__(self, symbol_id):
         self.symbol_id = symbol_id
+
+    def type(self):
+        return Types.Invalid
 
 
 class FetchParticleFuncInfo(ast.NodeVisitor):
@@ -31,78 +29,6 @@ class FetchParticleFuncInfo(ast.NodeVisitor):
 
     def params(self):
         return self._params
-
-
-class Keywords:
-    def __init__(self, sim):
-        self.sim = sim
-
-    def get_method(self, method_name):
-        method = getattr(self, method_name, None)
-        return method if callable(method) else None
-
-    def __call__(self, keyword, args):
-        method = self.get_method(f"keyword_{keyword}")
-        assert method is not None, "Invalid keyword: {keyword}"
-        return method(args)
-
-    def exists(self, keyword):
-        method = self.get_method(f"keyword_{keyword}")
-        return method is not None
-
-    def keyword_select(self, args):
-        assert len(args) == 3, "select() keyword requires three parameters!"
-        return Select(self.sim, args[0], args[1], args[2])
-
-    def keyword_skip_when(self, args):
-        assert len(args) == 1, "skip_when() keyword requires one parameter!"
-        return Filter(self.sim, args[0], Block(self.sim, [Continue(self.sim)]))
-
-    def keyword_min(self, args):
-        e_min = args[0]
-        for a in args[1:]:
-            e_min = Select(self.sim, a < e_min, a, e_min)
-
-        return e_min
-
-    def keyword_max(self, args):
-        e_max = args[0]
-        for a in args[1:]:
-            e_max = Select(self.sim, a > e_max, a, e_max)
-
-        return e_max
-
-    def keyword_length(self, args):
-        assert len(args) == 1, "length() keyword requires one parameter!"
-        vector = args[0]
-        assert vector.type() == Types.Vector, "length(): Argument must be a vector!"
-        return Sqrt(self.sim, sum([vector[d] * vector[d] for d in range(self.sim.ndims())]))
-
-    def keyword_dot(self, args):
-        assert len(args) == 2, "dot() keyword requires two parameters!"
-        vector1 = args[0]
-        vector2 = args[1]
-        assert vector1.type() == Types.Vector, "dot(): First argument must be a vector!"
-        assert vector2.type() == Types.Vector, "dot(): Second argument must be a vector!"
-        return sum([vector1[d] * vector2[d] for d in range(self.sim.ndims())])
-
-    def keyword_normalized(self, args):
-        assert len(args) == 1, "normalized() keyword requires one parameter!"
-        vector = args[0]
-        assert vector.type() == Types.Vector, "length(): Argument must be a vector!"
-        length = self.keyword_length([vector])
-        inv_length = Lit(self.sim, 1.0) / length
-        return Select(self.sim, length > Lit(self.sim, 0.0), vector * inv_length, ZeroVector(self.sim))
-
-    def keyword_squared_length(self, args):
-        assert len(args) == 1, "length() keyword requires one parameter!"
-        vector = args[0]
-        assert vector.type() == Types.Vector, "length(): Argument must be a vector!"
-        return sum([vector[d] * vector[d] for d in range(self.sim.ndims())])
-
-    def keyword_zero_vector(self, args):
-        assert len(args) == 0, "zero_vector() keyword requires no parameter!"
-        return ZeroVector(self.sim)
 
 
 class BuildParticleIR(ast.NodeVisitor):
@@ -208,7 +134,9 @@ class BuildParticleIR(ast.NodeVisitor):
             return self.ctx_symbols[f"__{func}__"]
 
         for c in self.ctx_calls:
-            if c['func'] == func and len(c['args']) == len(args) and all([c['args'][a] == args[a] for a in range(0, len(args))]):
+            if( c['func'] == func and
+                len(c['args']) == len(args) and
+                all([c['args'][a] == args[a] for a in range(0, len(args))]) ):
                 return c['value']
 
         value = BuildParticleIR.parse_function_and_get_return_value(func, args)
@@ -248,29 +176,19 @@ class BuildParticleIR(ast.NodeVisitor):
         return self.visit(node.value)
 
     def visit_Name(self, node):
-        as_sym = self.ctx_symbols[node.id] if node.id in self.ctx_symbols else None
-        if as_sym is not None:
-            return as_sym
-
-        as_array = self.sim.array(node.id)
-        if as_array is not None:
-            return as_array
-
-        as_prop = self.sim.property(node.id)
-        if as_prop is not None:
-            return as_prop
-
-        as_feature_prop = self.sim.feature_property(node.id)
-        if as_feature_prop is not None:
-            return as_feature_prop
-
-        as_contact_prop = self.sim.contact_property(node.id)
-        if as_contact_prop is not None:
-            return as_contact_prop
-
-        as_var = self.sim.var(node.id)
-        if as_var is not None:
-            return as_var
+        symbol_types = [
+            self.ctx_symbols.get,
+            self.sim.array,
+            self.sim.property,
+            self.sim.feature_property,
+            self.sim.contact_property,
+            self.sim.var
+        ]
+        
+        for symbol_func in symbol_types:
+            result = symbol_func(node.id)
+            if result is not None:
+                return result
 
         return UndefinedSymbol(node.id)
 

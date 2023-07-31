@@ -31,6 +31,7 @@ class LowerNeighborIndexes(Mutator):
         ast_node.index = self.mutate(ast_node.index)
         ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
         self._lower_to_relative = False
+        return ast_node
 
     def mutate_Neighbor(self, ast_node):
         return ast_node.neighbor_index() if self._lower_to_relative else ast_node.particle_index()
@@ -43,23 +44,26 @@ class SimplifyExpressions(Mutator):
     def mutate_BinOp(self, ast_node):
         sim = ast_node.lhs.sim
         ast_node.lhs = self.mutate(ast_node.lhs)
-        ast_node.rhs = self.mutate(ast_node.rhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
 
-        if ast_node.op in [Operators.Add, Operators.Sub] and ast_node.rhs == 0:
-            return ast_node.lhs
+        if not ast_node.operator().is_unary():
+            if ast_node.op in [Operators.Add, Operators.Sub] and ast_node.rhs == 0:
+                return ast_node.lhs
 
-        if ast_node.op in [Operators.Add] and ast_node.lhs == 0:
-            return ast_node.rhs
+            if ast_node.op in [Operators.Add] and ast_node.lhs == 0:
+                return ast_node.rhs
 
-        if ast_node.op in [Operators.Mul, Operators.Div] and ast_node.rhs == 1:
-            return ast_node.lhs
+            if ast_node.op in [Operators.Mul, Operators.Div] and ast_node.rhs == 1:
+                return ast_node.lhs
 
-        if ast_node.op == Operators.Mul and ast_node.lhs == 1:
-            return ast_node.rhs
+            if ast_node.op == Operators.Mul and ast_node.lhs == 1:
+                return ast_node.rhs
 
-        if ast_node.op == Operators.Mul and ast_node.lhs == 0:
-            return Lit(sim, 0 if Types.is_integer(ast_node.type()) else 0.0)
+            if ast_node.op == Operators.Mul and ast_node.lhs == 0:
+                return Lit(sim, 0 if Types.is_integer(ast_node.type()) else 0.0)
 
         return ast_node
 
@@ -74,34 +78,36 @@ class PrioritizeScalarOps(Mutator):
     def mutate_BinOp(self, ast_node):
         sim = ast_node.sim
         ast_node.lhs = self.mutate(ast_node.lhs)
-        ast_node.rhs = self.mutate(ast_node.rhs)
 
-        if ast_node.type() == Types.Vector:
-            lhs = ast_node.lhs
-            rhs = ast_node.rhs
-            op = ast_node.op
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
 
-            if( isinstance(lhs, BinOp) and lhs.type() == Types.Vector and Types.is_real(rhs.type()) and \
-                PrioritizeScalarOps.can_rearrange(op, lhs.op) ):
+            if ast_node.type() == Types.Vector:
+                lhs = ast_node.lhs
+                rhs = ast_node.rhs
+                op = ast_node.op
 
-                if lhs.lhs.type() == Types.Vector and Types.is_real(lhs.rhs.type()):
-                    ast_node.reassign(lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
-                    #return BinOp(sim, lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
+                if( isinstance(lhs, BinOp) and lhs.type() == Types.Vector and
+                    Types.is_real(rhs.type()) and PrioritizeScalarOps.can_rearrange(op, lhs.op) ):
 
-                if lhs.rhs.type() == Types.Vector and Types.is_real(lhs.lhs.type()):
-                    ast_node.reassign(lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
-                    #return BinOp(sim, lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
+                    if lhs.lhs.type() == Types.Vector and Types.is_real(lhs.rhs.type()):
+                        ast_node.reassign(lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
+                        #return BinOp(sim, lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
 
-            if( isinstance(rhs, BinOp) and rhs.type() == Types.Vector and Types.is_real(lhs.type()) and \
-                PrioritizeScalarOps.can_rearrange(op, rhs.op) ):
+                    if lhs.rhs.type() == Types.Vector and Types.is_real(lhs.lhs.type()):
+                        ast_node.reassign(lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
+                        #return BinOp(sim, lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
 
-                if rhs.lhs.type() == Types.Vector and Types.is_real(rhs.rhs.type()):
-                    ast_node.reassign(rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
-                    #return BinOp(sim, rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
+                if( isinstance(rhs, BinOp) and rhs.type() == Types.Vector and
+                    Types.is_real(lhs.type()) and PrioritizeScalarOps.can_rearrange(op, rhs.op) ):
 
-                if rhs.rhs.type() == Types.Vector and Types.is_real(rhs.lhs.type()):
-                    ast_node.reassign(rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
-                    #return BinOp(sim, rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
+                    if rhs.lhs.type() == Types.Vector and Types.is_real(rhs.rhs.type()):
+                        ast_node.reassign(rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
+                        #return BinOp(sim, rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
+
+                    if rhs.rhs.type() == Types.Vector and Types.is_real(rhs.lhs.type()):
+                        ast_node.reassign(rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
+                        #return BinOp(sim, rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
 
         return ast_node
 
@@ -176,7 +182,8 @@ class AddExpressionDeclarations(Mutator):
 
     def mutate_BinOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
-        ast_node.rhs = self.mutate(ast_node.rhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
 
         if ast_node.inlined is False:
             bin_op_id = id(ast_node)

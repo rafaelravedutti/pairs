@@ -32,7 +32,7 @@ class ZeroVector(ASTNode):
         super().__init__(sim)
 
     def __str__(self):
-        return f"ZeroVector<{self.values}>"
+        return f"ZeroVector<>"
 
     def type(self):
         return Types.Vector

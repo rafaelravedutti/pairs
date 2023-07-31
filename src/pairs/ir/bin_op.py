@@ -26,8 +26,9 @@ class BinOp(VectorExpression):
         return BinOp.last_bin_op - 1
 
     def inline(op):
-        if hasattr(op, "inline_rec") and callable(getattr(op, "inline_rec")):
-            return op.inline_rec()
+        method_name = "inline_recursively"
+        if hasattr(op, method_name) and callable(getattr(op, method_name)):
+            return op.inline_recursively()
 
         return op
 
@@ -50,9 +51,9 @@ class BinOp(VectorExpression):
         self.bin_op_type = BinOp.infer_type(self.lhs, self.rhs, self.op)
 
     def __str__(self):
-        a = self.lhs.id() if isinstance(self.lhs, BinOp) else self.lhs
-        b = self.rhs.id() if isinstance(self.rhs, BinOp) else self.rhs
-        return f"BinOp<{a} {self.op.symbol()} {b}>"
+        a = f"BinOp<{self.lhs.id()}>" if isinstance(self.lhs, BinOp) else self.lhs
+        b = f"BinOp<{self.rhs.id()}>" if isinstance(self.rhs, BinOp) else self.rhs
+        return f"BinOp<id={self.id()}, {a} {self.op.symbol()} {b}>"
 
     def copy(self):
         return BinOp(self.sim, self.lhs.copy(), self.rhs.copy(), self.op, self.mem)
@@ -113,14 +114,15 @@ class BinOp(VectorExpression):
 
         return None
 
-    def inline_rec(self):
+    def inline_recursively(self):
+        method_name = "inline_recursively"
         self.inlined = True
 
-        if hasattr(self.lhs, "inline_rec") and callable(getattr(self.lhs, "inline_rec")):
-            self.lhs.inline_rec()
+        if hasattr(self.lhs, method_name) and callable(getattr(self.lhs, method_name)):
+            self.lhs.inline_recursively()
 
-        if hasattr(self.rhs, "inline_rec") and callable(getattr(self.rhs, "inline_rec")):
-            self.rhs.inline_rec()
+        if hasattr(self.rhs, method_name) and callable(getattr(self.rhs, method_name)):
+            self.rhs.inline_recursively()
 
         return self
 
@@ -137,7 +139,8 @@ class BinOp(VectorExpression):
         self.terminals.add(terminal)
 
     def children(self):
-        return [self.lhs, self.rhs] + list(super().children())
+        operands = [self.lhs, self.rhs] if not self.op.is_unary() else [self.lhs]
+        return operands + list(super().children())
 
     def __getitem__(self, index):
         super().__getitem__(index)
@@ -265,6 +268,9 @@ class VectorAccess(ASTTerm):
         super().__init__(sim)
         self.expr = expr
         self.index = index
+
+    def __str__(self):
+        return f"VectorAccess<{self.expr}, {self.index}>"
 
     def type(self):
         return Types.Double

@@ -50,7 +50,9 @@ class SetBlockVariants(Mutator):
 
     def mutate_BinOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
-        ast_node.rhs = self.mutate(ast_node.rhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         return ast_node
 
     def mutate_ArrayAccess(self, ast_node):

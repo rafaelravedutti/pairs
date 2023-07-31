@@ -25,6 +25,9 @@ class Module(ASTNode):
         sim.add_module(self)
         Module.last_module += 1
 
+    def __str__(self):
+        return f"Module<{self._name}>"
+
     @property
     def module_id(self):
         return self._id
