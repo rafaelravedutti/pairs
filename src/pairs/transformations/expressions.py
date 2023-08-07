@@ -234,6 +234,22 @@ class AddExpressionDeclarations(Mutator):
 
         return ast_node
 
+    def mutate_ContactPropertyAccess(self, ast_node):
+        writing = self.writing
+        ast_node.contact_prop = self.mutate(ast_node.contact_prop)
+        self.writing = False
+        ast_node.index = self.mutate(ast_node.index)
+        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        self.writing = writing
+
+        if self.writing is False and ast_node.inlined is False:
+            contact_prop_access_id = id(ast_node)
+            if contact_prop_access_id not in self.declared_exprs and contact_prop_access_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(contact_prop_access_id)
+
+        return ast_node
+
     def mutate_FeaturePropertyAccess(self, ast_node):
         assert self.writing is False, "Cannot change feature property!"
         ast_node.feature_prop = self.mutate(ast_node.feature_prop)

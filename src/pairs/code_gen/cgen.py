@@ -17,7 +17,7 @@ from pairs.ir.math import Ceil, Sqrt
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
 from pairs.ir.particle_attributes import ParticleAttributeList
-from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty, ContactPropertyAccess, RegisterContactProperty
+from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty, ContactProperty, ContactPropertyAccess, RegisterContactProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
@@ -708,6 +708,9 @@ class CGen:
             assert mem is False, "Ceil call is not lvalue!"
             expr = self.generate_expression(ast_node.expr)
             return f"ceil({expr})"
+
+        if isinstance(ast_node, ContactProperty):
+            return ast_node.name()
 
         if isinstance(ast_node, Deref):
             var = self.generate_expression(ast_node.var)

@@ -1,3 +1,4 @@
+import time
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftExprOwnerBlocks, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
@@ -14,11 +15,15 @@ class Transformations:
         self._module_resizes = None
 
     def apply(self, transformation, data=None):
+        print(f"Applying transformation: {type(transformation).__name__}... ", end="")
+        start = time.time()
         transformation.set_ast(self._ast)
         if data is not None:
             transformation.set_data(data)
 
         self._ast = transformation.mutate()
+        elapsed = time.time() - start
+        print(f"{elapsed}s elapsed.")
 
     def analysis(self):
         return Analysis(self._ast)

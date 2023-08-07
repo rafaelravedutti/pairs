@@ -35,8 +35,8 @@ def linear_spring_dashpot(i, j):
     f_friction_abs_dynamic = friction_dynamic[i, j] * length(fN)
     tan_vel_threshold = 1e-8
 
-    cond1 = sticking and length(rel_vel_t) < tan_vel_threshold and fTLS_len < f_friction_abs_static
-    cond2 = sticking and fTLS_len < f_friction_abs_dynamic
+    cond1 = sticking == 1 and length(rel_vel_t) < tan_vel_threshold and fTLS_len < f_friction_abs_static
+    cond2 = sticking == 1 and fTLS_len < f_friction_abs_dynamic
     f_friction_abs = select(cond1, f_friction_abs_static, f_friction_abs_dynamic)
     n_sticking = select(cond1 or cond2 or fTLS_len < f_friction_abs_dynamic, 1, 0)
 
