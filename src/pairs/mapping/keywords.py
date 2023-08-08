@@ -64,7 +64,7 @@ class Keywords:
     def keyword_normalized(self, args):
         assert len(args) == 1, "normalized() keyword requires one parameter!"
         vector = args[0]
-        assert vector.type() == Types.Vector, "length(): Argument must be a vector!"
+        assert vector.type() == Types.Vector, "normalized(): Argument must be a vector!"
         length = self.keyword_length([vector])
         inv_length = Lit(self.sim, 1.0) / length
         return Select(self.sim, length > Lit(self.sim, 0.0), vector * inv_length, ZeroVector(self.sim))

@@ -2,6 +2,7 @@ class Mutator:
     def __init__(self, ast=None, max_depth=0):
         self.ast = ast
         self.max_depth = 0
+        self.mutated_vector_expressions = []
 
     def set_ast(self, ast):
         self.ast = ast
@@ -180,7 +181,13 @@ class Mutator:
         return ast_node
 
     def mutate_VectorAccess(self, ast_node):
-        ast_node.expr = self.mutate(ast_node.expr)
+        # Traversing the expressions for all vector accesses makes the compilation
+        # significantly slower, when it is necessary, a specific method can be used
+        # for the transformation
+        if id(ast_node.expr) not in self.mutated_vector_expressions:
+            ast_node.expr = self.mutate(ast_node.expr)
+            self.mutated_vector_expressions.append(id(ast_node.expr))
+
         return ast_node
 
     def mutate_While(self, ast_node):

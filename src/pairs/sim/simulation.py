@@ -10,7 +10,7 @@ from pairs.ir.properties import Properties, ContactProperties
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
 from pairs.ir.variables import Variables
-#from pairs.graph.graphviz import ASTGraph
+from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
 from pairs.sim.arrays import ArraysDecl
 from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
