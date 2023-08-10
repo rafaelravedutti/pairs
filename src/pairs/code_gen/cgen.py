@@ -98,9 +98,10 @@ class CGen:
         if module.name == 'main':
             ndims = module.sim.ndims()
             nprops = module.sim.properties.nprops()
+            ncontactprops = module.sim.contact_properties.nprops()
             narrays = module.sim.arrays.narrays()
             self.print("int main(int argc, char **argv) {")
-            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {narrays}, DimRanges);")
+            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {ncontactprops}, {narrays}, DimRanges);")
             self.generate_statement(module.block)
             self.print("    delete pairs;")
             self.print("    return 0;")
@@ -134,6 +135,15 @@ class CGen:
 
                 if prop in module.host_references():
                     decl = f"{type_kw} *h_{prop.name()}"
+                    module_params += f", {decl}"
+
+            for contact_prop in module.contact_properties():
+                type_kw = Types.c_keyword(contact_prop.type())
+                decl = f"{type_kw} *{contact_prop.name()}"
+                module_params += f", {decl}"
+
+                if contact_prop in module.host_references():
+                    decl = f"{type_kw} *h_{contact_prop.name()}"
                     module_params += f", {decl}"
 
             for feature_prop in module.feature_properties():
@@ -180,6 +190,11 @@ class CGen:
         for prop in kernel.properties():
             type_kw = Types.c_keyword(prop.type())
             decl = f"{type_kw} *{prop.name()}"
+            kernel_params += f", {decl}"
+
+        for contact_prop in kernel.contact_properties():
+            type_kw = Types.c_keyword(contact_prop.type())
+            decl = f"{type_kw} *{contact_prop.name()}"
             kernel_params += f", {decl}"
 
         for feature_prop in kernel.feature_properties():
@@ -278,7 +293,7 @@ class CGen:
 
                 if contact_prop_access.is_vector_kind():
                     for i in contact_prop_access.indexes():
-                        i_expr = self.generate_expression(contact_prop_access.get_index_expression(i))
+                        i_expr = self.generate_expression(contact_prop_access.get_indexed_expression(i))
                         self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
 
                 else:
@@ -294,7 +309,7 @@ class CGen:
 
                 if feature_prop_access.is_vector_kind():
                     for i in feature_prop_access.indexes():
-                        i_expr = self.generate_expression(feature_prop_access.get_index_expression(i))
+                        i_expr = self.generate_expression(feature_prop_access.get_indexed_expression(i))
                         self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
 
                 else:
@@ -309,7 +324,7 @@ class CGen:
 
                 if prop_access.is_vector_kind():
                     for i in prop_access.indexes():
-                        i_expr = self.generate_expression(prop_access.get_index_expression(i))
+                        i_expr = self.generate_expression(prop_access.get_indexed_expression(i))
                         self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
                 else:
                     tkw = Types.c_keyword(prop_access.type())
@@ -465,8 +480,11 @@ class CGen:
             for prop in kernel.properties():
                 kernel_params += f", {prop.name()}"
 
-            for prop in kernel.feature_properties():
-                kernel_params += f", {prop.name()}"
+            for contact_prop in kernel.contact_properties():
+                kernel_params += f", {contact_prop.name()}"
+
+            for feature_prop in kernel.feature_properties():
+                kernel_params += f", {feature_prop.name()}"
 
             for array_access in kernel.array_accesses():
                 kernel_params += f", {self.generate_expression(array_access)}"
@@ -508,6 +526,13 @@ class CGen:
                 module_params += f", {decl}"
                 if prop in module.host_references():
                     decl = prop.name()
+                    module_params += f", {decl}"
+
+            for contact_prop in module.contact_properties():
+                decl = f"d_{contact_prop.name()}" if device_cond else contact_prop.name()
+                module_params += f", {decl}"
+                if contact_prop in module.host_references():
+                    decl = contact_prop.name()
                     module_params += f", {decl}"
 
             for feature_prop in module.feature_properties():
@@ -741,34 +766,34 @@ class CGen:
         if isinstance(ast_node, Property):
             return ast_node.name()
 
-        if isinstance(ast_node, ContactPropertyAccess):
-            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
-            prop_name = self.generate_expression(ast_node.contact_prop)
-
-            if mem or ast_node.inlined is True:
-                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
-                index_g = self.generate_expression(index_expr)
-                return f"{prop_name}[{index_g}]"
-
-            return f"cp{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
-
         if isinstance(ast_node, PropertyAccess):
             assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
             prop_name = self.generate_expression(ast_node.prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
+                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_indexed_expression(index)
                 index_g = self.generate_expression(index_expr)
                 return f"{prop_name}[{index_g}]"
 
             return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
+
+        if isinstance(ast_node, ContactPropertyAccess):
+            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
+            prop_name = self.generate_expression(ast_node.contact_prop)
+
+            if mem or ast_node.inlined is True:
+                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_indexed_expression(index)
+                index_g = self.generate_expression(index_expr)
+                return f"{prop_name}[{index_g}]"
+
+            return f"cp{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
 
         if isinstance(ast_node, FeaturePropertyAccess):
             assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
             feature_name = self.generate_expression(ast_node.feature_prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_index_expression(index)
+                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_indexed_expression(index)
                 index_g = self.generate_expression(index_expr)
                 return f"{feature_name}[{index_g}]"
 

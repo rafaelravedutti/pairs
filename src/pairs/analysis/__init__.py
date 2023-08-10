@@ -1,3 +1,4 @@
+import time
 from pairs.analysis.bin_ops import ResetInPlaceBinOps, SetBinOpTerminals, SetInPlaceBinOps, SetDeclaredExprs
 from pairs.analysis.blocks import SetBlockVariants, SetExprOwnerBlock, SetParentBlock
 from pairs.analysis.devices import FetchKernelReferences
@@ -9,8 +10,12 @@ class Analysis:
         self._ast = ast
 
     def apply(self, analysis):
+        print(f"Performing analysis: {type(analysis).__name__}... ", end="")
+        start = time.time()
         analysis.set_ast(self._ast)
         analysis.visit()
+        elapsed = time.time() - start
+        print(f"{elapsed}s elapsed.")
 
     def set_bin_op_terminals(self):
         self.apply(SetBinOpTerminals())

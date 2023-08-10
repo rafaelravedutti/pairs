@@ -324,5 +324,5 @@ class Simulation:
         # For this part on, all bin ops are generated without usage verification
         self.check_decl_usage = False
 
-        #ASTGraph(self.functions, "functions").render()
+        ASTGraph(self.functions, "functions").render()
         self.code_gen.generate_program(program)

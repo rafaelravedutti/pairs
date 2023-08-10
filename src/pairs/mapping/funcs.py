@@ -2,6 +2,7 @@ import ast
 import inspect
 from pairs.ir.bin_op import BinOp
 from pairs.ir.branches import Filter
+from pairs.ir.lit import Lit
 from pairs.ir.loops import ParticleFor
 from pairs.ir.operators import Operators
 from pairs.ir.types import Types
@@ -142,6 +143,9 @@ class BuildParticleIR(ast.NodeVisitor):
         value = BuildParticleIR.parse_function_and_get_return_value(func, args)
         self.ctx_calls.append({'func': func, 'args': args, 'value': value})
         return value
+
+    def visit_Constant(self, node):
+        return Lit(self.sim, node.value)
 
     def visit_Compare(self, node):
         valid_ops = (

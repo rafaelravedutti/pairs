@@ -74,10 +74,28 @@ class SetBlockVariants(Mutator):
     def mutate_Property(self, ast_node):
         return self.push_variant(ast_node)
 
+    def mutate_ContactProperty(self, ast_node):
+        return self.push_variant(ast_node)
+
+    def mutate_FeatureProperty(self, ast_node):
+        return self.push_variant(ast_node)
+
     def mutate_PropertyAccess(self, ast_node):
         # For property accesses, we only want to include the property name, and not
         # the index that is also present in the access node
         ast_node.prop = self.mutate(ast_node.prop)
+        return ast_node
+
+    def mutate_ContactPropertyAccess(self, ast_node):
+        # For property accesses, we only want to include the property name, and not
+        # the index that is also present in the access node
+        ast_node.contact_prop = self.mutate(ast_node.contact_prop)
+        return ast_node
+
+    def mutate_FeaturePropertyAccess(self, ast_node):
+        # For property accesses, we only want to include the property name, and not
+        # the index that is also present in the access node
+        ast_node.feature_prop = self.mutate(ast_node.feature_prop)
         return ast_node
 
     def mutate_Var(self, ast_node):
@@ -191,5 +209,17 @@ class SetExprOwnerBlock(Visitor):
         self.visit_children(ast_node)
 
     def visit_PropertyAccess(self, ast_node):
+        self.set_ownership(ast_node)
+        self.visit_children(ast_node)
+
+    def visit_ContactPropertyAccess(self, ast_node):
+        self.set_ownership(ast_node)
+        self.visit_children(ast_node)
+
+    def visit_FeaturePropertyAccess(self, ast_node):
+        self.set_ownership(ast_node)
+        self.visit_children(ast_node)
+
+    def visit_Select(self, ast_node):
         self.set_ownership(ast_node)
         self.visit_children(ast_node)

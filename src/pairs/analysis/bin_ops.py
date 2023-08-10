@@ -36,6 +36,11 @@ class SetBinOpTerminals(Visitor):
         self.visit_children(ast_node)
         self.elems.pop()
 
+    def visit_Select(self, ast_node):
+        self.elems.append(ast_node)
+        self.visit_children(ast_node)
+        self.elems.pop()
+
     def visit_Array(self, ast_node):
         self.push_terminal(ast_node)
 
@@ -47,6 +52,12 @@ class SetBinOpTerminals(Visitor):
         self.push_terminal(ast_node)
 
     def visit_Property(self, ast_node):
+        self.push_terminal(ast_node)
+
+    def visit_ContactProperty(self, ast_node):
+        self.push_terminal(ast_node)
+
+    def visit_FeatureProperty(self, ast_node):
         self.push_terminal(ast_node)
 
     def visit_Var(self, ast_node):

@@ -17,6 +17,7 @@ class Kernel(ASTNode):
         self._variables = {}
         self._arrays = {}
         self._properties = {}
+        self._contact_properties = {}
         self._feature_properties = {}
         self._array_accesses = set()
         self._bin_ops = []
@@ -56,6 +57,9 @@ class Kernel(ASTNode):
     def properties(self):
         return self._properties
 
+    def contact_properties(self):
+        return self._contact_properties
+
     def feature_properties(self):
         return self._feature_properties
 
@@ -91,6 +95,13 @@ class Kernel(ASTNode):
         for p in prop_list:
             assert isinstance(p, Property), "Kernel.add_property(): given element is not of type Property!"
             self._properties[p] = character if p not in self._properties else self._properties[p] + character
+
+    def add_contact_property(self, contact_prop, write=False):
+        contact_prop_list = contact_prop if isinstance(contact_prop, list) else [contact_prop]
+        character = 'w' if write else 'r'
+        for cp in contact_prop_list:
+            assert isinstance(fp, ContactProperty), "Kernel.add_contact_property(): given element is not of type ContactProperty!"
+            self._contact_properties[p] = character if cp not in self._contact_properties else self._contact_properties[p] + character
 
     def add_feature_property(self, feature_prop):
         feature_prop_list = feature_prop if isinstance(feature_prop, list) else [feature_prop]

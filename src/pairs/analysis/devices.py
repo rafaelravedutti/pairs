@@ -63,6 +63,26 @@ class FetchKernelReferences(Visitor):
         self.visit([roc for roc in ast_node.children() if roc != ast_node.prop])
         self.writing = writing_state
 
+    def visit_ContactPropertyAccess(self, ast_node):
+        # Visit property and save current writing state
+        self.visit(ast_node.contact_prop)
+        writing_state = self.writing
+
+        # Index elements are read-only
+        self.writing = False
+        self.visit([roc for roc in ast_node.children() if roc != ast_node.contact_prop])
+        self.writing = writing_state
+
+    def visit_FeaturePropertyAccess(self, ast_node):
+        # Visit property and save current writing state
+        self.visit(ast_node.feature_prop)
+        writing_state = self.writing
+
+        # Index elements are read-only
+        self.writing = False
+        self.visit([roc for roc in ast_node.children() if roc != ast_node.feature_prop])
+        self.writing = writing_state
+
     def visit_Decl(self, ast_node):
         if isinstance(ast_node.elem, (ArrayAccess, BinOp)):
             for k in self.kernel_stack:
@@ -82,6 +102,10 @@ class FetchKernelReferences(Visitor):
     def visit_Property(self, ast_node):
         for k in self.kernel_stack:
             k.add_property(ast_node, self.writing)
+
+    def visit_ContactProperty(self, ast_node):
+        for k in self.kernel_stack:
+            k.add_contact_property(ast_node)
 
     def visit_FeatureProperty(self, ast_node):
         for k in self.kernel_stack:

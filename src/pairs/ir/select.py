@@ -19,6 +19,7 @@ class Select(ASTTerm, VectorExpression):
         #self.expr_else = BinOp.inline(Lit.cvt(sim, expr_else))
         self.expr_if = Lit.cvt(sim, expr_if)
         self.expr_else = Lit.cvt(sim, expr_else)
+        self.terminals = set()
         self.inlined = False
         assert self.expr_if.type() == self.expr_else.type(), "Select: expressions must be of same type!"
 
@@ -45,6 +46,9 @@ class Select(ASTTerm, VectorExpression):
             self.expr_else.inline_recursively()
 
         return self
+
+    def add_terminal(self, terminal):
+        self.terminals.add(terminal)
 
     def children(self):
         return [self.cond, self.expr_if, self.expr_else]

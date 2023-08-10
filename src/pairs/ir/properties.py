@@ -203,6 +203,9 @@ class ContactProperties:
     def empty(self):
         return len(self.contact_properties) == 0
 
+    def nprops(self):
+        return len(self.contact_properties)
+
     def __iter__(self):
         yield from self.contact_properties
 

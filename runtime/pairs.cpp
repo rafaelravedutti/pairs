@@ -65,6 +65,25 @@ Property &PairsSimulation::getPropertyByName(std::string name) {
     return *p;
 }
 
+void PairsSimulation::addContactProperty(ContactProperty contact_prop) {
+    int id = contact_prop.getId();
+    auto cp = std::find_if(contact_properties.begin(), contact_properties.end(), [id](ContactProperty _cp) { return _cp.getId() == id; });
+    PAIRS_ASSERT(cp == std::end(contact_properties));
+    contact_properties.push_back(contact_prop);
+}
+
+ContactProperty &PairsSimulation::getContactProperty(property_t id) {
+    auto cp = std::find_if(contact_properties.begin(), contact_properties.end(), [id](ContactProperty _cp) { return _cp.getId() == id; });
+    PAIRS_ASSERT(cp != std::end(contact_properties));
+    return *cp;
+}
+
+ContactProperty &PairsSimulation::getContactPropertyByName(std::string name) {
+    auto cp = std::find_if(contact_properties.begin(), contact_properties.end(), [name](ContactProperty _cp) { return _cp.getName() == name; });
+    PAIRS_ASSERT(cp != std::end(contact_properties));
+    return *cp;
+}
+
 void PairsSimulation::addFeatureProperty(FeatureProperty feature_prop) {
     int id = feature_prop.getId();
     auto fp = std::find_if(feature_properties.begin(),
@@ -127,6 +146,20 @@ void PairsSimulation::copyPropertyToHost(Property &prop) {
     if(!prop_flags->isHostFlagSet(prop.getId())) {
         PAIRS_DEBUG("Copying property %s to host\n", prop.getName().c_str());
         pairs::copy_to_host(prop.getDevicePointer(), prop.getHostPointer(), prop.getTotalSize());
+    }
+}
+
+void PairsSimulation::copyContactPropertyToDevice(ContactProperty &contact_prop) {
+    if(!contact_prop_flags->isDeviceFlagSet(contact_prop.getId())) {
+        PAIRS_DEBUG("Copying contact property %s to device\n", contact_prop.getName().c_str());
+        pairs::copy_to_device(contact_prop.getHostPointer(), contact_prop.getDevicePointer(), contact_prop.getTotalSize());
+    }
+}
+
+void PairsSimulation::copyContactPropertyToHost(ContactProperty &contact_prop) {
+    if(!contact_prop_flags->isHostFlagSet(contact_prop.getId())) {
+        PAIRS_DEBUG("Copying contact property %s to host\n", contact_prop.getName().c_str());
+        pairs::copy_to_host(contact_prop.getDevicePointer(), contact_prop.getHostPointer(), contact_prop.getTotalSize());
     }
 }
 

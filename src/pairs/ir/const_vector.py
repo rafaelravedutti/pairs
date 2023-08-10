@@ -1,9 +1,10 @@
-from pairs.ir.ast_node import ASTNode
+from pairs.ir.bin_op import ASTTerm
 from pairs.ir.lit import Lit
 from pairs.ir.types import Types
+from pairs.ir.vector_expr import VectorExpression
 
 
-class ConstVector(ASTNode):
+class ConstVector(ASTTerm, VectorExpression):
     def __init__(self, sim, values):
         assert isinstance(values, list) and len(values) == sim.ndims(), \
             "ConstVector(): Given list is invalid!"
@@ -17,17 +18,24 @@ class ConstVector(ASTNode):
     def type(self):
         return Types.Vector
 
-    def __getitem__(self, expr_ast):
-        if isinstance(expr_ast, Lit) or isinstance(expr_ast, int):
-            return self.values[expr_ast]
+    def vector_index(self, index):
+        if isinstance(index, Lit) or isinstance(index, int):
+            return self.values[index]
 
         if self.array is None:
             self.array = self.sim.add_static_array(f"cv{self.const_vector_id}", self.sim.ndims(), Types.Double)
 
-        return self_array[expr_ast]
+        return self_array[index]
+
+    def children(self):
+        return []
+
+    def __getitem__(self, expr_ast):
+        return self.vector_index(expr_ast)
 
 
-class ZeroVector(ASTNode):
+
+class ZeroVector(ASTTerm, VectorExpression):
     def __init__(self, sim):
         super().__init__(sim)
 
@@ -37,8 +45,14 @@ class ZeroVector(ASTNode):
     def type(self):
         return Types.Vector
 
-    def __getitem__(self, expr_ast):
+    def vector_index(self, index):
         # This allows out-of-bound access to the vector, which may not be good.
         # It is however difficult to evaluate this possibilty without performance
         # loss when the expression value is only known at runtime
         return Lit(self.sim, 0.0)
+
+    def children(self):
+        return []
+
+    def __getitem__(self, expr_ast):
+        return self.vector_index(expr_ast)

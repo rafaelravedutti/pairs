@@ -135,6 +135,13 @@ class AddHostReferencesToModules(Mutator):
 
         return ast_node
 
+    def mutate_ContactProperty(self, ast_node):
+        if self.device_context:
+            self.module_stack[-1].add_host_reference(ast_node)
+            return HostRef(ast_node.sim, ast_node)
+
+        return ast_node
+
     def mutate_HostRef(self, ast_node):
         return ast_node
 
@@ -199,6 +206,19 @@ class AddDeviceReferencesToModules(Mutator):
         return ast_node
 
     def mutate_FeatureProperty(self, ast_node):
+        if self.add_reference:
+            return DeviceStaticRef(ast_node.sim, ast_node)
+
+        return ast_node
+
+    def mutate_ContactPropertyAccess(self, ast_node):
+        _add_reference = self.add_reference
+        self.add_reference = self.must_add_reference(ast_node)
+        ast_node.feature_prop = self.mutate(ast_node.contact_prop)
+        self.add_reference = _add_reference
+        return ast_node
+
+    def mutate_ContactProperty(self, ast_node):
         if self.add_reference:
             return DeviceStaticRef(ast_node.sim, ast_node)
 

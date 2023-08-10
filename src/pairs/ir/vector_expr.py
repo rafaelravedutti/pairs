@@ -15,7 +15,7 @@ class VectorExpression(ASTNode):
     def indexes(self):
         yield from self.vector_indexes
 
-    def get_index_expression(self, index):
+    def get_indexed_expression(self, index):
         index_value = index.value if isinstance(index, Lit) else index
         return self.expressions[index_value] if index_value in self.expressions else None
 
