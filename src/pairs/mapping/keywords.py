@@ -31,7 +31,8 @@ class Keywords:
 
     def keyword_skip_when(self, args):
         assert len(args) == 1, "skip_when() keyword requires one parameter!"
-        return Filter(self.sim, args[0], Block(self.sim, [Continue(self.sim)]))
+        for _ in Filter(self.sim, args[0]):
+            Continue(self.sim)()
 
     def keyword_min(self, args):
         e_min = args[0]

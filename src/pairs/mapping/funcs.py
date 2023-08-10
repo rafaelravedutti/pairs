@@ -76,13 +76,9 @@ class BuildParticleIR(ast.NodeVisitor):
 
         raise Exception("Invalid operator: {}".format(ast.dump(op)))
 
-    def parse_function_and_get_return_value(func, args):
-        return None
-
     def __init__(self, sim, ctx_symbols={}, ctx_calls=[]):
         self.sim = sim
         self.ctx_symbols = ctx_symbols
-        self.ctx_calls = ctx_calls
         self.keywords = Keywords(sim)
 
     def add_symbols(self, symbols):
@@ -134,15 +130,7 @@ class BuildParticleIR(ast.NodeVisitor):
         if func == 'squared_distance' or func == 'delta':
             return self.ctx_symbols[f"__{func}__"]
 
-        for c in self.ctx_calls:
-            if( c['func'] == func and
-                len(c['args']) == len(args) and
-                all([c['args'][a] == args[a] for a in range(0, len(args))]) ):
-                return c['value']
-
-        value = BuildParticleIR.parse_function_and_get_return_value(func, args)
-        self.ctx_calls.append({'func': func, 'args': args, 'value': value})
-        return value
+        raise Exception(f"Undefined function called: {func}")
 
     def visit_Constant(self, node):
         return Lit(self.sim, node.value)

@@ -23,7 +23,7 @@ class Transformations:
 
         self._ast = transformation.mutate()
         elapsed = time.time() - start
-        print(f"{elapsed}s elapsed.")
+        print(f"{elapsed:.2f}s elapsed.")
 
     def analysis(self):
         return Analysis(self._ast)

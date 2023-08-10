@@ -15,7 +15,7 @@ class Analysis:
         analysis.set_ast(self._ast)
         analysis.visit()
         elapsed = time.time() - start
-        print(f"{elapsed}s elapsed.")
+        print(f"{elapsed:.2f}s elapsed.")
 
     def set_bin_op_terminals(self):
         self.apply(SetBinOpTerminals())
