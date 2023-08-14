@@ -1,7 +1,7 @@
 import ast
 import inspect
 from pairs.ir.bin_op import BinOp
-from pairs.ir.branches import Filter
+from pairs.ir.branches import Branch, Filter
 from pairs.ir.lit import Lit
 from pairs.ir.loops import ParticleFor
 from pairs.ir.operators import Operators
@@ -150,9 +150,21 @@ class BuildParticleIR(ast.NodeVisitor):
 
     def visit_If(self, node):
         condition = self.visit(node.test)
-        for _ in Filter(self.sim, condition):
-            for stmt in node.body:
-                self.visit(stmt)
+        one_way = node.orelse is None
+
+        if one_way:
+            for _ in Filter(self.sim, condition):
+                for stmt in node.body:
+                    self.visit(stmt)
+
+        else:
+            for test in Branch(self.sim, condition):
+                if test:
+                    for stmt in node.body:
+                        self.visit(stmt)
+                else:
+                    for stmt in node.orelse:
+                        self.visit(stmt)
 
     def visit_IfExp(self, node):
         condition = self.visit(node.test)

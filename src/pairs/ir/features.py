@@ -85,7 +85,7 @@ class FeatureProperties:
         yield from self.feature_properties
 
 
-class FeatureProperty(ASTTerm):
+class FeatureProperty(ASTNode):
     last_feature_prop_id = 0
 
     def __init__(self, sim, feature, name, dtype, data, layout=Layouts.AoS):

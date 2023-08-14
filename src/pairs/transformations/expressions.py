@@ -205,6 +205,17 @@ class AddExpressionDeclarations(Mutator):
         self.params = _params
         return ast_node
 
+    def mutate_MathFunction(self, ast_node):
+        ast_node._params = [self.mutate(p) for p in ast_node._params]
+
+        if ast_node.inlined is False:
+            math_func_id = id(ast_node)
+            if math_func_id not in self.declared_exprs and math_func_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(math_func_id)
+
+        return ast_node
+
     def mutate_PropertyAccess(self, ast_node):
         writing = self.writing
         ast_node.prop = self.mutate(ast_node.prop)

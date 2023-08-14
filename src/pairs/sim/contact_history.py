@@ -41,7 +41,8 @@ class BuildContactHistory(Lowerable):
                     for _ in Filter(self.sim, BinOp.cmp(contact_lists[i][k], j)):
                         neighbor_contact.set(k)
 
-                for _ in Filter(self.sim, neighbor_contact >= 0):
+                for _ in Filter(self.sim, BinOp.and_op(neighbor_contact >= 0,
+                                                       BinOp.neq(last_contact_id, k))):
                     contact_lists[i][k].set(contact_lists[i][last_contact_id])
 
                     for contact_prop in self.sim.contact_properties:
@@ -63,12 +64,7 @@ class BuildContactHistory(Lowerable):
             last_contact_id.set(0)
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
-                neighbor_contact.set(-1)
-                for k in For(self.sim, 0, num_contacts[i]):
-                    for _ in Filter(self.sim, BinOp.cmp(contact_lists[i][k], j)):
-                        neighbor_contact.set(k)
-
-                for _ in Filter(self.sim, neighbor_contact < 0):
+                for _ in Filter(self.sim, BinOp.neq(contact_lists[i][last_contact_id], j)):
                     for contact_prop in self.sim.contact_properties:
                         if contact_prop.type() == Types.Vector:
                             for d in range(0, self.sim.ndims()):

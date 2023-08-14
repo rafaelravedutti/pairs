@@ -21,6 +21,11 @@ class SetBinOpTerminals(Visitor):
         self.visit_children(ast_node)
         self.elems.pop()
 
+    def visit_MathFunction(self, ast_node):
+        self.elems.append(ast_node)
+        self.visit_children(ast_node)
+        self.elems.pop()
+
     def visit_PropertyAccess(self, ast_node):
         self.elems.append(ast_node)
         self.visit_children(ast_node)

@@ -208,6 +208,10 @@ class SetExprOwnerBlock(Visitor):
         self.set_ownership(ast_node)
         self.visit_children(ast_node)
 
+    def visit_MathFunction(self, ast_node):
+        self.set_ownership(ast_node)
+        self.visit_children(ast_node)
+
     def visit_PropertyAccess(self, ast_node):
         self.set_ownership(ast_node)
         self.visit_children(ast_node)

@@ -34,7 +34,6 @@ class ConstVector(ASTTerm, VectorExpression):
         return self.vector_index(expr_ast)
 
 
-
 class ZeroVector(ASTTerm, VectorExpression):
     def __init__(self, sim):
         super().__init__(sim)

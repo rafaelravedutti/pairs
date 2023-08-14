@@ -5,6 +5,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
+from pairs.ir.const_vector import ZeroVector
 from pairs.ir.bin_op import BinOp, Decl, VectorAccess
 from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, DeviceStaticRef, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.features import FeatureProperty, FeaturePropertyAccess, RegisterFeatureProperty
@@ -13,7 +14,7 @@ from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For, Iter, ParticleFor, While, Continue
-from pairs.ir.math import Ceil, Sqrt
+from pairs.ir.math import MathFunction
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
 from pairs.ir.particle_attributes import ParticleAttributeList
@@ -362,6 +363,13 @@ class CGen:
                     expr_else = self.generate_expression(select.expr_else)
                     tkw = Types.c_keyword(select.type())
                     self.print(f"const {tkw} {acc_ref} = ({cond}) ? ({expr_if}) : ({expr_else});")
+
+            if isinstance(ast_node.elem, MathFunction):
+                math_func = ast_node.elem
+                acc_ref = f"mf{math_func.id()}"
+                params = ", ".join([str(self.generate_expression(p)) for p in math_func.parameters()])
+                tkw = Types.c_keyword(math_func.type())
+                self.print(f"const {tkw} {acc_ref} = {math_func.function_name()}({params});")
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
@@ -729,11 +737,6 @@ class CGen:
             expr = self.generate_expression(ast_node.expr)
             return f"({tkw})({expr})"
 
-        if isinstance(ast_node, Ceil):
-            assert mem is False, "Ceil call is not lvalue!"
-            expr = self.generate_expression(ast_node.expr)
-            return f"ceil({expr})"
-
         if isinstance(ast_node, ContactProperty):
             return ast_node.name()
 
@@ -762,6 +765,15 @@ class CGen:
                 return f"\"{ast_node.value}\""
 
             return ast_node.value
+
+        if isinstance(ast_node, MathFunction):
+            assert mem is False, "Math function calls cannot be lvalue!"
+
+            if ast_node.inlined is True:
+                params = ", ".join([str(self.generate_expression(p)) for p in ast_node.parameters()])
+                return f"{ast_node.function_name()}({params})"
+
+            return f"mf{ast_node.id()}"
 
         if isinstance(ast_node, Property):
             return ast_node.name()
@@ -812,11 +824,6 @@ class CGen:
             tkw = Types.c_keyword(ast_node.data_type)
             return f"sizeof({tkw})"
 
-        if isinstance(ast_node, Sqrt):
-            assert mem is False, "Square root call is not lvalue!"
-            expr = self.generate_expression(ast_node.expr)
-            return f"sqrt({expr})"
-
         if isinstance(ast_node, Select):
             assert mem is False, "Select expression is not lvalue!"
 
@@ -838,3 +845,6 @@ class CGen:
 
         if isinstance(ast_node, VectorAccess):
             return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
+
+        if isinstance(ast_node, ZeroVector):
+            return "0.0"

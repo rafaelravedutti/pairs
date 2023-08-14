@@ -19,6 +19,11 @@ class Mutator:
         if method is not None:
             return method(ast_node)
 
+        for b in type(ast_node).__bases__:
+            method = self.get_method(f"mutate_{b.__name__}")
+            if method is not None:
+                return method(ast_node)
+
         method_unknown = self.get_method("mutate_Unknown")
         if method_unknown is not None:
             return method_unknown(ast_node)
@@ -76,10 +81,6 @@ class Mutator:
         return ast_node
 
     def mutate_Cast(self, ast_node):
-        ast_node.expr = self.mutate(ast_node.expr)
-        return ast_node
-
-    def mutate_Ceil(self, ast_node):
         ast_node.expr = self.mutate(ast_node.expr)
         return ast_node
 
@@ -144,6 +145,10 @@ class Mutator:
         ast_node.size = self.mutate(ast_node.size)
         return ast_node
 
+    def mutate_MathFunction(self, ast_node):
+        ast_node._params = [self.mutate(p) for p in ast_node._params]
+        return ast_node
+
     def mutate_Module(self, ast_node):
         ast_node._block = self.mutate(ast_node._block)
         return ast_node
@@ -170,10 +175,6 @@ class Mutator:
         ast_node.cond = self.mutate(ast_node.cond)
         ast_node.expr_if = self.mutate(ast_node.expr_if)
         ast_node.expr_else = self.mutate(ast_node.expr_else)
-        return ast_node
-
-    def mutate_Sqrt(self, ast_node):
-        ast_node.expr = self.mutate(ast_node.expr)
         return ast_node
 
     def mutate_Timestep(self, ast_node):
