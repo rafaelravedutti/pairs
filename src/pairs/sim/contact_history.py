@@ -29,49 +29,48 @@ class BuildContactHistory(Lowerable):
         contact_lists = self.contact_history.contact_lists
         num_contacts = self.contact_history.num_contacts
         self.sim.module_name("build_contact_history")
-        last_contact_id = self.sim.add_temp_var(0)
-        neighbor_contact = self.sim.add_temp_var(0)
+        last_contact = self.sim.add_temp_var(0)
+        contact_index = self.sim.add_temp_var(0)
 
         for i in ParticleFor(self.sim):
-            last_contact_id.set(0)
+            last_contact.set(0)
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
-                neighbor_contact.set(-1)
+                contact_index.set(-1)
                 for k in For(self.sim, 0, num_contacts[i]):
                     for _ in Filter(self.sim, BinOp.cmp(contact_lists[i][k], j)):
-                        neighbor_contact.set(k)
+                        contact_index.set(k)
 
-                for _ in Filter(self.sim, BinOp.and_op(neighbor_contact >= 0,
-                                                       BinOp.neq(last_contact_id, k))):
-                    contact_lists[i][k].set(contact_lists[i][last_contact_id])
-
+                for _ in Filter(self.sim, BinOp.and_op(contact_index >= 0,
+                                                       BinOp.neq(last_contact, contact_index))):
                     for contact_prop in self.sim.contact_properties:
                         if contact_prop.type() == Types.Vector:
                             for d in range(0, self.sim.ndims()):
-                                tmp = self.sim.add_temp_var(contact_prop[i, last_contact_id][d])
-                                contact_prop[i, last_contact_id][d].set(contact_prop[i, k][d])
-                                contact_prop[i, k].set(tmp)
+                                tmp = self.sim.add_temp_var(contact_prop[i, last_contact][d])
+                                contact_prop[i, last_contact][d].set(contact_prop[i, contact_index][d])
+                                contact_prop[i, contact_index].set(tmp)
 
                         else:
-                            tmp = self.sim.add_temp_var(contact_prop[i, last_contact_id])
-                            contact_prop[i, last_contact_id].set(contact_prop[i, k])
-                            contact_prop[i, k].set(tmp)
+                            tmp = self.sim.add_temp_var(contact_prop[i, last_contact])
+                            contact_prop[i, last_contact].set(contact_prop[i, contact_index])
+                            contact_prop[i, contact_index].set(tmp)
 
-                    contact_lists[i][last_contact_id].set(j)
+                    contact_lists[i][contact_index].set(contact_lists[i][last_contact])
+                    contact_lists[i][last_contact].set(j)
 
-                last_contact_id.set(last_contact_id + 1)
+                last_contact.set(last_contact + 1)
 
-            last_contact_id.set(0)
+            last_contact.set(0)
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
-                for _ in Filter(self.sim, BinOp.neq(contact_lists[i][last_contact_id], j)):
+                for _ in Filter(self.sim, BinOp.neq(contact_lists[i][last_contact], j)):
                     for contact_prop in self.sim.contact_properties:
                         if contact_prop.type() == Types.Vector:
                             for d in range(0, self.sim.ndims()):
-                                contact_prop[i, last_contact_id][d].set(contact_prop.default()[d])
+                                contact_prop[i, last_contact][d].set(contact_prop.default()[d])
                         else:
-                            contact_prop[i, last_contact_id].set(contact_prop.default())
+                            contact_prop[i, last_contact].set(contact_prop.default())
 
-                    contact_lists[i][last_contact_id].set(j)
+                    contact_lists[i][last_contact].set(j)
 
-                last_contact_id.set(last_contact_id + 1)
+                last_contact.set(last_contact + 1)

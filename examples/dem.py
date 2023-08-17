@@ -1,3 +1,4 @@
+import math
 import pairs
 import sys
 
@@ -60,6 +61,11 @@ def euler(i):
     position[i] += dt * velocity[i]
 
 
+def gravity(i):
+    volume = (4.0 / 3.0) * pi * radius[i] * radius[i] * radius[i]
+    force[i][2] -= densityParticle_SI - densityFluid_SI * volume * gravity_SI
+
+
 cmd = sys.argv[0]
 target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
 if target != 'cpu' and target != 'gpu':
@@ -69,13 +75,17 @@ if target != 'cpu' and target != 'gpu':
 dt = 0.005
 cutoff_radius = 2.5
 skin = 0.3
-ntypes = 4
+ntypes = 1
 stiffness_norm = 1.0
 stiffness_tan = 1.0
 damping_norm = 1.0
 damping_tan = 1.0
 friction_static = 1.0
 friction_dynamic = 1.0
+
+densityParticle_SI = 1.0
+densityFluid_SI = 1.0
+gravity_SI = 1.0
 
 psim = pairs.simulation("dem", debug=True)
 psim.add_position('position')
@@ -91,7 +101,7 @@ psim.add_feature_property('type', 'damping_norm', pairs.double(), [damping_norm 
 psim.add_feature_property('type', 'damping_tan', pairs.double(), [damping_tan for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'friction_static', pairs.double(), [friction_static for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'friction_dynamic', pairs.double(), [friction_dynamic for i in range(ntypes * ntypes)])
-psim.add_contact_property('is_sticking', pairs.int32(), False)
+psim.add_contact_property('is_sticking', pairs.int32(), 0)
 psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0, 0.0, 0.0])
 psim.add_contact_property('impact_velocity_magnitude', pairs.double(), 0.0)
 
@@ -100,6 +110,10 @@ psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/test_{target}")
 psim.compute(linear_spring_dashpot, cutoff_radius, symbols={'dt': dt})
 psim.compute(euler, symbols={'dt': dt})
+psim.compute(gravity, symbols={'densityParticle_SI': densityParticle_SI,
+                               'densityFluid_SI': densityFluid_SI,
+                               'gravity_SI': gravity_SI,
+                               'pi': math.pi })
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())
