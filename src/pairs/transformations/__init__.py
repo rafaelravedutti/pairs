@@ -1,6 +1,6 @@
 import time
 from pairs.analysis import Analysis
-from pairs.transformations.blocks import LiftExprOwnerBlocks, MergeAdjacentBlocks
+from pairs.transformations.blocks import LiftDeclarations, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
 from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PrioritizeScalarOps, AddExpressionDeclarations
 from pairs.transformations.loops import LICM
@@ -44,12 +44,12 @@ class Transformations:
         self.apply(PrioritizeScalarOps())
         self.apply(SimplifyExpressions())
 
-    def lift_expressions_to_owner_blocks(self):
-        ownership, expressions_to_lift = self.analysis().set_expressions_owner_block()
-        self.apply(LiftExprOwnerBlocks(), [ownership, expressions_to_lift])
+    def lift_declarations_to_owner_blocks(self):
+        #self.analysis().set_parent_block()
+        ownership, expressions_to_lift = self.analysis().determine_expressions_ownership()
+        self.apply(LiftDeclarations(), [ownership, expressions_to_lift])
 
     def licm(self):
-        self.analysis().set_parent_block()
         self.analysis().set_block_variants()
         self.analysis().set_bin_op_terminals()
         self.apply(LICM())
@@ -88,7 +88,7 @@ class Transformations:
         self.lower()
         self.optimize_expressions()
         self.add_expression_declarations()
-        self.lift_expressions_to_owner_blocks()
+        self.lift_declarations_to_owner_blocks()
         self.licm()
         self.modularize()
         self.add_device_kernels()

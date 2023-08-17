@@ -23,7 +23,7 @@ class SetBlockVariants(Mutator):
         return ast_node
 
     def mutate_Assign(self, ast_node):
-        self.in_assignment = ast_node if ast_node.parent_block is not None else None
+        self.in_assignment = ast_node if len(self.blocks) > 0 else None
         for dest in ast_node.destinations():
             self.mutate(dest)
         self.in_assignment = None
@@ -106,124 +106,105 @@ class SetParentBlock(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.blocks = []
-
-    def current_block(self):
-        return self.blocks[-1] if self.blocks else None
-
-    def set_parent_block(self, ast_node):
-        ast_node.parent_block = self.current_block()
-        self.visit_children(ast_node)
+        self.block_statement = {}
 
     def visit_Block(self, ast_node):
-        ast_node.parent_block = self.current_block()
+        parent_block = self.blocks[-1] if self.blocks else None
+        ast_node.parent_block = parent_block
+        ast_node.parent_statement = self.block_statement[parent_block]
+
         self.blocks.append(ast_node)
-        self.visit_children(ast_node)
+        for s in ast_node.statements():
+            s.parent_block = ast_node
+            s.parent_statement = None # Statements have no parent statement
+            self.block_statement[ast_node] = s
+            self.visit_children(s)
+
         self.blocks.pop()
 
-    def visit_Assign(self, ast_node):
-        self.set_parent_block(ast_node)
 
-    def visit_Branch(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def visit_Decl(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def visit_Filter(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def visit_For(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def visit_ParticleFor(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def visit_Malloc(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def visit_Realloc(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def visit_While(self, ast_node):
-        self.set_parent_block(ast_node)
-
-    def get_loop_parent_block(self, ast_node):
-        assert isinstance(ast_node, (For, While)), "Node must be a loop!"
-        loop_id = id(ast_node)
-        return self.parents[loop_id] if loop_id in self.parents else None
-
-
-class SetExprOwnerBlock(Visitor):
+class DetermineExpressionsOwnership(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.ownership = {}
         self.expressions_to_lift = []
+        self.block_location = {}
         self.block_level = {}
-        self.block_parent = {}
+        self.block_statement = {}
         self.block_stack = []
 
-    def common_parent_block(self, block1, block2):
-        if block1 is None:
-            return (block2, False)
+    def find_common_ownership(self, location1, location2):
+        block1, stmt1 = location1
+        block2, stmt2 = location2
 
-        if block2 is None:
-            return (block1, False)
+        while block1 != block2:
+            level1 = self.block_level[block1]
+            level2 = self.block_level[block2]
 
-        parent_block1 = block1
-        parent_block2 = block2
-        while parent_block1 != parent_block2:
-            l1 = self.block_level[parent_block1]
-            l2 = self.block_level[parent_block2]
+            if level1 >= level2:
+                block1, stmt1 = self.block_location[block1]
 
-            if l1 >= l2:
-                if l1 == 0:
-                    return (parent_block1, False)
+            if level2 >= level1:
+                block2, stmt2 = self.block_location[block2]
 
-                parent_block1 = self.block_parent[parent_block1]
+        for s in block1.statements():
+            if s == stmt1 or s == stmt2:
+                return (block1, s)
 
-            if l2 >= l1:
-                if l2 == 0:
-                    return (parent_block2, False)
+        return (block1, stmt1)
 
-                parent_block2 = self.block_parent[parent_block2]
+    def location(self):
+        if len(self.block_stack) <= 0:
+            return (None, None)
 
-        return (parent_block1, parent_block1 != block1 and parent_block1 != block2)
+        parent_block = self.block_stack[-1]
+        return (parent_block, self.block_statement[parent_block])
 
-    def set_ownership(self, ast_node):
+    def update_ownership(self, ast_node):
         if ast_node not in self.ownership:
-            self.ownership[ast_node] = None
+            self.ownership[ast_node] = self.location()
 
-        self.ownership[ast_node], must_lift = self.common_parent_block(self.ownership[ast_node], self.block_stack[-1])
-        if must_lift and ast_node not in self.expressions_to_lift:
-            self.expressions_to_lift.append(ast_node)
+        else:
+            common_ownership = self.find_common_ownership(self.ownership[ast_node], self.location())
+            common_block, common_stmt = common_ownership
+            owner_block, owner_stmt = self.ownership[ast_node]
+
+            if self.block_level[common_block] < self.block_level[owner_block]:
+                self.ownership[ast_node] = common_ownership
+
+                if ast_node not in self.expressions_to_lift:
+                    self.expressions_to_lift.append(ast_node)
 
     def visit_Block(self, ast_node):
+        self.block_location[ast_node] = self.location()
         self.block_level[ast_node] = len(self.block_stack)
-        self.block_parent[ast_node] = self.block_stack[-1] if len(self.block_stack) > 0 else None
         self.block_stack.append(ast_node)
-        self.visit_children(ast_node)
+        for s in ast_node.statements():
+            self.block_statement[ast_node] = s
+            self.visit_children(s)
+
         self.block_stack.pop()
 
     def visit_BinOp(self, ast_node):
-        self.set_ownership(ast_node)
         self.visit_children(ast_node)
+        self.update_ownership(ast_node)
 
     def visit_MathFunction(self, ast_node):
-        self.set_ownership(ast_node)
         self.visit_children(ast_node)
+        self.update_ownership(ast_node)
 
     def visit_PropertyAccess(self, ast_node):
-        self.set_ownership(ast_node)
         self.visit_children(ast_node)
+        self.update_ownership(ast_node)
 
     def visit_ContactPropertyAccess(self, ast_node):
-        self.set_ownership(ast_node)
         self.visit_children(ast_node)
+        self.update_ownership(ast_node)
 
     def visit_FeaturePropertyAccess(self, ast_node):
-        self.set_ownership(ast_node)
         self.visit_children(ast_node)
+        self.update_ownership(ast_node)
 
     def visit_Select(self, ast_node):
-        self.set_ownership(ast_node)
         self.visit_children(ast_node)
+        self.update_ownership(ast_node)

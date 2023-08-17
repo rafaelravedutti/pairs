@@ -3,7 +3,7 @@ from pairs.ir.ast_node import ASTNode
 from pairs.ir.bin_op import BinOp
 from pairs.ir.features import FeatureProperty
 from pairs.ir.lit import Lit
-from pairs.ir.properties import Property
+from pairs.ir.properties import Property, ContactProperty
 from pairs.ir.variables import Var
 
 
@@ -100,8 +100,8 @@ class Kernel(ASTNode):
         contact_prop_list = contact_prop if isinstance(contact_prop, list) else [contact_prop]
         character = 'w' if write else 'r'
         for cp in contact_prop_list:
-            assert isinstance(fp, ContactProperty), "Kernel.add_contact_property(): given element is not of type ContactProperty!"
-            self._contact_properties[p] = character if cp not in self._contact_properties else self._contact_properties[p] + character
+            assert isinstance(cp, ContactProperty), "Kernel.add_contact_property(): given element is not of type ContactProperty!"
+            self._contact_properties[cp] = character if cp not in self._contact_properties else self._contact_properties[cp] + character
 
     def add_feature_property(self, feature_prop):
         feature_prop_list = feature_prop if isinstance(feature_prop, list) else [feature_prop]

@@ -54,6 +54,9 @@ class Block(ASTNode):
         else:
             self.stmts = [stmts] if not isinstance(stmts, list) else stmts
 
+    def __str__(self):
+        return "Block<>"
+
     def add_statement(self, stmt):
         if isinstance(stmt, list):
             self.stmts = self.stmts + stmt

@@ -21,7 +21,7 @@ class MergeAdjacentBlocks(Mutator):
         return ast_node
 
 
-class LiftExprOwnerBlocks(Mutator):
+class LiftDeclarations(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.ownership = None
@@ -32,7 +32,17 @@ class LiftExprOwnerBlocks(Mutator):
         self.expressions_to_lift = data[1]
 
     def mutate_Block(self, ast_node):
-        ast_node.stmts = \
-            [Decl(ast_node.sim, e) for e in self.ownership if self.ownership[e] == ast_node and e in self.expressions_to_lift] + \
-            [self.mutate(s) for s in ast_node.stmts]
+        new_stmts = []
+
+        for stmt in ast_node.stmts:
+            if isinstance(stmt, Decl) and stmt.elem in self.expressions_to_lift:
+                continue
+
+            for expr in self.ownership:
+                if self.ownership[expr] == (ast_node, stmt) and expr in self.expressions_to_lift:
+                    new_stmts.append(Decl(ast_node.sim, expr))
+
+            new_stmts.append(self.mutate(stmt))
+
+        ast_node.stmts = new_stmts
         return ast_node

@@ -1,6 +1,6 @@
 import time
 from pairs.analysis.bin_ops import ResetInPlaceBinOps, SetBinOpTerminals, SetInPlaceBinOps, SetDeclaredExprs
-from pairs.analysis.blocks import SetBlockVariants, SetExprOwnerBlock, SetParentBlock
+from pairs.analysis.blocks import SetBlockVariants, DetermineExpressionsOwnership, SetParentBlock
 from pairs.analysis.devices import FetchKernelReferences
 from pairs.analysis.modules import FetchModulesReferences
 
@@ -26,10 +26,10 @@ class Analysis:
     def set_parent_block(self):
         self.apply(SetParentBlock())
 
-    def set_expressions_owner_block(self):
-        set_expr_owner_block = SetExprOwnerBlock()
-        self.apply(set_expr_owner_block)
-        return (set_expr_owner_block.ownership, set_expr_owner_block.expressions_to_lift)
+    def determine_expressions_ownership(self):
+        determine_ownership = DetermineExpressionsOwnership()
+        self.apply(determine_ownership)
+        return (determine_ownership.ownership, determine_ownership.expressions_to_lift)
 
     def fetch_kernel_references(self):
         self.apply(ResetInPlaceBinOps())
