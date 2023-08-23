@@ -1,6 +1,5 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
-from pairs.ir.assign import Assign
 from pairs.ir.declaration import Decl
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.layouts import Layouts

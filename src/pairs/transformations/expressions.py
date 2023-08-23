@@ -95,12 +95,10 @@ class AddExpressionDeclarations(Mutator):
         return ast_node
 
     def mutate_Assign(self, ast_node):
-        for a in ast_node.assignments:
-            self.writing = True
-            dst = self.mutate(a[0])
-            self.writing = False
-            src = self.mutate(a[1])
-
+        self.writing = True
+        ast_node._dest = self.mutate(ast_node._dest)
+        self.writing = False
+        ast_node._src = self.mutate(ast_node._src)
         return ast_node
 
     def mutate_AtomicAdd(self, ast_node):

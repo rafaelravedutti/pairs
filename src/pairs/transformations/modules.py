@@ -68,22 +68,24 @@ class AddResizeLogic(Mutator):
         return None
 
     def mutate_Assign(self, ast_node):
-        for dest, src in ast_node.assignments:
-            if not isinstance(src, Lit):
-                match_capacity = None
+        dest = ast_node._dest
+        src = ast_node._src
 
-                if isinstance(dest, (ArrayAccess, Var)):
-                    match_capacity = self.lookup_capacity([dest])
+        if not isinstance(src, Lit):
+            match_capacity = None
 
-                # Resize var is used in index, this statement should be checked for safety
-                if match_capacity is not None:
-                    module = self.module_stack[-1]
-                    resizes = list(self.module_resizes[module].keys())
-                    capacities = list(self.module_resizes[module].values())
-                    resize_id = resizes[capacities.index(match_capacity)]
-                    return Branch(ast_node.sim, src + 1 >= match_capacity,
-                                  blk_if=Block(ast_node.sim, ast_node.sim.resizes[resize_id].set(src)),
-                                  blk_else=Block(ast_node.sim, ast_node))
+            if isinstance(dest, (ArrayAccess, Var)):
+                match_capacity = self.lookup_capacity([dest])
+
+            # Resize var is used in index, this statement should be checked for safety
+            if match_capacity is not None:
+                module = self.module_stack[-1]
+                resizes = list(self.module_resizes[module].keys())
+                capacities = list(self.module_resizes[module].values())
+                resize_id = resizes[capacities.index(match_capacity)]
+                return Branch(ast_node.sim, src + 1 >= match_capacity,
+                              blk_if=Block(ast_node.sim, ast_node.sim.resizes[resize_id].set(src)),
+                              blk_else=Block(ast_node.sim, ast_node))
 
         return ast_node
 

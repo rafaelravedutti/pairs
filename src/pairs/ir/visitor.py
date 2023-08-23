@@ -1,4 +1,5 @@
 from collections import deque
+import pairs.ir.utils as util
 
 
 class Visitor:
@@ -6,6 +7,7 @@ class Visitor:
         self.ast = ast
         self.max_depth = max_depth
         self.breadth_first = breadth_first
+        self.visited_nodes = []
 
     def __iter__(self):
         if self.breadth_first:
@@ -16,6 +18,9 @@ class Visitor:
 
     def set_ast(self, ast):
         self.ast = ast
+
+    def clear_visited_nodes(self):
+        self.visited_nodes = []
 
     def get_method(self, method_name):
         method = getattr(self, method_name, None)
@@ -29,18 +34,23 @@ class Visitor:
             ast_nodes = [ast_nodes]
 
         for node in ast_nodes:
-            method = self.get_method(f"visit_{type(node).__name__}")
-            if method is not None:
-                method(node)
-            else:
-                for b in type(node).__bases__:
-                    method = self.get_method(f"visit_{b.__name__}")
-                    if method is not None:
-                        method(node)
-                        break
+            terminal_node = util.is_terminal(node)
+            if terminal_node or node not in self.visited_nodes:
+                if not terminal_node:
+                    self.visited_nodes.append(node)
 
-                if method is None:
-                    self.visit(node.children())
+                method = self.get_method(f"visit_{type(node).__name__}")
+                if method is not None:
+                    method(node)
+                else:
+                    for b in type(node).__bases__:
+                        method = self.get_method(f"visit_{b.__name__}")
+                        if method is not None:
+                            method(node)
+                            break
+
+                    if method is None:
+                        self.visit(node.children())
 
     def visit_children(self, ast_node):
         self.visit(ast_node.children())

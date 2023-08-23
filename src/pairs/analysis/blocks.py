@@ -24,8 +24,7 @@ class DiscoverBlockVariants(Mutator):
 
     def mutate_Assign(self, ast_node):
         self.in_assignment = ast_node if len(self.blocks) > 0 else None
-        for dest in ast_node.destinations():
-            self.mutate(dest)
+        ast_node._dest = self.mutate(ast_node._dest)
         self.in_assignment = None
         return ast_node
 
@@ -188,6 +187,7 @@ class DetermineExpressionsOwnership(Visitor):
         self.block_stack.append(ast_node)
         for s in ast_node.statements():
             self.block_statement[ast_node] = s
+            self.clear_visited_nodes()
             self.visit_children(s)
 
         self.block_stack.pop()

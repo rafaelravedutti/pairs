@@ -239,9 +239,15 @@ class CGen:
                 self.print(f"{tkw} {ast_node.array.name()}[{size}];")
 
         if isinstance(ast_node, Assign):
-            for assign_dest, assign_src in ast_node.assignments:
-                dest = self.generate_expression(assign_dest, mem=True)
-                src = self.generate_expression(assign_src)
+            if ast_node._dest.is_vector():
+                for dim in range(self.sim.ndims()):
+                    dest = self.generate_expression(ast_node._dest, mem=True, index=dim)
+                    src = self.generate_expression(ast_node._src, index=dim)
+                    self.print(f"{dest} = {src};")
+
+            else:
+                dest = self.generate_expression(ast_node._dest, mem=True)
+                src = self.generate_expression(ast_node._src)
                 self.print(f"{dest} = {src};")
 
         if isinstance(ast_node, Block):

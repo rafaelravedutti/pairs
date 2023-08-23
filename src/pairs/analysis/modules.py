@@ -19,9 +19,9 @@ class FetchModulesReferences(Visitor):
 
     def visit_Assign(self, ast_node):
         self.writing = True
-        self.visit(ast_node.destinations())
+        self.visit(ast_node._dest)
         self.writing = False
-        self.visit(ast_node.sources())
+        self.visit(ast_node._src)
 
     def visit_AtomicAdd(self, ast_node):
         self.writing = True

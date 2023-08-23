@@ -1,7 +1,11 @@
+import pairs.ir.utils as util
+
+
 class Mutator:
     def __init__(self, ast=None, max_depth=0):
         self.ast = ast
         self.max_depth = 0
+        self.visited_nodes = []
 
     def set_ast(self, ast):
         self.ast = ast
@@ -14,18 +18,23 @@ class Mutator:
         if ast_node is None:
             ast_node = self.ast
 
-        method = self.get_method(f"mutate_{type(ast_node).__name__}")
-        if method is not None:
-            return method(ast_node)
+        terminal_node = util.is_terminal(ast_node)
+        if terminal_node or ast_node not in self.visited_nodes:
+            if not terminal_node:
+                self.visited_nodes.append(ast_node)
 
-        for b in type(ast_node).__bases__:
-            method = self.get_method(f"mutate_{b.__name__}")
+            method = self.get_method(f"mutate_{type(ast_node).__name__}")
             if method is not None:
                 return method(ast_node)
 
-        method_unknown = self.get_method("mutate_Unknown")
-        if method_unknown is not None:
-            return method_unknown(ast_node)
+            for b in type(ast_node).__bases__:
+                method = self.get_method(f"mutate_{b.__name__}")
+                if method is not None:
+                    return method(ast_node)
+
+            method_unknown = self.get_method("mutate_Unknown")
+            if method_unknown is not None:
+                return method_unknown(ast_node)
 
         return ast_node
 
@@ -39,7 +48,8 @@ class Mutator:
         return ast_node 
 
     def mutate_Assign(self, ast_node):
-        ast_node.assignments = [(self.mutate(a[0]), self.mutate(a[1])) for a in ast_node.assignments]
+        ast_node._dest = self.mutate(ast_node._dest)
+        ast_node._src = self.mutate(ast_node._src)
         return ast_node
 
     def mutate_AtomicAdd(self, ast_node):

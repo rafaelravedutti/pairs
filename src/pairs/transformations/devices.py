@@ -1,5 +1,4 @@
 import math
-from pairs.ir.assign import Assign
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter

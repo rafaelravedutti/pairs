@@ -1,10 +1,9 @@
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block, pairs_inline
-from pairs.ir.branches import Branch, Filter
+from pairs.ir.branches import Filter
 from pairs.ir.loops import For, ParticleFor
 from pairs.ir.types import Types
-from pairs.ir.utils import Print
 from pairs.sim.lowerable import Lowerable
 
 

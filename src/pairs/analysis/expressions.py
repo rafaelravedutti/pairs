@@ -14,41 +14,49 @@ class DetermineExpressionsTerminals(Visitor):
 
     def visit_ArrayAccess(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
     def visit_MathFunction(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
     def visit_PropertyAccess(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
     def visit_ContactPropertyAccess(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
     def visit_FeaturePropertyAccess(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
     def visit_ScalarOp(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
     def visit_Select(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
     def visit_VectorOp(self, ast_node):
         self.elems.append(ast_node)
+        self.clear_visited_nodes()
         self.visit_children(ast_node)
         self.elems.pop()
 
