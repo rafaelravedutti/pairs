@@ -2,7 +2,7 @@ import time
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftDeclarations, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
-from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PrioritizeScalarOps, AddExpressionDeclarations
+from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, AddExpressionDeclarations
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
 from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLogic, ReplaceModulesByCalls
@@ -38,20 +38,18 @@ class Transformations:
         self.apply(MergeAdjacentBlocks())
 
     def optimize_expressions(self):
-        self.apply(ReplaceSymbols())
         self.apply(LowerNeighborIndexes())
-        self.apply(SimplifyExpressions())
-        self.apply(PrioritizeScalarOps())
+        self.apply(ReplaceSymbols())
         self.apply(SimplifyExpressions())
 
     def lift_declarations_to_owner_blocks(self):
-        #self.analysis().set_parent_block()
+        #self.analysis().determine_parent_block()
         ownership, expressions_to_lift = self.analysis().determine_expressions_ownership()
         self.apply(LiftDeclarations(), [ownership, expressions_to_lift])
 
     def licm(self):
-        self.analysis().set_block_variants()
-        self.analysis().set_bin_op_terminals()
+        self.analysis().discover_block_variants()
+        self.analysis().determine_expressions_terminals()
         self.apply(LICM())
 
     def modularize(self):
@@ -73,7 +71,7 @@ class Transformations:
             self.analysis().fetch_kernel_references()
 
     def add_expression_declarations(self):
-        declared_exprs = self.analysis().set_declared_expressions()
+        declared_exprs = self.analysis().list_declared_expressions()
         self.apply(AddExpressionDeclarations(), [declared_exprs])
 
     def add_host_references_to_modules(self):

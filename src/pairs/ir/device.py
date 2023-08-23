@@ -1,7 +1,7 @@
 from functools import reduce
 import operator
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.sizeof import Sizeof
 
 

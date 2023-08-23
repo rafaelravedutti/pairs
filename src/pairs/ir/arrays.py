@@ -1,7 +1,8 @@
 from functools import reduce
 from pairs.ir.assign import Assign
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import ASTTerm, BinOp
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.memory import Realloc
@@ -134,7 +135,7 @@ class ArrayAccess(ASTTerm):
         return ArrayAccess.last_acc - 1
 
     def __init__(self, sim, array, indexes):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self.acc_id = ArrayAccess.new_id()
         self.array = array
         self.partial_indexes = indexes if isinstance(indexes, list) else [Lit.cvt(sim, indexes)]
@@ -221,7 +222,7 @@ class RegisterArray(ASTNode):
         super().__init__(sim)
         self._array = array
         self._prim_size = Sizeof(sim, array.type())
-        self._size = BinOp.inline(self._prim_size * size)
+        self._size = ScalarOp.inline(self._prim_size * size)
         self.sim.add_statement(self)
 
     def array(self):
@@ -239,7 +240,7 @@ class ReallocArray(ASTNode):
         super().__init__(sim)
         self._array = array
         self._prim_size = Sizeof(sim, array.type())
-        self._size = BinOp.inline(self._prim_size * size)
+        self._size = ScalarOp.inline(self._prim_size * size)
         self.sim.add_statement(self)
 
     def array(self):

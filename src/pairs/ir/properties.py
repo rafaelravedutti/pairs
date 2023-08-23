@@ -1,10 +1,12 @@
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.ast_term import ASTTerm
 from pairs.ir.assign import Assign
-from pairs.ir.bin_op import BinOp, Decl, ASTTerm, VectorAccess
+from pairs.ir.declaration import Decl
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
-from pairs.ir.vector_expr import VectorExpression
+from pairs.ir.vectors import VectorAccess, VectorOp
 
 
 class Properties:
@@ -59,6 +61,9 @@ class Property(ASTNode):
     def __str__(self):
         return f"Property<{self.prop_name}>"
 
+    def __getitem__(self, expr):
+        return PropertyAccess(self.sim, self, expr)
+
     def id(self):
         return self.prop_id
 
@@ -81,11 +86,8 @@ class Property(ASTNode):
         return [self.sim.particle_capacity] if self.prop_type != Types.Vector \
                else [self.sim.ndims(), self.sim.particle_capacity]
 
-    def __getitem__(self, expr):
-        return PropertyAccess(self.sim, self, expr)
 
-
-class PropertyAccess(ASTTerm, VectorExpression):
+class PropertyAccess(ASTTerm):
     last_prop_acc = 0
 
     def new_id():
@@ -93,35 +95,41 @@ class PropertyAccess(ASTTerm, VectorExpression):
         return PropertyAccess.last_prop_acc - 1
 
     def __init__(self, sim, prop, index):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp if prop.type() != Types.Vector else VectorOp)
         self.acc_id = PropertyAccess.new_id()
         self.prop = prop
         self.index = Lit.cvt(sim, index)
         self.inlined = False
         self.terminals = set()
+        self.vector_indexes = {}
+
+        if prop.type() == Types.Vector:
+            sizes = prop.sizes()
+            layout = prop.layout()
+
+            for dim in range(self.sim.ndims()):
+                if layout == Layouts.AoS:
+                    self.vector_indexes[dim] = self.index * sizes[0] + dim
+                elif layout == Layouts.SoA:
+                    self.vector_indexes[dim] = dim * sizes[1] + self.index
+                else:
+                    raise Exception("Invalid data layout.")
 
     def __str__(self):
         return f"PropertyAccess<{self.prop}, {self.index}>"
 
+    def __getitem__(self, index):
+        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+
     def copy(self):
         return PropertyAccess(self.sim, self.prop, self.index)
 
-    def vector_index(self, v_index):
-        sizes = self.prop.sizes()
-        layout = self.prop.layout()
-        index = self.index * sizes[0] + v_index if layout == Layouts.AoS else \
-                v_index * sizes[1] + self.index if layout == Layouts.SoA else \
-                None
-
-        assert index is not None, "Invalid data layout"
-        return index
+    def vector_index(self, dimension):
+        return self.vector_indexes[dimension]
 
     def inline_recursively(self):
         self.inlined = True
         return self
-
-    def propagate_through(self):
-        return []
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
@@ -142,11 +150,7 @@ class PropertyAccess(ASTTerm, VectorExpression):
         self.terminals.add(terminal)
 
     def children(self):
-        return [self.prop, self.index] + list(super().children())
-
-    def __getitem__(self, index):
-        super().__getitem__(index)
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        return [self.prop, self.index] + list(self.vector_indexes.values())
 
 
 class RegisterProperty(ASTNode):
@@ -156,14 +160,14 @@ class RegisterProperty(ASTNode):
         self.sizes_list = [Lit.cvt(sim, s) for s in sizes]
         self.sim.add_statement(self)
 
+    def __str__(self):
+        return f"RegisterProperty<{self.prop.name()}>"
+
     def property(self):
         return self.prop
 
     def sizes(self):
         return self.sizes_list
-
-    def __str__(self):
-        return f"RegisterProperty<{self.prop.name()}>"
 
 
 class ReallocProperty(ASTNode):
@@ -173,20 +177,23 @@ class ReallocProperty(ASTNode):
         self.sizes_list = [Lit.cvt(sim, s) for s in sizes]
         self.sim.add_statement(self)
 
+    def __str__(self):
+        return f"ReallocProperty<{self.prop.name()}>"
+
     def property(self):
         return self.prop
 
     def sizes(self):
         return self.sizes_list
 
-    def __str__(self):
-        return f"ReallocProperty<{self.prop.name()}>"
-
 
 class ContactProperties:
     def __init__(self, sim):
         self.sim = sim
         self.contact_properties = []
+
+    def __iter__(self):
+        yield from self.contact_properties
 
     def add(self, cp_name, cp_type, cp_layout, cp_default):
         cp = ContactProperty(self.sim, cp_name, cp_type, cp_layout, cp_default)
@@ -206,9 +213,6 @@ class ContactProperties:
     def nprops(self):
         return len(self.contact_properties)
 
-    def __iter__(self):
-        yield from self.contact_properties
-
 
 class ContactProperty(ASTNode):
     last_contact_prop_id = 0
@@ -225,6 +229,9 @@ class ContactProperty(ASTNode):
 
     def __str__(self):
         return f"ContactProperty<{self.contact_prop_name}>"
+
+    def __getitem__(self, expr):
+        return ContactPropertyAccess(self.sim, self, expr)
 
     def id(self):
         return self.contact_prop_id
@@ -249,11 +256,8 @@ class ContactProperty(ASTNode):
         return neighbor_list_sizes if self.contact_prop_type != Types.Vector \
                else [self.sim.ndims()] + neighbor_list_sizes
 
-    def __getitem__(self, expr):
-        return ContactPropertyAccess(self.sim, self, expr)
 
-
-class ContactPropertyAccess(ASTTerm, VectorExpression):
+class ContactPropertyAccess(ASTTerm):
     last_contact_prop_acc = 0
 
     def new_id():
@@ -262,35 +266,41 @@ class ContactPropertyAccess(ASTTerm, VectorExpression):
 
     def __init__(self, sim, contact_prop, index):
         assert isinstance(index, tuple), "Two indexes must be used for contact property access!"
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp if contact_prop.type() != Types.Vector else VectorOp)
         self.acc_id = ContactPropertyAccess.new_id()
         self.contact_prop = contact_prop
         self.index = index[0] * self.sim.neighbor_capacity + index[1]
         self.inlined = False
         self.terminals = set()
+        self.vector_indexes = {}
+
+        if contact_prop.type() == Types.Vector:
+            sizes = contact_prop.sizes()
+            layout = contact_prop.layout()
+
+            for dim in range(self.sim.ndims()):
+                if layout == Layouts.AoS:
+                    self.vector_indexes[dim] = self.index * sizes[0] + dim
+                elif layout == Layouts.SoA:
+                    self.vector_indexes[dim] = dim * sizes[1] + self.index
+                else:
+                    raise Exception("Invalid data layout.")
 
     def __str__(self):
         return f"ContactPropertyAccess<{self.contact_prop}, {self.index}>"
 
+    def __getitem__(self, index):
+        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+
     def copy(self):
         return ContactPropertyAccess(self.sim, self.contact_prop, self.index)
 
-    def vector_index(self, v_index):
-        sizes = self.contact_prop.sizes()
-        layout = self.contact_prop.layout()
-        index = self.index * sizes[0] + v_index if layout == Layouts.AoS else \
-                v_index * sizes[1] + self.index if layout == Layouts.SoA else \
-                None
-
-        assert index is not None, "Invalid data layout"
-        return index
+    def vector_index(self, dimension):
+        return self.vector_indexes[dimension]
 
     def inline_recursively(self):
         self.inlined = True
         return self
-
-    def propagate_through(self):
-        return []
 
     def set(self, other):
         return self.sim.add_statement(Assign(self.sim, self, other))
@@ -311,11 +321,7 @@ class ContactPropertyAccess(ASTTerm, VectorExpression):
         self.terminals.add(terminal)
 
     def children(self):
-        return [self.contact_prop, self.index] + list(super().children())
-
-    def __getitem__(self, index):
-        super().__getitem__(index)
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        return [self.contact_prop, self.index] + list(self.vector_indexes.values())
 
 
 class RegisterContactProperty(ASTNode):
@@ -325,14 +331,14 @@ class RegisterContactProperty(ASTNode):
         self.sizes_list = [Lit.cvt(sim, s) for s in sizes]
         self.sim.add_statement(self)
 
+    def __str__(self):
+        return f"RegisterContactProperty<{self.prop.name()}>"
+
     def property(self):
         return self.prop
 
     def sizes(self):
         return self.sizes_list
-
-    def __str__(self):
-        return f"RegisterContactProperty<{self.prop.name()}>"
 
 
 class ReallocContactProperty(ASTNode):
@@ -342,11 +348,11 @@ class ReallocContactProperty(ASTNode):
         self.sizes_list = [Lit.cvt(sim, s) for s in sizes]
         self.sim.add_statement(self)
 
+    def __str__(self):
+        return f"ReallocContactProperty<{self.prop.name()}>"
+
     def property(self):
         return self.prop
 
     def sizes(self):
         return self.sizes_list
-
-    def __str__(self):
-        return f"ReallocContactProperty<{self.prop.name()}>"

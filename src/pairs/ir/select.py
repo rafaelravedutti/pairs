@@ -1,10 +1,12 @@
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import ASTTerm, BinOp, VectorAccess
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
-from pairs.ir.vector_expr import VectorExpression
+from pairs.ir.types import Types
+from pairs.ir.vectors import VectorAccess, VectorOp
 
 
-class Select(ASTTerm, VectorExpression):
+class Select(ASTTerm):
     last_select = 0
 
     def new_id():
@@ -12,11 +14,11 @@ class Select(ASTTerm, VectorExpression):
         return Select.last_select - 1
 
     def __init__(self, sim, cond, expr_if, expr_else):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp if expr_if.type() != Types.Vector else VectorOp)
         self.select_id = Select.new_id()
         self.cond = Lit.cvt(sim, cond)
-        #self.expr_if = BinOp.inline(Lit.cvt(sim, expr_if))
-        #self.expr_else = BinOp.inline(Lit.cvt(sim, expr_else))
+        #self.expr_if = ScalarOp.inline(Lit.cvt(sim, expr_if))
+        #self.expr_else = ScalarOp.inline(Lit.cvt(sim, expr_else))
         self.expr_if = Lit.cvt(sim, expr_if)
         self.expr_else = Lit.cvt(sim, expr_else)
         self.terminals = set()
@@ -54,5 +56,4 @@ class Select(ASTTerm, VectorExpression):
         return [self.cond, self.expr_if, self.expr_else]
 
     def __getitem__(self, index):
-        super().__getitem__(index)
         return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))

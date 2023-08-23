@@ -1,5 +1,5 @@
 from pairs.ir.block import Block
-from pairs.ir.bin_op import Decl
+from pairs.ir.declaration import Decl
 from pairs.ir.mutator import Mutator
 
 

@@ -1,10 +1,12 @@
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.ast_term import ASTTerm
 from pairs.ir.assign import Assign
-from pairs.ir.bin_op import BinOp, Decl, ASTTerm, VectorAccess
+from pairs.ir.declaration import Decl
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.types import Types
-from pairs.ir.vector_expr import VectorExpression
+from pairs.ir.vectors import VectorAccess, VectorOp
 
 
 class Features:
@@ -136,7 +138,7 @@ class FeatureProperty(ASTNode):
         return FeaturePropertyAccess(self.sim, self, expr)
 
 
-class FeaturePropertyAccess(ASTTerm, VectorExpression):
+class FeaturePropertyAccess(ASTTerm):
     last_feature_prop_acc = 0
 
     def new_id():
@@ -145,13 +147,26 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
 
     def __init__(self, sim, feature_prop, index):
         assert isinstance(index, tuple), "Two indexes must be used for feature property access!"
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp if feature_prop.type() != Types.Vector else VectorOp)
         self.acc_id = FeaturePropertyAccess.new_id()
         self.feature_prop = feature_prop
         feature = self.feature_prop.feature()
         self.index = Lit.cvt(sim, feature[index[0]] * feature.nkinds() + feature[index[1]])
         self.inlined = False
         self.terminals = set()
+        self.vector_indexes = {}
+
+        if feature_prop.type() == Types.Vector:
+            sizes = feature_prop.sizes()
+            layout = feature_prop.layout()
+
+            for dim in range(self.sim.ndims()):
+                if layout == Layouts.AoS:
+                    self.vector_indexes[dim] = self.index * sizes[0] + dim
+                elif layout == Layouts.SoA:
+                    self.vector_indexes[dim] = dim * sizes[1] + self.index
+                else:
+                    raise Exception("Invalid data layout.")
 
     def __str__(self):
         return f"FeaturePropertyAccess<{self.feature_prop}, {self.index}>"
@@ -159,22 +174,12 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
     def copy(self):
         return FeaturePropertyAccess(self.sim, self.feature_prop, self.index)
 
-    def vector_index(self, v_index):
-        sizes = self.prop.sizes()
-        layout = self.prop.layout()
-        index = self.index * sizes[0] + v_index if layout == Layouts.AoS else \
-                v_index * sizes[1] + self.index if layout == Layouts.SoA else \
-                None
-
-        assert index is not None, "Invalid data layout"
-        return index
+    def vector_index(self, dimension):
+        return self.vector_indexes[dimension]
 
     def inline_recursively(self):
         self.inlined = True
         return self
-
-    def propagate_through(self):
-        return []
 
     def id(self):
         return self.acc_id
@@ -186,7 +191,7 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
         self.terminals.add(terminal)
 
     def children(self):
-        return [self.feature_prop, self.index] + list(super().children())
+        return [self.feature_prop, self.index] + list(self.vector_indexes.values())
 
     def __getitem__(self, index):
         super().__getitem__(index)

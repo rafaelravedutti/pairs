@@ -1,4 +1,4 @@
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import ParticleFor, For
@@ -38,11 +38,11 @@ class BuildContactHistory(Lowerable):
                 j = neigh.particle_index()
                 contact_index.set(-1)
                 for k in For(self.sim, 0, num_contacts[i]):
-                    for _ in Filter(self.sim, BinOp.cmp(contact_lists[i][k], j)):
+                    for _ in Filter(self.sim, ScalarOp.cmp(contact_lists[i][k], j)):
                         contact_index.set(k)
 
-                for _ in Filter(self.sim, BinOp.and_op(contact_index >= 0,
-                                                       BinOp.neq(last_contact, contact_index))):
+                for _ in Filter(self.sim, ScalarOp.and_op(contact_index >= 0,
+                                                       ScalarOp.neq(last_contact, contact_index))):
                     for contact_prop in self.sim.contact_properties:
                         if contact_prop.type() == Types.Vector:
                             for d in range(0, self.sim.ndims()):
@@ -63,7 +63,7 @@ class BuildContactHistory(Lowerable):
             last_contact.set(0)
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
-                for _ in Filter(self.sim, BinOp.neq(contact_lists[i][last_contact], j)):
+                for _ in Filter(self.sim, ScalarOp.neq(contact_lists[i][last_contact], j)):
                     for contact_prop in self.sim.contact_properties:
                         if contact_prop.type() == Types.Vector:
                             for d in range(0, self.sim.ndims()):

@@ -1,11 +1,11 @@
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
-from pairs.ir.const_vector import ZeroVector
 from pairs.ir.lit import Lit
 from pairs.ir.loops import Continue
 from pairs.ir.math import Sqrt
 from pairs.ir.select import Select
 from pairs.ir.types import Types
+from pairs.ir.vectors import ZeroVector
 
 
 class Keywords:

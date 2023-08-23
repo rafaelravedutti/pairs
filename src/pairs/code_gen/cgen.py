@@ -5,8 +5,8 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
-from pairs.ir.const_vector import ZeroVector
-from pairs.ir.bin_op import BinOp, Decl, VectorAccess
+from pairs.ir.declaration import Decl
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, DeviceStaticRef, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.features import FeatureProperty, FeaturePropertyAccess, RegisterFeatureProperty
 from pairs.ir.functions import Call
@@ -24,6 +24,7 @@ from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.ir.variables import Var, VarDecl, Deref
+from pairs.ir.vectors import VectorAccess, VectorOp, ZeroVector
 from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
 
@@ -75,7 +76,7 @@ class CGen:
                 if array.device_flag:
                     t = array.type()
                     tkw = Types.c_keyword(t)
-                    size = self.generate_expression(BinOp.inline(array.alloc_size()))
+                    size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
                     self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
 
             for feature_prop in self.sim.feature_properties:
@@ -208,9 +209,9 @@ class CGen:
             decl = f"{type_kw} a{array_access.id()}"
             kernel_params += f", {decl}"
 
-        for bin_op in kernel.bin_ops():
-            type_kw = Types.c_keyword(bin_op.type())
-            decl = f"{type_kw} e{bin_op.id()}"
+        for scalar_op in kernel.scalar_ops():
+            type_kw = Types.c_keyword(scalar_op.type())
+            decl = f"{type_kw} e{scalar_op.id()}"
             kernel_params += f", {decl}"
 
         self.print(f"__global__ void {kernel.name}({kernel_params}) {{")
@@ -224,7 +225,7 @@ class CGen:
         if isinstance(ast_node, ArrayDecl):
             t = ast_node.array.type()
             tkw = Types.c_keyword(t)
-            size = self.generate_expression(BinOp.inline(ast_node.array.alloc_size()))
+            size = self.generate_expression(ScalarOp.inline(ast_node.array.alloc_size()))
             if ast_node.array.init_value is not None:
                 v_str = str(ast_node.array.init_value)
                 if t == Types.Int64:
@@ -254,30 +255,6 @@ class CGen:
 
         # TODO: Why there are Decls for other types?
         if isinstance(ast_node, Decl):
-            if isinstance(ast_node.elem, BinOp):
-                bin_op = ast_node.elem
-                if bin_op.inlined is False:
-                    if bin_op.is_vector_kind():
-                        for i in bin_op.indexes():
-                            lhs = self.generate_expression(bin_op.lhs, bin_op.mem, index=i)
-                            rhs = self.generate_expression(bin_op.rhs, index=i)
-                            operator = bin_op.operator()
-
-                            if operator.is_unary():
-                                self.print(f"const double e{bin_op.id()}_{i} = {operator.symbol()}({lhs});")
-                            else:
-                                self.print(f"const double e{bin_op.id()}_{i} = {lhs} {operator.symbol()} {rhs};")
-                    else:
-                        lhs = self.generate_expression(bin_op.lhs, bin_op.mem)
-                        rhs = self.generate_expression(bin_op.rhs)
-                        operator = bin_op.operator()
-                        tkw = Types.c_keyword(bin_op.type())
-
-                        if operator.is_unary():
-                            self.print(f"const {tkw} e{bin_op.id()} = {operator.symbol()}({lhs});")
-                        else:
-                            self.print(f"const {tkw} e{bin_op.id()} = {lhs} {operator.symbol()} {rhs};")
-
             if isinstance(ast_node.elem, ArrayAccess):
                 array_access = ast_node.elem
                 array_name = self.generate_expression(array_access.array)
@@ -285,52 +262,6 @@ class CGen:
                 acc_index = self.generate_expression(array_access.flat_index)
                 acc_ref = f"a{array_access.id()}"
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
-
-            if isinstance(ast_node.elem, ContactPropertyAccess):
-                contact_prop_access = ast_node.elem
-                contact_prop = contact_prop_access.contact_prop
-                prop_name = self.generate_expression(contact_prop)
-                acc_ref = f"cp{contact_prop_access.id()}"
-
-                if contact_prop_access.is_vector_kind():
-                    for i in contact_prop_access.indexes():
-                        i_expr = self.generate_expression(contact_prop_access.get_indexed_expression(i))
-                        self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
-
-                else:
-                    tkw = Types.c_keyword(contact_prop_access.type())
-                    acc_index = self.generate_expression(contact_prop_access.index)
-                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
-
-            if isinstance(ast_node.elem, FeaturePropertyAccess):
-                feature_prop_access = ast_node.elem
-                feature_prop = feature_prop_access.feature_prop
-                prop_name = self.generate_expression(feature_prop)
-                acc_ref = f"f{feature_prop_access.id()}"
-
-                if feature_prop_access.is_vector_kind():
-                    for i in feature_prop_access.indexes():
-                        i_expr = self.generate_expression(feature_prop_access.get_indexed_expression(i))
-                        self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
-
-                else:
-                    tkw = Types.c_keyword(feature_prop_access.type())
-                    acc_index = self.generate_expression(feature_prop_access.index)
-                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
-
-            if isinstance(ast_node.elem, PropertyAccess):
-                prop_access = ast_node.elem
-                prop_name = self.generate_expression(prop_access.prop)
-                acc_ref = f"p{prop_access.id()}"
-
-                if prop_access.is_vector_kind():
-                    for i in prop_access.indexes():
-                        i_expr = self.generate_expression(prop_access.get_indexed_expression(i))
-                        self.print(f"const double {acc_ref}_{i} = {prop_name}[{i_expr}];")
-                else:
-                    tkw = Types.c_keyword(prop_access.type())
-                    index_g = self.generate_expression(prop_access.index)
-                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
 
             if isinstance(ast_node.elem, AtomicAdd):
                 atomic_add = ast_node.elem
@@ -347,16 +278,75 @@ class CGen:
                 else:
                     self.print(f"const {tkw} {acc_ref} = pairs::{prefix}atomic_add(&({elem}), {value});")
 
+            if isinstance(ast_node.elem, ContactPropertyAccess):
+                contact_prop_access = ast_node.elem
+                contact_prop = contact_prop_access.contact_prop
+                prop_name = self.generate_expression(contact_prop)
+                acc_ref = f"cp{contact_prop_access.id()}"
+
+                if contact_prop_access.is_vector():
+                    for dim in range(self.sim.ndims()):
+                        expr = self.generate_expression(contact_prop_access.vector_index(dim))
+                        self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
+
+                else:
+                    tkw = Types.c_keyword(contact_prop_access.type())
+                    acc_index = self.generate_expression(contact_prop_access.index)
+                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
+
+            if isinstance(ast_node.elem, FeaturePropertyAccess):
+                feature_prop_access = ast_node.elem
+                feature_prop = feature_prop_access.feature_prop
+                prop_name = self.generate_expression(feature_prop)
+                acc_ref = f"f{feature_prop_access.id()}"
+
+                if feature_prop_access.is_vector():
+                    for dim in range(self.sim.ndims()):
+                        expr = self.generate_expression(feature_prop_access.vector_index(dim))
+                        self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
+
+                else:
+                    tkw = Types.c_keyword(feature_prop_access.type())
+                    acc_index = self.generate_expression(feature_prop_access.index)
+                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
+
+            if isinstance(ast_node.elem, PropertyAccess):
+                prop_access = ast_node.elem
+                prop_name = self.generate_expression(prop_access.prop)
+                acc_ref = f"p{prop_access.id()}"
+
+                if prop_access.is_vector():
+                    for dim in range(self.sim.ndims()):
+                        expr = self.generate_expression(prop_access.vector_index(dim))
+                        self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
+                else:
+                    tkw = Types.c_keyword(prop_access.type())
+                    index_g = self.generate_expression(prop_access.index)
+                    self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
+
+            if isinstance(ast_node.elem, ScalarOp):
+                scalar_op = ast_node.elem
+                if scalar_op.inlined is False:
+                    lhs = self.generate_expression(scalar_op.lhs, scalar_op.mem)
+                    rhs = self.generate_expression(scalar_op.rhs)
+                    operator = scalar_op.operator()
+                    tkw = Types.c_keyword(scalar_op.type())
+
+                    if operator.is_unary():
+                        self.print(f"const {tkw} e{scalar_op.id()} = {operator.symbol()}({lhs});")
+                    else:
+                        self.print(f"const {tkw} e{scalar_op.id()} = {lhs} {operator.symbol()} {rhs};")
+
             if isinstance(ast_node.elem, Select):
                 select = ast_node.elem
                 acc_ref = f"s{select.id()}"
 
-                if select.is_vector_kind():
-                    for i in select.indexes():
-                        cond = self.generate_expression(select.cond, index=i)
-                        expr_if = self.generate_expression(select.expr_if, index=i)
-                        expr_else = self.generate_expression(select.expr_else, index=i)
-                        self.print(f"const double {acc_ref}_{i} = ({cond}) ? ({expr_if}) : ({expr_else});")
+                if select.is_vector():
+                    for dim in range(self.sim.ndims()):
+                        cond = self.generate_expression(select.cond, index=dim)
+                        expr_if = self.generate_expression(select.expr_if, index=dim)
+                        expr_else = self.generate_expression(select.expr_else, index=dim)
+                        self.print(f"const double {acc_ref}_{dim} = ({cond}) ? ({expr_if}) : ({expr_else});")
                 else:
                     cond = self.generate_expression(select.cond)
                     expr_if = self.generate_expression(select.expr_if)
@@ -370,6 +360,18 @@ class CGen:
                 params = ", ".join([str(self.generate_expression(p)) for p in math_func.parameters()])
                 tkw = Types.c_keyword(math_func.type())
                 self.print(f"const {tkw} {acc_ref} = {math_func.function_name()}({params});")
+
+            if isinstance(ast_node.elem, VectorOp):
+                vector_op = ast_node.elem
+                for dim in range(self.sim.ndims()):
+                    lhs = self.generate_expression(vector_op.lhs, vector_op.mem, index=dim)
+                    rhs = self.generate_expression(vector_op.rhs, index=dim)
+                    operator = vector_op.operator()
+
+                    if operator.is_unary():
+                        self.print(f"const double e{vector_op.id()}_{dim} = {operator.symbol()}({lhs});")
+                    else:
+                        self.print(f"const double e{vector_op.id()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
@@ -472,7 +474,7 @@ class CGen:
                     self.print(f"d_{array_name} = ({tkw} *) pairs::device_alloc({size});")
 
         if isinstance(ast_node, KernelLaunch):
-            range_start = self.generate_expression(BinOp.inline(ast_node.min))
+            range_start = self.generate_expression(ScalarOp.inline(ast_node.min))
             kernel = ast_node.kernel
             kernel_params = f"{range_start}"
 
@@ -497,8 +499,8 @@ class CGen:
             for array_access in kernel.array_accesses():
                 kernel_params += f", {self.generate_expression(array_access)}"
 
-            for bin_op in kernel.bin_ops():
-                kernel_params += f", {self.generate_expression(bin_op)}"
+            for scalar_op in kernel.scalar_ops():
+                kernel_params += f", {self.generate_expression(scalar_op)}"
 
             threads_per_block = self.generate_expression(ast_node.threads_per_block)
             nblocks = self.generate_expression(ast_node.nblocks)
@@ -598,7 +600,7 @@ class CGen:
                       "SoA" if p.layout() == Layouts.SoA else \
                       "Invalid"
 
-            sizes = ", ".join([str(self.generate_expression(BinOp.inline(size))) for size in ast_node.sizes()])
+            sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
 
             if self.target.is_gpu() and p.device_flag:
                 self.print(f"{tkw} *{ptr}, *{d_ptr};")
@@ -624,7 +626,7 @@ class CGen:
                       "SoA" if p.layout() == Layouts.SoA else \
                       "Invalid"
 
-            sizes = ", ".join([str(self.generate_expression(BinOp.inline(size))) for size in ast_node.sizes()])
+            sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
 
             if self.target.is_gpu() and p.device_flag:
                 self.print(f"{tkw} *{ptr}, *{d_ptr};")
@@ -664,7 +666,7 @@ class CGen:
             p = ast_node.property()
             ptr = p.name()
             d_ptr_addr = f"&d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
-            sizes = ", ".join([str(self.generate_expression(BinOp.inline(size))) for size in ast_node.sizes()])
+            sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
             self.print(f"pairs->reallocProperty({p.id()}, &{ptr}, {d_ptr_addr}, {sizes});")
             #self.print(f"pairs->reallocProperty({p.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {sizes});")
 
@@ -705,18 +707,13 @@ class CGen:
         if isinstance(ast_node, AtomicAdd):
             return f"atm_add{ast_node.id()}"
 
-        if isinstance(ast_node, BinOp):
+        if isinstance(ast_node, ScalarOp):
             if ast_node.inlined is True:
-                assert ast_node.type() != Types.Vector, "Vector operations cannot be inlined!"
                 lhs = self.generate_expression(ast_node.lhs, mem, index)
                 rhs = self.generate_expression(ast_node.rhs, index=index)
                 operator = ast_node.operator()
                 return f"({operator.symbol()}({lhs}))" if operator.is_unary() else \
                        f"({lhs} {operator.symbol()} {rhs})"
-
-            if ast_node.is_vector_kind():
-                assert index is not None, "Index must be set for vector reference!"
-                return f"e{ast_node.id()}[{index}]" if ast_node.mem else f"e{ast_node.id()}_{index}"
 
             return f"e{ast_node.id()}"
 
@@ -779,37 +776,34 @@ class CGen:
             return ast_node.name()
 
         if isinstance(ast_node, PropertyAccess):
-            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
+            assert not ast_node.is_vector() or index is not None, "Index must be set for vector property access!"
             prop_name = self.generate_expression(ast_node.prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_indexed_expression(index)
-                index_g = self.generate_expression(index_expr)
-                return f"{prop_name}[{index_g}]"
+                index_expr = self.generate_expression(ast_node.index if not ast_node.is_vector() else ast_node.vector_index(index))
+                return f"{prop_name}[{index_expr}]"
 
-            return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
+            return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector() else "")
 
         if isinstance(ast_node, ContactPropertyAccess):
-            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
+            assert not ast_node.is_vector() or index is not None, "Index must be set for vector property access!"
             prop_name = self.generate_expression(ast_node.contact_prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_indexed_expression(index)
-                index_g = self.generate_expression(index_expr)
-                return f"{prop_name}[{index_g}]"
+                index_expr = self.generate_expression(ast_node.index if not ast_node.is_vector() else ast_node.vector_index(index))
+                return f"{prop_name}[{index_expr}]"
 
-            return f"cp{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
+            return f"cp{ast_node.id()}" + (f"_{index}" if ast_node.is_vector() else "")
 
         if isinstance(ast_node, FeaturePropertyAccess):
-            assert not ast_node.is_vector_kind() or index is not None, "Index must be set for vector property access!"
+            assert not ast_node.is_vector() or index is not None, "Index must be set for vector property access!"
             feature_name = self.generate_expression(ast_node.feature_prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = ast_node.index if not ast_node.is_vector_kind() else ast_node.get_indexed_expression(index)
-                index_g = self.generate_expression(index_expr)
-                return f"{feature_name}[{index_g}]"
+                index_expr = self.generate_expression(ast_node.index if not ast_node.is_vector() else ast_node.vector_index(index))
+                return f"{feature_name}[{index_expr}]"
 
-            return f"f{ast_node.id()}" + (f"_{index}" if ast_node.is_vector_kind() else "")
+            return f"f{ast_node.id()}" + (f"_{index}" if ast_node.is_vector() else "")
 
         if isinstance(ast_node, ParticleAttributeList):
             tid = CGen.temp_id
@@ -834,7 +828,7 @@ class CGen:
                 expr_else = self.generate_expression(ast_node.expr_else, index=index)
                 return f"(({cond}) ? ({expr_if}) : ({expr_else}))"
 
-            if ast_node.is_vector_kind():
+            if ast_node.is_vector():
                 assert index is not None, "Index must be set for vector reference!"
                 return f"s{ast_node.id()}_{index}"
 
@@ -845,6 +839,10 @@ class CGen:
 
         if isinstance(ast_node, VectorAccess):
             return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
+
+        if isinstance(ast_node, VectorOp):
+            assert index is not None, "Index must be set for vector operation."
+            return f"e{ast_node.id()}_{index}"
 
         if isinstance(ast_node, ZeroVector):
             return "0.0"

@@ -2,21 +2,17 @@ from functools import reduce
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.lit import Lit
 from pairs.ir.types import Types
-from pairs.ir.vector_expr import VectorExpression
 
 
 class Assign(ASTNode):
     def __init__(self, sim, dest, src):
         super().__init__(sim)
-        self.type = dest.type()
         src = Lit.cvt(sim, src)
 
         if dest.type() == Types.Vector:
-            self.assignments = []
+            self.assignments = \
+                [(dest[d], src if src.type() != Types.Vector else src[d]) for d in range(sim.ndims())]
 
-            for i in range(0, sim.ndims()):
-                dim_src = src if not isinstance(src, VectorExpression) or src.type() != Types.Vector else src[i]
-                self.assignments.append((dest[i], dim_src))
         else:
             self.assignments = [(dest, src)]
 

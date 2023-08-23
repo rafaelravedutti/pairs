@@ -1,4 +1,5 @@
-from pairs.ir.bin_op import ASTTerm
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 
 
@@ -10,7 +11,7 @@ class MathFunction(ASTTerm):
         return MathFunction.last_math_func
 
     def __init__(self, sim):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self._id = MathFunction.new_id()
         self._params = []
         self.terminals = set()

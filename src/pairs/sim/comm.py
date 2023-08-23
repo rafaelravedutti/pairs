@@ -1,5 +1,5 @@
 from pairs.ir.atomic import AtomicAdd
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import pairs_device_block, pairs_host_block, pairs_inline
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
@@ -202,7 +202,7 @@ class PackGhostParticles(Lowerable):
 
         step_indexes = self.comm.dom_part.step_indexes(self.step)
         start = self.comm.send_offsets[step_indexes[0]]
-        for i in For(self.sim, start, BinOp.inline(start + sum([self.comm.nsend[j] for j in step_indexes]))):
+        for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nsend[j] for j in step_indexes]))):
             p_offset = 0
             m = send_map[i]
             for p in self.prop_list:
@@ -243,7 +243,7 @@ class UnpackGhostParticles(Lowerable):
 
         step_indexes = self.comm.dom_part.step_indexes(self.step)
         start = self.comm.recv_offsets[step_indexes[0]]
-        for i in For(self.sim, start, BinOp.inline(start + sum([self.comm.nrecv[j] for j in step_indexes]))):
+        for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nrecv[j] for j in step_indexes]))):
             p_offset = 0
             for p in self.prop_list:
                 if p.type() == Types.Vector:
@@ -272,7 +272,7 @@ class RemoveExchangedParticles_part1(Lowerable):
             particle_id = self.comm.send_map[i]
             for need_copy in Branch(self.sim, particle_id < self.sim.nlocal - self.comm.nsend_all):
                 if need_copy:
-                    for _ in While(self.sim, BinOp.cmp(self.comm.exchg_flag[send_pos], 1)):
+                    for _ in While(self.sim, ScalarOp.cmp(self.comm.exchg_flag[send_pos], 1)):
                         send_pos.set(send_pos - 1)
 
                     self.comm.exchg_copy_to[i].set(send_pos)

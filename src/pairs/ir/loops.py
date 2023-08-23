@@ -1,5 +1,6 @@
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import BinOp, ASTTerm
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.lit import Lit
@@ -14,7 +15,7 @@ class Iter(ASTTerm):
         return Iter.last_iter - 1
 
     def __init__(self, sim, loop):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self.loop = loop
         self.iter_id = Iter.new_id()
 
@@ -80,7 +81,7 @@ class ParticleFor(For):
 class While(ASTNode):
     def __init__(self, sim, cond, block=None):
         super().__init__(sim)
-        self.cond = BinOp.inline(cond)
+        self.cond = ScalarOp.inline(cond)
         self.block = Block(sim, []) if block is None else block
 
     def __str__(self):

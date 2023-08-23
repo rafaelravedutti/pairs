@@ -1,10 +1,11 @@
 from pairs.ir.arrays import Array, ArrayAccess
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.features import FeatureProperty
 from pairs.ir.lit import Lit
 from pairs.ir.properties import Property, ContactProperty
 from pairs.ir.variables import Var
+from pairs.ir.vectors import VectorOp
 
 
 class Kernel(ASTNode):
@@ -20,7 +21,8 @@ class Kernel(ASTNode):
         self._contact_properties = {}
         self._feature_properties = {}
         self._array_accesses = set()
-        self._bin_ops = []
+        self._scalar_ops = []
+        self._vector_ops = []
         self._block = block
         self._iterator = iterator
         sim.add_kernel(self)
@@ -69,8 +71,11 @@ class Kernel(ASTNode):
     def array_accesses(self):
         return self._array_accesses
 
-    def bin_ops(self):
-        return self._bin_ops
+    def scalar_ops(self):
+        return self._scalar_ops
+
+    def vector_ops(self):
+        return self._vector_ops
 
     def write_properties(self):
         return {p for p in self._properties if 'w' in self._properties[p]}
@@ -115,11 +120,17 @@ class Kernel(ASTNode):
             assert isinstance(a, ArrayAccess), "Kernel.add_array_access(): given element is not of type ArrayAccess!"
             self._array_accesses.add(a)
 
-    def add_bin_op(self, bin_op):
-        bin_op_list = bin_op if isinstance(bin_op, list) else [bin_op]
-        for b in bin_op_list:
-            assert isinstance(b, BinOp), "Kernel.add_bin_op(): given element is not of type BinOp!"
-            self._bin_ops.append(b)
+    def add_scalar_op(self, scalar_op):
+        scalar_op_list = scalar_op if isinstance(scalar_op, list) else [scalar_op]
+        for b in scalar_op_list:
+            assert isinstance(b, ScalarOp), "Kernel.add_scalar_op(): given element is not of type ScalarOp!"
+            self._scalar_ops.append(b)
+
+    def add_vector_op(self, vector_op):
+        vector_op_list = vector_op if isinstance(vector_op, list) else [vector_op]
+        for b in vector_op_list:
+            assert isinstance(b, VectorOp), "Kernel.add_vector_op(): given element is not of type VectorOp!"
+            self._vector_ops.append(b)
 
     def children(self):
         return [self._block]

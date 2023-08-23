@@ -1,6 +1,6 @@
 import time
-from pairs.analysis.bin_ops import ResetInPlaceBinOps, SetBinOpTerminals, SetInPlaceBinOps, SetDeclaredExprs
-from pairs.analysis.blocks import SetBlockVariants, DetermineExpressionsOwnership, SetParentBlock
+from pairs.analysis.expressions import DetermineExpressionsTerminals, ResetInPlaceOperations, DetermineInPlaceOperations, ListDeclaredExpressions
+from pairs.analysis.blocks import DiscoverBlockVariants, DetermineExpressionsOwnership, DetermineParentBlocks
 from pairs.analysis.devices import FetchKernelReferences
 from pairs.analysis.modules import FetchModulesReferences
 
@@ -17,14 +17,14 @@ class Analysis:
         elapsed = time.time() - start
         print(f"{elapsed:.2f}s elapsed.")
 
-    def set_bin_op_terminals(self):
-        self.apply(SetBinOpTerminals())
+    def determine_expressions_terminals(self):
+        self.apply(DetermineExpressionsTerminals())
 
-    def set_block_variants(self):
-        SetBlockVariants(self._ast).mutate()
+    def discover_block_variants(self):
+        DiscoverBlockVariants(self._ast).mutate()
 
-    def set_parent_block(self):
-        self.apply(SetParentBlock())
+    def determine_parent_blocks(self):
+        self.apply(DetermineParentBlocks())
 
     def determine_expressions_ownership(self):
         determine_ownership = DetermineExpressionsOwnership()
@@ -32,14 +32,14 @@ class Analysis:
         return (determine_ownership.ownership, determine_ownership.expressions_to_lift)
 
     def fetch_kernel_references(self):
-        self.apply(ResetInPlaceBinOps())
-        self.apply(SetInPlaceBinOps())
+        self.apply(ResetInPlaceOperations())
+        self.apply(DetermineInPlaceOperations())
         self.apply(FetchKernelReferences())
 
     def fetch_modules_references(self):
         self.apply(FetchModulesReferences())
 
-    def set_declared_expressions(self):
-        set_decl_exprs = SetDeclaredExprs()
-        self.apply(set_decl_exprs)
-        return set_decl_exprs.declared_exprs
+    def list_declared_expressions(self):
+        list_expressions = ListDeclaredExpressions()
+        self.apply(list_expressions)
+        return list_expressions.declared_exprs

@@ -1,8 +1,12 @@
 from pairs.ir.arrays import ArrayAccess
-from pairs.ir.bin_op import BinOp
+from pairs.ir.features import FeaturePropertyAccess
 from pairs.ir.loops import For, While
+from pairs.ir.math import MathFunction
 from pairs.ir.mutator import Mutator
-from pairs.ir.properties import PropertyAccess
+from pairs.ir.properties import PropertyAccess, ContactPropertyAccess
+from pairs.ir.scalars import ScalarOp
+from pairs.ir.select import Select
+from pairs.ir.vectors import VectorOp
 
 
 class LICM(Mutator):
@@ -28,7 +32,18 @@ class LICM(Mutator):
         return ast_node
 
     def mutate_Decl(self, ast_node):
-        if self.loops and isinstance(ast_node.elem, (BinOp, ArrayAccess, PropertyAccess)):
+        elems_to_check = (
+            ArrayAccess,
+            ContactPropertyAccess,
+            FeaturePropertyAccess,
+            MathFunction,
+            PropertyAccess,
+            ScalarOp,
+            Select,
+            VectorOp
+        )
+
+        if self.loops and isinstance(ast_node.elem, elems_to_check):
             last_loop = self.loops[-1]
             loop_lifts = self.lifts[id(last_loop)]
             #print(f"variants = {last_loop.block.variants}, terminals = {ast_node.elem.terminals}")

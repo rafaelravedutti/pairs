@@ -52,7 +52,6 @@ class Simulation:
         self.scope = []
         self.nested_count = 0
         self.nest = False
-        self.check_decl_usage = True
         self._capture_statements = True
         self._block = Block(self, [])
         self.setups = Block(self, [])
@@ -321,8 +320,6 @@ class Simulation:
         transformations = Transformations(program, self._target)
         transformations.apply_all()
 
-        # For this part on, all bin ops are generated without usage verification
-        self.check_decl_usage = False
-
-        #ASTGraph(self.functions, "functions").render()
+        # Generate program
+        #ASTGraph(self.functions, "functions.dot").render()
         self.code_gen.generate_program(program)

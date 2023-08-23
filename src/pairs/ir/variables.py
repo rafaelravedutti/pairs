@@ -1,6 +1,7 @@
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.ast_term import ASTTerm 
 from pairs.ir.assign import Assign
-from pairs.ir.bin_op import ASTTerm 
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
 
 
@@ -38,7 +39,7 @@ class Variables:
 
 class Var(ASTTerm):
     def __init__(self, sim, var_name, var_type, init_value=0, temp=False):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self.var_name = var_name
         self.var_type = var_type
         self.var_init_value = init_value
@@ -91,7 +92,7 @@ class VarDecl(ASTNode):
 
 class Deref(ASTTerm):
     def __init__(self, sim, var):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self._var = var
 
     def __str__(self):

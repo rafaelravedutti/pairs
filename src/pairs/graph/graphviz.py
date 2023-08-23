@@ -1,11 +1,13 @@
 from graphviz import Digraph
 from pairs.ir.arrays import Array
-from pairs.ir.bin_op import BinOp, Decl
+from pairs.ir.declaration import Decl
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.features import Feature, FeatureProperty
 from pairs.ir.lit import Lit
 from pairs.ir.loops import Iter
 from pairs.ir.properties import Property, ContactProperty
 from pairs.ir.variables import Var
+from pairs.ir.vectors import VectorOp
 from pairs.ir.visitor import Visitor
 
 
@@ -51,8 +53,11 @@ class ASTGraph:
         if isinstance(ast_node, (Array, Property, Var, ContactProperty, FeatureProperty)):
             return ast_node.name()
 
-        if isinstance(ast_node, BinOp):
-            return ast_node.operator().symbol()
+        if isinstance(ast_node, ScalarOp):
+            return f"ScalarOp<{ast_node.operator().symbol()}>"
+
+        if isinstance(ast_node, VectorOp):
+            return f"VectorOp<{ast_node.operator().symbol()}>"
 
         if isinstance(ast_node, Iter):
             return f"Iter({ast_node.id()})"

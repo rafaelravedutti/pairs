@@ -6,7 +6,13 @@ class Visitor:
         self.ast = ast
         self.max_depth = max_depth
         self.breadth_first = breadth_first
-        self.visited_vector_expressions = []
+
+    def __iter__(self):
+        if self.breadth_first:
+            yield from self.yield_elements_breadth_first(self.ast)
+        else:
+            yield self.ast
+            yield from self.yield_elements(self.ast, 1)
 
     def set_ast(self, ast):
         self.ast = ast
@@ -36,15 +42,6 @@ class Visitor:
                 if method is None:
                     self.visit(node.children())
 
-    #def visit_VectorAccess(self, ast_node):
-        # Traversing the expressions for all vector accesses makes the compilation
-        # significantly slower, when it is necessary, a specific method can be used
-        # for the analysis
-    #    expr_id = id(ast_node.expr)
-    #    if expr_id not in self.visited_vector_expressions:
-    #        self.visit(ast_node.children())
-    #        self.visited_vector_expressions.append(expr_id)
-
     def visit_children(self, ast_node):
         self.visit(ast_node.children())
 
@@ -66,10 +63,3 @@ class Visitor:
             for child in ast.children():
                 yield child
                 yield from self.yield_elements(child, depth + 1)
-
-    def __iter__(self):
-        if self.breadth_first:
-            yield from self.yield_elements_breadth_first(self.ast)
-        else:
-            yield self.ast
-            yield from self.yield_elements(self.ast, 1)

@@ -1,4 +1,4 @@
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.loops import For
@@ -35,7 +35,7 @@ class Timestep:
 
         if exec_every > 0:
             self.block.add_statement(
-                Branch(self.sim, BinOp.inline(BinOp.cmp(ts % exec_every, 0)), True if stmts_else is None else False,
+                Branch(self.sim, ScalarOp.inline(ScalarOp.cmp(ts % exec_every, 0)), True if stmts_else is None else False,
                 Block(self.sim, stmts), None if stmts_else is None else Block(self.sim, stmts_else)))
         else:
             self.block.add_statement(stmts)

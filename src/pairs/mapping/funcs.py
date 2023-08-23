@@ -1,11 +1,12 @@
 import ast
 import inspect
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.lit import Lit
 from pairs.ir.loops import ParticleFor
 from pairs.ir.operators import Operators
 from pairs.ir.types import Types
+from pairs.ir.vectors import VectorOp
 from pairs.mapping.keywords import Keywords
 from pairs.sim.interaction import ParticleInteraction
 
@@ -110,15 +111,16 @@ class BuildParticleIR(ast.NodeVisitor):
         assert not isinstance(lhs, UndefinedSymbol), f"Undefined lhs used in BinOp: {lhs.symbol_id}"
         rhs = self.visit(node.right)
         assert not isinstance(rhs, UndefinedSymbol), f"Undefined rhs used in BinOp: {rhs.symbol_id}"
-        return BinOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
+        op_class = VectorOp if Types.Vector in [lhs.type(), rhs.type()] else ScalarOp
+        return op_class(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
 
     def visit_BoolOp(self, node):
         #print(ast.dump(node))
         lhs = self.visit(node.values[0])
-        assert not isinstance(lhs, UndefinedSymbol), f"Undefined lhs used in BinOp: {lhs.symbol_id}"
+        assert not isinstance(lhs, UndefinedSymbol), f"Undefined lhs used in BoolOp: {lhs.symbol_id}"
         rhs = self.visit(node.values[1])
-        assert not isinstance(rhs, UndefinedSymbol), f"Undefined rhs used in BinOp: {rhs.symbol_id}"
-        return BinOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
+        assert not isinstance(rhs, UndefinedSymbol), f"Undefined rhs used in BoolOp: {rhs.symbol_id}"
+        return ScalarOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
 
     def visit_Call(self, node):
         func = self.visit(node.func).symbol_id
@@ -136,6 +138,7 @@ class BuildParticleIR(ast.NodeVisitor):
         return Lit(self.sim, node.value)
 
     def visit_Compare(self, node):
+        #print(ast.dump(node))
         valid_ops = (
             ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn
         )
@@ -145,8 +148,8 @@ class BuildParticleIR(ast.NodeVisitor):
 
         lhs = self.visit(node.left)
         rhs = self.visit(node.comparators[0])
-        self.bin_op = BinOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.ops[0]))
-        return self.bin_op
+        op_class = VectorOp if Types.Vector in [lhs.type(), rhs.type()] else ScalarOp
+        return op_class(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.ops[0]))
 
     def visit_If(self, node):
         condition = self.visit(node.test)
@@ -197,7 +200,7 @@ class BuildParticleIR(ast.NodeVisitor):
         return UndefinedSymbol(node.id)
 
     def visit_Num(self, node):
-        return node.n
+        return Lit(self.sim, node.n)
 
     def visit_Subscript(self, node):
         #print(ast.dump(node))
@@ -212,7 +215,8 @@ class BuildParticleIR(ast.NodeVisitor):
         operand = self.visit(node.operand)
         assert not isinstance(operand, UndefinedSymbol), \
             f"Undefined operand used in UnaryOp: {operand.symbol_id}"
-        return BinOp(self.sim, operand, None, BuildParticleIR.get_unary_op(node.op))
+        op_class = VectorOp if operand.type() == Types.Vector else ScalarOp
+        return op_class(self.sim, operand, None, BuildParticleIR.get_unary_op(node.op))
 
 
 def compute(sim, func, cutoff_radius=None, symbols={}):
@@ -225,6 +229,9 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
     info.visit(tree)
     params = info.params()
     nparams = info.nparams()
+
+    # Convert literal symbols
+    symbols = {symbol: Lit.cvt(sim, value) for symbol, value in symbols.items()}
 
     # Start building IR
     ir = BuildParticleIR(sim, symbols)

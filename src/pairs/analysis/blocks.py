@@ -3,7 +3,7 @@ from pairs.ir.mutator import Mutator
 from pairs.ir.visitor import Visitor
 
 
-class SetBlockVariants(Mutator):
+class DiscoverBlockVariants(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.in_assignment = None
@@ -48,7 +48,14 @@ class SetBlockVariants(Mutator):
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
 
-    def mutate_BinOp(self, ast_node):
+    def mutate_ScalarOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        return ast_node
+
+    def mutate_VectorOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
         if not ast_node.operator().is_unary():
             ast_node.rhs = self.mutate(ast_node.rhs)
@@ -102,7 +109,7 @@ class SetBlockVariants(Mutator):
         return self.push_variant(ast_node)
 
 
-class SetParentBlock(Visitor):
+class DetermineParentBlocks(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.blocks = []
@@ -185,10 +192,6 @@ class DetermineExpressionsOwnership(Visitor):
 
         self.block_stack.pop()
 
-    def visit_BinOp(self, ast_node):
-        self.visit_children(ast_node)
-        self.update_ownership(ast_node)
-
     def visit_MathFunction(self, ast_node):
         self.visit_children(ast_node)
         self.update_ownership(ast_node)
@@ -205,6 +208,14 @@ class DetermineExpressionsOwnership(Visitor):
         self.visit_children(ast_node)
         self.update_ownership(ast_node)
 
+    def visit_ScalarOp(self, ast_node):
+        self.visit_children(ast_node)
+        self.update_ownership(ast_node)
+
     def visit_Select(self, ast_node):
+        self.visit_children(ast_node)
+        self.update_ownership(ast_node)
+
+    def visit_VectorOp(self, ast_node):
         self.visit_children(ast_node)
         self.update_ownership(ast_node)

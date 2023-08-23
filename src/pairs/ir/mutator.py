@@ -2,7 +2,6 @@ class Mutator:
     def __init__(self, ast=None, max_depth=0):
         self.ast = ast
         self.max_depth = 0
-        self.mutated_vector_expressions = []
 
     def set_ast(self, ast):
         self.ast = ast
@@ -51,15 +50,6 @@ class Mutator:
             ast_node.resize = self.mutate(ast_node.resize)
             ast_node.capacity = self.mutate(ast_node.capacity)
 
-        return ast_node
-
-    def mutate_BinOp(self, ast_node):
-        ast_node.lhs = self.mutate(ast_node.lhs)
-
-        if not ast_node.operator().is_unary():
-            ast_node.rhs = self.mutate(ast_node.rhs)
-
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
         return ast_node
 
     def mutate_Block(self, ast_node):
@@ -125,19 +115,19 @@ class Mutator:
     def mutate_PropertyAccess(self, ast_node):
         ast_node.prop = self.mutate(ast_node.prop)
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         return ast_node
 
     def mutate_ContactPropertyAccess(self, ast_node):
         ast_node.contact_prop = self.mutate(ast_node.contact_prop)
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         return ast_node
 
     def mutate_FeaturePropertyAccess(self, ast_node):
         ast_node.feature_prop = self.mutate(ast_node.feature_prop)
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         return ast_node
 
     def mutate_Malloc(self, ast_node):
@@ -171,6 +161,14 @@ class Mutator:
         ast_node.size = self.mutate(ast_node.size)
         return ast_node
 
+    def mutate_ScalarOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        return ast_node
+
     def mutate_Select(self, ast_node):
         ast_node.cond = self.mutate(ast_node.cond)
         ast_node.expr_if = self.mutate(ast_node.expr_if)
@@ -182,12 +180,14 @@ class Mutator:
         return ast_node
 
     def mutate_VectorAccess(self, ast_node):
-        # Traversing the expressions for all vector accesses makes the compilation
-        # significantly slower, when it is necessary, a specific method can be used
-        # for the transformation
-        if id(ast_node.expr) not in self.mutated_vector_expressions:
-            ast_node.expr = self.mutate(ast_node.expr)
-            self.mutated_vector_expressions.append(id(ast_node.expr))
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
+    def mutate_VectorOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
 
         return ast_node
 

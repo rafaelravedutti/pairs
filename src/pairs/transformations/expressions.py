@@ -1,4 +1,4 @@
-from pairs.ir.bin_op import BinOp, Decl
+from pairs.ir.declaration import Decl
 from pairs.ir.lit import Lit
 from pairs.ir.mutator import Mutator
 from pairs.ir.operators import Operators
@@ -12,13 +12,6 @@ class ReplaceSymbols(Mutator):
     def mutate_Symbol(self, ast_node):
         return ast_node.assign_to
 
-    def mutate_SymbolAccess(self, ast_node):
-        access = ast_node.symbol()
-        for i in ast_node.indexes():
-            access = access[i]
-
-        return access
-
 
 class LowerNeighborIndexes(Mutator):
     def __init__(self, ast=None):
@@ -29,7 +22,7 @@ class LowerNeighborIndexes(Mutator):
         ast_node.contact_prop = self.mutate(ast_node.contact_prop)
         self._lower_to_relative = True
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         self._lower_to_relative = False
         return ast_node
 
@@ -41,13 +34,11 @@ class SimplifyExpressions(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)
 
-    def mutate_BinOp(self, ast_node):
+    def mutate_ScalarOp(self, ast_node):
         sim = ast_node.lhs.sim
         ast_node.lhs = self.mutate(ast_node.lhs)
         if not ast_node.operator().is_unary():
             ast_node.rhs = self.mutate(ast_node.rhs)
-
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
 
         if not ast_node.operator().is_unary():
             if ast_node.op in [Operators.Add, Operators.Sub] and ast_node.rhs == 0:
@@ -64,50 +55,6 @@ class SimplifyExpressions(Mutator):
 
             if ast_node.op == Operators.Mul and ast_node.lhs == 0:
                 return Lit(sim, 0 if Types.is_integer(ast_node.type()) else 0.0)
-
-        return ast_node
-
-
-class PrioritizeScalarOps(Mutator):
-    def __init__(self, ast=None):
-        super().__init__(ast)
-
-    def can_rearrange(op1, op2):
-        return op1 == op2 and op1 in [Operators.Add, Operators.Mul]
-
-    def mutate_BinOp(self, ast_node):
-        sim = ast_node.sim
-        ast_node.lhs = self.mutate(ast_node.lhs)
-
-        if not ast_node.operator().is_unary():
-            ast_node.rhs = self.mutate(ast_node.rhs)
-
-            if ast_node.type() == Types.Vector:
-                lhs = ast_node.lhs
-                rhs = ast_node.rhs
-                op = ast_node.op
-
-                if( isinstance(lhs, BinOp) and lhs.type() == Types.Vector and
-                    Types.is_real(rhs.type()) and PrioritizeScalarOps.can_rearrange(op, lhs.op) ):
-
-                    if lhs.lhs.type() == Types.Vector and Types.is_real(lhs.rhs.type()):
-                        ast_node.reassign(lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
-                        #return BinOp(sim, lhs.lhs, BinOp(sim, lhs.rhs, rhs, op), op)
-
-                    if lhs.rhs.type() == Types.Vector and Types.is_real(lhs.lhs.type()):
-                        ast_node.reassign(lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
-                        #return BinOp(sim, lhs.rhs, BinOp(sim, lhs.lhs, rhs, op), op)
-
-                if( isinstance(rhs, BinOp) and rhs.type() == Types.Vector and
-                    Types.is_real(lhs.type()) and PrioritizeScalarOps.can_rearrange(op, rhs.op) ):
-
-                    if rhs.lhs.type() == Types.Vector and Types.is_real(rhs.rhs.type()):
-                        ast_node.reassign(rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
-                        #return BinOp(sim, rhs.lhs, BinOp(sim, rhs.rhs, lhs, op), op)
-
-                    if rhs.rhs.type() == Types.Vector and Types.is_real(rhs.lhs.type()):
-                        ast_node.reassign(rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
-                        #return BinOp(sim, rhs.rhs, BinOp(sim, rhs.lhs, lhs, op), op)
 
         return ast_node
 
@@ -180,19 +127,6 @@ class AddExpressionDeclarations(Mutator):
         ast_node.stmts = new_stmts
         return ast_node
 
-    def mutate_BinOp(self, ast_node):
-        ast_node.lhs = self.mutate(ast_node.lhs)
-        if not ast_node.operator().is_unary():
-            ast_node.rhs = self.mutate(ast_node.rhs)
-
-        if ast_node.inlined is False:
-            bin_op_id = id(ast_node)
-            if bin_op_id not in self.declared_exprs and bin_op_id not in self.params:
-                self.push_decl(Decl(ast_node.sim, ast_node))
-                self.declared_exprs.append(bin_op_id)
-
-        return ast_node
-
     def mutate_Decl(self, ast_node):
         self.declared_exprs.append(id(ast_node.elem))
         ast_node.elem = self.mutate(ast_node.elem)
@@ -200,7 +134,7 @@ class AddExpressionDeclarations(Mutator):
 
     def mutate_Kernel(self, ast_node):
         _params = self.params
-        self.params = self.params + [id(b) for b in ast_node.bin_ops()]
+        self.params = self.params + [id(b) for b in ast_node.scalar_ops()]
         ast_node._block = self.mutate(ast_node._block)
         self.params = _params
         return ast_node
@@ -221,7 +155,7 @@ class AddExpressionDeclarations(Mutator):
         ast_node.prop = self.mutate(ast_node.prop)
         self.writing = False
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         self.writing = writing
 
         if self.writing is False and ast_node.inlined is False:
@@ -229,6 +163,19 @@ class AddExpressionDeclarations(Mutator):
             if prop_access_id not in self.declared_exprs and prop_access_id not in self.params:
                 self.push_decl(Decl(ast_node.sim, ast_node))
                 self.declared_exprs.append(prop_access_id)
+
+        return ast_node
+
+    def mutate_ScalarOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        if ast_node.inlined is False:
+            scalar_op_id = id(ast_node)
+            if scalar_op_id not in self.declared_exprs and scalar_op_id not in self.params:
+                self.push_decl(Decl(ast_node.sim, ast_node))
+                self.declared_exprs.append(scalar_op_id)
 
         return ast_node
 
@@ -245,12 +192,24 @@ class AddExpressionDeclarations(Mutator):
 
         return ast_node
 
+    def mutate_VectorOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        vector_op_id = id(ast_node)
+        if vector_op_id not in self.declared_exprs and vector_op_id not in self.params:
+            self.push_decl(Decl(ast_node.sim, ast_node))
+            self.declared_exprs.append(vector_op_id)
+
+        return ast_node
+
     def mutate_ContactPropertyAccess(self, ast_node):
         writing = self.writing
         ast_node.contact_prop = self.mutate(ast_node.contact_prop)
         self.writing = False
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         self.writing = writing
 
         if self.writing is False and ast_node.inlined is False:
@@ -265,7 +224,7 @@ class AddExpressionDeclarations(Mutator):
         assert self.writing is False, "Cannot change feature property!"
         ast_node.feature_prop = self.mutate(ast_node.feature_prop)
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
 
         if ast_node.inlined is False:
             feature_prop_access_id = id(ast_node)

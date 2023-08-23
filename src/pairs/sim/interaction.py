@@ -1,4 +1,5 @@
-from pairs.ir.bin_op import BinOp, ASTTerm
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block, pairs_inline
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import For, ParticleFor
@@ -9,7 +10,7 @@ from pairs.sim.lowerable import Lowerable
 
 class Neighbor(ASTTerm):
     def __init__(self, sim, neighbor_index, cell_id, particle_index):
-        self.sim = sim
+        super().__init__(sim, ScalarOp)
         self._neighbor_index = neighbor_index
         self._cell_id = cell_id
         self._particle_index = particle_index
@@ -45,10 +46,10 @@ class NeighborFor:
             cl = self.cell_lists
             for s in For(self.sim, 0, cl.nstencil):
                 neigh_cell = cl.particle_cell[self.particle] + cl.stencil[s]
-                for _ in Filter(self.sim, BinOp.and_op(neigh_cell >= 0, neigh_cell <= cl.ncells)):
+                for _ in Filter(self.sim, ScalarOp.and_op(neigh_cell >= 0, neigh_cell <= cl.ncells)):
                     for nc in For(self.sim, 0, cl.cell_sizes[neigh_cell]):
                         it = cl.cell_particles[neigh_cell][nc]
-                        for _ in Filter(self.sim, BinOp.neq(it, self.particle)):
+                        for _ in Filter(self.sim, ScalarOp.neq(it, self.particle)):
                                 yield Neighbor(self.sim, nc, neigh_cell, it)
         else:
             neighbor_lists = self.neighbor_lists

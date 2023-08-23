@@ -1,8 +1,9 @@
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
+from pairs.ir.vectors import VectorOp
 from pairs.ir.visitor import Visitor
 
 
-class SetBinOpTerminals(Visitor):
+class DetermineExpressionsTerminals(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.elems = []
@@ -12,11 +13,6 @@ class SetBinOpTerminals(Visitor):
             e.add_terminal(ast_node.name())
 
     def visit_ArrayAccess(self, ast_node):
-        self.elems.append(ast_node)
-        self.visit_children(ast_node)
-        self.elems.pop()
-
-    def visit_BinOp(self, ast_node):
         self.elems.append(ast_node)
         self.visit_children(ast_node)
         self.elems.pop()
@@ -41,7 +37,17 @@ class SetBinOpTerminals(Visitor):
         self.visit_children(ast_node)
         self.elems.pop()
 
+    def visit_ScalarOp(self, ast_node):
+        self.elems.append(ast_node)
+        self.visit_children(ast_node)
+        self.elems.pop()
+
     def visit_Select(self, ast_node):
+        self.elems.append(ast_node)
+        self.visit_children(ast_node)
+        self.elems.pop()
+
+    def visit_VectorOp(self, ast_node):
         self.elems.append(ast_node)
         self.visit_children(ast_node)
         self.elems.pop()
@@ -69,25 +75,29 @@ class SetBinOpTerminals(Visitor):
         self.push_terminal(ast_node)
 
 
-class ResetInPlaceBinOps(Visitor):
+class ResetInPlaceOperations(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
 
-    def visit_BinOp(self, ast_node):
+    def visit_ScalarOp(self, ast_node):
+        ast_node.in_place = True
+        self.visit_children(ast_node)
+
+    def visit_VectorOp(self, ast_node):
         ast_node.in_place = True
         self.visit_children(ast_node)
 
 
-class SetInPlaceBinOps(Visitor):
+class DetermineInPlaceOperations(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
 
     def visit_Decl(self, ast_node):
-        if isinstance(ast_node.elem, BinOp):
+        if isinstance(ast_node.elem, (ScalarOp, VectorOp)):
             ast_node.elem.in_place = False
 
 
-class SetDeclaredExprs(Visitor):
+class ListDeclaredExpressions(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.declared_exprs = []

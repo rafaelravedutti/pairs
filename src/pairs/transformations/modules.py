@@ -1,6 +1,6 @@
 from pairs.ir.arrays import Array, ArrayAccess
 from pairs.ir.assign import Assign
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.lit import Lit
@@ -162,8 +162,8 @@ class ReplaceModulesByCalls(Mutator):
             for resize_id, capacity in self.module_resizes[ast_node].items():
                 init_stmts.append(Assign(sim, sim.resizes[resize_id], 1))
                 reset_stmts.append(Assign(sim, sim.resizes[resize_id], 0))
-                cond = BinOp.inline(sim.resizes[resize_id] > 0)
-                branch_cond = cond if branch_cond is None else BinOp.or_op(cond, branch_cond)
+                cond = ScalarOp.inline(sim.resizes[resize_id] > 0)
+                branch_cond = cond if branch_cond is None else ScalarOp.or_op(cond, branch_cond)
                 props_realloc = []
 
                 if capacity == sim.particle_capacity:

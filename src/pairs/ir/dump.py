@@ -20,9 +20,9 @@ class Dump:
         if method_unknown is not None:
             return method_unknown(ast_node)
 
-    def dump_BinOp(ast_node):
+    def dump_ScalarOp(ast_node):
         print(' ' * Dump.currentIndent, end="")
-        print(f"BinOp<{ast_node.op.symbol()}")
+        print(f"ScalarOp<{ast_node.op.symbol()}")
 
         Dump.currentIndent += 2
         print(' ' * Dump.currentIndent, end="")
