@@ -8,57 +8,39 @@ class DetermineExpressionsTerminals(Visitor):
         super().__init__(ast)
         self.elems = []
 
+    def traverse_expression(self, ast_node):
+        self.elems.append(ast_node)
+        self.clear_visited_nodes()
+        self.visit_children(ast_node)
+        self.elems.pop()
+
     def push_terminal(self, ast_node):
         for e in self.elems:
             e.add_terminal(ast_node.name())
 
     def visit_ArrayAccess(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_MathFunction(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_PropertyAccess(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_ContactPropertyAccess(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_FeaturePropertyAccess(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_ScalarOp(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_Select(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_VectorOp(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        self.traverse_expression(ast_node)
 
     def visit_Array(self, ast_node):
         self.push_terminal(ast_node)
