@@ -42,7 +42,7 @@ class Var(ASTTerm):
         super().__init__(sim, ScalarOp)
         self.var_name = var_name
         self.var_type = var_type
-        self.var_init_value = init_value
+        self.var_init_value = Lit.cvt(sim, init_value)
         self.var_temporary = temp
         self.mutable = True
         self.var_bonded_arrays = []

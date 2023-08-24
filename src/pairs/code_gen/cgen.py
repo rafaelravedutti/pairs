@@ -684,7 +684,17 @@ class CGen:
 
         if isinstance(ast_node, VarDecl):
             tkw = Types.c_keyword(ast_node.var.type())
-            self.print(f"{tkw} {ast_node.var.name()} = {ast_node.var.init_value()};")
+
+            if ast_node.var.type() == Types.Vector:
+                for dim in range(self.sim.ndims()):
+                    var = self.generate_expression(ast_node.var, index=dim)
+                    init = self.generate_expression(ast_node.var.init_value(), index=dim)
+                    self.print(f"{tkw} {var} = {init};")
+
+            else:
+                var = self.generate_expression(ast_node.var)
+                init = self.generate_expression(ast_node.var.init_value())
+                self.print(f"{tkw} {var} = {init};")
 
             if not self.kernel_context and self.target.is_gpu() and ast_node.var.device_flag:
                 self.print(f"RuntimeVar<{tkw}> rv_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
@@ -765,6 +775,10 @@ class CGen:
             if ast_node.type() == Types.String:
                 return f"\"{ast_node.value}\""
 
+            if ast_node.type() == Types.Vector:
+                assert index is not None, "Index must be set for vector literals!"
+                return ast_node.value[index]
+
             return ast_node.value
 
         if isinstance(ast_node, MathFunction):
@@ -839,6 +853,9 @@ class CGen:
             return f"s{ast_node.id()}"
 
         if isinstance(ast_node, Var):
+            if ast_node.is_vector():
+                return f"{ast_node.name()}_{index}"
+
             return ast_node.name()
 
         if isinstance(ast_node, VectorAccess):

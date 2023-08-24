@@ -43,16 +43,9 @@ class BuildContactHistory(Lowerable):
                 for _ in Filter(self.sim, ScalarOp.and_op(contact_index >= 0,
                                                        ScalarOp.neq(last_contact, contact_index))):
                     for contact_prop in self.sim.contact_properties:
-                        if contact_prop.type() == Types.Vector:
-                            for d in range(0, self.sim.ndims()):
-                                tmp = self.sim.add_temp_var(contact_prop[i, last_contact][d])
-                                contact_prop[i, last_contact][d].set(contact_prop[i, contact_index][d])
-                                contact_prop[i, contact_index].set(tmp)
-
-                        else:
-                            tmp = self.sim.add_temp_var(contact_prop[i, last_contact])
-                            contact_prop[i, last_contact].set(contact_prop[i, contact_index])
-                            contact_prop[i, contact_index].set(tmp)
+                        tmp = self.sim.add_temp_var(contact_prop[i, last_contact])
+                        contact_prop[i, last_contact].set(contact_prop[i, contact_index])
+                        contact_prop[i, contact_index].set(tmp)
 
                     contact_lists[i][contact_index].set(contact_lists[i][last_contact])
                     contact_lists[i][last_contact].set(j)
@@ -64,11 +57,7 @@ class BuildContactHistory(Lowerable):
                 j = neigh.particle_index()
                 for _ in Filter(self.sim, ScalarOp.neq(contact_lists[i][last_contact], j)):
                     for contact_prop in self.sim.contact_properties:
-                        if contact_prop.type() == Types.Vector:
-                            for d in range(0, self.sim.ndims()):
-                                contact_prop[i, last_contact][d].set(contact_prop.default()[d])
-                        else:
-                            contact_prop[i, last_contact].set(contact_prop.default())
+                        contact_prop[i, last_contact].set(contact_prop.default())
 
                     contact_lists[i][last_contact].set(j)
 
