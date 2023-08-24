@@ -5,18 +5,25 @@ from pairs.ir.visitor import Visitor
 
 class DetermineExpressionsTerminals(Visitor):
     def __init__(self, ast=None):
-        super().__init__(ast)
-        self.elems = []
+        super().__init__(ast, visit_nodes_once=False)
+        self.expressions_stack = []
+        self.visited_expressions = []
 
     def traverse_expression(self, ast_node):
-        self.elems.append(ast_node)
-        self.clear_visited_nodes()
-        self.visit_children(ast_node)
-        self.elems.pop()
+        if ast_node in self.visited_expressions:
+            for term in ast_node.terminals:
+                for expr in self.expressions_stack:
+                    expr.add_terminal(term)
+
+        else:
+            self.expressions_stack.append(ast_node)
+            self.visit_children(ast_node)
+            self.expressions_stack.pop()
+            self.visited_expressions.append(ast_node)
 
     def push_terminal(self, ast_node):
-        for e in self.elems:
-            e.add_terminal(ast_node.name())
+        for expr in self.expressions_stack:
+            expr.add_terminal(ast_node.name())
 
     def visit_ArrayAccess(self, ast_node):
         self.traverse_expression(ast_node)

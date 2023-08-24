@@ -3,10 +3,11 @@ import pairs.ir.utils as util
 
 
 class Visitor:
-    def __init__(self, ast=None, max_depth=0, breadth_first=False):
+    def __init__(self, ast=None, max_depth=0, breadth_first=False, visit_nodes_once=True):
         self.ast = ast
         self.max_depth = max_depth
         self.breadth_first = breadth_first
+        self.visit_nodes_once = visit_nodes_once
         self.visited_nodes = []
 
     def __iter__(self):
@@ -35,22 +36,26 @@ class Visitor:
 
         for node in ast_nodes:
             terminal_node = util.is_terminal(node)
-            if terminal_node or node not in self.visited_nodes:
-                if not terminal_node:
+            if not terminal_node:
+                if self.visit_nodes_once:
+                    if node in self.visited_nodes:
+                        continue
+
                     self.visited_nodes.append(node)
 
-                method = self.get_method(f"visit_{type(node).__name__}")
-                if method is not None:
-                    method(node)
-                else:
-                    for b in type(node).__bases__:
-                        method = self.get_method(f"visit_{b.__name__}")
-                        if method is not None:
-                            method(node)
-                            break
+            method = self.get_method(f"visit_{type(node).__name__}")
+            if method is not None:
+                method(node)
 
-                    if method is None:
-                        self.visit(node.children())
+            else:
+                for b in type(node).__bases__:
+                    method = self.get_method(f"visit_{b.__name__}")
+                    if method is not None:
+                        method(node)
+                        break
+
+                if method is None:
+                    self.visit(node.children())
 
     def visit_children(self, ast_node):
         self.visit(ast_node.children())
