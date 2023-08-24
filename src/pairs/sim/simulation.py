@@ -61,7 +61,6 @@ class Simulation:
         self._check_properties_resize = False
         self._resizes_to_check = {}
         self._module_name = None
-        self._module_temps = []
         self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -156,9 +155,7 @@ class Simulation:
         return self.vars.add(var_name, var_type, init_value)
 
     def add_temp_var(self, init_value):
-        var = self.vars.add_temp(init_value)
-        self._module_temps.append(var)
-        return var
+        return self.vars.add_temp(init_value)
 
     def add_symbol(self, sym_type):
         return Symbol(self, sym_type)
@@ -185,12 +182,6 @@ class Simulation:
         self.setups.add_statement(read_object)
         self.grid = read_object.grid
 
-    #def read_feature_data(self, filename, feature_name, feature_props):
-    #    feature = self.feature(feature_name)
-    #    props = [self.property(prop_name) for prop_name in feature_props]
-    #    read_object = ReadFeatureData(self, filename, feature, props)
-    #    self.setups.add_statement(read_object)
-
     def build_cell_lists(self, spacing):
         self.cell_lists = CellLists(self, self.grid, spacing, spacing)
         return self.cell_lists
@@ -211,7 +202,6 @@ class Simulation:
 
     def module_name(self, name):
         self._module_name = name
-        self._module_temps = []
 
     def check_properties_resize(self):
         self._check_properties_resize = True
@@ -229,8 +219,7 @@ class Simulation:
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
-                run_on_device=run_on_device,
-                temps=self._module_temps))
+                run_on_device=run_on_device))
 
     def capture_statements(self, capture=True):
         self._capture_statements = capture

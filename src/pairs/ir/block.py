@@ -22,8 +22,7 @@ def pairs_host_block(func):
             block=Block(sim, sim._block),
             resizes_to_check=sim._resizes_to_check,
             check_properties_resize=sim._check_properties_resize,
-            run_on_device=False,
-            temps=sim._module_temps)
+            run_on_device=False)
 
     return inner
 
@@ -38,8 +37,7 @@ def pairs_device_block(func):
             block=Block(sim, sim._block),
             resizes_to_check=sim._resizes_to_check,
             check_properties_resize=sim._check_properties_resize,
-            run_on_device=True,
-            temps=sim._module_temps)
+            run_on_device=True)
 
     return inner
 

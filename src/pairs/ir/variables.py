@@ -48,6 +48,9 @@ class Var(ASTTerm):
         self.var_bonded_arrays = []
         self.device_flag = False
 
+        if temp:
+            VarDecl(sim, self)
+
     def __str__(self):
         return f"Var<{self.var_name}>"
 

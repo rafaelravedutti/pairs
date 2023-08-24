@@ -10,7 +10,7 @@ from pairs.ir.scalars import ScalarOp
 from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, DeviceStaticRef, SetArrayFlag, SetPropertyFlag, HostRef
 from pairs.ir.features import FeatureProperty, FeaturePropertyAccess, RegisterFeatureProperty
 from pairs.ir.functions import Call
-from pairs.ir.kernel import Kernel, KernelLaunch
+from pairs.ir.kernel import KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For, Iter, ParticleFor, While, Continue
@@ -36,6 +36,7 @@ class CGen:
         self.sim = None
         self.target = None
         self.print = None
+        self.kernel_context = False
         self.ref = ref
         self.debug = debug
 
@@ -164,11 +165,6 @@ class CGen:
                 self.print(f"PAIRS_DEBUG(\"{module.name}\\n\");")
                 self.print.add_indent(-4)
 
-            self.print.add_indent(4)
-            for t in module.temporaries:
-                self.generate_statement(VarDecl(module.sim, t))
-            self.print.add_indent(-4)
-
             self.generate_statement(module.block)
             self.print("}")
 
@@ -217,7 +213,9 @@ class CGen:
         self.print(f"__global__ void {kernel.name}({kernel_params}) {{")
         self.print(f"    const int {kernel.iterator.name()} = blockIdx.x * blockDim.x + threadIdx.x + range_start;")
         self.print.add_indent(4)
+        self.kernel_context = True
         self.generate_statement(kernel.block)
+        self.kernel_context = False
         self.print.add_indent(-4)
         self.print("}")
 
@@ -688,7 +686,7 @@ class CGen:
             tkw = Types.c_keyword(ast_node.var.type())
             self.print(f"{tkw} {ast_node.var.name()} = {ast_node.var.init_value()};")
 
-            if self.target.is_gpu() and ast_node.var.device_flag:
+            if not self.kernel_context and self.target.is_gpu() and ast_node.var.device_flag:
                 self.print(f"RuntimeVar<{tkw}> rv_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
                 #self.print(f"{tkw} *d_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
 

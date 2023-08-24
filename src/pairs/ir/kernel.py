@@ -91,8 +91,9 @@ class Kernel(ASTNode):
         variable_list = variable if isinstance(variable, list) else [variable]
         character = 'w' if write else 'r'
         for v in variable_list:
-            assert isinstance(v, Var), "Kernel.add_variable(): given element is not of type Var!"
-            self._variables[v] = character if v not in self._variables else self._variables[v] + character
+            if not v.temporary():
+                assert isinstance(v, Var), "Kernel.add_variable(): given element is not of type Var!"
+                self._variables[v] = character if v not in self._variables else self._variables[v] + character
 
     def add_property(self, prop, write=False):
         prop_list = prop if isinstance(prop, list) else [prop]

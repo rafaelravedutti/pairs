@@ -29,11 +29,10 @@ class BuildContactHistory(Lowerable):
         contact_lists = self.contact_history.contact_lists
         num_contacts = self.contact_history.num_contacts
         self.sim.module_name("build_contact_history")
-        last_contact = self.sim.add_temp_var(0)
-        contact_index = self.sim.add_temp_var(0)
 
         for i in ParticleFor(self.sim):
-            last_contact.set(0)
+            last_contact = self.sim.add_temp_var(0)
+            contact_index = self.sim.add_temp_var(0)
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
                 contact_index.set(-1)
