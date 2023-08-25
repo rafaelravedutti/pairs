@@ -33,6 +33,7 @@ class BuildContactHistory(Lowerable):
         for i in ParticleFor(self.sim):
             last_contact = self.sim.add_temp_var(0)
             contact_index = self.sim.add_temp_var(0)
+
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
                 contact_index.set(-1)
@@ -40,8 +41,9 @@ class BuildContactHistory(Lowerable):
                     for _ in Filter(self.sim, ScalarOp.cmp(contact_lists[i][k], j)):
                         contact_index.set(k)
 
-                for _ in Filter(self.sim, ScalarOp.and_op(contact_index >= 0,
-                                                       ScalarOp.neq(last_contact, contact_index))):
+                for _ in Filter(self.sim,
+                                ScalarOp.and_op(contact_index >= 0,
+                                                ScalarOp.neq(last_contact, contact_index))):
                     for contact_prop in self.sim.contact_properties:
                         tmp = self.sim.add_temp_var(contact_prop[i, last_contact])
                         contact_prop[i, last_contact].set(contact_prop[i, contact_index])
@@ -62,3 +64,5 @@ class BuildContactHistory(Lowerable):
                     contact_lists[i][last_contact].set(j)
 
                 last_contact.set(last_contact + 1)
+
+            num_contacts[i].set(last_contact)
