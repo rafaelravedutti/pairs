@@ -43,7 +43,7 @@ class Comm:
 
     @pairs_inline
     def borders(self):
-        prop_list = [self.sim.property(p) for p in ['mass', 'position']]
+        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'particle_flags']]
         self.nsend_all.set(0)
         self.sim.nghost.set(0)
         for step in range(self.dom_part.number_of_steps()):
@@ -57,7 +57,7 @@ class Comm:
 
     @pairs_inline
     def exchange(self):
-        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'velocity']]
+        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'velocity', 'particle_flags']]
         for step in range(self.dom_part.number_of_steps()):
             self.nsend_all.set(0)
             self.sim.nghost.set(0)

@@ -1,6 +1,6 @@
 .PHONY: all build clean
 
-TESTCASE=dem
+TESTCASE=lj
 PYCMD=python3
 CC=mpicxx
 NVCC=nvcc

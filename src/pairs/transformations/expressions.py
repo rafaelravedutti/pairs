@@ -59,6 +59,35 @@ class SimplifyExpressions(Mutator):
         return ast_node
 
 
+class PruneUnusedVectorIndexes(Mutator):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+
+    def mutate_ContactPropertyAccess(self, ast_node):
+        ast_node.vector_indexes = {
+            d: self.mutate(i) for d, i in ast_node.vector_indexes.items()
+            if d in ast_node.indexes_to_generate()
+        }
+
+        return ast_node
+
+    def mutate_FeaturePropertyAccess(self, ast_node):
+        ast_node.vector_indexes = {
+            d: self.mutate(i) for d, i in ast_node.vector_indexes.items()
+            if d in ast_node.indexes_to_generate()
+        }
+
+        return ast_node
+
+    def mutate_PropertyAccess(self, ast_node):
+        ast_node.vector_indexes = {
+            d: self.mutate(i) for d, i in ast_node.vector_indexes.items()
+            if d in ast_node.indexes_to_generate()
+        }
+
+        return ast_node
+
+
 class AddExpressionDeclarations(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)

@@ -1,5 +1,6 @@
 from functools import reduce
 import math
+from pairs.ir.ast_term import ASTTerm
 from pairs.ir.atomic import AtomicAdd
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import pairs_device_block, pairs_host_block
@@ -9,6 +10,7 @@ from pairs.ir.loops import For, ParticleFor
 from pairs.ir.math import Ceil
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
+from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
 
 
@@ -43,16 +45,16 @@ class CellListsStencilBuild(Lowerable):
         cl = self.cell_lists
         grid = sim.grid
         index = None
-        nall = 1
+        ntotal_cells = 1
 
         sim.module_name("build_cell_lists_stencil")
         sim.check_resize(cl.ncells_capacity, cl.ncells)
 
         for d in range(sim.ndims()):
             cl.dim_ncells[d].set(Ceil(sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
-            nall *= cl.dim_ncells[d]
+            ntotal_cells *= cl.dim_ncells[d]
 
-        cl.ncells.set(nall)
+        cl.ncells.set(ntotal_cells + 1)
         for _ in sim.nest_mode():
             cl.nstencil.set(0)
             for d in range(sim.ndims()):
@@ -74,6 +76,7 @@ class CellListsBuild(Lowerable):
         sim = self.sim
         cl = self.cell_lists
         grid = sim.grid
+        particle_flags = sim.particle_flags
         positions = sim.position()
         sim.module_name("build_cell_lists")
         sim.check_resize(cl.cell_capacity, cl.cell_sizes)
@@ -82,16 +85,18 @@ class CellListsBuild(Lowerable):
             cl.cell_sizes[c].set(0)
 
         for i in ParticleFor(sim, local_only=False):
-            cell_index = [
-                Cast.int(sim, (positions[i][d] - grid.min(d)) / cl.spacing[d])
-                for d in range(0, sim.ndims())]
+            flat_index = sim.add_temp_var(0)
 
-            flat_idx = None
-            for d in range(0, sim.ndims()):
-                flat_idx = (cell_index[d] if flat_idx is None
-                            else flat_idx * cl.dim_ncells[d] + cell_index[d])
+            for _ in Filter(sim, ASTTerm.not_op(particle_flags[i] & Flags.Infinite)):
+                cell_index = [Cast.int(sim, (positions[i][d] - grid.min(d)) / cl.spacing[d]) for d in range(sim.ndims())]
+                index_1d = None
 
-            for _ in Filter(sim, ScalarOp.and_op(flat_idx >= 0, flat_idx <= cl.ncells)):
-                index_in_cell = AtomicAdd(sim, cl.cell_sizes[flat_idx], 1)
-                cl.particle_cell[i].set(flat_idx)
-                cl.cell_particles[flat_idx][index_in_cell].set(i)
+                for d in range(sim.ndims()):
+                    index_1d = (cell_index[d] if index_1d is None else index_1d * cl.dim_ncells[d] + cell_index[d])
+
+                flat_index.set(index_1d + 1)
+
+            for _ in Filter(sim, ScalarOp.and_op(flat_index >= 0, flat_index < cl.ncells)):
+                index_in_cell = AtomicAdd(sim, cl.cell_sizes[flat_index], 1)
+                cl.particle_cell[i].set(flat_index)
+                cl.cell_particles[flat_index][index_in_cell].set(i)

@@ -46,6 +46,7 @@ class Simulation:
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
+        self.particle_flags = self.add_property('particle_flags', Types.Int32, 0)
         self.grid = None
         self.cell_lists = None
         self.neighbor_lists = None
@@ -215,11 +216,11 @@ class Simulation:
     def build_module_with_statements(self, run_on_device=True):
         self.functions.add_statement(
             Module(self,
-                name=self._module_name,
-                block=Block(self, self._block),
-                resizes_to_check=self._resizes_to_check,
-                check_properties_resize=self._check_properties_resize,
-                run_on_device=run_on_device))
+                   name=self._module_name,
+                   block=Block(self, self._block),
+                   resizes_to_check=self._resizes_to_check,
+                   check_properties_resize=self._check_properties_resize,
+                   run_on_device=run_on_device))
 
     def capture_statements(self, capture=True):
         self._capture_statements = capture

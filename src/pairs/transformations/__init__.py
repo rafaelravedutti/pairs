@@ -2,7 +2,7 @@ import time
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftDeclarations, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
-from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, AddExpressionDeclarations
+from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PruneUnusedVectorIndexes, AddExpressionDeclarations
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
 from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLogic, ReplaceModulesByCalls
@@ -38,6 +38,7 @@ class Transformations:
         self.apply(MergeAdjacentBlocks())
 
     def optimize_expressions(self):
+        self.apply(PruneUnusedVectorIndexes())
         self.apply(LowerNeighborIndexes())
         self.apply(ReplaceSymbols())
         self.apply(SimplifyExpressions())

@@ -289,7 +289,7 @@ class CGen:
                 acc_ref = f"cp{contact_prop_access.id()}"
 
                 if contact_prop_access.is_vector():
-                    for dim in range(self.sim.ndims()):
+                    for dim in contact_prop_access.indexes_to_generate():
                         expr = self.generate_expression(contact_prop_access.vector_index(dim))
                         self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
 
@@ -305,7 +305,7 @@ class CGen:
                 acc_ref = f"f{feature_prop_access.id()}"
 
                 if feature_prop_access.is_vector():
-                    for dim in range(self.sim.ndims()):
+                    for dim in feature_prop_access.indexes_to_generate():
                         expr = self.generate_expression(feature_prop_access.vector_index(dim))
                         self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
 
@@ -320,7 +320,7 @@ class CGen:
                 acc_ref = f"p{prop_access.id()}"
 
                 if prop_access.is_vector():
-                    for dim in range(self.sim.ndims()):
+                    for dim in prop_access.indexes_to_generate():
                         expr = self.generate_expression(prop_access.vector_index(dim))
                         self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
                 else:
@@ -346,7 +346,7 @@ class CGen:
                 acc_ref = f"s{select.id()}"
 
                 if select.is_vector():
-                    for dim in range(self.sim.ndims()):
+                    for dim in select.indexes_to_generate():
                         cond = self.generate_expression(select.cond, index=dim)
                         expr_if = self.generate_expression(select.expr_if, index=dim)
                         expr_else = self.generate_expression(select.expr_else, index=dim)
@@ -367,7 +367,7 @@ class CGen:
 
             if isinstance(ast_node.elem, VectorOp):
                 vector_op = ast_node.elem
-                for dim in range(self.sim.ndims()):
+                for dim in vector_op.indexes_to_generate():
                     lhs = self.generate_expression(vector_op.lhs, vector_op.mem, index=dim)
                     rhs = self.generate_expression(vector_op.rhs, index=dim)
                     operator = vector_op.operator()

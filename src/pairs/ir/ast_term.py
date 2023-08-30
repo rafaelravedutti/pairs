@@ -7,6 +7,7 @@ class ASTTerm(ASTNode):
     def __init__(self, sim, class_type):
         super().__init__(sim)
         self._class_type = class_type
+        self._indexes_to_generate = set()
 
     def __add__(self, other):
         return self._class_type(self.sim, self, other, Operators.Add)
@@ -53,6 +54,12 @@ class ASTTerm(ASTNode):
     def __invert__(self):
         return self._class_type(self.sim, self, None, Operators.Invert)
 
+    def __mod__(self, other):
+        return self._class_type(self.sim, self, other, Operators.Mod)
+
+    def not_op(self):
+        return self._class_type(self.sim, self, None, Operators.Not)
+
     def and_op(self, other):
         return self._class_type(self.sim, self, other, Operators.And)
 
@@ -62,8 +69,17 @@ class ASTTerm(ASTNode):
     def inv(self):
         return self._class_type(self.sim, 1.0, self, Operators.Div)
 
-    def __mod__(self, other):
-        return self._class_type(self.sim, self, other, Operators.Mod)
-
     def is_vector(self):
         return self.type() == Types.Vector
+
+    def indexes_to_generate(self):
+        return self._indexes_to_generate
+
+    def add_index_to_generate(self, index):
+        integer_index = index if isinstance(index, int) else index.value
+        assert isinstance(integer_index, int), "add_index_to_generate(): Index must be an integer."
+        self._indexes_to_generate.add(integer_index)
+
+        for child in self.children():
+            if isinstance(child, ASTTerm) and child.type() == Types.Vector:
+                child.add_index_to_generate(integer_index)

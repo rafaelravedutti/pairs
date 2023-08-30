@@ -86,6 +86,7 @@ class VectorAccess(ASTTerm):
         super().__init__(sim, ScalarOp)
         self.expr = expr
         self.index = index
+        expr.add_index_to_generate(index)
 
     def __str__(self):
         return f"VectorAccess<{self.expr}, {self.index}>"
