@@ -4,7 +4,7 @@ from pairs.ir.visitor import Visitor
 
 class DiscoverBlockVariants(Visitor):
     def __init__(self, ast=None):
-        super().__init__(ast)
+        super().__init__(ast, visit_nodes_once=False)
         self.in_assignment = None
         self.blocks = []
 
@@ -16,7 +16,6 @@ class DiscoverBlockVariants(Visitor):
     def visit_Block(self, ast_node):
         self.blocks.append(ast_node)
         self.visit_children(ast_node)
-        self.clear_visited_nodes()
         self.blocks.pop()
 
     def visit_Assign(self, ast_node):
