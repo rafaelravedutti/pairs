@@ -21,7 +21,7 @@ class Analysis:
         self.apply(DetermineExpressionsTerminals())
 
     def discover_block_variants(self):
-        DiscoverBlockVariants(self._ast).mutate()
+        self.apply(DiscoverBlockVariants())
 
     def determine_parent_blocks(self):
         self.apply(DetermineParentBlocks())

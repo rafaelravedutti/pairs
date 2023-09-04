@@ -69,7 +69,6 @@ class Simulation:
         self.vtk_file = None
         self._target = None
         self._dom_part = DimensionRanges(self)
-        self.nparticles = self.nlocal + self.nghost
 
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"

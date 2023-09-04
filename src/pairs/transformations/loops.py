@@ -46,11 +46,11 @@ class LICM(Mutator):
         if self.loops and isinstance(ast_node.elem, elems_to_check):
             last_loop = self.loops[-1]
             loop_lifts = self.lifts[id(last_loop)]
-            #print(f"variants = {last_loop.block.variants}, terminals = {ast_node.elem.terminals}")
+            #print(f"id = {ast_node.elem.id()}, variants = {last_loop.block.variants}, terminals = {ast_node.elem.terminals}")
             if not last_loop.block.variants.intersection(ast_node.elem.terminals):
                 found = False
-                for d in loop_lifts:
-                    if ast_node.elem == d.elem:
+                for lifted_decls in loop_lifts:
+                    if ast_node.elem == lifted_decls.elem:
                         found = True
 
                 if not found:
