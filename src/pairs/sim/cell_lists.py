@@ -35,7 +35,7 @@ class CellLists:
         self.particle_cell      =   self.sim.add_array('particle_cell', self.sim.particle_capacity, Types.Int32)
 
 
-class CellListsStencilBuild(Lowerable):
+class BuildCellListsStencil(Lowerable):
     def __init__(self, sim, cell_lists):
         super().__init__(sim)
         self.cell_lists = cell_lists
@@ -56,10 +56,13 @@ class CellListsStencilBuild(Lowerable):
             ntotal_cells *= cl.dim_ncells[d]
 
         Assign(sim, cl.ncells, ntotal_cells + 1)
+
         for _ in sim.nest_mode():
             Assign(sim, cl.nstencil, 0)
+
             for d in range(sim.ndims()):
                 nneigh = cl.nneighbor_cells[d]
+
                 for d_idx in For(sim, -nneigh, nneigh + 1):
                     index = (d_idx if index is None else index * cl.dim_ncells[d - 1] + d_idx)
                     if d == sim.ndims() - 1:
@@ -67,7 +70,7 @@ class CellListsStencilBuild(Lowerable):
                         Assign(sim, cl.nstencil, cl.nstencil + 1)
 
 
-class CellListsBuild(Lowerable):
+class BuildCellLists(Lowerable):
     def __init__(self, sim, cell_lists):
         super().__init__(sim)
         self.cell_lists = cell_lists

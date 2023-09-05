@@ -12,20 +12,20 @@ from pairs.ir.types import Types
 from pairs.ir.variables import Variables
 from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
-from pairs.sim.arrays import ArraysDecl
-from pairs.sim.cell_lists import CellLists, CellListsBuild, CellListsStencilBuild
+from pairs.sim.arrays import DeclareArrays
+from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil
 from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory
 from pairs.sim.domain_partitioning import DimensionRanges
-from pairs.sim.features import FeaturePropertiesAlloc 
+from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.lattice import ParticleLattice
-from pairs.sim.neighbor_lists import NeighborLists, NeighborListsBuild
+from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
 from pairs.sim.pbc import EnforcePBC
-from pairs.sim.properties import ContactPropertiesAlloc, PropertiesAlloc, PropertiesResetVolatile
+from pairs.sim.properties import AllocateProperties, AllocateContactProperties, ResetVolatileProperties
 from pairs.sim.read_from_file import ReadParticleData
 from pairs.sim.timestep import Timestep
-from pairs.sim.variables import VariablesDecl
+from pairs.sim.variables import DeclareVariables 
 from pairs.sim.vtk import VTKWrite
 from pairs.transformations import Transformations
 
@@ -270,8 +270,8 @@ class Simulation:
         timestep_procedures = [
             (comm.exchange(), 20),
             (comm.borders(), comm.synchronize(), 20),
-            (CellListsBuild(self, self.cell_lists), 20),
-            (NeighborListsBuild(self, self.neighbor_lists), 20),
+            (BuildCellLists(self, self.cell_lists), 20),
+            (BuildNeighborLists(self, self.neighbor_lists), 20),
         ]
 
         if not self.contact_properties.empty():
@@ -279,7 +279,7 @@ class Simulation:
             timestep_procedures.append((BuildContactHistory(self, contact_history), 20))
 
         timestep_procedures += [
-            PropertiesResetVolatile(self),
+            ResetVolatileProperties(self),
             self.functions
         ]
 
@@ -290,20 +290,20 @@ class Simulation:
 
         body = Block.from_list(self, [
             self.setups,
-            CellListsStencilBuild(self, self.cell_lists),
+            BuildCellListsStencil(self, self.cell_lists),
             VTKWrite(self, self.vtk_file, 0),
             timestep.as_block()
         ])
 
-        decls = Block.from_list(self, [
-            VariablesDecl(self),
-            ArraysDecl(self),
-            PropertiesAlloc(self),
-            ContactPropertiesAlloc(self),
-            FeaturePropertiesAlloc(self)
+        inits = Block.from_list(self, [
+            DeclareVariables(self),
+            DeclareArrays(self),
+            AllocateProperties(self),
+            AllocateContactProperties(self),
+            AllocateFeatureProperties(self)
         ])
 
-        program = Module(self, name='main', block=Block.merge_blocks(decls, body))
+        program = Module(self, name='main', block=Block.merge_blocks(inits, body))
 
         # Apply transformations
         transformations = Transformations(program, self._target)

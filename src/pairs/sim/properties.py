@@ -10,7 +10,7 @@ from functools import reduce
 import operator
 
 
-class PropertiesAlloc(FinalLowerable):
+class AllocateProperties(FinalLowerable):
     def __init__(self, sim, realloc=False):
         self.sim = sim
         self.realloc = realloc
@@ -32,7 +32,7 @@ class PropertiesAlloc(FinalLowerable):
                 RegisterProperty(self.sim, p, sizes)
 
 
-class ContactPropertiesAlloc(FinalLowerable):
+class AllocateContactProperties(FinalLowerable):
     def __init__(self, sim, realloc=False):
         self.sim = sim
 
@@ -50,7 +50,7 @@ class ContactPropertiesAlloc(FinalLowerable):
             RegisterContactProperty(self.sim, p, sizes)
 
 
-class PropertiesResetVolatile(Lowerable):
+class ResetVolatileProperties(Lowerable):
     def __init__(self, sim):
         self.sim = sim
 

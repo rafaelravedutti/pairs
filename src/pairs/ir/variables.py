@@ -49,7 +49,7 @@ class Var(ASTTerm):
         self.device_flag = False
 
         if temp:
-            VarDecl(sim, self)
+            DeclareVariable(sim, self)
 
     def __str__(self):
         return f"Var<{self.var_name}>"
@@ -80,7 +80,7 @@ class Var(ASTTerm):
         return self.var_bonded_arrays
 
 
-class VarDecl(ASTNode):
+class DeclareVariable(ASTNode):
     def __init__(self, sim, var):
         super().__init__(sim)
         self.var = var

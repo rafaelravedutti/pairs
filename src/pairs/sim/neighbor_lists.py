@@ -16,7 +16,7 @@ class NeighborLists:
         self.numneighs = self.sim.add_array('numneighs', self.sim.particle_capacity, Types.Int32)
 
 
-class NeighborListsBuild(Lowerable):
+class BuildNeighborLists(Lowerable):
     def __init__(self, sim, neighbor_lists):
         super().__init__(sim)
         self.neighbor_lists = neighbor_lists

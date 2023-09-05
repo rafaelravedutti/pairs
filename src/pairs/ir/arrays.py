@@ -203,7 +203,7 @@ class ArrayAccess(ASTTerm):
         return [self.array] + self.partial_indexes
 
 
-class ArrayDecl(ASTNode):
+class DeclareStaticArray(ASTNode):
     def __init__(self, sim, array):
         super().__init__(sim)
         self.array = array

@@ -1,6 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd
-from pairs.ir.arrays import Array, ArrayAccess, ArrayDecl, RegisterArray, ReallocArray
+from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
@@ -23,7 +23,7 @@ from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
-from pairs.ir.variables import Var, VarDecl, Deref
+from pairs.ir.variables import Var, DeclareVariable, Deref
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
@@ -220,7 +220,7 @@ class CGen:
         self.print("}")
 
     def generate_statement(self, ast_node):
-        if isinstance(ast_node, ArrayDecl):
+        if isinstance(ast_node, DeclareStaticArray):
             t = ast_node.array.type()
             tkw = Types.c_keyword(t)
             size = self.generate_expression(ScalarOp.inline(ast_node.array.alloc_size()))
@@ -688,7 +688,7 @@ class CGen:
             self.print(f"pairs->reallocArray({a.id()}, &{ptr}, {d_ptr_addr}, {size});")
             #self.print(f"pairs->reallocArray({a.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {size});")
 
-        if isinstance(ast_node, VarDecl):
+        if isinstance(ast_node, DeclareVariable):
             tkw = Types.c_keyword(ast_node.var.type())
 
             if ast_node.var.type() == Types.Vector:
