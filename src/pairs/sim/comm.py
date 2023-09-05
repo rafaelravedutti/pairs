@@ -1,3 +1,4 @@
+from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import pairs_device_block, pairs_host_block, pairs_inline
@@ -44,8 +45,9 @@ class Comm:
     @pairs_inline
     def borders(self):
         prop_list = [self.sim.property(p) for p in ['mass', 'position', 'particle_flags']]
-        self.nsend_all.set(0)
-        self.sim.nghost.set(0)
+        Assign(self.sim, self.nsend_all, 0)
+        Assign(self.sim, self.sim.nghost, 0)
+
         for step in range(self.dom_part.number_of_steps()):
             DetermineGhostParticles(self, step, self.sim.cell_spacing())
             CommunicateSizes(self, step)
@@ -53,20 +55,21 @@ class Comm:
             PackGhostParticles(self, step, prop_list)
             CommunicateData(self, step, prop_list)
             UnpackGhostParticles(self, step, prop_list)
-            self.sim.nghost.add(sum([self.nrecv[j] for j in self.dom_part.step_indexes(step)]))
+            Assign(self.sim, self.sim.nghost, self.sim.nghost + sum([self.nrecv[j] for j in self.dom_part.step_indexes(step)]))
 
     @pairs_inline
     def exchange(self):
-        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'velocity', 'particle_flags']]
+        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'linear_velocity', 'particle_flags']]
         for step in range(self.dom_part.number_of_steps()):
-            self.nsend_all.set(0)
-            self.sim.nghost.set(0)
+            Assign(self.sim, self.nsend_all, 0)
+            Assign(self.sim, self.sim.nghost, 0)
+
             for s in range(step):
                 for j in self.dom_part.step_indexes(s):
-                    self.nsend[j].set(0)
-                    self.nrecv[j].set(0)
-                    self.send_offsets[j].set(0)
-                    self.recv_offsets[j].set(0)
+                    Assign(self.sim, self.nsend[j], 0)
+                    Assign(self.sim, self.nrecv[j], 0)
+                    Assign(self.sim, self.send_offsets[j], 0)
+                    Assign(self.sim, self.recv_offsets[j], 0)
 
             DetermineGhostParticles(self, step, 0.0)
             CommunicateSizes(self, step)
@@ -131,24 +134,24 @@ class DetermineGhostParticles(Lowerable):
         #self.sim.check_resize(self.comm.send_capacity, nsend_all)
 
         for j in self.comm.dom_part.step_indexes(self.step):
-            nsend[j].set(0)
-            nrecv[j].set(0)
+            Assign(self.sim, nsend[j], 0)
+            Assign(self.sim, nrecv[j], 0)
 
         if is_exchange:
             for i in ParticleFor(self.sim):
-                exchg_flag[i].set(0)
+                Assign(self.sim, exchg_flag[i], 0)
 
         for i, j, _, pbc in self.comm.dom_part.ghost_particles(self.step, self.sim.position(), self.spacing):
             next_idx = AtomicAdd(self.sim, nsend_all, 1)
-            send_map[next_idx].set(i)
+            Assign(self.sim, send_map[next_idx], i)
 
             if is_exchange:
-                exchg_flag[i].set(1)
+                Assign(self.sim, exchg_flag[i], 1)
 
             for d in range(self.sim.ndims()):
-                send_mult[next_idx][d].set(pbc[d])
+                Assign(self.sim, send_mult[next_idx][d], pbc[d])
 
-            nsend[j].add(1)
+            Assign(self.sim, nsend[j], nsend[j] + 1)
 
 
 class SetCommunicationOffsets(Lowerable):
@@ -174,8 +177,8 @@ class SetCommunicationOffsets(Lowerable):
                 irecv += nrecv[j]
 
         for j in self.comm.dom_part.step_indexes(self.step):
-            send_offsets[j].set(isend)
-            recv_offsets[j].set(irecv)
+            Assign(self.sim, send_offsets[j], isend)
+            Assign(self.sim, recv_offsets[j], irecv)
             isend += nsend[j]
             irecv += nrecv[j]
 
@@ -212,13 +215,13 @@ class PackGhostParticles(Lowerable):
                         if p == self.sim.position():
                             src += send_mult[i][d] * self.sim.grid.length(d)
 
-                        send_buffer[i][p_offset + d].set(src)
+                        Assign(self.sim, send_buffer[i][p_offset + d], src)
 
                     p_offset += self.sim.ndims()
 
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, Types.Double) if p.type() != Types.Double else x
-                    send_buffer[i][p_offset].set(cast_fn(p[m]))
+                    Assign(self.sim, send_buffer[i][p_offset], cast_fn(p[m]))
                     p_offset += 1
 
             
@@ -248,13 +251,13 @@ class UnpackGhostParticles(Lowerable):
             for p in self.prop_list:
                 if p.type() == Types.Vector:
                     for d in range(self.sim.ndims()):
-                        p[nlocal + i][d].set(recv_buffer[i][p_offset + d])
+                        Assign(self.sim, p[nlocal + i][d], recv_buffer[i][p_offset + d])
 
                     p_offset += self.sim.ndims()
 
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Double else x
-                    p[nlocal + i].set(cast_fn(recv_buffer[i][p_offset]))
+                    Assign(self.sim, p[nlocal + i], cast_fn(recv_buffer[i][p_offset]))
                     p_offset += 1
 
 
@@ -273,13 +276,13 @@ class RemoveExchangedParticles_part1(Lowerable):
             for need_copy in Branch(self.sim, particle_id < self.sim.nlocal - self.comm.nsend_all):
                 if need_copy:
                     for _ in While(self.sim, ScalarOp.cmp(self.comm.exchg_flag[send_pos], 1)):
-                        send_pos.set(send_pos - 1)
+                        Assign(self.sim, send_pos, send_pos - 1)
 
-                    self.comm.exchg_copy_to[i].set(send_pos)
-                    send_pos.set(send_pos - 1)
+                    Assign(self.sim, self.comm.exchg_copy_to[i], send_pos)
+                    Assign(self.sim, send_pos, send_pos - 1)
 
                 else:
-                    self.comm.exchg_copy_to[i].set(-1)
+                    Assign(self.sim, self.comm.exchg_copy_to[i], -1)
 
 
 class RemoveExchangedParticles_part2(Lowerable):
@@ -300,12 +303,12 @@ class RemoveExchangedParticles_part2(Lowerable):
                 for p in self.prop_list:
                     if p.type() == Types.Vector:
                         for d in range(self.sim.ndims()):
-                            p[dst][d].set(p[src][d])
+                            Assign(self.sim, p[dst][d], p[src][d])
 
                     else:
-                        p[dst].set(p[src])
+                        Assign(self.sim, p[dst], p[src])
 
-        self.sim.nlocal.set(self.sim.nlocal - self.comm.nsend_all)
+        Assign(self.sim, self.sim.nlocal, self.sim.nlocal - self.comm.nsend_all)
 
 
 class ChangeSizeAfterExchange(Lowerable):
@@ -317,7 +320,6 @@ class ChangeSizeAfterExchange(Lowerable):
 
     @pairs_host_block
     def lower(self):
-        sim = self.sim
-        sim.module_name(f"change_size_after_exchange{self.step}")
-        sim.check_resize(self.sim.particle_capacity, self.sim.nlocal)
-        self.sim.nlocal.set(sim.nlocal + sum([self.comm.nrecv[j] for j in self.comm.dom_part.step_indexes(self.step)]))
+        self.sim.module_name(f"change_size_after_exchange{self.step}")
+        self.sim.check_resize(self.sim.particle_capacity, self.sim.nlocal)
+        Assign(self.sim, self.sim.nlocal, self.sim.nlocal + sum([self.comm.nrecv[j] for j in self.comm.dom_part.step_indexes(self.step)]))

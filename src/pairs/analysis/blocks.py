@@ -189,6 +189,10 @@ class DetermineExpressionsOwnership(Visitor):
         self.visit_children(ast_node)
         self.update_ownership(ast_node)
 
+    def visit_Vector(self, ast_node):
+        self.visit_children(ast_node)
+        self.update_ownership(ast_node)
+
     def visit_VectorOp(self, ast_node):
         self.visit_children(ast_node)
         self.update_ownership(ast_node)

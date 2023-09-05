@@ -1,3 +1,4 @@
+from pairs.ir.assign import Assign
 from pairs.ir.block import pairs_device_block, pairs_host_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import For, ParticleFor
@@ -23,7 +24,7 @@ class EnforcePBC(Lowerable):
             # TODO: VecFilter?
             for d in range(0, ndims):
                 for _ in Filter(sim, positions[i][d] < grid.min(d)):
-                    positions[i][d].add(grid.length(d))
+                    Assign(sim, positions[i][d], positions[i][d] + grid.length(d)) 
 
                 for _ in Filter(sim, positions[i][d] > grid.max(d)):
-                    positions[i][d].sub(grid.length(d))
+                    Assign(sim, positions[i][d], positions[i][d] - grid.length(d)) 

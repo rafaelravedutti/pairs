@@ -12,23 +12,16 @@ class Lit(ASTNode):
     def __init__(self, sim, value):
         super().__init__(sim)
         self.value = value
-        self.lit_type = Types.Invalid
 
-        if isinstance(value, int):
-            self.lit_type = Types.Int32
+        type_mapping = {
+            int: Types.Int32,
+            float: Types.Double,
+            bool: Types.Boolean,
+            str: Types.String,
+            list: Types.Vector
+        }
 
-        if isinstance(value, float):
-            self.lit_type = Types.Double
-
-        if isinstance(value, bool):
-            self.lit_type = Types.Boolean
-
-        if isinstance(value, str):
-            self.lit_type = Types.String
-
-        if isinstance(value, list):
-            self.lit_type = Types.Vector
-
+        self.lit_type = type_mapping.get(type(value), Types.Invalid)
         assert self.lit_type != Types.Invalid, "Invalid literal type!"
 
     def __str__(self):

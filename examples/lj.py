@@ -9,8 +9,8 @@ def lj(i, j):
 
 
 def euler(i):
-    velocity[i] += dt * force[i] / mass[i]
-    position[i] += dt * velocity[i]
+    linear_velocity[i] += dt * force[i] / mass[i]
+    position[i] += dt * linear_velocity[i]
 
 
 cmd = sys.argv[0]
@@ -29,12 +29,12 @@ sigma6 = sigma ** 6
 psim = pairs.simulation("lj", debug=True)
 psim.add_position('position')
 psim.add_property('mass', pairs.double(), 1.0)
-psim.add_property('velocity', pairs.vector())
+psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), vol=True)
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'epsilon', pairs.double(), [sigma for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'sigma6', pairs.double(), [epsilon for i in range(ntypes * ntypes)])
-psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'velocity', 'particle_flags'])
+psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'particle_flags'])
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/test_{target}")
 psim.compute(lj, cutoff_radius)

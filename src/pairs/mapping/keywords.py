@@ -5,7 +5,7 @@ from pairs.ir.loops import Continue
 from pairs.ir.math import Sqrt
 from pairs.ir.select import Select
 from pairs.ir.types import Types
-from pairs.ir.vectors import ZeroVector
+from pairs.ir.vectors import Vector, ZeroVector
 
 
 class Keywords:
@@ -61,6 +61,16 @@ class Keywords:
         assert vector1.type() == Types.Vector, "dot(): First argument must be a vector!"
         assert vector2.type() == Types.Vector, "dot(): Second argument must be a vector!"
         return sum([vector1[d] * vector2[d] for d in range(self.sim.ndims())])
+
+    def keyword_cross(self, args):
+        assert len(args) == 2, "cross() keyword requires two parameters!"
+        vector1 = args[0]
+        vector2 = args[1]
+        assert vector1.type() == Types.Vector, "cross(): First argument must be a vector!"
+        assert vector2.type() == Types.Vector, "cross(): Second argument must be a vector!"
+        return Vector(self.sim, [ vector1[1] * vector2[2] - vector1[2] * vector2[1],
+                                  vector1[2] * vector2[0] - vector1[0] * vector2[2],
+                                  vector1[0] * vector2[1] - vector1[1] * vector2[0] ])
 
     def keyword_normalized(self, args):
         assert len(args) == 1, "normalized() keyword requires one parameter!"

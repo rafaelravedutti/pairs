@@ -1,4 +1,3 @@
-from pairs.ir.assign import Assign
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
@@ -62,18 +61,6 @@ class VectorOp(ASTTerm):
     def z(self):
         return self.__getitem__(2)
 
-    def set(self, other):
-        assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
-
-    def sub(self, other):
-        assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(Assign(self.sim, self, self - other))
-
     def add_terminal(self, terminal):
         self.terminals.add(terminal)
 
@@ -94,44 +81,44 @@ class VectorAccess(ASTTerm):
     def type(self):
         return Types.Double
 
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
-
-    def sub(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self - other))
-
     def children(self):
         return [self.expr]
 
 
-class ConstVector(ASTTerm):
+class Vector(ASTTerm):
+    last_vector = 0
+
+    def new_id():
+        Vector.last_vector += 1
+        return Vector.last_vector - 1
+
     def __init__(self, sim, values):
-        assert isinstance(values, list) and len(values) == sim.ndims(), \
-            "ConstVector(): Given list is invalid!"
+        assert isinstance(values, list) and len(values) == sim.ndims(), "Vector(): Given list is invalid!"
         super().__init__(sim, VectorOp)
-        self.values = values
-        self.array = None
+        self._id = Vector.new_id()
+        self._values = values
+        self.terminals = set()
 
     def __str__(self):
-        return f"ConstVector<{self.values}>"
+        return f"Vector<{self.values}>"
 
-    def __getitem__(self, expr_ast):
-        if isinstance(index, Lit) or isinstance(index, int):
-            return self.values[index]
+    def __getitem__(self, index):
+        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
 
-        if self.array is None:
-            self.array = self.sim.add_static_array(f"cv{self.const_vector_id}", self.sim.ndims(), Types.Double)
-
-        return self_array[index]
+    def id(self):
+        return self._id
 
     def type(self):
         return Types.Vector
 
+    def get_value(self, dimension):
+        return self._values[dimension]
+
+    def add_terminal(self, terminal):
+        self.terminals.add(terminal)
+
     def children(self):
-        return []
+        return self._values
 
 
 class ZeroVector(ASTTerm):

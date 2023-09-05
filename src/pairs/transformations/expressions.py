@@ -219,6 +219,15 @@ class AddExpressionDeclarations(Mutator):
 
         return ast_node
 
+    def mutate_Vector(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        vector_id = id(ast_node)
+        if vector_id not in self.declared_exprs and vector_id not in self.params:
+            self.push_decl(Decl(ast_node.sim, ast_node))
+            self.declared_exprs.append(vector_id)
+
+        return ast_node
+
     def mutate_VectorOp(self, ast_node):
         ast_node.lhs = self.mutate(ast_node.lhs)
         if not ast_node.operator().is_unary():

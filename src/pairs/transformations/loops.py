@@ -6,7 +6,7 @@ from pairs.ir.mutator import Mutator
 from pairs.ir.properties import PropertyAccess, ContactPropertyAccess
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
-from pairs.ir.vectors import VectorOp
+from pairs.ir.vectors import Vector, VectorOp
 
 
 class LICM(Mutator):
@@ -40,6 +40,7 @@ class LICM(Mutator):
             PropertyAccess,
             ScalarOp,
             Select,
+            Vector,
             VectorOp
         )
 

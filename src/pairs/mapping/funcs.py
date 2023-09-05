@@ -1,10 +1,11 @@
 import ast
 import inspect
-from pairs.ir.scalars import ScalarOp
+from pairs.ir.assign import Assign
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.lit import Lit
 from pairs.ir.loops import ParticleFor
 from pairs.ir.operators import Operators
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 from pairs.ir.vectors import VectorOp
 from pairs.mapping.keywords import Keywords
@@ -94,7 +95,7 @@ class BuildParticleIR(ast.NodeVisitor):
         if isinstance(lhs, UndefinedSymbol):
             self.add_symbols({lhs.symbol_id: rhs})
         else:
-            lhs.set(rhs)
+            Assign(self.sim, lhs, rhs)
 
     def visit_AugAssign(self, node):
         lhs = self.visit(node.target)
@@ -103,7 +104,7 @@ class BuildParticleIR(ast.NodeVisitor):
         if isinstance(lhs, UndefinedSymbol):
             self.add_symbols({lhs.symbol_id: rhs})
         else:
-            lhs.add(rhs)
+            Assign(self.sim, lhs, lhs + rhs)
 
     def visit_BinOp(self, node):
         #print(ast.dump(node))

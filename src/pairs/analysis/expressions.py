@@ -46,6 +46,9 @@ class DetermineExpressionsTerminals(Visitor):
     def visit_Select(self, ast_node):
         self.traverse_expression(ast_node)
 
+    def visit_Vector(self, ast_node):
+        self.traverse_expression(ast_node)
+
     def visit_VectorOp(self, ast_node):
         self.traverse_expression(ast_node)
 

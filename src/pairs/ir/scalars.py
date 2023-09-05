@@ -1,6 +1,5 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
-from pairs.ir.assign import Assign
 from pairs.ir.lit import Lit
 from pairs.ir.operators import Operators
 from pairs.ir.types import Types
@@ -63,18 +62,6 @@ class ScalarOp(ASTTerm):
 
     def z(self):
         return self.__getitem__(2)
-
-    def set(self, other):
-        assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
-
-    def sub(self, other):
-        assert self.mem is True, "Invalid assignment: lvalue expected!"
-        return self.sim.add_statement(Assign(self.sim, self, self - other))
 
     def infer_type(lhs, rhs, op):
         lhs_type = lhs.type()

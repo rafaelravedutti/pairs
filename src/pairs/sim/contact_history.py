@@ -1,7 +1,8 @@
-from pairs.ir.scalars import ScalarOp
+from pairs.ir.assign import Assign
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import ParticleFor, For
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.interaction import NeighborFor
@@ -36,33 +37,33 @@ class BuildContactHistory(Lowerable):
 
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
-                contact_index.set(-1)
+                Assign(self.sim, contact_index, -1)
                 for k in For(self.sim, 0, num_contacts[i]):
                     for _ in Filter(self.sim, ScalarOp.cmp(contact_lists[i][k], j)):
-                        contact_index.set(k)
+                        Assign(self.sim, contact_index, k)
 
                 for _ in Filter(self.sim,
                                 ScalarOp.and_op(contact_index >= 0,
                                                 ScalarOp.neq(last_contact, contact_index))):
                     for contact_prop in self.sim.contact_properties:
                         tmp = self.sim.add_temp_var(contact_prop[i, last_contact])
-                        contact_prop[i, last_contact].set(contact_prop[i, contact_index])
-                        contact_prop[i, contact_index].set(tmp)
+                        Assign(self.sim, contact_prop[i, last_contact], contact_prop[i, contact_index])
+                        Assign(self.sim, contact_prop[i, contact_index], tmp)
 
-                    contact_lists[i][contact_index].set(contact_lists[i][last_contact])
-                    contact_lists[i][last_contact].set(j)
+                    Assign(self.sim, contact_lists[i][contact_index], contact_lists[i][last_contact])
+                    Assign(self.sim, contact_lists[i][last_contact], j)
 
-                last_contact.set(last_contact + 1)
+                Assign(self.sim, last_contact, last_contact + 1)
 
-            last_contact.set(0)
+            Assign(self.sim, last_contact, 0)
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
                 for _ in Filter(self.sim, ScalarOp.neq(contact_lists[i][last_contact], j)):
                     for contact_prop in self.sim.contact_properties:
-                        contact_prop[i, last_contact].set(contact_prop.default())
+                        Assign(self.sim, contact_prop[i, last_contact], contact_prop.default())
 
-                    contact_lists[i][last_contact].set(j)
+                    Assign(self.sim, contact_lists[i][last_contact], j)
 
-                last_contact.set(last_contact + 1)
+                Assign(self.sim, last_contact, last_contact + 1)
 
-            num_contacts[i].set(last_contact)
+            Assign(self.sim, num_contacts[i], last_contact)

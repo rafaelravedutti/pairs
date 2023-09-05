@@ -1,3 +1,4 @@
+from pairs.ir.assign import Assign
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import ParticleFor
@@ -31,9 +32,9 @@ class NeighborListsBuild(Lowerable):
         sim.check_resize(sim.neighbor_capacity, neighbor_lists.numneighs)
 
         for i in ParticleFor(sim):
-            neighbor_lists.numneighs[i].set(0)
+            Assign(self.sim, neighbor_lists.numneighs[i], 0)
 
         for i, j in ParticleInteraction(sim, 2, cutoff_radius, bypass_neighbor_lists=True):
             numneighs = neighbor_lists.numneighs[i]
-            neighbor_lists.neighborlists[i][numneighs].set(j)
-            neighbor_lists.numneighs[i].set(numneighs + 1)
+            Assign(self.sim, neighbor_lists.neighborlists[i][numneighs], j)
+            Assign(self.sim, neighbor_lists.numneighs[i], numneighs + 1)

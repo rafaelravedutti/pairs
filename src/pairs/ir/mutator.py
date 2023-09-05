@@ -189,6 +189,10 @@ class Mutator:
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
 
+    def mutate_Vector(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        return ast_node
+
     def mutate_VectorAccess(self, ast_node):
         ast_node.expr = self.mutate(ast_node.expr)
         return ast_node

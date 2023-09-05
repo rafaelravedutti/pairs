@@ -1,5 +1,4 @@
 from functools import reduce
-from pairs.ir.assign import Assign
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
@@ -187,12 +186,6 @@ class ArrayAccess(ASTTerm):
             return True
 
         return False
-
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def id(self):
         return self.acc_id

@@ -11,7 +11,9 @@ def linear_spring_dashpot(i, j):
     k = radius[j] + 0.5 * penetration_depth
     contact_point = position[j] + contact_normal * k
 
-    rel_vel = -velocity_wf[i] - velocity_wf[j]
+    velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point - position[i])
+    velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point - position[j])
+    rel_vel = -velocity_wf_i - velocity_wf_j
     rel_vel_n = dot(rel_vel, contact_normal) * contact_normal
     rel_vel_t = rel_vel - rel_vel_n
 
@@ -57,8 +59,8 @@ def linear_spring_dashpot(i, j):
 
 
 def euler(i):
-    velocity[i] += dt * force[i] / mass[i]
-    position[i] += dt * velocity[i]
+    linear_velocity[i] += dt * force[i] / mass[i]
+    position[i] += dt * linear_velocity[i]
 
 
 def gravity(i):
@@ -90,8 +92,8 @@ gravity_SI = 1.0
 psim = pairs.simulation("dem", debug=True)
 psim.add_position('position')
 psim.add_property('mass', pairs.double(), 1.0)
-psim.add_property('velocity', pairs.vector())
-psim.add_property('velocity_wf', pairs.vector())
+psim.add_property('linear_velocity', pairs.vector())
+psim.add_property('angular_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), vol=True)
 psim.add_property('radius', pairs.double(), 1.0)
 psim.add_feature('type', ntypes)
@@ -105,7 +107,7 @@ psim.add_contact_property('is_sticking', pairs.int32(), 0)
 psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0, 0.0, 0.0])
 psim.add_contact_property('impact_velocity_magnitude', pairs.double(), 0.0)
 
-psim.read_particle_data("data/fluidized_bed.input", ['mass', 'position', 'velocity'])
+psim.read_particle_data("data/fluidized_bed.input", ['mass', 'position', 'linear_velocity'])
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/test_{target}")
 psim.compute(linear_spring_dashpot, cutoff_radius, symbols={'dt': dt})

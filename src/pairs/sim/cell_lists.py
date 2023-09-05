@@ -1,5 +1,6 @@
 from functools import reduce
 import math
+from pairs.ir.assign import Assign
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.atomic import AtomicAdd
 from pairs.ir.scalars import ScalarOp
@@ -51,19 +52,19 @@ class CellListsStencilBuild(Lowerable):
         sim.check_resize(cl.ncells_capacity, cl.ncells)
 
         for d in range(sim.ndims()):
-            cl.dim_ncells[d].set(Ceil(sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
+            Assign(sim, cl.dim_ncells[d], Ceil(sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
             ntotal_cells *= cl.dim_ncells[d]
 
-        cl.ncells.set(ntotal_cells + 1)
+        Assign(sim, cl.ncells, ntotal_cells + 1)
         for _ in sim.nest_mode():
-            cl.nstencil.set(0)
+            Assign(sim, cl.nstencil, 0)
             for d in range(sim.ndims()):
                 nneigh = cl.nneighbor_cells[d]
                 for d_idx in For(sim, -nneigh, nneigh + 1):
                     index = (d_idx if index is None else index * cl.dim_ncells[d - 1] + d_idx)
                     if d == sim.ndims() - 1:
-                        cl.stencil[cl.nstencil].set(index)
-                        cl.nstencil.set(cl.nstencil + 1)
+                        Assign(sim, cl.stencil[cl.nstencil], index)
+                        Assign(sim, cl.nstencil, cl.nstencil + 1)
 
 
 class CellListsBuild(Lowerable):
@@ -82,7 +83,7 @@ class CellListsBuild(Lowerable):
         sim.check_resize(cl.cell_capacity, cl.cell_sizes)
 
         for c in For(sim, 0, cl.ncells):
-            cl.cell_sizes[c].set(0)
+            Assign(sim, cl.cell_sizes[c], 0)
 
         for i in ParticleFor(sim, local_only=False):
             flat_index = sim.add_temp_var(0)
@@ -94,9 +95,9 @@ class CellListsBuild(Lowerable):
                 for d in range(sim.ndims()):
                     index_1d = (cell_index[d] if index_1d is None else index_1d * cl.dim_ncells[d] + cell_index[d])
 
-                flat_index.set(index_1d + 1)
+                Assign(sim, flat_index, index_1d + 1)
 
             for _ in Filter(sim, ScalarOp.and_op(flat_index >= 0, flat_index < cl.ncells)):
                 index_in_cell = AtomicAdd(sim, cl.cell_sizes[flat_index], 1)
-                cl.particle_cell[i].set(flat_index)
-                cl.cell_particles[flat_index][index_in_cell].set(i)
+                Assign(sim, cl.particle_cell[i], flat_index)
+                Assign(sim, cl.cell_particles[flat_index][index_in_cell], i)

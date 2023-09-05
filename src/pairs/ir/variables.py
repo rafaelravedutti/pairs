@@ -26,7 +26,7 @@ class Variables:
         lit = Lit.cvt(self.sim, init)
         tmp_id = Variables.new_temp_id()
         tmp_var = Var(self.sim, f"tmp{tmp_id}", lit.type(), temp=True)
-        self.sim.add_statement(Assign(self.sim, tmp_var, lit))
+        Assign(self.sim, tmp_var, lit)
         return tmp_var
 
     def all(self):
@@ -57,12 +57,6 @@ class Var(ASTTerm):
     def copy(self):
         # Terminal copies are just themselves
         return self
-
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def name(self):
         return self.var_name

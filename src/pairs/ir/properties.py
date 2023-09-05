@@ -1,6 +1,5 @@
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
-from pairs.ir.assign import Assign
 from pairs.ir.declaration import Decl
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
@@ -130,15 +129,6 @@ class PropertyAccess(ASTTerm):
     def inline_recursively(self):
         self.inlined = True
         return self
-
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
-
-    def sub(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self - other))
 
     def id(self):
         return self.acc_id
@@ -301,15 +291,6 @@ class ContactPropertyAccess(ASTTerm):
     def inline_recursively(self):
         self.inlined = True
         return self
-
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
-
-    def sub(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self - other))
 
     def id(self):
         return self.acc_id

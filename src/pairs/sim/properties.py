@@ -1,3 +1,4 @@
+from pairs.ir.assign import Assign
 from pairs.ir.block import pairs_device_block, pairs_inline
 from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
@@ -58,4 +59,4 @@ class PropertiesResetVolatile(Lowerable):
         self.sim.module_name("reset_volatile_properties")
         for i in ParticleFor(self.sim):
             for p in self.sim.properties.volatiles():
-                p[i].set(0.0)
+                Assign(self.sim, p[i], 0.0)

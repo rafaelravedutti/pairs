@@ -84,7 +84,7 @@ class AddResizeLogic(Mutator):
                 capacities = list(self.module_resizes[module].values())
                 resize_id = resizes[capacities.index(match_capacity)]
                 return Branch(ast_node.sim, src + 1 >= match_capacity,
-                              blk_if=Block(ast_node.sim, ast_node.sim.resizes[resize_id].set(src)),
+                              blk_if=Block(ast_node.sim, Assign(ast_node.sim, ast_node.sim.resizes[resize_id], src)),
                               blk_else=Block(ast_node.sim, ast_node))
 
         return ast_node

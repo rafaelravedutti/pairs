@@ -24,7 +24,7 @@ from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.ir.variables import Var, VarDecl, Deref
-from pairs.ir.vectors import VectorAccess, VectorOp, ZeroVector
+from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
 
@@ -364,6 +364,12 @@ class CGen:
                 params = ", ".join([str(self.generate_expression(p)) for p in math_func.parameters()])
                 tkw = Types.c_keyword(math_func.type())
                 self.print(f"const {tkw} {acc_ref} = {math_func.function_name()}({params});")
+
+            if isinstance(ast_node.elem, Vector):
+                vector = ast_node.elem
+                for dim in vector.indexes_to_generate():
+                    expr = self.generate_expression(vector.get_value(dim))
+                    self.print(f"const double v{vector.id()}_{dim} = {expr};")
 
             if isinstance(ast_node.elem, VectorOp):
                 vector_op = ast_node.elem
@@ -860,6 +866,10 @@ class CGen:
 
         if isinstance(ast_node, VectorAccess):
             return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
+
+        if isinstance(ast_node, Vector):
+            assert index is not None, "Index must be set for vector."
+            return f"v{ast_node.id()}_{index}"
 
         if isinstance(ast_node, VectorOp):
             assert index is not None, "Index must be set for vector operation."
