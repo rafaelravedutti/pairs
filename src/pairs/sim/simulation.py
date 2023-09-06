@@ -13,7 +13,7 @@ from pairs.ir.variables import Variables
 from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
 from pairs.sim.arrays import DeclareArrays
-from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil
+from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists
 from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory
 from pairs.sim.domain_partitioning import DimensionRanges
@@ -46,7 +46,8 @@ class Simulation:
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
-        self.particle_flags = self.add_property('particle_flags', Types.Int32, 0)
+        self.particle_shape = self.add_property('shape', Types.Int32, 0)
+        self.particle_flags = self.add_property('flags', Types.Int32, 0)
         self.grid = None
         self.cell_lists = None
         self.neighbor_lists = None
@@ -69,6 +70,9 @@ class Simulation:
         self.vtk_file = None
         self._target = None
         self._dom_part = DimensionRanges(self)
+
+    def max_shapes(self):
+        return 2
 
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"
@@ -176,9 +180,9 @@ class Simulation:
         lattice = ParticleLattice(self, grid, spacing, props, positions)
         self.setups.add_statement(lattice)
 
-    def read_particle_data(self, filename, prop_names):
+    def read_particle_data(self, filename, prop_names, shape_id):
         props = [self.property(prop_name) for prop_name in prop_names]
-        read_object = ReadParticleData(self, filename, props)
+        read_object = ReadParticleData(self, filename, props, shape_id)
         self.setups.add_statement(read_object)
         self.grid = read_object.grid
 
@@ -271,6 +275,7 @@ class Simulation:
             (comm.exchange(), 20),
             (comm.borders(), comm.synchronize(), 20),
             (BuildCellLists(self, self.cell_lists), 20),
+            (PartitionCellLists(self, self.cell_lists), 20),
             (BuildNeighborLists(self, self.neighbor_lists), 20),
         ]
 

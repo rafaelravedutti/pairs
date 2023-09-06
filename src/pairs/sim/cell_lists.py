@@ -3,12 +3,12 @@ import math
 from pairs.ir.assign import Assign
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.atomic import AtomicAdd
-from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import pairs_device_block, pairs_host_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
-from pairs.ir.loops import For, ParticleFor
+from pairs.ir.loops import For, ParticleFor, While
 from pairs.ir.math import Ceil
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.flags import Flags
@@ -31,6 +31,7 @@ class CellLists:
         self.dim_ncells         =   self.sim.add_static_array('dim_cells', self.sim.ndims(), Types.Int32)
         self.cell_particles     =   self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Types.Int32)
         self.cell_sizes         =   self.sim.add_array('cell_sizes', self.ncells_capacity, Types.Int32)
+        self.nshapes            =   self.sim.add_array('nshapes', [self.ncells_capacity, self.sim.max_shapes()], Types.Int32)
         self.stencil            =   self.sim.add_array('stencil', self.nstencil_max, Types.Int32)
         self.particle_cell      =   self.sim.add_array('particle_cell', self.sim.particle_capacity, Types.Int32)
 
@@ -104,3 +105,35 @@ class BuildCellLists(Lowerable):
                 index_in_cell = AtomicAdd(sim, cl.cell_sizes[flat_index], 1)
                 Assign(sim, cl.particle_cell[i], flat_index)
                 Assign(sim, cl.cell_particles[flat_index][index_in_cell], i)
+
+
+class PartitionCellLists(Lowerable):
+    def __init__(self, sim, cell_lists):
+        super().__init__(sim)
+        self.cell_lists = cell_lists
+
+    @pairs_device_block
+    def lower(self):
+        self.sim.module_name("partition_cell_lists")
+        cell_particles = self.cell_lists.cell_particles
+
+        for cell in For(self.sim, 0, self.cell_lists.ncells):
+            start = self.sim.add_temp_var(0)
+            end = self.sim.add_temp_var(0)
+
+            for shape in For(self.sim, 0, self.sim.max_shapes()):
+                Assign(self.sim, end, self.cell_lists.cell_sizes[cell] - 1)
+
+                for _ in While(self.sim, start < end):
+                    particle = cell_particles[cell][start]
+
+                    for unmatch in Branch(self.sim, ScalarOp.neq(self.sim.particle_shape[particle], shape)):
+                        if unmatch:
+                            Assign(self.sim, cell_particles[cell][start], cell_particles[cell][end])
+                            Assign(self.sim, cell_particles[cell][end], particle)
+                            Assign(self.sim, end, end - 1)
+
+                        else:
+                            Assign(self.sim, start, start + 1)
+
+                    Assign(self.sim, self.cell_lists.nshapes[cell][shape], start)

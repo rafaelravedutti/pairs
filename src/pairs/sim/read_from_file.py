@@ -8,12 +8,13 @@ from pairs.sim.lowerable import Lowerable
 
 
 class ReadParticleData(Lowerable):
-    def __init__(self, sim, filename, items):
+    def __init__(self, sim, filename, items, shape_id):
         super().__init__(sim)
         self.filename = filename
         self.attrs = ParticleAttributeList(sim, items)
         self.grid = MutableGrid(sim, sim.ndims())
-        self.grid_buffer = self.sim.add_static_array("grid_buffer", [self.sim.ndims() * 2], Types.Double)
+        self.grid_buffer = sim.add_static_array("grid_buffer", [sim.ndims() * 2], Types.Double)
+        self.shape_id = shape_id
 
     @pairs_inline
     def lower(self):
@@ -26,7 +27,7 @@ class ReadParticleData(Lowerable):
         grid_array = [[self.grid.min(d), self.grid.max(d)] for d in range(self.sim.ndims())]
         Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim]),
         Call_Void(self.sim, "pairs->fillCommunicationArrays", [dom_part.neighbor_ranks, dom_part.pbc, dom_part.subdom])
-        Assign(self.sim, self.sim.nlocal, Call_Int(self.sim, "pairs::read_particle_data", [self.filename, self.attrs, self.attrs.length()]))
+        Assign(self.sim, self.sim.nlocal, Call_Int(self.sim, "pairs::read_particle_data", [self.filename, self.attrs, self.attrs.length(), self.shape_id]))
 
 
 class ReadFeatureData(Lowerable):

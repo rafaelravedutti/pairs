@@ -107,7 +107,7 @@ psim.add_contact_property('is_sticking', pairs.int32(), 0)
 psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0, 0.0, 0.0])
 psim.add_contact_property('impact_velocity_magnitude', pairs.double(), 0.0)
 
-psim.read_particle_data("data/fluidized_bed.input", ['mass', 'position', 'linear_velocity'])
+psim.read_particle_data("data/fluidized_bed.input", ['mass', 'position', 'linear_velocity'], pairs.sphere())
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/test_{target}")
 psim.compute(linear_spring_dashpot, cutoff_radius, symbols={'dt': dt})

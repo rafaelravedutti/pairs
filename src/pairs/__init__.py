@@ -1,6 +1,7 @@
 from pairs.ir.types import Types
 from pairs.code_gen.cgen import CGen
 from pairs.code_gen.target import Target
+from pairs.sim.shapes import Shapes
 from pairs.sim.simulation import Simulation
 
 
@@ -21,3 +22,9 @@ def double():
 
 def vector():
     return Types.Vector
+
+def sphere():
+    return Shapes.Sphere
+
+def halfspace():
+    return Shapes.Halfspace
