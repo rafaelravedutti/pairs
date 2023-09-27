@@ -78,9 +78,9 @@ class BuildParticleIR(ast.NodeVisitor):
 
         raise Exception("Invalid operator: {}".format(ast.dump(op)))
 
-    def __init__(self, sim, ctx_symbols={}, ctx_calls=[]):
+    def __init__(self, sim, ctx_symbols={}):
         self.sim = sim
-        self.ctx_symbols = ctx_symbols
+        self.ctx_symbols = ctx_symbols.copy()
         self.keywords = Keywords(sim)
 
     def add_symbols(self, symbols):
@@ -130,7 +130,7 @@ class BuildParticleIR(ast.NodeVisitor):
         if self.keywords.exists(func):
             return self.keywords(func, args)
 
-        if func == 'squared_distance' or func == 'delta':
+        if func in ['delta', 'squared_distance', 'penetration_depth', 'contact_point', 'contact_normal']:
             return self.ctx_symbols[f"__{func}__"]
 
         raise Exception(f"Undefined function called: {func}")
@@ -140,10 +140,7 @@ class BuildParticleIR(ast.NodeVisitor):
 
     def visit_Compare(self, node):
         #print(ast.dump(node))
-        valid_ops = (
-            ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn
-        )
-
+        valid_ops = (ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE, ast.Is, ast.IsNot, ast.In, ast.NotIn)
         if len(node.ops) != 1 or not isinstance(node.ops[0], valid_ops):
             raise Exception(f"Chained comparisons or unsupported comparison found: {ast.dump(node)}")
 
@@ -231,29 +228,33 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
     params = info.params()
     nparams = info.nparams()
 
+    # Compute functions must have parameters
+    assert nparams > 0, "Number of parameters from compute functions must be higher than zero!"
+
     # Convert literal symbols
     symbols = {symbol: Lit.cvt(sim, value) for symbol, value in symbols.items()}
-
-    # Start building IR
-    ir = BuildParticleIR(sim, symbols)
-    assert nparams > 0, "Number of parameters from compute functions must be higher than zero!"
 
     sim.init_block()
     sim.module_name(func.__name__)
 
     if nparams == 1:
         for i in ParticleFor(sim):
+            ir = BuildParticleIR(sim, symbols)
             ir.add_symbols({params[0]: i})
             ir.visit(tree)
 
     else:
-        pairs = ParticleInteraction(sim, nparams, cutoff_radius)
-        for i, j in pairs:
+        for interaction_data in ParticleInteraction(sim, nparams, cutoff_radius):
+            # Start building IR
+            ir = BuildParticleIR(sim, symbols)
             ir.add_symbols({
-                params[0]: i,
-                params[1]: j,
-                '__delta__': pairs.delta(),
-                '__squared_distance__': pairs.squared_distance()
+                params[0]: interaction_data.i(),
+                params[1]: interaction_data.j(),
+                '__delta__': interaction_data.delta(),
+                '__squared_distance__': interaction_data.squared_distance(),
+                '__penetration_depth__': interaction_data.penetration_depth(),
+                '__contact_point__': interaction_data.contact_point(),
+                '__contact_normal__': interaction_data.contact_normal()
             })
 
             ir.visit(tree)

@@ -22,4 +22,29 @@ class Symbol(ASTTerm):
         return self.sym_type
 
     def __getitem__(self, index):
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        #return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        return SymbolAccess(self.sim, self, Lit.cvt(self.sim, index))
+
+
+class SymbolAccess(ASTTerm):
+    def __init__(self, sim, symbol, index):
+        assert symbol.type() == Types.Vector, "Only vector symbols can be indexed!"
+        super().__init__(sim, ScalarOp if symbol.type() != Types.Vector else VectorOp)
+        self._symbol = symbol
+        self._index = index
+        symbol.add_index_to_generate(index)
+
+    def __str__(self):
+        return f"SymbolAccess<{self._symbol}, {self._index}>"
+
+    def symbol(self):
+        return self._symbol
+
+    def index(self):
+        return self._index
+
+    def type(self):
+        if self._symbol.type() == Types.Vector:
+            return Types.Float
+
+        return self._symbol.type()

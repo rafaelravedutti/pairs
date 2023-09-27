@@ -4,27 +4,22 @@ import sys
 
 
 def linear_spring_dashpot(i, j):
-    penetration_depth = squared_distance(i, j) - radius[i] - radius[j]
-    skip_when(penetration_depth >= 0.0)
+    skip_when(penetration_depth(i, j) >= 0.0)
 
-    contact_normal = normalized(delta(i, j))
-    k = radius[j] + 0.5 * penetration_depth
-    contact_point = position[j] + contact_normal * k
+    velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point(i, j) - position[i])
+    velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point(i, j) - position[j])
 
-    velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point - position[i])
-    velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point - position[j])
     rel_vel = -velocity_wf_i - velocity_wf_j
-    rel_vel_n = dot(rel_vel, contact_normal) * contact_normal
+    rel_vel_n = dot(rel_vel, contact_normal(i, j)) * contact_normal(i, j)
     rel_vel_t = rel_vel - rel_vel_n
-
-    fN = stiffness_norm[i, j] * (-penetration_depth) * contact_normal + damping_norm[i, j] * rel_vel_n;
+    fN = stiffness_norm[i, j] * (-penetration_depth(i, j)) * contact_normal(i, j) + damping_norm[i, j] * rel_vel_n;
 
     tan_spring_disp = tangential_spring_displacement[i, j]
     impact_vel_magnitude = impact_velocity_magnitude[i, j]
     impact_magnitude = select(impact_vel_magnitude > 0.0, impact_vel_magnitude, length(rel_vel))
     sticking = is_sticking[i, j]
 
-    rotated_tan_disp = tan_spring_disp - contact_normal * (contact_normal * tan_spring_disp)
+    rotated_tan_disp = tan_spring_disp - contact_normal(i, j) * (contact_normal(i, j) * tan_spring_disp)
     new_tan_spring_disp = dt * rel_vel_t + \
                           select(squared_length(rotated_tan_disp) <= 0.0,
                                  zero_vector(),
@@ -44,8 +39,7 @@ def linear_spring_dashpot(i, j):
     n_sticking = select(cond1 or cond2 or fTLS_len < f_friction_abs_dynamic, 1, 0)
 
     if not cond1 and not cond2 and stiffness_tan[i, j] > 0.0:
-        tangential_spring_displacement[i, j] = \
-            (f_friction_abs * t - damping_tan[i, j] * rel_vel_t) / stiffness_tan[i, j]
+        tangential_spring_displacement[i, j] = (f_friction_abs * t - damping_tan[i, j] * rel_vel_t) / stiffness_tan[i, j]
 
     else:
         tangential_spring_displacement[i, j] = new_tan_spring_disp
@@ -94,8 +88,9 @@ psim.add_position('position')
 psim.add_property('mass', pairs.double(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('angular_velocity', pairs.vector())
-psim.add_property('force', pairs.vector(), vol=True)
+psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_property('radius', pairs.double(), 1.0)
+psim.add_property('normal', pairs.vector())
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'stiffness_norm', pairs.double(), [stiffness_norm for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'stiffness_tan', pairs.double(), [stiffness_tan for i in range(ntypes * ntypes)])

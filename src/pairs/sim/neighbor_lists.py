@@ -13,7 +13,7 @@ class NeighborLists:
         self.sim = cell_lists.sim
         self.cell_lists = cell_lists
         self.neighborlists = self.sim.add_array('neighborlists', [self.sim.particle_capacity, self.sim.neighbor_capacity], Types.Int32)
-        self.numneighs = self.sim.add_array('numneighs', self.sim.particle_capacity, Types.Int32)
+        self.numneighs = self.sim.add_array('numneighs', [self.sim.particle_capacity, self.sim.max_shapes()], Types.Int32)
 
 
 class BuildNeighborLists(Lowerable):
@@ -28,13 +28,18 @@ class BuildNeighborLists(Lowerable):
         cell_lists = neighbor_lists.cell_lists
         cutoff_radius = cell_lists.cutoff_radius
         position = sim.position()
-        sim.module_name("neighbor_lists_build")
+        sim.module_name("build_neighbor_lists")
         sim.check_resize(sim.neighbor_capacity, neighbor_lists.numneighs)
 
         for i in ParticleFor(sim):
-            Assign(self.sim, neighbor_lists.numneighs[i], 0)
+            for shape in range(sim.max_shapes()):
+                Assign(sim, neighbor_lists.numneighs[i][shape], 0)
 
-        for i, j in ParticleInteraction(sim, 2, cutoff_radius, bypass_neighbor_lists=True):
-            numneighs = neighbor_lists.numneighs[i]
-            Assign(self.sim, neighbor_lists.neighborlists[i][numneighs], j)
-            Assign(self.sim, neighbor_lists.numneighs[i], numneighs + 1)
+        for interaction_data in ParticleInteraction(sim, 2, cutoff_radius, use_cell_lists=True):
+            i = interaction_data.i()
+            j = interaction_data.j()
+            shape = interaction_data.shape()
+
+            numneighs = neighbor_lists.numneighs[i][shape]
+            Assign(sim, neighbor_lists.neighborlists[i][numneighs], j)
+            Assign(sim, neighbor_lists.numneighs[i][shape], numneighs + 1)

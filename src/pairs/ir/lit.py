@@ -1,8 +1,8 @@
-from pairs.ir.ast_node import ASTNode
+from pairs.ir.ast_term import ASTTerm
 from pairs.ir.types import Types
 
 
-class Lit(ASTNode):
+class Lit(ASTTerm):
     def is_literal(a):
         return isinstance(a, (int, float, bool, str, list))
 
@@ -10,9 +10,6 @@ class Lit(ASTNode):
         return Lit(sim, a) if Lit.is_literal(a) else a
 
     def __init__(self, sim, value):
-        super().__init__(sim)
-        self.value = value
-
         type_mapping = {
             int: Types.Int32,
             float: Types.Double,
@@ -23,6 +20,11 @@ class Lit(ASTNode):
 
         self.lit_type = type_mapping.get(type(value), Types.Invalid)
         assert self.lit_type != Types.Invalid, "Invalid literal type!"
+
+        from pairs.ir.scalars import ScalarOp
+        from pairs.ir.vectors import VectorOp
+        super().__init__(sim, VectorOp if self.lit_type == Types.Vector else ScalarOp)
+        self.value = value
 
     def __str__(self):
         return f"Lit<{self.value}>"

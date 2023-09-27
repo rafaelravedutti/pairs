@@ -10,7 +10,16 @@ class ReplaceSymbols(Mutator):
         super().__init__(ast)
 
     def mutate_Symbol(self, ast_node):
-        return ast_node.assign_to
+        expr = self.mutate(ast_node.assign_to)
+        for i in ast_node.indexes_to_generate():
+            expr.add_index_to_generate(i)
+
+        return expr
+
+    def mutate_SymbolAccess(self, ast_node):
+        symbol = self.mutate(ast_node.symbol())
+        index = self.mutate(ast_node.index())
+        return symbol[index]
 
 
 class LowerNeighborIndexes(Mutator):

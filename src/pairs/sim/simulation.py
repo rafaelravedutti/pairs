@@ -105,13 +105,13 @@ class Simulation:
     def ndims(self):
         return self.dims
 
-    def add_property(self, prop_name, prop_type, value=0.0, vol=False):
+    def add_property(self, prop_name, prop_type, value=0.0, volatile=False):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, prop_type, value, vol)
+        return self.properties.add(prop_name, prop_type, value, volatile)
 
-    def add_position(self, prop_name, value=[0.0, 0.0, 0.0], vol=False, layout=Layouts.AoS):
+    def add_position(self, prop_name, value=[0.0, 0.0, 0.0], volatile=False, layout=Layouts.AoS):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        self.position_prop = self.properties.add(prop_name, Types.Vector, value, vol, layout)
+        self.position_prop = self.properties.add(prop_name, Types.Vector, value, volatile, layout)
         return self.position_prop
 
     def add_feature(self, feature_name, nkinds):
