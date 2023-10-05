@@ -68,9 +68,51 @@ if target != 'cpu' and target != 'gpu':
     print(f"Invalid target, use {cmd} <cpu/gpu>")
 
 
-dt = 0.005
-cutoff_radius = 2.5
-skin = 0.3
+# BedGeneration {
+#    domainSize_SI < 0.8, 0.015, 0.2 >;
+#    blocks < 3, 3, 1 >;
+#    diameter_SI 0.0029;
+#    gravity_SI 9.81;
+#    densityFluid_SI 1000;
+#    densityParticle_SI 2550;
+#    generationSpacing_SI 0.005;
+#    initialVelocity_SI 1;
+#    dt_SI 5e-5;
+#    frictionCoefficient 0.5;
+#    restitutionCoefficient 0.1;
+#    collisionTime_SI 5e-4;
+#    poissonsRatio 0.22;
+#    timeSteps 10000;
+#    visSpacing 100;
+#    outFileName spheres_out.dat;
+#    denseBottomLayer False;
+#    bottomLayerOffsetFactor 1.0;
+#}
+
+# Config file parameters
+domainSize_SI = [0.8, 0.015, 0.2]
+blocks = [3, 3, 1]
+diameter_SI = 0.0029
+gravity_SI = 9.81
+densityFluid_SI = 1000
+densityParticle_SI = 2550
+generationSpacing_SI = 0.005
+initialVelocity_SI = 1
+dt_SI = 5e-5
+frictionCoefficient = 0.5
+restitutionCoefficient = 0.1
+collisionTime_SI = 5e-4
+poissonsRatio = 0.22
+timeSteps = 10000
+visSpacing = 100
+denseBottomLayer = False
+bottomLayerOffsetFactor = 1.0
+
+minDiameter_SI = diameter_SI * 0.9
+maxDiameter_SI = diameter_SI * 1.1
+linkedCellWidth = 1.01 * maxDiameter_SI
+
+skin = 0.1
 ntypes = 1
 stiffness_norm = 1.0
 stiffness_tan = 1.0
@@ -78,10 +120,6 @@ damping_norm = 1.0
 damping_tan = 1.0
 friction_static = 1.0
 friction_dynamic = 1.0
-
-densityParticle_SI = 1.0
-densityFluid_SI = 1.0
-gravity_SI = 1.0
 
 psim = pairs.simulation("dem", debug=True)
 psim.add_position('position')
@@ -102,11 +140,26 @@ psim.add_contact_property('is_sticking', pairs.int32(), 0)
 psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0, 0.0, 0.0])
 psim.add_contact_property('impact_velocity_magnitude', pairs.double(), 0.0)
 
-psim.read_particle_data("data/fluidized_bed.input", ['mass', 'position', 'linear_velocity'], pairs.sphere())
-psim.build_neighbor_lists(cutoff_radius + skin)
+psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
+psim.read_particle_data(
+    "data/spheres.input",
+    ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
+    pairs.sphere())
+
+psim.read_particle_data(
+    "data/spheres_bottom.input",
+    ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
+    pairs.sphere())
+
+psim.read_particle_data(
+    "data/planes.input",
+    ['type', 'mass', 'position', 'normal', 'flags'],
+    pairs.halfspace())
+
+psim.build_neighbor_lists(linkedCellWidth + skin)
 psim.vtk_output(f"output/test_{target}")
-psim.compute(linear_spring_dashpot, cutoff_radius, symbols={'dt': dt})
-psim.compute(euler, symbols={'dt': dt})
+psim.compute(linear_spring_dashpot, linkedCellWidth + skin, symbols={'dt': dt_SI})
+psim.compute(euler, symbols={'dt': dt_SI})
 psim.compute(gravity, symbols={'densityParticle_SI': densityParticle_SI,
                                'densityFluid_SI': densityFluid_SI,
                                'gravity_SI': gravity_SI,

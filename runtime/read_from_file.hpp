@@ -37,7 +37,7 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
     size_t n = 0;
 
     if(in_file.is_open()) {
-        std::getline(in_file, line);
+        //std::getline(in_file, line);
         while(std::getline(in_file, line)) {
             std::stringstream line_stream(line);
             std::string in0;

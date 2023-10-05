@@ -16,6 +16,7 @@ from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists
 from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory
+from pairs.sim.domain import InitializeDomain
 from pairs.sim.domain_partitioning import DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.grid import Grid2D, Grid3D
@@ -167,24 +168,16 @@ class Simulation:
     def var(self, var_name):
         return self.vars.find(var_name)
 
-    def grid_2d(self, xmin, xmax, ymin, ymax):
-        self.grid = Grid2D(self, xmin, xmax, ymin, ymax)
-        return self.grid
-
-    def grid_3d(self, xmin, xmax, ymin, ymax, zmin, zmax):
-        self.grid = Grid3D(self, xmin, xmax, ymin, ymax, zmin, zmax)
-        return self.grid
+    def set_domain(self, grid):
+        self.grid = Grid3D(self, grid[0], grid[1], grid[2], grid[3], grid[4], grid[5])
+        self.setups.add_statement(InitializeDomain(self))
 
     def create_particle_lattice(self, grid, spacing, props={}):
-        positions = self.position()
-        lattice = ParticleLattice(self, grid, spacing, props, positions)
-        self.setups.add_statement(lattice)
+        self.setups.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
 
     def read_particle_data(self, filename, prop_names, shape_id):
         props = [self.property(prop_name) for prop_name in prop_names]
-        read_object = ReadParticleData(self, filename, props, shape_id)
-        self.setups.add_statement(read_object)
-        self.grid = read_object.grid
+        self.setups.add_statement(ReadParticleData(self, filename, props, shape_id))
 
     def build_cell_lists(self, spacing):
         self.cell_lists = CellLists(self, self.grid, spacing, spacing)

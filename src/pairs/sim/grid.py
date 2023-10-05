@@ -1,3 +1,4 @@
+from pairs.ir.lit import Lit
 from pairs.ir.types import Types
 
 
@@ -5,7 +6,7 @@ class Grid:
     def __init__(self, sim, config):
         self.sim = sim
         self.ndims = len(config)
-        self.config = config
+        self.config = [(Lit.cvt(sim, dmin), Lit.cvt(sim, dmax)) for dmin, dmax in config]
 
     def range(self, dim):
         return self.config[dim]
@@ -39,14 +40,14 @@ class Grid:
 
 
 class Grid2D(Grid):
-    def __init__(self, sim, xmin, xmax, ymin, ymax):
-        config = [[xmin, xmax], [ymin, ymax]]
+    def __init__(self, sim, xmin, ymin, xmax, ymax):
+        config = [(xmin, xmax), (ymin, ymax)]
         super().__init__(sim, config)
 
 
 class Grid3D(Grid):
-    def __init__(self, sim, xmin, xmax, ymin, ymax, zmin, zmax):
-        config = [[xmin, xmax], [ymin, ymax], [zmin, zmax]]
+    def __init__(self, sim, xmin, ymin, zmin, xmax, ymax, zmax):
+        config = [(xmin, xmax), (ymin, ymax), (zmin, zmax)]
         super().__init__(sim, config)
 
 
@@ -56,6 +57,10 @@ class MutableGrid(Grid):
     def __init__(self, sim, ndims):
         self.id = MutableGrid.last_id
         prefix = f"grid{self.id}_"
-        config = [[sim.add_var(f"{prefix}d{d}_min", Types.Double), sim.add_var(f"{prefix}d{d}_max", Types.Double)] for d in range(ndims)]
-        super().__init__(sim, config)
+        super().__init__(sim, [
+            (sim.add_var(f"{prefix}d{d}_min", Types.Double),
+             sim.add_var(f"{prefix}d{d}_max", Types.Double))
+            for d in range(ndims)
+        ])
+
         MutableGrid.last_id += 1

@@ -34,6 +34,8 @@ psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'epsilon', pairs.double(), [sigma for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'sigma6', pairs.double(), [epsilon for i in range(ntypes * ntypes)])
+#psim.set_domain(0.0, 0.0, 0.0, 6.7184, 6.7184, 6.7184) # for 4x4x4 setup
+psim.set_domain(0.0, 0.0, 0.0, 53.747078, 53.747078, 53.747078)
 psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'flags'], pairs.sphere())
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/test_{target}")
