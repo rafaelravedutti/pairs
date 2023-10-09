@@ -43,6 +43,7 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
             std::string in0;
             int within_domain = 1;
             int i = 0;
+            int flags = 0;
 
             while(std::getline(line_stream, in0, ',')) {
                 property_t p_id = properties[i];
@@ -67,6 +68,10 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
                 } else if(prop_type == Prop_Integer) {
                     auto int_ptr = ps->getAsIntegerProperty(prop);
                     int_ptr(n) = std::stoi(in0);
+
+                    if(prop.getName() == "flags") {
+                        flags = int_ptr(n);
+                    }
                 } else if(prop_type == Prop_Float) {
                     auto float_ptr = ps->getAsFloatProperty(prop);
                     float_ptr(n) = std::stod(in0);
@@ -78,7 +83,7 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
                 i++;
             }
 
-            if(within_domain) {
+            if(within_domain || flags & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL)) {
                 shape_ptr(n++) = shape_id;
             }
         }

@@ -6,6 +6,7 @@ from pairs.ir.loops import For, ParticleFor
 from pairs.ir.math import Sqrt
 from pairs.ir.types import Types
 from pairs.ir.vectors import Vector
+from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
 from pairs.sim.shapes import Shapes
 
@@ -161,44 +162,53 @@ class ParticleInteraction(Lowerable):
             neighbor_lists = None if self.use_cell_lists else self.sim.neighbor_lists
 
             for i in ParticleFor(self.sim):
-                interaction = 0
-                for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
-                    interaction_data = self.interactions_data[interaction]
-                    shape = interaction_data.shape()
-                    j = neigh.particle_index()
+                for _ in Filter(self.sim, ScalarOp.cmp(self.sim.particle_flags[i] & Flags.Fixed, 0)):
+                    interaction = 0
+                    for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
+                        interaction_data = self.interactions_data[interaction]
+                        shape = interaction_data.shape()
+                        j = neigh.particle_index()
 
-                    if shape == Shapes.Sphere:
-                        delta = position[i] - position[j]
-                        squared_distance = delta.x() * delta.x() + delta.y() * delta.y() + delta.z() * delta.z()
-                        separation_dist = radius[i] + radius[j] + self.cutoff_radius
-                        cutoff_condition = squared_distance < separation_dist * separation_dist
-                        distance = Sqrt(self.sim, squared_distance)
-                        penetration_depth = distance - radius[i] - radius[j]
-                        contact_normal = delta * (1.0 / distance)
-                        k = radius[j] + 0.5 * penetration_depth
-                        contact_point = position[j] + contact_normal * k
+                        if shape == Shapes.Sphere:
+                            delta = position[i] - position[j]
+                            squared_distance = delta.x() * delta.x() + \
+                                               delta.y() * delta.y() + \
+                                               delta.z() * delta.z()
+                            separation_dist = radius[i] + radius[j] + self.cutoff_radius
+                            cutoff_condition = squared_distance < separation_dist * separation_dist
+                            distance = Sqrt(self.sim, squared_distance)
+                            penetration_depth = distance - radius[i] - radius[j]
+                            contact_normal = delta * (1.0 / distance)
+                            k = radius[j] + 0.5 * penetration_depth
+                            contact_point = position[j] + contact_normal * k
 
-                    elif shape == Shapes.Halfspace:
-                        d = normal[j][0] * position[j][0] + normal[j][1] * position[j][1] + normal[j][2] * position[j][2]
-                        k = normal[j][0] * position[i][0] + normal[j][1] * position[i][1] + normal[j][2] * position[i][2]
-                        penetration_depth = k - radius[i] - d
-                        cutoff_condition = penetration_depth < self.cutoff_radius
-                        tmp = radius[i] + penetration_depth
-                        contact_normal = normal[j]
-                        contact_point = position[i] - Vector(self.sim, [tmp, tmp, tmp]) * normal[j]
+                        elif shape == Shapes.Halfspace:
+                            d = normal[j][0] * position[j][0] + \
+                                normal[j][1] * position[j][1] + \
+                                normal[j][2] * position[j][2]
 
-                    else:
-                        raise Exception("Invalid shape!")
+                            k = normal[j][0] * position[i][0] + \
+                                normal[j][1] * position[i][1] + \
+                                normal[j][2] * position[i][2]
 
-                    interaction_data.i().assign(i)
-                    interaction_data.j().assign(j)
-                    interaction_data.delta().assign(delta)
-                    interaction_data.squared_distance().assign(squared_distance)
-                    interaction_data.penetration_depth().assign(penetration_depth)
-                    interaction_data.contact_point().assign(contact_point)
-                    interaction_data.contact_normal().assign(contact_normal)
-                    self.sim.add_statement(Filter(self.sim, cutoff_condition, self.blocks[interaction]))
-                    interaction += 1
+                            penetration_depth = k - radius[i] - d
+                            cutoff_condition = penetration_depth < self.cutoff_radius
+                            tmp = radius[i] + penetration_depth
+                            contact_normal = normal[j]
+                            contact_point = position[i] - Vector(self.sim, [tmp, tmp, tmp]) * normal[j]
+
+                        else:
+                            raise Exception("Invalid shape!")
+
+                        interaction_data.i().assign(i)
+                        interaction_data.j().assign(j)
+                        interaction_data.delta().assign(delta)
+                        interaction_data.squared_distance().assign(squared_distance)
+                        interaction_data.penetration_depth().assign(penetration_depth)
+                        interaction_data.contact_point().assign(contact_point)
+                        interaction_data.contact_normal().assign(contact_normal)
+                        self.sim.add_statement(Filter(self.sim, cutoff_condition, self.blocks[interaction]))
+                        interaction += 1
 
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")

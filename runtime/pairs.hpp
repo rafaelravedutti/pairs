@@ -16,6 +16,11 @@
 
 #pragma once
 
+#define FLAGS_INFINITE  (1 << 0)
+#define FLAGS_GHOST     (1 << 1)
+#define FLAGS_FIXED     (1 << 2)
+#define FLAGS_GLOBAL    (1 << 3)
+
 namespace pairs {
 
 class PairsSimulation {

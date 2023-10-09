@@ -107,6 +107,7 @@ timeSteps = 10000
 visSpacing = 100
 denseBottomLayer = False
 bottomLayerOffsetFactor = 1.0
+kappa = 2.0 * (1.0 - poissonsRatio) / (2.0 - poissonsRatio) # from Thornton et al
 
 minDiameter_SI = diameter_SI * 0.9
 maxDiameter_SI = diameter_SI * 1.1
@@ -114,12 +115,16 @@ linkedCellWidth = 1.01 * maxDiameter_SI
 
 skin = 0.1
 ntypes = 1
-stiffness_norm = 1.0
-stiffness_tan = 1.0
-damping_norm = 1.0
-damping_tan = 1.0
-friction_static = 1.0
-friction_dynamic = 1.0
+
+meff = 0.5 # 1.0 / (inv_mass[i] + inv_mass[j])
+lnDryResCoeff = math.log(restitutionCoefficient);
+stiffnessNorm = meff * (math.pi * math.pi + lnDryResCoeff * lnDryResCoeff) / (collisionTime_SI * collisionTime_SI)
+stiffnessTan = kappa * stiffnessNorm
+dampingNorm = -2.0 * meff * lnDryResCoeff / collisionTime_SI
+dampingTan = math.sqrt(kappa) * dampingNorm
+
+frictionStatic = frictionCoefficient # TODO: check if this is correct
+frictionDynamic = frictionCoefficient
 
 psim = pairs.simulation("dem", debug=True)
 psim.add_position('position')
@@ -130,12 +135,12 @@ psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_property('radius', pairs.double(), 1.0)
 psim.add_property('normal', pairs.vector())
 psim.add_feature('type', ntypes)
-psim.add_feature_property('type', 'stiffness_norm', pairs.double(), [stiffness_norm for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'stiffness_tan', pairs.double(), [stiffness_tan for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_norm', pairs.double(), [damping_norm for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_tan', pairs.double(), [damping_tan for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'friction_static', pairs.double(), [friction_static for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'friction_dynamic', pairs.double(), [friction_dynamic for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'stiffness_norm', pairs.double(), [stiffnessNorm for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'stiffness_tan', pairs.double(), [stiffnessTan for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'damping_norm', pairs.double(), [dampingNorm for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'damping_tan', pairs.double(), [dampingTan for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'friction_static', pairs.double(), [frictionStatic for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'friction_dynamic', pairs.double(), [frictionDynamic for i in range(ntypes * ntypes)])
 psim.add_contact_property('is_sticking', pairs.int32(), 0)
 psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0, 0.0, 0.0])
 psim.add_contact_property('impact_velocity_magnitude', pairs.double(), 0.0)

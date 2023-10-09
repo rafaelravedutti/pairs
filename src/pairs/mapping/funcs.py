@@ -9,6 +9,7 @@ from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 from pairs.ir.vectors import VectorOp
 from pairs.mapping.keywords import Keywords
+from pairs.sim.flags import Flags
 from pairs.sim.interaction import ParticleInteraction
 
 
@@ -239,9 +240,10 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
 
     if nparams == 1:
         for i in ParticleFor(sim):
-            ir = BuildParticleIR(sim, symbols)
-            ir.add_symbols({params[0]: i})
-            ir.visit(tree)
+            for _ in Filter(sim, ScalarOp.cmp(sim.particle_flags[i] & Flags.Fixed, 0)):
+                ir = BuildParticleIR(sim, symbols)
+                ir.add_symbols({params[0]: i})
+                ir.visit(tree)
 
     else:
         for interaction_data in ParticleInteraction(sim, nparams, cutoff_radius):

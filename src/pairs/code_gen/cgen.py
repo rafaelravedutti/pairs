@@ -13,7 +13,7 @@ from pairs.ir.functions import Call
 from pairs.ir.kernel import KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
-from pairs.ir.loops import For, Iter, ParticleFor, While, Continue
+from pairs.ir.loops import For, Iter, While, Continue
 from pairs.ir.math import MathFunction
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
