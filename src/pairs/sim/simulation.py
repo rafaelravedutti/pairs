@@ -69,6 +69,7 @@ class Simulation:
         self.expr_id = 0
         self.iter_id = 0
         self.vtk_file = None
+        self.vtk_frequency = 0
         self._target = None
         self._dom_part = DimensionRanges(self)
 
@@ -247,8 +248,9 @@ class Simulation:
         else:
             self.nested_count += 1
 
-    def vtk_output(self, filename):
+    def vtk_output(self, filename, frequency=0):
         self.vtk_file = filename
+        self.vtk_frequency = frequency
 
     def target(self, target):
         self._target = target
@@ -283,13 +285,13 @@ class Simulation:
 
         timestep = Timestep(self, self.ntimesteps, timestep_procedures)
         self.enter(timestep.block)
-        timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1))
+        timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1, self.vtk_frequency))
         self.leave()
 
         body = Block.from_list(self, [
             self.setups,
             BuildCellListsStencil(self, self.cell_lists),
-            VTKWrite(self, self.vtk_file, 0),
+            VTKWrite(self, self.vtk_file, 0, self.vtk_frequency),
             timestep.as_block()
         ])
 

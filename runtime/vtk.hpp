@@ -8,12 +8,16 @@
 
 namespace pairs {
 
-void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int end, int timestep) {
+void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int end, int timestep, int frequency) {
     std::string output_filename(filename);
     auto masses = ps->getAsFloatProperty(ps->getPropertyByName("mass"));
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));
     const int n = end - start;
     std::ostringstream filename_oss;
+
+    if(frequency != 0 && timestep % frequency != 0) {
+        return;
+    }
 
     filename_oss << filename << "_";
     if(ps->getDomainPartitioner()->getWorldSize() > 1) {

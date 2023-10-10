@@ -162,7 +162,7 @@ psim.read_particle_data(
     pairs.halfspace())
 
 psim.build_neighbor_lists(linkedCellWidth + skin)
-psim.vtk_output(f"output/dem_{target}")
+psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 psim.compute(linear_spring_dashpot, linkedCellWidth + skin, symbols={'dt': dt_SI})
 psim.compute(euler, symbols={'dt': dt_SI})
 psim.compute(gravity, symbols={'densityParticle_SI': densityParticle_SI,
