@@ -16,7 +16,7 @@ class ReadParticleData(Lowerable):
 
     @pairs_inline
     def lower(self):
-        Assign(self.sim, self.sim.nlocal, Call_Int(self.sim, "pairs::read_particle_data", [self.filename, self.attrs, self.attrs.length(), self.shape_id]))
+        Assign(self.sim, self.sim.nlocal, Call_Int(self.sim, "pairs::read_particle_data", [self.filename, self.attrs, self.attrs.length(), self.shape_id, self.sim.nlocal]))
 
 
 class ReadFeatureData(Lowerable):

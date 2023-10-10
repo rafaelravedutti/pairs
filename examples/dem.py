@@ -113,7 +113,7 @@ minDiameter_SI = diameter_SI * 0.9
 maxDiameter_SI = diameter_SI * 1.1
 linkedCellWidth = 1.01 * maxDiameter_SI
 
-skin = 0.1
+skin = 0.003
 ntypes = 1
 
 meff = 0.5 # 1.0 / (inv_mass[i] + inv_mass[j])
@@ -126,7 +126,7 @@ dampingTan = math.sqrt(kappa) * dampingNorm
 frictionStatic = frictionCoefficient # TODO: check if this is correct
 frictionDynamic = frictionCoefficient
 
-psim = pairs.simulation("dem", debug=True)
+psim = pairs.simulation("dem", debug=True, timesteps=timeSteps)
 psim.add_position('position')
 psim.add_property('mass', pairs.double(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
@@ -162,7 +162,7 @@ psim.read_particle_data(
     pairs.halfspace())
 
 psim.build_neighbor_lists(linkedCellWidth + skin)
-psim.vtk_output(f"output/test_{target}")
+psim.vtk_output(f"output/dem_{target}")
 psim.compute(linear_spring_dashpot, linkedCellWidth + skin, symbols={'dt': dt_SI})
 psim.compute(euler, symbols={'dt': dt_SI})
 psim.compute(gravity, symbols={'densityParticle_SI': densityParticle_SI,

@@ -26,7 +26,7 @@ sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
 
-psim = pairs.simulation("lj", debug=True)
+psim = pairs.simulation("lj", debug=True, timesteps=200)
 psim.add_position('position')
 psim.add_property('mass', pairs.double(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
@@ -38,7 +38,7 @@ psim.add_feature_property('type', 'sigma6', pairs.double(), [epsilon for i in ra
 psim.set_domain(0.0, 0.0, 0.0, 53.747078, 53.747078, 53.747078)
 psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'flags'], pairs.sphere())
 psim.build_neighbor_lists(cutoff_radius + skin)
-psim.vtk_output(f"output/test_{target}")
+psim.vtk_output(f"output/lj_{target}")
 psim.compute(lj, cutoff_radius)
 psim.compute(euler, symbols={'dt': dt})
 

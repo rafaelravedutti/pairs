@@ -30,11 +30,11 @@ void read_grid_data(PairsSimulation *ps, const char *filename, double *grid_buff
     }
 }
 
-size_t read_particle_data(PairsSimulation *ps, const char *filename, const property_t properties[], size_t nprops, int shape_id) {
+size_t read_particle_data(PairsSimulation *ps, const char *filename, const property_t properties[], size_t nprops, int shape_id, int start) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
     auto shape_ptr = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
-    size_t n = 0;
+    size_t n = start;
 
     if(in_file.is_open()) {
         //std::getline(in_file, line);
