@@ -7,6 +7,7 @@ class DiscoverBlockVariants(Visitor):
         super().__init__(ast, visit_nodes_once=False)
         self.in_assignment = None
         self.blocks = []
+        self.visited_accesses = set()
 
     def push_variant(self, ast_node):
         if self.in_assignment is not None:
@@ -76,6 +77,11 @@ class DiscoverBlockVariants(Visitor):
         # For property accesses, we only want to include the property name, and not
         # the index that is also present in the access node
         self.visit(ast_node.feature_prop)
+
+    def visit_VectorAccess(self, ast_node):
+        if ast_node not in self.visited_accesses:
+            self.visit_children(ast_node)
+            self.visited_accesses.add(ast_node)
 
     def visit_Var(self, ast_node):
         self.push_variant(ast_node)

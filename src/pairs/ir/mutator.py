@@ -5,7 +5,7 @@ class Mutator:
     def __init__(self, ast=None, max_depth=0):
         self.ast = ast
         self.max_depth = 0
-        self.visited_nodes = []
+        self.visited_nodes = set()
 
     def set_ast(self, ast):
         self.ast = ast
@@ -19,9 +19,10 @@ class Mutator:
             ast_node = self.ast
 
         terminal_node = util.is_terminal(ast_node)
-        if terminal_node or ast_node not in self.visited_nodes:
+        node_id = id(ast_node)
+        if terminal_node or node_id not in self.visited_nodes:
             if not terminal_node:
-                self.visited_nodes.append(ast_node)
+                self.visited_nodes.add(node_id)
 
             method = self.get_method(f"mutate_{type(ast_node).__name__}")
             if method is not None:

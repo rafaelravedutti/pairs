@@ -8,7 +8,7 @@ class Visitor:
         self.max_depth = max_depth
         self.breadth_first = breadth_first
         self.visit_nodes_once = visit_nodes_once
-        self.visited_nodes = []
+        self.visited_nodes = set()
 
     def __iter__(self):
         if self.breadth_first:
@@ -21,7 +21,7 @@ class Visitor:
         self.ast = ast
 
     def clear_visited_nodes(self):
-        self.visited_nodes = []
+        self.visited_nodes = set()
 
     def get_method(self, method_name):
         method = getattr(self, method_name, None)
@@ -38,10 +38,11 @@ class Visitor:
             terminal_node = util.is_terminal(node)
             if not terminal_node:
                 if self.visit_nodes_once:
-                    if node in self.visited_nodes:
+                    node_id = id(node)
+                    if node_id in self.visited_nodes:
                         continue
 
-                    self.visited_nodes.append(node)
+                    self.visited_nodes.add(node_id)
 
             method = self.get_method(f"visit_{type(node).__name__}")
             if method is not None:
