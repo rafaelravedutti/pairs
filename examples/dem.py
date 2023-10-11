@@ -4,7 +4,8 @@ import sys
 
 
 def linear_spring_dashpot(i, j):
-    skip_when(penetration_depth(i, j) >= 0.0)
+    delta_ij = -penetration_depth
+    skip_when(delta_ij < 0.0)
 
     velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point(i, j) - position[i])
     velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point(i, j) - position[j])
@@ -12,7 +13,7 @@ def linear_spring_dashpot(i, j):
     rel_vel = -velocity_wf_i - velocity_wf_j
     rel_vel_n = dot(rel_vel, contact_normal(i, j)) * contact_normal(i, j)
     rel_vel_t = rel_vel - rel_vel_n
-    fN = stiffness_norm[i, j] * (-penetration_depth(i, j)) * contact_normal(i, j) + damping_norm[i, j] * rel_vel_n;
+    fN = stiffness_norm[i, j] * delta_ij * contact_normal(i, j) + damping_norm[i, j] * rel_vel_n;
 
     tan_spring_disp = tangential_spring_displacement[i, j]
     impact_vel_magnitude = impact_velocity_magnitude[i, j]
@@ -49,7 +50,11 @@ def linear_spring_dashpot(i, j):
 
     fTabs = min(fTLS_len, f_friction_abs)
     fT = fTabs * t
-    force[i] += fN + fT
+    partial_force = fN + fT
+    partial_torque = cross(contact_point(i, j) - position[i], partial_force)
+
+    force[i] += partial_force
+    torque[i] += partial_torque
 
 
 def euler(i):
@@ -132,6 +137,7 @@ psim.add_property('mass', pairs.double(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('angular_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), volatile=True)
+psim.add_property('torque', pairs.vector(), volatile=True)
 psim.add_property('radius', pairs.double(), 1.0)
 psim.add_property('normal', pairs.vector())
 psim.add_feature('type', ntypes)
