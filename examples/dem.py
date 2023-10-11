@@ -4,7 +4,7 @@ import sys
 
 
 def linear_spring_dashpot(i, j):
-    delta_ij = -penetration_depth
+    delta_ij = -penetration_depth(i, j)
     skip_when(delta_ij < 0.0)
 
     velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point(i, j) - position[i])
