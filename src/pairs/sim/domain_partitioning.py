@@ -23,6 +23,9 @@ class DimensionRanges:
         return [step * 2 + 0, step * 2 + 1]
 
     def ghost_particles(self, step, position, offset=0.0):
+        if self.sim._pbc[step] is False:
+            return
+
         # Particles with one of the following flags are ignored
         flags_to_exclude = (Flags.Infinite | Flags.Fixed | Flags.Global)
 

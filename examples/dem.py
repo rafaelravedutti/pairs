@@ -146,6 +146,7 @@ psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0
 psim.add_contact_property('impact_velocity_magnitude', pairs.double(), 0.0)
 
 psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
+psim.pbc([True, True, False])
 psim.read_particle_data(
     "data/spheres.input",
     ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
@@ -163,12 +164,12 @@ psim.read_particle_data(
 
 psim.build_neighbor_lists(linkedCellWidth + skin)
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
+#psim.compute(gravity, symbols={'densityParticle_SI': densityParticle_SI,
+#                               'densityFluid_SI': densityFluid_SI,
+#                               'gravity_SI': gravity_SI,
+#                               'pi': math.pi })
 psim.compute(linear_spring_dashpot, linkedCellWidth + skin, symbols={'dt': dt_SI})
 psim.compute(euler, symbols={'dt': dt_SI})
-psim.compute(gravity, symbols={'densityParticle_SI': densityParticle_SI,
-                               'densityFluid_SI': densityFluid_SI,
-                               'gravity_SI': gravity_SI,
-                               'pi': math.pi })
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())

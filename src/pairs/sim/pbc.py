@@ -23,8 +23,9 @@ class EnforcePBC(Lowerable):
         for i in ParticleFor(sim):
             # TODO: VecFilter?
             for d in range(0, ndims):
-                for _ in Filter(sim, positions[i][d] < grid.min(d)):
-                    Assign(sim, positions[i][d], positions[i][d] + grid.length(d)) 
+                if sim._pbc[d] is True:
+                    for _ in Filter(sim, positions[i][d] < grid.min(d)):
+                        Assign(sim, positions[i][d], positions[i][d] + grid.length(d)) 
 
-                for _ in Filter(sim, positions[i][d] > grid.max(d)):
-                    Assign(sim, positions[i][d], positions[i][d] - grid.length(d)) 
+                    for _ in Filter(sim, positions[i][d] > grid.max(d)):
+                        Assign(sim, positions[i][d], positions[i][d] - grid.length(d)) 

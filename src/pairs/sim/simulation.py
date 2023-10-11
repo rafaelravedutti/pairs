@@ -68,10 +68,12 @@ class Simulation:
         self.ntimesteps = timesteps
         self.expr_id = 0
         self.iter_id = 0
+        self.reneighbor_frequency = 1
         self.vtk_file = None
         self.vtk_frequency = 0
         self._target = None
         self._dom_part = DimensionRanges(self)
+        self._pbc = [True for _ in range(dims)]
 
     def max_shapes(self):
         return 2
@@ -106,6 +108,10 @@ class Simulation:
 
     def ndims(self):
         return self.dims
+
+    def pbc(self, pbc_config):
+        assert len(pbc_config) == self.dims, "PBC must be specified for each dimension."
+        self._pbc = pbc_config
 
     def add_property(self, prop_name, prop_type, value=0.0, volatile=False):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
@@ -172,6 +178,9 @@ class Simulation:
     def set_domain(self, grid):
         self.grid = Grid3D(self, grid[0], grid[1], grid[2], grid[3], grid[4], grid[5])
         self.setups.add_statement(InitializeDomain(self))
+
+    def reneighbor_every(self, frequency):
+        self.reneighbor_frequency = frequency
 
     def create_particle_lattice(self, grid, spacing, props={}):
         self.setups.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
@@ -267,16 +276,16 @@ class Simulation:
         comm = Comm(self, self._dom_part)
 
         timestep_procedures = [
-            (comm.exchange(), 20),
-            (comm.borders(), comm.synchronize(), 20),
-            (BuildCellLists(self, self.cell_lists), 20),
-            (PartitionCellLists(self, self.cell_lists), 20),
-            (BuildNeighborLists(self, self.neighbor_lists), 20),
+            (comm.exchange(), self.reneighbor_frequency),
+            (comm.borders(), comm.synchronize(), self.reneighbor_frequency),
+            (BuildCellLists(self, self.cell_lists), self.reneighbor_frequency),
+            (PartitionCellLists(self, self.cell_lists), self.reneighbor_frequency),
+            (BuildNeighborLists(self, self.neighbor_lists), self.reneighbor_frequency),
         ]
 
         if not self.contact_properties.empty():
             contact_history = ContactHistory(self.cell_lists)
-            timestep_procedures.append((BuildContactHistory(self, contact_history), 20))
+            timestep_procedures.append((BuildContactHistory(self, contact_history), self.reneighbor_frequency))
 
         timestep_procedures += [
             ResetVolatileProperties(self),

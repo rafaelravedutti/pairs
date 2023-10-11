@@ -101,11 +101,13 @@ class BuildParticleIR(ast.NodeVisitor):
     def visit_AugAssign(self, node):
         lhs = self.visit(node.target)
         rhs = self.visit(node.value)
+        op_class = VectorOp if Types.Vector in [lhs.type(), rhs.type()] else ScalarOp
+        bin_op = op_class(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
 
         if isinstance(lhs, UndefinedSymbol):
-            self.add_symbols({lhs.symbol_id: rhs})
+            self.add_symbols({lhs.symbol_id: bin_op})
         else:
-            Assign(self.sim, lhs, lhs + rhs)
+            Assign(self.sim, lhs, bin_op)
 
     def visit_BinOp(self, node):
         #print(ast.dump(node))

@@ -37,6 +37,7 @@ psim.add_feature_property('type', 'sigma6', pairs.double(), [epsilon for i in ra
 #psim.set_domain(0.0, 0.0, 0.0, 6.7184, 6.7184, 6.7184) # for 4x4x4 setup
 psim.set_domain(0.0, 0.0, 0.0, 53.747078, 53.747078, 53.747078)
 psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'flags'], pairs.sphere())
+psim.reneighbor_every(20)
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/lj_{target}")
 psim.compute(lj, cutoff_radius)
