@@ -112,7 +112,7 @@ class DetermineExpressionsOwnership(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
         self.ownership = {}
-        self.expressions_to_lift = []
+        self.expressions_to_lift = set()
         self.block_location = {}
         self.block_level = {}
         self.block_statement = {}
@@ -158,7 +158,7 @@ class DetermineExpressionsOwnership(Visitor):
                 self.ownership[ast_node] = common_ownership
 
                 if ast_node not in self.expressions_to_lift:
-                    self.expressions_to_lift.append(ast_node)
+                    self.expressions_to_lift.add(ast_node)
 
     def visit_Block(self, ast_node):
         self.block_location[ast_node] = self.location()
