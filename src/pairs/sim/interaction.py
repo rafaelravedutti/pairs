@@ -129,6 +129,7 @@ class ParticleInteraction(Lowerable):
         super().__init__(sim)
         self.nbody = nbody
         self.cutoff_radius = cutoff_radius
+        self.contact_threshold = 0.0
         self.use_cell_lists = use_cell_lists
         self.ncases = NeighborFor.number_of_cases(sim, use_cell_lists)
         self.interactions_data = []
@@ -174,7 +175,7 @@ class ParticleInteraction(Lowerable):
                             squared_distance = delta.x() * delta.x() + \
                                                delta.y() * delta.y() + \
                                                delta.z() * delta.z()
-                            separation_dist = radius[i] + radius[j] + self.cutoff_radius
+                            separation_dist = radius[i] + radius[j] + self.contact_threshold
                             cutoff_condition = squared_distance < separation_dist * separation_dist
                             distance = Sqrt(self.sim, squared_distance)
                             penetration_depth = distance - radius[i] - radius[j]
@@ -192,7 +193,7 @@ class ParticleInteraction(Lowerable):
                                 normal[j][2] * position[i][2]
 
                             penetration_depth = k - radius[i] - d
-                            cutoff_condition = penetration_depth < self.cutoff_radius
+                            cutoff_condition = penetration_depth < self.contact_threshold
                             tmp = radius[i] + penetration_depth
                             contact_normal = normal[j]
                             contact_point = position[i] - Vector(self.sim, [tmp, tmp, tmp]) * normal[j]
