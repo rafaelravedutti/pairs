@@ -122,18 +122,20 @@ class PartitionCellLists(Lowerable):
             end = self.sim.add_temp_var(0)
 
             for shape in For(self.sim, 0, self.sim.max_shapes()):
+                shape_start = self.sim.add_temp_var(start)
                 Assign(self.sim, end, self.cell_lists.cell_sizes[cell] - 1)
 
-                for _ in While(self.sim, start < end):
+                for _ in While(self.sim, start <= end):
                     particle = cell_particles[cell][start]
 
                     for unmatch in Branch(self.sim, ScalarOp.neq(self.sim.particle_shape[particle], shape)):
                         if unmatch:
-                            Assign(self.sim, cell_particles[cell][start], cell_particles[cell][end])
-                            Assign(self.sim, cell_particles[cell][end], particle)
+                            for _ in Filter(self.sim, ScalarOp.neq(start, end)):
+                                Assign(self.sim, cell_particles[cell][start], cell_particles[cell][end])
+                                Assign(self.sim, cell_particles[cell][end], particle)
+
                             Assign(self.sim, end, end - 1)
 
                         else:
                             Assign(self.sim, start, start + 1)
-
-                    Assign(self.sim, self.cell_lists.nshapes[cell][shape], start)
+                            Assign(self.sim, self.cell_lists.nshapes[cell][shape], start - shape_start)

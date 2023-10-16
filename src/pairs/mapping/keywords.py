@@ -79,6 +79,7 @@ class Keywords:
         length = self.keyword_length([vector])
         inv_length = Lit(self.sim, 1.0) / length
         return Select(self.sim, length > Lit(self.sim, 0.0), vector * inv_length, ZeroVector(self.sim))
+        #return vector * inv_length
 
     def keyword_squared_length(self, args):
         assert len(args) == 1, "length() keyword requires one parameter!"

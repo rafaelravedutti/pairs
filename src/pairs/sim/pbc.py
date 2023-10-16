@@ -20,12 +20,16 @@ class EnforcePBC(Lowerable):
         positions = sim.position()
         sim.module_name("enforce_pbc")
 
-        for i in ParticleFor(sim):
-            # TODO: VecFilter?
-            for d in range(0, ndims):
-                if sim._pbc[d] is True:
-                    for _ in Filter(sim, positions[i][d] < grid.min(d)):
-                        Assign(sim, positions[i][d], positions[i][d] + grid.length(d)) 
+        # Particles with one of the following flags are ignored
+        flags_to_exclude = (Flags.Infinite | Flags.Fixed | Flags.Global)
 
-                    for _ in Filter(sim, positions[i][d] > grid.max(d)):
-                        Assign(sim, positions[i][d], positions[i][d] - grid.length(d)) 
+        for i in ParticleFor(sim):
+            for _ in Filter(self.sim, ScalarOp.cmp(self.sim.particle_flags[i] & flags_to_exclude, 0)):
+                # TODO: VecFilter?
+                for d in range(0, ndims):
+                    if sim._pbc[d] is True:
+                        for _ in Filter(sim, positions[i][d] < grid.min(d)):
+                            Assign(sim, positions[i][d], positions[i][d] + grid.length(d))
+
+                        for _ in Filter(sim, positions[i][d] > grid.max(d)):
+                            Assign(sim, positions[i][d], positions[i][d] - grid.length(d))
