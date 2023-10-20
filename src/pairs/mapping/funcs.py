@@ -300,4 +300,4 @@ def setup(sim, func, symbols={}):
         ir.add_symbols({params[0]: i})
         ir.visit(tree)
 
-    sim.build_module_with_statements()
+    sim.build_setup_module_with_statements()
