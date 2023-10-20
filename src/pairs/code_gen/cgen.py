@@ -290,7 +290,7 @@ class CGen:
                 prop_name = self.generate_expression(contact_prop)
                 acc_ref = f"cp{contact_prop_access.id()}"
 
-                if contact_prop_access.is_vector():
+                if not contact_prop_access.is_scalar():
                     for dim in contact_prop_access.indexes_to_generate():
                         expr = self.generate_expression(contact_prop_access.vector_index(dim))
                         self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
@@ -306,7 +306,7 @@ class CGen:
                 prop_name = self.generate_expression(feature_prop)
                 acc_ref = f"f{feature_prop_access.id()}"
 
-                if feature_prop_access.is_vector():
+                if not feature_prop_access.is_scalar():
                     for dim in feature_prop_access.indexes_to_generate():
                         expr = self.generate_expression(feature_prop_access.vector_index(dim))
                         self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
@@ -321,7 +321,7 @@ class CGen:
                 prop_name = self.generate_expression(prop_access.prop)
                 acc_ref = f"p{prop_access.id()}"
 
-                if prop_access.is_vector():
+                if not prop_access.is_scalar():
                     for dim in prop_access.indexes_to_generate():
                         expr = self.generate_expression(prop_access.vector_index(dim))
                         self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
@@ -365,7 +365,7 @@ class CGen:
                 select = ast_node.elem
                 acc_ref = f"s{select.id()}"
 
-                if select.is_vector():
+                if not select.is_scalar():
                     for dim in select.indexes_to_generate():
                         cond = self.generate_expression(select.cond, index=dim)
                         expr_if = self.generate_expression(select.expr_if, index=dim)
@@ -821,34 +821,46 @@ class CGen:
             return ast_node.name()
 
         if isinstance(ast_node, PropertyAccess):
-            assert not ast_node.is_vector() or index is not None, "Index must be set for vector property access!"
+            assert ast_node.is_scalar() or index is not None, \
+                "Index must be set for non-scalar property access."
             prop_name = self.generate_expression(ast_node.prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = self.generate_expression(ast_node.index if not ast_node.is_vector() else ast_node.vector_index(index))
+                index_expr = self.generate_expression(
+                    ast_node.index if ast_node.is_scalar() else \
+                    ast_node.vector_index(index))
+
                 return f"{prop_name}[{index_expr}]"
 
-            return f"p{ast_node.id()}" + (f"_{index}" if ast_node.is_vector() else "")
+            return f"p{ast_node.id()}" + (f"_{index}" if not ast_node.is_scalar() else "")
 
         if isinstance(ast_node, ContactPropertyAccess):
-            assert not ast_node.is_vector() or index is not None, "Index must be set for vector property access!"
+            assert ast_node.is_scalar() or index is not None, \
+                "Index must be set for non-scalar property access."
             prop_name = self.generate_expression(ast_node.contact_prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = self.generate_expression(ast_node.index if not ast_node.is_vector() else ast_node.vector_index(index))
+                index_expr = self.generate_expression(
+                    ast_node.index if ast_node.is_scalar() else \
+                    ast_node.vector_index(index))
+
                 return f"{prop_name}[{index_expr}]"
 
-            return f"cp{ast_node.id()}" + (f"_{index}" if ast_node.is_vector() else "")
+            return f"cp{ast_node.id()}" + (f"_{index}" if not ast_node.is_scalar() else "")
 
         if isinstance(ast_node, FeaturePropertyAccess):
-            assert not ast_node.is_vector() or index is not None, "Index must be set for vector property access!"
+            assert ast_node.is_scalar() or index is not None, \
+                "Index must be set for non-scalar property access."
             feature_name = self.generate_expression(ast_node.feature_prop)
 
             if mem or ast_node.inlined is True:
-                index_expr = self.generate_expression(ast_node.index if not ast_node.is_vector() else ast_node.vector_index(index))
+                index_expr = self.generate_expression(
+                    ast_node.index if ast_node.is_scalar() else \
+                    ast_node.vector_index(index))
+
                 return f"{feature_name}[{index_expr}]"
 
-            return f"f{ast_node.id()}" + (f"_{index}" if ast_node.is_vector() else "")
+            return f"f{ast_node.id()}" + (f"_{index}" if not ast_node.is_scalar() else "")
 
         if isinstance(ast_node, ParticleAttributeList):
             tid = CGen.temp_id
@@ -873,17 +885,14 @@ class CGen:
                 expr_else = self.generate_expression(ast_node.expr_else, index=index)
                 return f"(({cond}) ? ({expr_if}) : ({expr_else}))"
 
-            if ast_node.is_vector():
-                assert index is not None, "Index must be set for vector reference!"
+            if not ast_node.is_scalar():
+                assert index is not None, "Index must be set for non-scalar reference."
                 return f"s{ast_node.id()}_{index}"
 
             return f"s{ast_node.id()}"
 
         if isinstance(ast_node, Var):
-            if ast_node.is_vector():
-                return f"{ast_node.name()}_{index}"
-
-            return ast_node.name()
+            return ast_node.name() if ast_node.is_scalar() else f"{ast_node.name()}_{index}"
 
         if isinstance(ast_node, VectorAccess):
             return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
