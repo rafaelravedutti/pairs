@@ -5,9 +5,11 @@ from pairs.ir.loops import Continue
 from pairs.ir.math import Abs, Cos, Sin, Sqrt
 from pairs.ir.matrices import Matrix
 from pairs.ir.quaternions import Quaternion
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.ir.vectors import Vector, ZeroVector
+from pairs.sim.shapes import Shapes
 
 
 class Keywords:
@@ -26,6 +28,18 @@ class Keywords:
     def exists(self, keyword):
         method = self.get_method(f"keyword_{keyword}")
         return method is not None
+
+    def keyword_is_sphere(self, args):
+        assert len(args) == 1, "is_sphere() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.Sphere)
+
+    def keyword_is_halfspace(self, args):
+        assert len(args) == 1, "is_sphere() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.Halfspace)
 
     def keyword_select(self, args):
         assert len(args) == 3, "select() keyword requires three parameters!"
@@ -84,22 +98,41 @@ class Keywords:
         #return vector * inv_length
 
     def keyword_squared_length(self, args):
-        assert len(args) == 1, "length() keyword requires one parameter!"
+        assert len(args) == 1, "length() keyword requires one parameter."
         vector = args[0]
-        assert vector.type() == Types.Vector, "length(): Argument must be a vector!"
+        assert vector.type() == Types.Vector, "length(): Argument must be a vector."
         return sum([vector[d] * vector[d] for d in range(self.sim.ndims())])
 
     def keyword_zero_vector(self, args):
-        assert len(args) == 0, "zero_vector() keyword requires no parameter!"
+        assert len(args) == 0, "zero_vector() keyword requires no parameter."
         return ZeroVector(self.sim)
 
     def keyword_transposed(self, args):
-        assert len(args) == 1, "transposed() keyword requires one parameter!"
+        assert len(args) == 1, "transposed() keyword requires one parameter."
         matrix = args[0]
-        assert matrix.type() == Types.Matrix, "tranposed(): Argument must be a matrix!"
+        assert matrix.type() == Types.Matrix, "tranposed(): Argument must be a matrix."
         return Matrix(self.sim, [ matrix[0], matrix[3], matrix[6],
                                   matrix[1], matrix[4], matrix[7],
                                   matrix[2], matrix[5], matrix[8] ])
+
+    def keyword_inversed(self, args):
+        assert len(args) == 1, "inversed() keyword requires one parameter."
+        matrix = args[0]
+        assert matrix.type() == Types.Matrix, "inversed(): Argument must be a matrix."
+        det = matrix[0] * ((matrix[4] * matrix[8]) - (matrix[7] * matrix[5])) + \
+              matrix[1] * ((matrix[5] * matrix[6]) - (matrix[8] * matrix[3])) + \
+              matrix[2] * ((matrix[3] * matrix[7]) - (matrix[4] * matrix[6]))
+
+        inv_det = 1.0 / det
+        return Matrix(self.sim, [ inv_det * ((matrix[4] * matrix[8]) - (matrix[5] * matrix[7])),
+                                  inv_det * ((matrix[7] * matrix[2]) - (matrix[8] * matrix[1])),
+                                  inv_det * ((matrix[1] * matrix[5]) - (matrix[2] * matrix[4])),
+                                  inv_det * ((matrix[5] * matrix[6]) - (matrix[3] * matrix[8])),
+                                  inv_det * ((matrix[8] * matrix[0]) - (matrix[6] * matrix[2])),
+                                  inv_det * ((matrix[2] * matrix[3]) - (matrix[0] * matrix[5])),
+                                  inv_det * ((matrix[3] * matrix[7]) - (matrix[4] * matrix[6])),
+                                  inv_det * ((matrix[6] * matrix[1]) - (matrix[7] * matrix[0])),
+                                  inv_det * ((matrix[0] * matrix[4]) - (matrix[1] * matrix[3])) ])
 
     def keyword_diagonal_matrix(self, args):
         assert len(args) == 1, "diagonal_matrix() keyword requires one parameter!"

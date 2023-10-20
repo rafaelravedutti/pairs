@@ -1,3 +1,4 @@
+import math
 from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd
 from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray
@@ -56,6 +57,7 @@ class CGen:
         if self.target.is_gpu():
             self.print("#define PAIRS_TARGET_CUDA")
 
+        self.print("#include <limits.h>")
         self.print("#include <math.h>")
         self.print("#include <stdbool.h>")
         self.print("#include <stdio.h>")
@@ -805,6 +807,9 @@ class CGen:
             if not ast_node.is_scalar():
                 assert index is not None, "Index must be set for non-scalar literals."
                 return ast_node.value[index]
+
+            if isinstance(ast_node.value, float) and math.isinf(ast_node.value):
+                return "std::numeric_limits<double>::infinity()"
 
             return ast_node.value
 

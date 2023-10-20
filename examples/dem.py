@@ -4,8 +4,13 @@ import sys
 
 
 def update_mass_and_inertia(i):
-    mass[i] = (4.0 / 3.0) * pi * radius[i] * radius[i] * radius[i] * densityParticle_SI
-    inv_inertia[i] = diagonal_matrix(1.0 / (0.4 * mass[i] * radius[i] * radius[i]))
+    if is_sphere(i):
+        mass[i] = ((4.0 / 3.0) * pi) * radius[i] * radius[i] * radius[i] * densityParticle_SI
+        inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
+
+    else:
+        mass[i] = infinity
+        inv_inertia[i] = 0.0
 
 
 def linear_spring_dashpot(i, j):
@@ -161,7 +166,8 @@ psim.read_particle_data(
     pairs.halfspace())
 
 psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
-                                     'pi': math.pi })
+                                     'pi': math.pi,
+                                     'infinity': math.inf })
 
 psim.build_neighbor_lists(linkedCellWidth + skin)
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
