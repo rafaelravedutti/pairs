@@ -141,6 +141,22 @@ class Mutator:
         ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         return ast_node
 
+    def mutate_Quaternion(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        return ast_node
+
+    def mutate_QuaternionAccess(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
+    def mutate_QuaternionOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        return ast_node
+
     def mutate_Malloc(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
         ast_node.size = self.mutate(ast_node.size)
@@ -148,6 +164,22 @@ class Mutator:
 
     def mutate_MathFunction(self, ast_node):
         ast_node._params = [self.mutate(p) for p in ast_node._params]
+        return ast_node
+
+    def mutate_Matrix(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        return ast_node
+
+    def mutate_MatrixAccess(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
+    def mutate_MatrixOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         return ast_node
 
     def mutate_Module(self, ast_node):

@@ -65,6 +65,51 @@ class Sqrt(MathFunction):
         return self._params[0].type()
 
 
+class Abs(MathFunction):
+    def __init__(self, sim, expr):
+        super().__init__(sim)
+        self._params = [expr]
+
+    def __str__(self):
+        return f"Abs<{self._params}>"
+
+    def function_name(self):
+        return "fabs"
+
+    def type(self):
+        return self._params[0].type()
+
+
+class Sin(MathFunction):
+    def __init__(self, sim, expr):
+        super().__init__(sim)
+        self._params = [expr]
+
+    def __str__(self):
+        return f"Sin<{self._params}>"
+
+    def function_name(self):
+        return "sin"
+
+    def type(self):
+        return self._params[0].type()
+
+
+class Cos(MathFunction):
+    def __init__(self, sim, expr):
+        super().__init__(sim)
+        self._params = [expr]
+
+    def __str__(self):
+        return f"Cos<{self._params}>"
+
+    def function_name(self):
+        return "cos"
+
+    def type(self):
+        return self._params[0].type()
+
+
 class Ceil(MathFunction):
     def __init__(self, sim, expr):
         assert Types.is_real(expr.type()), "Expression must be of real type!"

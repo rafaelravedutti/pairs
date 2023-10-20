@@ -23,6 +23,10 @@ class AllocateProperties(FinalLowerable):
                 sizes = [self.sim.particle_capacity]
             elif p.type() == Types.Vector:
                 sizes = [self.sim.particle_capacity, self.sim.ndims()]
+            elif p.type() == Types.Matrix:
+                sizes = [self.sim.particle_capacity, self.sim.ndims() * self.sim.ndims()]
+            elif p.type() == Types.Quaternion:
+                sizes = [self.sim.particle_capacity, self.sim.ndims() + 1]
             else:
                 raise Exception("Invalid property type!")
 
@@ -44,6 +48,10 @@ class AllocateContactProperties(FinalLowerable):
                 sizes = [self.sim.particle_capacity * self.sim.neighbor_capacity]
             elif p.type() == Types.Vector:
                 sizes = [self.sim.particle_capacity * self.sim.neighbor_capacity, self.sim.ndims()]
+            elif p.type() == Types.Matrix:
+                sizes = [self.sim.particle_capacity * self.sim.neighbor_capacity, self.sim.ndims() * self.sim.ndims()]
+            elif p.type() == Types.Quaternion:
+                sizes = [self.sim.particle_capacity * self.sim.neighbor_capacity, self.sim.ndims() + 1]
             else:
                 raise Exception("Invalid contact property type!")
 

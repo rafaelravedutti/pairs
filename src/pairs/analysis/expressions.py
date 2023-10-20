@@ -1,4 +1,6 @@
 from pairs.ir.scalars import ScalarOp
+from pairs.ir.quaternions import QuaternionOp
+from pairs.ir.matrices import MatrixOp
 from pairs.ir.vectors import VectorOp
 from pairs.ir.visitor import Visitor
 
@@ -52,6 +54,18 @@ class DetermineExpressionsTerminals(Visitor):
     def visit_VectorOp(self, ast_node):
         self.traverse_expression(ast_node)
 
+    def visit_Matrix(self, ast_node):
+        self.traverse_expression(ast_node)
+
+    def visit_MatrixOp(self, ast_node):
+        self.traverse_expression(ast_node)
+
+    def visit_Quaternion(self, ast_node):
+        self.traverse_expression(ast_node)
+
+    def visit_QuaternionOp(self, ast_node):
+        self.traverse_expression(ast_node)
+
     def visit_Array(self, ast_node):
         self.push_terminal(ast_node)
 
@@ -87,13 +101,21 @@ class ResetInPlaceOperations(Visitor):
         ast_node.in_place = True
         self.visit_children(ast_node)
 
+    def visit_MatrixOp(self, ast_node):
+        ast_node.in_place = True
+        self.visit_children(ast_node)
+
+    def visit_QuaternionOp(self, ast_node):
+        ast_node.in_place = True
+        self.visit_children(ast_node)
+
 
 class DetermineInPlaceOperations(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
 
     def visit_Decl(self, ast_node):
-        if isinstance(ast_node.elem, (ScalarOp, VectorOp)):
+        if isinstance(ast_node.elem, (ScalarOp, VectorOp, MatrixOp, QuaternionOp)):
             ast_node.elem.in_place = False
 
 

@@ -171,7 +171,8 @@ class ReplaceModulesByCalls(Mutator):
                 if capacity == sim.particle_capacity:
                     for p in properties.all():
                         new_capacity = sim.particle_capacity
-                        sizes = [new_capacity, sim.ndims()] if p.type() == Types.Vector else [new_capacity]
+                        sizes = [new_capacity] if Types.is_scalar(p.type()) else \
+                                [new_capacity, Types.number_of_elements(sim, p.type())]
                         props_realloc += [ReallocProperty(sim, p, sizes)]
 
                 resize_stmts.append(

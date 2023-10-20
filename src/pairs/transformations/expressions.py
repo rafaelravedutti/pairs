@@ -249,6 +249,48 @@ class AddExpressionDeclarations(Mutator):
 
         return ast_node
 
+    def mutate_Matrix(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        matrix_id = id(ast_node)
+        if matrix_id not in self.declared_exprs and matrix_id not in self.params:
+            self.push_decl(Decl(ast_node.sim, ast_node))
+            self.declared_exprs.append(matrix_id)
+
+        return ast_node
+
+    def mutate_MatrixOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        matrix_op_id = id(ast_node)
+        if matrix_op_id not in self.declared_exprs and matrix_op_id not in self.params:
+            self.push_decl(Decl(ast_node.sim, ast_node))
+            self.declared_exprs.append(matrix_op_id)
+
+        return ast_node
+
+    def mutate_Quaternion(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        quat_id = id(ast_node)
+        if quat_id not in self.declared_exprs and quat_id not in self.params:
+            self.push_decl(Decl(ast_node.sim, ast_node))
+            self.declared_exprs.append(quat_id)
+
+        return ast_node
+
+    def mutate_QuaternionOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        quat_op_id = id(ast_node)
+        if quat_op_id not in self.declared_exprs and quat_op_id not in self.params:
+            self.push_decl(Decl(ast_node.sim, ast_node))
+            self.declared_exprs.append(quat_op_id)
+
+        return ast_node
+
     def mutate_ContactPropertyAccess(self, ast_node):
         writing = self.writing
         ast_node.contact_prop = self.mutate(ast_node.contact_prop)

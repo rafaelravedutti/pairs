@@ -10,20 +10,28 @@ class Lit(ASTTerm):
         return Lit(sim, a) if Lit.is_literal(a) else a
 
     def __init__(self, sim, value):
-        type_mapping = {
-            int: Types.Int32,
-            float: Types.Double,
-            bool: Types.Boolean,
-            str: Types.String,
-            list: Types.Vector
-        }
+        if isinstance(value, list):
+            non_scalar_mapping = {
+                sim.ndims(): Types.Vector,
+                sim.ndims() * sim.ndims(): Types.Matrix,
+                sim.ndims() + 1: Types.Quaternion
+            }
 
-        self.lit_type = type_mapping.get(type(value), Types.Invalid)
-        assert self.lit_type != Types.Invalid, "Invalid literal type!"
+            self.lit_type = non_scalar_mapping.get(len(value), Types.Invalid)
 
-        from pairs.ir.scalars import ScalarOp
-        from pairs.ir.vectors import VectorOp
-        super().__init__(sim, VectorOp if self.lit_type == Types.Vector else ScalarOp)
+        else:
+            scalar_mapping = {
+                int: Types.Int32,
+                float: Types.Double,
+                bool: Types.Boolean,
+                str: Types.String,
+            }
+
+            self.lit_type = scalar_mapping.get(type(value), Types.Invalid)
+
+        assert self.lit_type != Types.Invalid, "Invalid literal type."
+        from pairs.ir.operator_class import OperatorClass
+        super().__init__(sim, OperatorClass.from_type(self.lit_type))
         self.value = value
 
     def __str__(self):

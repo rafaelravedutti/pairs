@@ -1,5 +1,7 @@
 from pairs.ir.arrays import ArrayAccess
 from pairs.ir.scalars import ScalarOp
+from pairs.ir.quaternions import QuaternionOp
+from pairs.ir.matrices import MatrixOp
 from pairs.ir.visitor import Visitor
 from pairs.ir.vectors import VectorOp
 
@@ -12,6 +14,8 @@ class FetchKernelReferences(Visitor):
         self.kernel_used_array_accesses = {}
         self.kernel_used_scalar_ops = {}
         self.kernel_used_vector_ops = {}
+        self.kernel_used_matrix_ops = {}
+        self.kernel_used_quat_ops = {}
         self.writing = False
 
     def visit_ArrayAccess(self, ast_node):
@@ -50,12 +54,17 @@ class FetchKernelReferences(Visitor):
         self.kernel_used_array_accesses[kernel_id] = []
         self.kernel_used_scalar_ops[kernel_id] = []
         self.kernel_used_vector_ops[kernel_id] = []
+        self.kernel_used_matrix_ops[kernel_id] = []
+        self.kernel_used_quat_ops[kernel_id] = []
         self.kernel_stack.append(ast_node)
         self.visit_children(ast_node)
         self.kernel_stack.pop()
+
         ast_node.add_array_access([a for a in self.kernel_used_array_accesses[kernel_id] if a not in self.kernel_decls[kernel_id]])
         ast_node.add_scalar_op([b for b in self.kernel_used_scalar_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
         ast_node.add_vector_op([b for b in self.kernel_used_vector_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
+        ast_node.add_matrix_op([b for b in self.kernel_used_matrix_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
+        ast_node.add_quaternion_op([b for b in self.kernel_used_quat_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
 
     def visit_PropertyAccess(self, ast_node):
         # Visit property and save current writing state
@@ -88,7 +97,7 @@ class FetchKernelReferences(Visitor):
         self.writing = writing_state
 
     def visit_Decl(self, ast_node):
-        if isinstance(ast_node.elem, (ArrayAccess, ScalarOp, VectorOp)):
+        if isinstance(ast_node.elem, (ArrayAccess, ScalarOp, VectorOp, MatrixOp, QuaternionOp)):
             for k in self.kernel_stack:
                 self.kernel_decls[k.kernel_id].append(ast_node.elem)
 
@@ -102,6 +111,18 @@ class FetchKernelReferences(Visitor):
     def visit_VectorOp(self, ast_node):
         for k in self.kernel_stack:
             self.kernel_used_vector_ops[k.kernel_id].append(ast_node)
+
+        self.visit_children(ast_node)
+
+    def visit_MatrixOp(self, ast_node):
+        for k in self.kernel_stack:
+            self.kernel_used_matrix_ops[k.kernel_id].append(ast_node)
+
+        self.visit_children(ast_node)
+
+    def visit_QuaternionOp(self, ast_node):
+        for k in self.kernel_stack:
+            self.kernel_used_quat_ops[k.kernel_id].append(ast_node)
 
         self.visit_children(ast_node)
 

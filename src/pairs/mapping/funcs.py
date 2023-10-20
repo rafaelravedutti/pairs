@@ -5,9 +5,9 @@ from pairs.ir.branches import Branch, Filter
 from pairs.ir.lit import Lit
 from pairs.ir.loops import ParticleFor
 from pairs.ir.operators import Operators
+from pairs.ir.operator_class import OperatorClass
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
-from pairs.ir.vectors import VectorOp
 from pairs.mapping.keywords import Keywords
 from pairs.sim.flags import Flags
 from pairs.sim.interaction import ParticleInteraction
@@ -101,7 +101,7 @@ class BuildParticleIR(ast.NodeVisitor):
     def visit_AugAssign(self, node):
         lhs = self.visit(node.target)
         rhs = self.visit(node.value)
-        op_class = VectorOp if Types.Vector in [lhs.type(), rhs.type()] else ScalarOp
+        op_class = OperatorClass.from_type_list([lhs.type(), rhs.type()])
         bin_op = op_class(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
 
         if isinstance(lhs, UndefinedSymbol):
@@ -115,7 +115,16 @@ class BuildParticleIR(ast.NodeVisitor):
         assert not isinstance(lhs, UndefinedSymbol), f"Undefined lhs used in BinOp: {lhs.symbol_id}"
         rhs = self.visit(node.right)
         assert not isinstance(rhs, UndefinedSymbol), f"Undefined rhs used in BinOp: {rhs.symbol_id}"
-        op_class = VectorOp if Types.Vector in [lhs.type(), rhs.type()] else ScalarOp
+        operator = BuildParticleIR.get_binary_op(node.op)
+
+        if operator == Operators.Mul:
+            if Types.Matrix in (lhs.type(), rhs.type()):
+                return self.keywords.keyword_matrix_multiplication([lhs, rhs])
+
+            if Types.Quaternion in (lhs.type(), rhs.type()):
+                return self.keywords.keyword_quaternion_multiplication([lhs, rhs])
+
+        op_class = OperatorClass.from_type_list([lhs.type(), rhs.type()])
         return op_class(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
 
     def visit_BoolOp(self, node):
@@ -149,8 +158,9 @@ class BuildParticleIR(ast.NodeVisitor):
 
         lhs = self.visit(node.left)
         rhs = self.visit(node.comparators[0])
-        op_class = VectorOp if Types.Vector in [lhs.type(), rhs.type()] else ScalarOp
-        return op_class(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.ops[0]))
+        operator = BuildParticleIR.get_binary_op(node.ops[0])
+        op_class = OperatorClass.from_type_list([lhs.type(), rhs.type()])
+        return op_class(self.sim, lhs, rhs, operator)
 
     def visit_If(self, node):
         condition = self.visit(node.test)
@@ -216,7 +226,7 @@ class BuildParticleIR(ast.NodeVisitor):
         operand = self.visit(node.operand)
         assert not isinstance(operand, UndefinedSymbol), \
             f"Undefined operand used in UnaryOp: {operand.symbol_id}"
-        op_class = VectorOp if operand.type() == Types.Vector else ScalarOp
+        op_class = OperatorClass.from_type(operand.type())
         return op_class(self.sim, operand, None, BuildParticleIR.get_unary_op(node.op))
 
 
@@ -262,5 +272,32 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
             })
 
             ir.visit(tree)
+
+    sim.build_module_with_statements()
+
+
+def setup(sim, func, symbols={}):
+    src = inspect.getsource(func)
+    tree = ast.parse(src, mode='exec')
+
+    # Fetch function info
+    info = FetchParticleFuncInfo()
+    info.visit(tree)
+    params = info.params()
+    nparams = info.nparams()
+
+    # Compute functions must have parameters
+    assert nparams == 1, "Number of parameters from setup functions must be one!"
+
+    # Convert literal symbols
+    symbols = {symbol: Lit.cvt(sim, value) for symbol, value in symbols.items()}
+
+    sim.init_block()
+    sim.module_name(func.__name__)
+
+    for i in ParticleFor(sim):
+        ir = BuildParticleIR(sim, symbols)
+        ir.add_symbols({params[0]: i})
+        ir.visit(tree)
 
     sim.build_module_with_statements()

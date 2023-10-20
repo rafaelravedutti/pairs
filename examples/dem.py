@@ -3,6 +3,11 @@ import pairs
 import sys
 
 
+def update_mass_and_inertia(i):
+    mass[i] = (4.0 / 3.0) * pi * radius[i] * radius[i] * radius[i] * densityParticle_SI
+    inv_inertia[i] = diagonal_matrix(1.0 / (0.4 * mass[i] * radius[i] * radius[i]))
+
+
 def linear_spring_dashpot(i, j):
     delta_ij = -penetration_depth(i, j)
     skip_when(delta_ij < 0.0)
@@ -60,6 +65,11 @@ def linear_spring_dashpot(i, j):
 def euler(i):
     linear_velocity[i] += dt * force[i] / mass[i]
     position[i] += dt * linear_velocity[i]
+    wdot = rotation_matrix[i] * (inv_inertia[i] * torque[i]) * transposed(rotation_matrix[i])
+    phi = angular_velocity[i] * dt + wdot * dt * dt
+    rotation_quat[i] = quaternion(phi, length(phi)) * rotation_quat[i]
+    rotation_matrix[i] = quaternion_to_rotation_matrix(rotation_quat[i])
+    angular_velocity[i] += wdot * dt
 
 
 def gravity(i):
@@ -71,28 +81,6 @@ cmd = sys.argv[0]
 target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
 if target != 'cpu' and target != 'gpu':
     print(f"Invalid target, use {cmd} <cpu/gpu>")
-
-
-# BedGeneration {
-#    domainSize_SI < 0.8, 0.015, 0.2 >;
-#    blocks < 3, 3, 1 >;
-#    diameter_SI 0.0029;
-#    gravity_SI 9.81;
-#    densityFluid_SI 1000;
-#    densityParticle_SI 2550;
-#    generationSpacing_SI 0.005;
-#    initialVelocity_SI 1;
-#    dt_SI 5e-5;
-#    frictionCoefficient 0.5;
-#    restitutionCoefficient 0.1;
-#    collisionTime_SI 5e-4;
-#    poissonsRatio 0.22;
-#    timeSteps 10000;
-#    visSpacing 100;
-#    outFileName spheres_out.dat;
-#    denseBottomLayer False;
-#    bottomLayerOffsetFactor 1.0;
-#}
 
 # Config file parameters
 domainSize_SI = [0.8, 0.015, 0.2]
@@ -131,7 +119,8 @@ dampingTan = math.sqrt(kappa) * dampingNorm
 frictionStatic = frictionCoefficient # TODO: check if this is correct
 frictionDynamic = frictionCoefficient
 
-psim = pairs.simulation("dem", debug=True, timesteps=timeSteps)
+psim = pairs.simulation("dem", timesteps=timeSteps)
+#psim = pairs.simulation("dem", debug=True, timesteps=timeSteps)
 psim.add_position('position')
 psim.add_property('mass', pairs.double(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
@@ -140,6 +129,9 @@ psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_property('torque', pairs.vector(), volatile=True)
 psim.add_property('radius', pairs.double(), 1.0)
 psim.add_property('normal', pairs.vector())
+psim.add_property('inv_inertia', pairs.matrix())
+psim.add_property('rotation_matrix', pairs.matrix())
+psim.add_property('rotation_quat', pairs.quaternion())
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'stiffness_norm', pairs.double(), [stiffnessNorm for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'stiffness_tan', pairs.double(), [stiffnessTan for i in range(ntypes * ntypes)])
@@ -167,6 +159,9 @@ psim.read_particle_data(
     "data/planes.input",
     ['type', 'mass', 'position', 'normal', 'flags'],
     pairs.halfspace())
+
+psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
+                                     'pi': math.pi })
 
 psim.build_neighbor_lists(linkedCellWidth + skin)
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)

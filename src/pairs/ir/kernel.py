@@ -3,7 +3,9 @@ from pairs.ir.ast_node import ASTNode
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.features import FeatureProperty
 from pairs.ir.lit import Lit
+from pairs.ir.matrices import MatrixOp
 from pairs.ir.properties import Property, ContactProperty
+from pairs.ir.quaternions import QuaternionOp
 from pairs.ir.variables import Var
 from pairs.ir.vectors import VectorOp
 
@@ -84,7 +86,7 @@ class Kernel(ASTNode):
         array_list = array if isinstance(array, list) else [array]
         character = 'w' if write else 'r'
         for a in array_list:
-            assert isinstance(a, Array), "Kernel.add_array(): given element is not of type Array!"
+            assert isinstance(a, Array), "Kernel.add_array(): Element is not of type Array."
             self._arrays[a] = character if a not in self._arrays else self._arrays[a] + character
 
     def add_variable(self, variable, write=False):
@@ -92,46 +94,58 @@ class Kernel(ASTNode):
         character = 'w' if write else 'r'
         for v in variable_list:
             if not v.temporary():
-                assert isinstance(v, Var), "Kernel.add_variable(): given element is not of type Var!"
+                assert isinstance(v, Var), "Kernel.add_variable(): Element is not of type Var."
                 self._variables[v] = character if v not in self._variables else self._variables[v] + character
 
     def add_property(self, prop, write=False):
         prop_list = prop if isinstance(prop, list) else [prop]
         character = 'w' if write else 'r'
         for p in prop_list:
-            assert isinstance(p, Property), "Kernel.add_property(): given element is not of type Property!"
+            assert isinstance(p, Property), "Kernel.add_property(): Element is not of type Property."
             self._properties[p] = character if p not in self._properties else self._properties[p] + character
 
     def add_contact_property(self, contact_prop, write=False):
         contact_prop_list = contact_prop if isinstance(contact_prop, list) else [contact_prop]
         character = 'w' if write else 'r'
         for cp in contact_prop_list:
-            assert isinstance(cp, ContactProperty), "Kernel.add_contact_property(): given element is not of type ContactProperty!"
+            assert isinstance(cp, ContactProperty), "Kernel.add_contact_property(): Element is not of type ContactProperty."
             self._contact_properties[cp] = character if cp not in self._contact_properties else self._contact_properties[cp] + character
 
     def add_feature_property(self, feature_prop):
         feature_prop_list = feature_prop if isinstance(feature_prop, list) else [feature_prop]
         for fp in feature_prop_list:
-            assert isinstance(fp, FeatureProperty), "Kernel.add_feature_property(): given element is not of type FeatureProperty!"
+            assert isinstance(fp, FeatureProperty), "Kernel.add_feature_property(): Element is not of type FeatureProperty."
             self._feature_properties[fp] = 'r'
 
     def add_array_access(self, array_access):
         array_access_list = array_access if isinstance(array_access, list) else [array_access]
         for a in array_access_list:
-            assert isinstance(a, ArrayAccess), "Kernel.add_array_access(): given element is not of type ArrayAccess!"
+            assert isinstance(a, ArrayAccess), "Kernel.add_array_access(): Element is not of type ArrayAccess."
             self._array_accesses.add(a)
 
     def add_scalar_op(self, scalar_op):
         scalar_op_list = scalar_op if isinstance(scalar_op, list) else [scalar_op]
         for b in scalar_op_list:
-            assert isinstance(b, ScalarOp), "Kernel.add_scalar_op(): given element is not of type ScalarOp!"
+            assert isinstance(b, ScalarOp), "Kernel.add_scalar_op(): Element is not of type ScalarOp."
             self._scalar_ops.append(b)
 
     def add_vector_op(self, vector_op):
         vector_op_list = vector_op if isinstance(vector_op, list) else [vector_op]
         for b in vector_op_list:
-            assert isinstance(b, VectorOp), "Kernel.add_vector_op(): given element is not of type VectorOp!"
+            assert isinstance(b, VectorOp), "Kernel.add_vector_op(): Element is not of type VectorOp."
             self._vector_ops.append(b)
+
+    def add_matrix_op(self, matrix_op):
+        matrix_op_list = matrix_op if isinstance(matrix_op, list) else [matrix_op]
+        for b in matrix_op_list:
+            assert isinstance(b, MatrixOp), "Kernel.add_matrix_op(): Element is not of type MatrixOp."
+            self._matrix_ops.append(b)
+
+    def add_quaternion_op(self, quat_op):
+        quat_op_list = vector_op if isinstance(quat_op, list) else [quat_op]
+        for b in vector_op_list:
+            assert isinstance(b, QuaternionOp), "Kernel.add_quaternion_op(): Element is not of type QuaternionOp."
+            self._quat_ops.append(b)
 
     def children(self):
         return [self._block]

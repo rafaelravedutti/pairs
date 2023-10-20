@@ -80,6 +80,12 @@ class ScalarOp(ASTTerm):
         if lhs_type == Types.Vector or rhs_type == Types.Vector:
             return Types.Vector
 
+        if lhs_type == Types.Matrix or rhs_type == Types.Matrix:
+            return Types.Matrix
+
+        if lhs_type == Types.Quaternion or rhs_type == Types.Quaternion:
+            return Types.Quaternion
+
         if Types.is_real(lhs_type) or Types.is_real(rhs_type):
             return Types.Double
 

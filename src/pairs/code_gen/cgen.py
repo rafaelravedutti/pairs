@@ -14,7 +14,9 @@ from pairs.ir.kernel import KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For, Iter, While, Continue
+from pairs.ir.quaternions import Quaternion, QuaternionAccess, QuaternionOp
 from pairs.ir.math import MathFunction
+from pairs.ir.matrices import Matrix, MatrixAccess, MatrixOp
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
 from pairs.ir.particle_attributes import ParticleAttributeList
@@ -237,10 +239,10 @@ class CGen:
                 self.print(f"{tkw} {ast_node.array.name()}[{size}];")
 
         if isinstance(ast_node, Assign):
-            if ast_node._dest.is_vector():
-                for dim in range(self.sim.ndims()):
-                    dest = self.generate_expression(ast_node._dest, mem=True, index=dim)
-                    src = self.generate_expression(ast_node._src, index=dim)
+            if not Types.is_scalar(ast_node._dest.type()):
+                for e in range(Types.number_of_elements(self.sim, ast_node._dest.type())):
+                    dest = self.generate_expression(ast_node._dest, mem=True, index=e)
+                    src = self.generate_expression(ast_node._src, index=e)
                     self.print(f"{dest} = {src};")
 
             else:
@@ -328,6 +330,24 @@ class CGen:
                     index_g = self.generate_expression(prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
 
+            if isinstance(ast_node.elem, Quaternion):
+                quaternion = ast_node.elem
+                for i in quaternion.indexes_to_generate():
+                    expr = self.generate_expression(quaternion.get_value(i))
+                    self.print(f"const double q{quaternion.id()}_{i} = {expr};")
+
+            if isinstance(ast_node.elem, QuaternionOp):
+                quat_op = ast_node.elem
+                for i in quat_op.indexes_to_generate():
+                    lhs = self.generate_expression(quat_op.lhs, quat_op.mem, index=dim)
+                    rhs = self.generate_expression(quat_op.rhs, index=dim)
+                    operator = quat_op.operator()
+
+                    if operator.is_unary():
+                        self.print(f"const double e{quat_op.id()}_{dim} = {operator.symbol()}({lhs});")
+                    else:
+                        self.print(f"const double e{quat_op.id()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+
             if isinstance(ast_node.elem, ScalarOp):
                 scalar_op = ast_node.elem
                 if scalar_op.inlined is False:
@@ -364,6 +384,24 @@ class CGen:
                 params = ", ".join([str(self.generate_expression(p)) for p in math_func.parameters()])
                 tkw = Types.c_keyword(math_func.type())
                 self.print(f"const {tkw} {acc_ref} = {math_func.function_name()}({params});")
+
+            if isinstance(ast_node.elem, Matrix):
+                matrix = ast_node.elem
+                for i in matrix.indexes_to_generate():
+                    expr = self.generate_expression(matrix.get_value(i))
+                    self.print(f"const double m{matrix.id()}_{i} = {expr};")
+
+            if isinstance(ast_node.elem, MatrixOp):
+                matrix_op = ast_node.elem
+                for i in matrix_op.indexes_to_generate():
+                    lhs = self.generate_expression(matrix_op.lhs, matrix_op.mem, index=i)
+                    rhs = self.generate_expression(matrix_op.rhs, index=i)
+                    operator = vector_op.operator()
+
+                    if operator.is_unary():
+                        self.print(f"const double e{matrix_op.id()}_{dim} = {operator.symbol()}({lhs});")
+                    else:
+                        self.print(f"const double e{matrix_op.id()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, Vector):
                 vector = ast_node.elem
@@ -599,17 +637,10 @@ class CGen:
             ptr = p.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
             tkw = Types.c_keyword(p.type())
-            ptype = "Prop_Integer"  if p.type() == Types.Int32 else \
-                    "Prop_Float"    if p.type() == Types.Double else \
-                    "Prop_Vector"   if p.type() == Types.Vector else \
-                    "Prop_Invalid"
-
+            ptype = Types.c_property_keyword(p.type())
             assert ptype != "Prop_Invalid", "Invalid property type!"
 
-            playout = "AoS" if p.layout() == Layouts.AoS else \
-                      "SoA" if p.layout() == Layouts.SoA else \
-                      "Invalid"
-
+            playout = Layouts.c_keyword(p.layout())
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
 
             if self.target.is_gpu() and p.device_flag:
@@ -625,17 +656,10 @@ class CGen:
             ptr = p.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
             tkw = Types.c_keyword(p.type())
-            ptype = "Prop_Integer"  if p.type() == Types.Int32 else \
-                    "Prop_Float"    if p.type() == Types.Double else \
-                    "Prop_Vector"   if p.type() == Types.Vector else \
-                    "Prop_Invalid"
-
+            ptype = Types.c_property_keyword(p.type())
             assert ptype != "Prop_Invalid", "Invalid property type!"
 
-            playout = "AoS" if p.layout() == Layouts.AoS else \
-                      "SoA" if p.layout() == Layouts.SoA else \
-                      "Invalid"
-
+            playout = Layouts.c_keyword(p.layout())
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
 
             if self.target.is_gpu() and p.device_flag:
@@ -653,11 +677,7 @@ class CGen:
             array_size = fp.array_size()
             nkinds = fp.feature().nkinds()
             tkw = Types.c_keyword(fp.type())
-            fptype = "Prop_Integer"  if fp.type() == Types.Int32 else \
-                     "Prop_Float"    if fp.type() == Types.Double else \
-                     "Prop_Vector"   if fp.type() == Types.Vector else \
-                     "Prop_Invalid"
-
+            fptype = Types.c_property_keyword(fp.type())
             assert fptype != "Prop_Invalid", "Invalid feature property type!"
 
             self.print(f"{tkw} {ptr}[{array_size}];")
@@ -691,16 +711,17 @@ class CGen:
         if isinstance(ast_node, DeclareVariable):
             tkw = Types.c_keyword(ast_node.var.type())
 
-            if ast_node.var.type() == Types.Vector:
-                for dim in range(self.sim.ndims()):
-                    var = self.generate_expression(ast_node.var, index=dim)
-                    init = self.generate_expression(ast_node.var.init_value(), index=dim)
-                    self.print(f"{tkw} {var} = {init};")
-
-            else:
+            if ast_node.var.is_scalar():
                 var = self.generate_expression(ast_node.var)
                 init = self.generate_expression(ast_node.var.init_value())
                 self.print(f"{tkw} {var} = {init};")
+
+            else:
+                for i in range(Types.number_of_elements(self.sim, ast_node.var.type())):
+                    var = self.generate_expression(ast_node.var, index=i)
+                    init = self.generate_expression(ast_node.var.init_value(), index=i)
+                    self.print(f"{tkw} {var} = {init};")
+
 
             if not self.kernel_context and self.target.is_gpu() and ast_node.var.device_flag:
                 self.print(f"RuntimeVar<{tkw}> rv_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
@@ -781,8 +802,8 @@ class CGen:
             if ast_node.type() == Types.String:
                 return f"\"{ast_node.value}\""
 
-            if ast_node.type() == Types.Vector:
-                assert index is not None, "Index must be set for vector literals!"
+            if not ast_node.is_scalar():
+                assert index is not None, "Index must be set for non-scalar literals."
                 return ast_node.value[index]
 
             return ast_node.value
@@ -846,7 +867,7 @@ class CGen:
             assert mem is False, "Select expression is not lvalue!"
 
             if ast_node.inlined is True:
-                assert ast_node.type() != Types.Vector, "Vector operations cannot be inlined!"
+                assert ast_node.is_scalar(), "Only scalar operations can be inlined!"
                 cond = self.generate_expression(ast_node.cond, index=index)
                 expr_if = self.generate_expression(ast_node.expr_if, index=index)
                 expr_else = self.generate_expression(ast_node.expr_else, index=index)
@@ -867,12 +888,34 @@ class CGen:
         if isinstance(ast_node, VectorAccess):
             return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
 
+        if isinstance(ast_node, MatrixAccess):
+            return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
+
+        if isinstance(ast_node, QuaternionAccess):
+            return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
+
         if isinstance(ast_node, Vector):
             assert index is not None, "Index must be set for vector."
             return f"v{ast_node.id()}_{index}"
 
+        if isinstance(ast_node, Matrix):
+            assert index is not None, "Index must be set for matrix."
+            return f"m{ast_node.id()}_{index}"
+
+        if isinstance(ast_node, Quaternion):
+            assert index is not None, "Index must be set for quaternion."
+            return f"q{ast_node.id()}_{index}"
+
         if isinstance(ast_node, VectorOp):
             assert index is not None, "Index must be set for vector operation."
+            return f"e{ast_node.id()}_{index}"
+
+        if isinstance(ast_node, MatrixOp):
+            assert index is not None, "Index must be set for matrix operation."
+            return f"e{ast_node.id()}_{index}"
+
+        if isinstance(ast_node, QuaternionOp):
+            assert index is not None, "Index must be set for quaternion operation."
             return f"e{ast_node.id()}_{index}"
 
         if isinstance(ast_node, ZeroVector):

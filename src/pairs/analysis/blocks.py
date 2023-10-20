@@ -83,6 +83,16 @@ class DiscoverBlockVariants(Visitor):
             self.visit_children(ast_node)
             self.visited_accesses.add(ast_node)
 
+    def visit_MatrixAccess(self, ast_node):
+        if ast_node not in self.visited_accesses:
+            self.visit_children(ast_node)
+            self.visited_accesses.add(ast_node)
+
+    def visit_QuaternionAccess(self, ast_node):
+        if ast_node not in self.visited_accesses:
+            self.visit_children(ast_node)
+            self.visited_accesses.add(ast_node)
+
     def visit_Var(self, ast_node):
         self.push_variant(ast_node)
 
@@ -200,5 +210,21 @@ class DetermineExpressionsOwnership(Visitor):
         self.update_ownership(ast_node)
 
     def visit_VectorOp(self, ast_node):
+        self.visit_children(ast_node)
+        self.update_ownership(ast_node)
+
+    def visit_Matrix(self, ast_node):
+        self.visit_children(ast_node)
+        self.update_ownership(ast_node)
+
+    def visit_MatrixOp(self, ast_node):
+        self.visit_children(ast_node)
+        self.update_ownership(ast_node)
+
+    def visit_Quaternion(self, ast_node):
+        self.visit_children(ast_node)
+        self.update_ownership(ast_node)
+
+    def visit_QuaternionOp(self, ast_node):
         self.visit_children(ast_node)
         self.update_ownership(ast_node)

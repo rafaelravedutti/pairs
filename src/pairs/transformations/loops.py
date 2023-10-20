@@ -2,8 +2,10 @@ from pairs.ir.arrays import ArrayAccess
 from pairs.ir.features import FeaturePropertyAccess
 from pairs.ir.loops import For, While
 from pairs.ir.math import MathFunction
+from pairs.ir.matrices import Matrix, MatrixOp
 from pairs.ir.mutator import Mutator
 from pairs.ir.properties import PropertyAccess, ContactPropertyAccess
+from pairs.ir.quaternions import Quaternion, QuaternionOp
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.vectors import Vector, VectorOp
@@ -37,7 +39,11 @@ class LICM(Mutator):
             ContactPropertyAccess,
             FeaturePropertyAccess,
             MathFunction,
+            Matrix,
+            MatrixOp,
             PropertyAccess,
+            Quaternion,
+            QuaternionOp,
             ScalarOp,
             Select,
             Vector,

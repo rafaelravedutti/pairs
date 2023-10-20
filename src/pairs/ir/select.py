@@ -1,9 +1,10 @@
+from pairs.ir.accessor_class import AccessorClass
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
+from pairs.ir.operator_class import OperatorClass
 from pairs.ir.types import Types
-from pairs.ir.vectors import VectorAccess, VectorOp
 
 
 class Select(ASTTerm):
@@ -14,19 +15,23 @@ class Select(ASTTerm):
         return Select.last_select - 1
 
     def __init__(self, sim, cond, expr_if, expr_else):
-        super().__init__(sim, ScalarOp if expr_if.type() != Types.Vector else VectorOp)
-        self.select_id = Select.new_id()
+        super().__init__(sim, OperatorClass.from_type(Lit.cvt(sim, expr_if).type()))
         self.cond = Lit.cvt(sim, cond)
-        #self.expr_if = ScalarOp.inline(Lit.cvt(sim, expr_if))
-        #self.expr_else = ScalarOp.inline(Lit.cvt(sim, expr_else))
         self.expr_if = Lit.cvt(sim, expr_if)
         self.expr_else = Lit.cvt(sim, expr_else)
+        self.select_id = Select.new_id()
+        #self.expr_if = ScalarOp.inline(Lit.cvt(sim, expr_if))
+        #self.expr_else = ScalarOp.inline(Lit.cvt(sim, expr_else))
         self.terminals = set()
         self.inlined = False
         assert self.expr_if.type() == self.expr_else.type(), "Select: expressions must be of same type!"
 
     def __str__(self):
         return f"Select<{self.cond}, {self.expr_if}, {self.expr_else}>"
+
+    def __getitem__(self, index):
+        _acc_class = AccessorClass.from_type(self.expr_if.type())
+        return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
 
     def id(self):
         return self.select_id
@@ -54,6 +59,3 @@ class Select(ASTTerm):
 
     def children(self):
         return [self.cond, self.expr_if, self.expr_else]
-
-    def __getitem__(self, index):
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))

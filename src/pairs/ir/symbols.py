@@ -2,13 +2,13 @@ from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
+from pairs.ir.operator_class import OperatorClass
 from pairs.ir.types import Types
-from pairs.ir.vectors import VectorAccess, VectorOp
 
 
 class Symbol(ASTTerm):
     def __init__(self, sim, sym_type):
-        super().__init__(sim, ScalarOp if sym_type != Types.Vector else VectorOp)
+        super().__init__(sim, OperatorClass.from_type(sym_type))
         self.sym_type = sym_type
         self.assign_to = None
 
@@ -22,14 +22,13 @@ class Symbol(ASTTerm):
         return self.sym_type
 
     def __getitem__(self, index):
-        #return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
         return SymbolAccess(self.sim, self, Lit.cvt(self.sim, index))
 
 
 class SymbolAccess(ASTTerm):
     def __init__(self, sim, symbol, index):
-        assert symbol.type() == Types.Vector, "Only vector symbols can be indexed!"
-        super().__init__(sim, ScalarOp if symbol.type() != Types.Vector else VectorOp)
+        assert not Types.is_scalar(symbol.type()), "Scalar symbols cannot be indexed."
+        super().__init__(sim, OperatorClass.from_type(symbol.type()))
         self._symbol = symbol
         self._index = index
         symbol.add_index_to_generate(index)
@@ -44,7 +43,7 @@ class SymbolAccess(ASTTerm):
         return self._index
 
     def type(self):
-        if self._symbol.type() == Types.Vector:
+        if not Types.is_scalar(self._symbol.type()):
             return Types.Float
 
         return self._symbol.type()

@@ -96,11 +96,11 @@ class Vector(ASTTerm):
         assert isinstance(values, list) and len(values) == sim.ndims(), "Vector(): Given list is invalid!"
         super().__init__(sim, VectorOp)
         self._id = Vector.new_id()
-        self._values = values
+        self._values = [Lit.cvt(sim, v) for v in values]
         self.terminals = set()
 
     def __str__(self):
-        return f"Vector<{self.values}>"
+        return f"Vector<{self._values}>"
 
     def __getitem__(self, index):
         return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))

@@ -36,7 +36,9 @@ class Comm:
 
     @pairs_inline
     def synchronize(self):
-        prop_list = [self.sim.property(p) for p in ['position']]
+        # Every property that is not constant across timesteps and have neighbor accesses during any
+        # interaction kernel (i.e. property[j] in force calculation kernel)
+        prop_list = [self.sim.property(p) for p in ['position', 'linear_velocity', 'angular_velocity']]
         for step in range(self.dom_part.number_of_steps()):
             PackGhostParticles(self, step, prop_list)
             CommunicateData(self, step, prop_list)
@@ -44,7 +46,9 @@ class Comm:
 
     @pairs_inline
     def borders(self):
-        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'flags']]
+        # Every property that is constant across timesteps and have neighbor accesses during any
+        # interaction kernel (i.e. property[j] in force calculation kernel)
+        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'linear_velocity', 'angular_velocity', 'flags']]
         Assign(self.sim, self.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
 
@@ -59,6 +63,7 @@ class Comm:
 
     @pairs_inline
     def exchange(self):
+        # Every property except volatiles
         prop_list = [self.sim.property(p) for p in ['mass', 'position', 'linear_velocity', 'shape', 'flags']]
         for step in range(self.dom_part.number_of_steps()):
             Assign(self.sim, self.nsend_all, 0)
@@ -104,7 +109,7 @@ class CommunicateData(Lowerable):
 
     @pairs_inline
     def lower(self):
-        elem_size = sum([self.sim.ndims() if p.type() == Types.Vector else 1 for p in self.prop_list])
+        elem_size = sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
         Call_Void(self.sim, "pairs->communicateData", [self.step, elem_size,
                                                        self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
                                                        self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
@@ -192,7 +197,7 @@ class PackGhostParticles(Lowerable):
         self.sim.add_statement(self)
 
     def get_elems_per_particle(self):
-        return sum([self.sim.ndims() if p.type() == Types.Vector else 1 for p in self.prop_list])
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
 
     #@pairs_host_block
     @pairs_device_block
@@ -209,15 +214,16 @@ class PackGhostParticles(Lowerable):
             p_offset = 0
             m = send_map[i]
             for p in self.prop_list:
-                if p.type() == Types.Vector:
-                    for d in range(self.sim.ndims()):
-                        src = p[m][d]
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        src = p[m][e]
                         if p == self.sim.position():
-                            src += send_mult[i][d] * self.sim.grid.length(d)
+                            src += send_mult[i][e] * self.sim.grid.length(e)
 
-                        Assign(self.sim, send_buffer[i][p_offset + d], src)
+                        Assign(self.sim, send_buffer[i][p_offset + e], src)
 
-                    p_offset += self.sim.ndims()
+                    p_offset += nelems
 
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, Types.Double) if p.type() != Types.Double else x
@@ -234,7 +240,7 @@ class UnpackGhostParticles(Lowerable):
         self.sim.add_statement(self)
 
     def get_elems_per_particle(self):
-        return sum([self.sim.ndims() if p.type() == Types.Vector else 1 for p in self.prop_list])
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
 
     #@pairs_host_block
     @pairs_device_block
@@ -249,11 +255,12 @@ class UnpackGhostParticles(Lowerable):
         for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nrecv[j] for j in step_indexes]))):
             p_offset = 0
             for p in self.prop_list:
-                if p.type() == Types.Vector:
-                    for d in range(self.sim.ndims()):
-                        Assign(self.sim, p[nlocal + i][d], recv_buffer[i][p_offset + d])
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        Assign(self.sim, p[nlocal + i][e], recv_buffer[i][p_offset + e])
 
-                    p_offset += self.sim.ndims()
+                    p_offset += nelems
 
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Double else x
@@ -301,9 +308,10 @@ class RemoveExchangedParticles_part2(Lowerable):
             for _ in Filter(self.sim, src > 0):
                 dst = self.comm.send_map[i]
                 for p in self.prop_list:
-                    if p.type() == Types.Vector:
-                        for d in range(self.sim.ndims()):
-                            Assign(self.sim, p[dst][d], p[src][d])
+                    if not Types.is_scalar(p.type()):
+                        nelems = Types.number_of_elements(self.sim, p.type())
+                        for e in range(nelems):
+                            Assign(self.sim, p[dst][e], p[src][e])
 
                     else:
                         Assign(self.sim, p[dst], p[src])

@@ -1,11 +1,12 @@
+from pairs.ir.accessor_class import AccessorClass
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.declaration import Decl
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
+from pairs.ir.operator_class import OperatorClass
 from pairs.ir.types import Types
-from pairs.ir.vectors import VectorAccess, VectorOp
 
 
 class Features:
@@ -122,15 +123,16 @@ class FeatureProperty(ASTNode):
         return self.feature_prop_layout
 
     def ndims(self):
-        return 1 if self.feature_prop_type != Types.Vector else 2
+        return 1 if Types.is_scalar(self.prop_type) else 2
 
     def sizes(self):
-        return [self.feature_prop_feature.nkinds()] if self.feature_prop_type != Types.Vector \
-               else [self.sim.ndims(), self.feature_prop_feature.nkinds()]
+        return [self.feature_prop_feature.nkinds()] if Types.is_scalar(self.feature_prop_type) \
+               else [Types.number_of_elements(self.sim, self.feature_prop_type),
+                     self.feature_prop_feature.nkinds()]
 
     def array_size(self):
         nelems = self.feature_prop_feature.nkinds() * \
-                 (1 if self.feature_prop_type != Types.Vector else self.sim.ndims())
+                 Types.number_of_elements(self.sim, self.feature_prop_type)
         return nelems * nelems
 
     def __getitem__(self, expr):
@@ -146,7 +148,7 @@ class FeaturePropertyAccess(ASTTerm):
 
     def __init__(self, sim, feature_prop, index):
         assert isinstance(index, tuple), "Two indexes must be used for feature property access!"
-        super().__init__(sim, ScalarOp if feature_prop.type() != Types.Vector else VectorOp)
+        super().__init__(sim, OperatorClass.from_type(feature_prop.type()))
         self.acc_id = FeaturePropertyAccess.new_id()
         self.feature_prop = feature_prop
         feature = self.feature_prop.feature()
@@ -155,15 +157,15 @@ class FeaturePropertyAccess(ASTTerm):
         self.terminals = set()
         self.vector_indexes = {}
 
-        if feature_prop.type() == Types.Vector:
+        if not Types.is_scalar(feature_prop.type()):
             sizes = feature_prop.sizes()
             layout = feature_prop.layout()
 
-            for dim in range(self.sim.ndims()):
+            for elem in range(Types.number_of_elements(feature_prop.type())):
                 if layout == Layouts.AoS:
-                    self.vector_indexes[dim] = self.index * sizes[0] + dim
+                    self.vector_indexes[elem] = self.index * sizes[0] + elem
                 elif layout == Layouts.SoA:
-                    self.vector_indexes[dim] = dim * sizes[1] + self.index
+                    self.vector_indexes[elem] = elem * sizes[1] + self.index
                 else:
                     raise Exception("Invalid data layout.")
 
@@ -194,7 +196,8 @@ class FeaturePropertyAccess(ASTTerm):
 
     def __getitem__(self, index):
         super().__getitem__(index)
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        _acc_class = AccessorClass.from_type(self.feature_prop.type())
+        return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
 
 
 class RegisterFeatureProperty(ASTNode):

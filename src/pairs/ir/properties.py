@@ -1,11 +1,12 @@
+from pairs.ir.accessor_class import AccessorClass
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.declaration import Decl
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
+from pairs.ir.operator_class import OperatorClass
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
-from pairs.ir.vectors import VectorAccess, VectorOp
 
 
 class Properties:
@@ -79,11 +80,11 @@ class Property(ASTNode):
         return self.default_value
 
     def ndims(self):
-        return 1 if self.prop_type != Types.Vector else 2
+        return 1 if Types.is_scalar(self.prop_type) else 2
 
     def sizes(self):
-        return [self.sim.particle_capacity] if self.prop_type != Types.Vector \
-               else [self.sim.ndims(), self.sim.particle_capacity]
+        return [self.sim.particle_capacity] if Types.is_scalar(self.prop_type) \
+               else [Types.number_of_elements(self.sim, self.prop_type), self.sim.particle_capacity]
 
 
 class PropertyAccess(ASTTerm):
@@ -94,7 +95,7 @@ class PropertyAccess(ASTTerm):
         return PropertyAccess.last_prop_acc - 1
 
     def __init__(self, sim, prop, index):
-        super().__init__(sim, ScalarOp if prop.type() != Types.Vector else VectorOp)
+        super().__init__(sim, OperatorClass.from_type(prop.type()))
         self.acc_id = PropertyAccess.new_id()
         self.prop = prop
         self.index = Lit.cvt(sim, index)
@@ -102,15 +103,15 @@ class PropertyAccess(ASTTerm):
         self.terminals = set()
         self.vector_indexes = {}
 
-        if prop.type() == Types.Vector:
+        if not Types.is_scalar(prop.type()):
             sizes = prop.sizes()
             layout = prop.layout()
 
-            for dim in range(self.sim.ndims()):
+            for elem in range(Types.number_of_elements(sim, prop.type())):
                 if layout == Layouts.AoS:
-                    self.vector_indexes[dim] = self.index * sizes[0] + dim
+                    self.vector_indexes[elem] = self.index * sizes[0] + elem
                 elif layout == Layouts.SoA:
-                    self.vector_indexes[dim] = dim * sizes[1] + self.index
+                    self.vector_indexes[elem] = elem * sizes[1] + self.index
                 else:
                     raise Exception("Invalid data layout.")
 
@@ -118,7 +119,8 @@ class PropertyAccess(ASTTerm):
         return f"PropertyAccess<{self.prop}, {self.index}>"
 
     def __getitem__(self, index):
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        _acc_class = AccessorClass.from_type(self.prop.type())
+        return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
 
     def copy(self):
         return PropertyAccess(self.sim, self.prop, self.index)
@@ -239,12 +241,12 @@ class ContactProperty(ASTNode):
         return self.contact_prop_default
 
     def ndims(self):
-        return 1 if self.contact_prop_type != Types.Vector else 2
+        return 1 if Types.is_scalar(self.contact_prop_type) else 2
 
     def sizes(self):
         neighbor_list_sizes = [self.sim.particle_capacity, self.sim.neighbor_capacity]
-        return neighbor_list_sizes if self.contact_prop_type != Types.Vector \
-               else [self.sim.ndims()] + neighbor_list_sizes
+        return neighbor_list_sizes if Types.is_scalar(self.contact_prop_type) \
+               else [Types.number_of_elements(self.sim, self.contact_prop_type)] + neighbor_list_sizes
 
 
 class ContactPropertyAccess(ASTTerm):
@@ -256,7 +258,7 @@ class ContactPropertyAccess(ASTTerm):
 
     def __init__(self, sim, contact_prop, index):
         assert isinstance(index, tuple), "Two indexes must be used for contact property access!"
-        super().__init__(sim, ScalarOp if contact_prop.type() != Types.Vector else VectorOp)
+        super().__init__(sim, OperatorClass.from_type(contact_prop.type()))
         self.acc_id = ContactPropertyAccess.new_id()
         self.contact_prop = contact_prop
         self.index = index[0] * self.sim.neighbor_capacity + index[1]
@@ -264,15 +266,15 @@ class ContactPropertyAccess(ASTTerm):
         self.terminals = set()
         self.vector_indexes = {}
 
-        if contact_prop.type() == Types.Vector:
+        if not Types.is_scalar(contact_prop.type()):
             sizes = contact_prop.sizes()
             layout = contact_prop.layout()
 
-            for dim in range(self.sim.ndims()):
+            for elem in range(Types.number_of_elements(sim, contact_prop.type())):
                 if layout == Layouts.AoS:
-                    self.vector_indexes[dim] = self.index * sizes[0] + dim
+                    self.vector_indexes[elem] = self.index * sizes[0] + elem
                 elif layout == Layouts.SoA:
-                    self.vector_indexes[dim] = dim * sizes[1] + self.index
+                    self.vector_indexes[elem] = elem * sizes[1] + self.index
                 else:
                     raise Exception("Invalid data layout.")
 
@@ -280,7 +282,8 @@ class ContactPropertyAccess(ASTTerm):
         return f"ContactPropertyAccess<{self.contact_prop}, {self.index}>"
 
     def __getitem__(self, index):
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        _acc_class = AccessorClass.from_type(self.contact_prop.type())
+        return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
 
     def copy(self):
         return ContactPropertyAccess(self.sim, self.contact_prop, self.index)

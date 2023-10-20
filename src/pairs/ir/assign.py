@@ -10,14 +10,16 @@ class Assign(ASTNode):
         self._dest = dest
         self._src = Lit.cvt(sim, src)
 
-        # When vector assignments occur, all indexes for the dest
+        # When non-scalar assignments occur, all indexes for the dest
         # and source terms must be generated
-        if isinstance(self._dest, ASTTerm) and self._dest.type() == Types.Vector:
-            for dim in range(sim.ndims()):
-                self._dest.add_index_to_generate(dim)
+        if isinstance(self._dest, ASTTerm) and not Types.is_scalar(self._dest.type()):
+            for elem in range(Types.number_of_elements(self.sim, self._dest.type())):
+                self._dest.add_index_to_generate(elem)
 
-                if isinstance(self._src, ASTTerm) and self._src.type() == Types.Vector:
-                    self._src.add_index_to_generate(dim)
+                if isinstance(self._src, ASTTerm) and not Types.is_scalar(self._src.type()):
+                    assert self._dest.type() == self._src.type(), \
+                        "Non-scalar types must match for assignments."
+                    self._src.add_index_to_generate(elem)
 
         sim.add_statement(self)
 

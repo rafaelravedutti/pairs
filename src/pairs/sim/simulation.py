@@ -11,7 +11,7 @@ from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
 from pairs.ir.variables import Variables
 from pairs.graph.graphviz import ASTGraph
-from pairs.mapping.funcs import compute
+from pairs.mapping.funcs import compute, setup
 from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists
 from pairs.sim.comm import Comm
@@ -58,6 +58,7 @@ class Simulation:
         self._capture_statements = True
         self._block = Block(self, [])
         self.setups = Block(self, [])
+        self.setup_functions = Block(self, [])
         self.functions = Block(self, [])
         self.module_list = []
         self.kernel_list = []
@@ -201,6 +202,9 @@ class Simulation:
     def compute(self, func, cutoff_radius=None, symbols={}):
         return compute(self, func, cutoff_radius, symbols)
 
+    def setup(self, func, symbols={}):
+        return setup(self, func, symbols)
+
     def init_block(self):
         self._block = Block(self, [])
         self._check_properties_resize = False
@@ -219,14 +223,23 @@ class Simulation:
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
+    def build_setup_module_with_statements(self):
+        self.setup_functions.add_statement(
+            Module(self,
+                name=self._module_name,
+                block=Block(self, self._block),
+                resizes_to_check=self._resizes_to_check,
+                check_properties_resize=self._check_properties_resize,
+                run_on_device=False))
+
     def build_module_with_statements(self, run_on_device=True):
         self.functions.add_statement(
             Module(self,
-                   name=self._module_name,
-                   block=Block(self, self._block),
-                   resizes_to_check=self._resizes_to_check,
-                   check_properties_resize=self._check_properties_resize,
-                   run_on_device=run_on_device))
+                name=self._module_name,
+                block=Block(self, self._block),
+                resizes_to_check=self._resizes_to_check,
+                check_properties_resize=self._check_properties_resize,
+                run_on_device=run_on_device))
 
     def capture_statements(self, capture=True):
         self._capture_statements = capture
@@ -299,6 +312,7 @@ class Simulation:
 
         body = Block.from_list(self, [
             self.setups,
+            self.setup_functions,
             BuildCellListsStencil(self, self.cell_lists),
             VTKWrite(self, self.vtk_file, 0, self.vtk_frequency),
             timestep.as_block()

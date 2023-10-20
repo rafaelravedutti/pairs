@@ -18,6 +18,9 @@ class ASTTerm(ASTNode):
     def __sub__(self, other):
         return self._class_type(self.sim, self, other, Operators.Sub)
 
+    def __rsub__(self, other):
+        return self._class_type(self.sim, other, self, Operators.Sub)
+
     def __mul__(self, other):
         return self._class_type(self.sim, self, other, Operators.Mul)
 
@@ -69,8 +72,17 @@ class ASTTerm(ASTNode):
     def inv(self):
         return self._class_type(self.sim, 1.0, self, Operators.Div)
 
+    def is_scalar(self):
+        return self.type() not in [Types.Vector, Types.Matrix, Types.Quaternion]
+
     def is_vector(self):
         return self.type() == Types.Vector
+
+    def is_matrix(self):
+        return self.type() == Types.Matrix
+
+    def is_quaternion(self):
+        return self.type() == Types.Quaternion
 
     def indexes_to_generate(self):
         return self._indexes_to_generate
@@ -81,5 +93,5 @@ class ASTTerm(ASTNode):
         self._indexes_to_generate.add(integer_index)
 
         for child in self.children():
-            if isinstance(child, ASTTerm) and child.type() == Types.Vector:
+            if isinstance(child, ASTTerm) and not Types.is_scalar(child.type()):
                 child.add_index_to_generate(integer_index)

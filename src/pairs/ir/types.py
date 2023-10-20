@@ -9,10 +9,12 @@ class Types:
     String = 6
     Vector = 7
     Array = 8
+    Matrix = 9
+    Quaternion = 10
 
     def c_keyword(t):
         return (
-            'double' if t == Types.Double or t == Types.Vector
+            'double' if t in (Types.Double, Types.Vector, Types.Matrix, Types.Quaternion)
             else 'float' if t == Types.Float
             else 'int' if t == Types.Int32
             else 'long long int' if t == Types.Int64
@@ -21,8 +23,25 @@ class Types:
             else '<invalid type>'
         )
 
+    def c_property_keyword(t):
+        ptype = "Prop_Integer"      if t == Types.Int32 else \
+                "Prop_Float"        if t == Types.Double else \
+                "Prop_Vector"       if t == Types.Vector else \
+                "Prop_Matrix"       if t == Types.Matrix else \
+                "Prop_Quaternion"   if t == Types.Quaternion else \
+                "Prop_Invalid"
+
     def is_integer(t):
-        return t == Types.Int32 or t == Types.Int64 or t == Types.UInt64
+        return t in (Types.Int32, Types.Int64, Types.UInt64)
 
     def is_real(t):
-        return t == Types.Float or t == Types.Double
+        return t in (Types.Float, Types.Double)
+
+    def is_scalar(t):
+        return t not in (Types.Vector, Types.Matrix, Types.Quaternion)
+
+    def number_of_elements(sim, t):
+        return sim.ndims() if t == Types.Vector else \
+               sim.ndims() * sim.ndims() if t == Types.Matrix else \
+               sim.ndims() + 1 if t == Types.Quaternion else \
+               1

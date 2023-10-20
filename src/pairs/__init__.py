@@ -23,6 +23,12 @@ def double():
 def vector():
     return Types.Vector
 
+def matrix():
+    return Types.Matrix
+
+def quaternion():
+    return Types.Quaternion
+
 def sphere():
     return Shapes.Sphere
 
