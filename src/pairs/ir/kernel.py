@@ -142,8 +142,8 @@ class Kernel(ASTNode):
             self._matrix_ops.append(b)
 
     def add_quaternion_op(self, quat_op):
-        quat_op_list = vector_op if isinstance(quat_op, list) else [quat_op]
-        for b in vector_op_list:
+        quat_op_list = quat_op if isinstance(quat_op, list) else [quat_op]
+        for b in quat_op_list:
             assert isinstance(b, QuaternionOp), "Kernel.add_quaternion_op(): Element is not of type QuaternionOp."
             self._quat_ops.append(b)
 

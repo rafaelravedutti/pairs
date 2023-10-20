@@ -11,7 +11,9 @@ enum PropertyType {
     Prop_Invalid = -1,
     Prop_Integer = 0,
     Prop_Float,
-    Prop_Vector
+    Prop_Vector,
+    Prop_Matrix,
+    Prop_Quaternion
 };
 
 enum DataLayout {

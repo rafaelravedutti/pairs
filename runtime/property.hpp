@@ -38,7 +38,9 @@ public:
     size_t getElemSize() {
         return  (type == Prop_Integer) ? sizeof(int) :
                 (type == Prop_Float) ? sizeof(double) :
-                (type == Prop_Vector) ? sizeof(double) : 0;
+                (type == Prop_Vector) ? sizeof(double) :
+                (type == Prop_Matrix) ? sizeof(double) :
+                (type == Prop_Quaternion) ? sizeof(double) : 0;
     }
 };
 
@@ -60,6 +62,30 @@ public:
         if(layout == AoS) { return dptr[i * sy + j]; }
         if(layout == SoA) { return dptr[j * sx + i]; }
         PAIRS_ERROR("VectorProperty::operator[]: Invalid data layout!");
+        return dptr[0];
+    }
+};
+
+class MatrixProperty : public Property {
+public:
+    double &operator()(int i, int j) {
+        PAIRS_ASSERT(type != Prop_Invalid && layout != Invalid && sx > 0 && sy > 0);
+        double *dptr = static_cast<double *>(h_ptr);
+        if(layout == AoS) { return dptr[i * sy + j]; }
+        if(layout == SoA) { return dptr[j * sx + i]; }
+        PAIRS_ERROR("MatrixProperty::operator[]: Invalid data layout!");
+        return dptr[0];
+    }
+};
+
+class QuaternionProperty : public Property {
+public:
+    double &operator()(int i, int j) {
+        PAIRS_ASSERT(type != Prop_Invalid && layout != Invalid && sx > 0 && sy > 0);
+        double *dptr = static_cast<double *>(h_ptr);
+        if(layout == AoS) { return dptr[i * sy + j]; }
+        if(layout == SoA) { return dptr[j * sx + i]; }
+        PAIRS_ERROR("QuaternionProperty::operator[]: Invalid data layout!");
         return dptr[0];
     }
 };

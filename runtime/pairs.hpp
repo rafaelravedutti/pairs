@@ -10,7 +10,6 @@
 #include "pairs_common.hpp"
 #include "property.hpp"
 #include "runtime_var.hpp"
-#include "vector3.hpp"
 #include "devices/device.hpp"
 #include "domain/regular_6d_stencil.hpp"
 
@@ -84,9 +83,14 @@ public:
     inline IntProperty &getAsIntegerProperty(Property &prop) { return static_cast<IntProperty&>(prop); }
     inline FloatProperty &getAsFloatProperty(Property &prop) { return static_cast<FloatProperty&>(prop); }
     inline VectorProperty &getAsVectorProperty(Property &prop) { return static_cast<VectorProperty&>(prop); }
+    inline MatrixProperty &getAsMatrixProperty(Property &prop) { return static_cast<MatrixProperty&>(prop); }
+    inline QuaternionProperty &getAsQuaternionProperty(Property &prop) { return static_cast<QuaternionProperty&>(prop); }
+
     inline IntProperty &getIntegerProperty(property_t property) { return static_cast<IntProperty&>(getProperty(property)); }
     inline FloatProperty &getFloatProperty(property_t property) { return static_cast<FloatProperty&>(getProperty(property)); }
     inline VectorProperty &getVectorProperty(property_t property) { return static_cast<VectorProperty&>(getProperty(property)); }
+    inline MatrixProperty &getMatrixProperty(property_t property) { return static_cast<MatrixProperty&>(getProperty(property)); }
+    inline QuaternionProperty &getQuaternionProperty(property_t property) { return static_cast<QuaternionProperty&>(getProperty(property)); }
 
     template<typename T_ptr> void addContactProperty(
         property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy = 1);

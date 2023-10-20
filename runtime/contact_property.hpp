@@ -38,7 +38,9 @@ public:
     size_t getElemSize() {
         return  (type == Prop_Integer) ? sizeof(int) :
                 (type == Prop_Float) ? sizeof(double) :
-                (type == Prop_Vector) ? sizeof(double) : 0;
+                (type == Prop_Vector) ? sizeof(double) :
+                (type == Prop_Matrix) ? sizeof(double) :
+                (type == Prop_Quaternion) ? sizeof(double) : 0;
     }
 };
 

@@ -65,6 +65,26 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
                     if(prop.getName() == "position") {
                         within_domain = ps->getDomainPartitioner()->isWithinSubdomain(x, y, z);
                     }
+                } else if(prop_type == Prop_Matrix) {
+                    auto matrix_ptr = ps->getAsMatrixProperty(prop);
+                    constexpr int nelems = 9;
+                    std::string in_buf;
+
+                    matrix_ptr(n, 0) = std::stod(in0);
+                    for(int i = 1; i < nelems; i++) {
+                        std::getline(line_stream, in_buf, ',');
+                        matrix_ptr(n, i) = std::stod(in_buf);
+                    }
+                } else if(prop_type == Prop_Quaternion) {
+                    auto quat_ptr = ps->getAsQuaternionProperty(prop);
+                    constexpr int nelems = 4;
+                    std::string in_buf;
+
+                    quat_ptr(n, 0) = std::stod(in0);
+                    for(int i = 1; i < nelems; i++) {
+                        std::getline(line_stream, in_buf, ',');
+                        quat_ptr(n, i) = std::stod(in_buf);
+                    }
                 } else if(prop_type == Prop_Integer) {
                     auto int_ptr = ps->getAsIntegerProperty(prop);
                     int_ptr(n) = std::stoi(in0);

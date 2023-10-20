@@ -24,12 +24,12 @@ class Types:
         )
 
     def c_property_keyword(t):
-        ptype = "Prop_Integer"      if t == Types.Int32 else \
-                "Prop_Float"        if t == Types.Double else \
-                "Prop_Vector"       if t == Types.Vector else \
-                "Prop_Matrix"       if t == Types.Matrix else \
-                "Prop_Quaternion"   if t == Types.Quaternion else \
-                "Prop_Invalid"
+        return "Prop_Integer"      if t == Types.Int32 else \
+               "Prop_Float"        if t == Types.Double else \
+               "Prop_Vector"       if t == Types.Vector else \
+               "Prop_Matrix"       if t == Types.Matrix else \
+               "Prop_Quaternion"   if t == Types.Quaternion else \
+               "Prop_Invalid"
 
     def is_integer(t):
         return t in (Types.Int32, Types.Int64, Types.UInt64)
