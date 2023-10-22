@@ -17,13 +17,20 @@ def linear_spring_dashpot(i, j):
     delta_ij = -penetration_depth(i, j)
     skip_when(delta_ij < 0.0)
 
+    meff = 1.0 / ((1.0 / mass[i]) + (1.0 / mass[j]))
+    stiffness_norm = meff * (pi * pi + lnDryResCoeff * lnDryResCoeff) / \
+                     (collisionTime_SI * collisionTime_SI)
+    stiffness_tan = kappa * stiffness_norm
+    damping_norm = -2.0 * meff * lnDryResCoeff / collisionTime_SI
+    damping_tan = sqrt(kappa) * damping_norm
+
     velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point(i, j) - position[i])
     velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point(i, j) - position[j])
 
     rel_vel = -velocity_wf_i - velocity_wf_j
     rel_vel_n = dot(rel_vel, contact_normal(i, j)) * contact_normal(i, j)
     rel_vel_t = rel_vel - rel_vel_n
-    fN = stiffness_norm[i, j] * delta_ij * contact_normal(i, j) + damping_norm[i, j] * rel_vel_n;
+    fN = stiffness_norm * delta_ij * contact_normal(i, j) + damping_norm * rel_vel_n;
 
     tan_spring_disp = tangential_spring_displacement[i, j]
     impact_vel_magnitude = impact_velocity_magnitude[i, j]
@@ -36,7 +43,7 @@ def linear_spring_dashpot(i, j):
                                  zero_vector(),
                                  rotated_tan_disp * length(tan_spring_disp) / length(rotated_tan_disp))
 
-    fTLS = stiffness_tan[i, j] * new_tan_spring_disp + damping_tan[i, j] * rel_vel_t
+    fTLS = stiffness_tan * new_tan_spring_disp + damping_tan * rel_vel_t
     fTLS_len = length(fTLS)
     t = normalized(fTLS)
 
@@ -49,8 +56,8 @@ def linear_spring_dashpot(i, j):
     f_friction_abs = select(cond1, f_friction_abs_static, f_friction_abs_dynamic)
     n_sticking = select(cond1 or cond2 or fTLS_len < f_friction_abs_dynamic, 1, 0)
 
-    if not cond1 and not cond2 and stiffness_tan[i, j] > 0.0:
-        tangential_spring_displacement[i, j] = (f_friction_abs * t - damping_tan[i, j] * rel_vel_t) / stiffness_tan[i, j]
+    if not cond1 and not cond2 and stiffness_tan > 0.0:
+        tangential_spring_displacement[i, j] = (f_friction_abs * t - damping_tan * rel_vel_t) / stiffness_tan
 
     else:
         tangential_spring_displacement[i, j] = new_tan_spring_disp
@@ -114,13 +121,7 @@ linkedCellWidth = 1.01 * maxDiameter_SI
 skin = 0.003
 ntypes = 1
 
-meff = 0.5 # 1.0 / (inv_mass[i] + inv_mass[j])
 lnDryResCoeff = math.log(restitutionCoefficient);
-stiffnessNorm = meff * (math.pi * math.pi + lnDryResCoeff * lnDryResCoeff) / (collisionTime_SI * collisionTime_SI)
-stiffnessTan = kappa * stiffnessNorm
-dampingNorm = -2.0 * meff * lnDryResCoeff / collisionTime_SI
-dampingTan = math.sqrt(kappa) * dampingNorm
-
 frictionStatic = frictionCoefficient # TODO: check if this is correct
 frictionDynamic = frictionCoefficient
 
@@ -138,10 +139,10 @@ psim.add_property('inv_inertia', pairs.matrix())
 psim.add_property('rotation_matrix', pairs.matrix())
 psim.add_property('rotation_quat', pairs.quaternion())
 psim.add_feature('type', ntypes)
-psim.add_feature_property('type', 'stiffness_norm', pairs.double(), [stiffnessNorm for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'stiffness_tan', pairs.double(), [stiffnessTan for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_norm', pairs.double(), [dampingNorm for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_tan', pairs.double(), [dampingTan for i in range(ntypes * ntypes)])
+#psim.add_feature_property('type', 'stiffness_norm', pairs.double(), [stiffnessNorm for i in range(ntypes * ntypes)])
+#psim.add_feature_property('type', 'stiffness_tan', pairs.double(), [stiffnessTan for i in range(ntypes * ntypes)])
+#psim.add_feature_property('type', 'damping_norm', pairs.double(), [dampingNorm for i in range(ntypes * ntypes)])
+#psim.add_feature_property('type', 'damping_tan', pairs.double(), [dampingTan for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'friction_static', pairs.double(), [frictionStatic for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'friction_dynamic', pairs.double(), [frictionDynamic for i in range(ntypes * ntypes)])
 psim.add_contact_property('is_sticking', pairs.int32(), 0)
@@ -171,11 +172,21 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
 
 psim.build_neighbor_lists(linkedCellWidth + skin)
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
-psim.compute(gravity, symbols={'densityParticle_SI': densityParticle_SI,
-                               'densityFluid_SI': densityFluid_SI,
-                               'gravity_SI': gravity_SI,
-                               'pi': math.pi })
-psim.compute(linear_spring_dashpot, linkedCellWidth + skin, symbols={'dt': dt_SI})
+
+psim.compute(gravity,
+             symbols={'densityParticle_SI': densityParticle_SI,
+                      'densityFluid_SI': densityFluid_SI,
+                      'gravity_SI': gravity_SI,
+                      'pi': math.pi })
+
+psim.compute(linear_spring_dashpot,
+             linkedCellWidth + skin,
+             symbols={'dt': dt_SI,
+                      'pi': math.pi,
+                      'kappa': kappa,
+                      'lnDryResCoeff': lnDryResCoeff,
+                      'collisionTime_SI': collisionTime_SI})
+
 psim.compute(euler, symbols={'dt': dt_SI})
 
 if target == 'gpu':

@@ -45,6 +45,12 @@ class Keywords:
         assert len(args) == 3, "select() keyword requires three parameters!"
         return Select(self.sim, args[0], args[1], args[2])
 
+    def keyword_sqrt(self, args):
+        assert len(args) == 1, "sqrt() keyword requires one parameter!"
+        value = args[0]
+        assert value.type() == Types.Double, "sqrt(): Value must be a real."
+        return Sqrt(self.sim, value)
+
     def keyword_skip_when(self, args):
         assert len(args) == 1, "skip_when() keyword requires one parameter!"
         for _ in Filter(self.sim, args[0]):
