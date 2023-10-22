@@ -176,7 +176,7 @@ void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
-    PAIRS_DEBUG("send_sizes=[%d, %d], recv_sizes=[%d, %d]\n", send_sizes[dim * 2 + 0], send_sizes[dim * 2 + 1], recv_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1]);
+    //PAIRS_DEBUG("send_sizes=[%d, %d], recv_sizes=[%d, %d]\n", send_sizes[dim * 2 + 0], send_sizes[dim * 2 + 1], recv_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1]);
 }
 
 void PairsSimulation::communicateData(
