@@ -122,7 +122,7 @@ skin = 0.003
 ntypes = 1
 
 lnDryResCoeff = math.log(restitutionCoefficient);
-frictionStatic = frictionCoefficient # TODO: check if this is correct
+frictionStatic = 0.0
 frictionDynamic = frictionCoefficient
 
 psim = pairs.simulation("dem", timesteps=timeSteps)
