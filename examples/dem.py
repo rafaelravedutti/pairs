@@ -86,7 +86,7 @@ def euler(i):
 
 def gravity(i):
     volume = (4.0 / 3.0) * pi * radius[i] * radius[i] * radius[i]
-    force[i][2] -= densityParticle_SI - densityFluid_SI * volume * gravity_SI
+    force[i][2] += -(densityParticle_SI - densityFluid_SI) * volume * gravity_SI
 
 
 cmd = sys.argv[0]

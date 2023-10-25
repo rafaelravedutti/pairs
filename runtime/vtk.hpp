@@ -13,6 +13,7 @@ void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int en
     auto masses = ps->getAsFloatProperty(ps->getPropertyByName("mass"));
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));
     const int n = end - start;
+    const int prec = 8;
     std::ostringstream filename_oss;
 
     if(frequency != 0 && timestep % frequency != 0) {
@@ -38,9 +39,9 @@ void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int en
         out_file << "POINTS " << n << " double\n";
 
         for(int i = start; i < end; i++) {
-            out_file << std::fixed << std::setprecision(4) << positions(i, 0) << " ";
-            out_file << std::fixed << std::setprecision(4) << positions(i, 1) << " ";
-            out_file << std::fixed << std::setprecision(4) << positions(i, 2) << "\n";
+            out_file << std::fixed << std::setprecision(prec) << positions(i, 0) << " ";
+            out_file << std::fixed << std::setprecision(prec) << positions(i, 1) << " ";
+            out_file << std::fixed << std::setprecision(prec) << positions(i, 2) << "\n";
         }
 
         out_file << "\n\n";
@@ -60,7 +61,7 @@ void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int en
         out_file << "SCALARS mass double\n";
         out_file << "LOOKUP_TABLE default\n";
         for(int i = start; i < end; i++) {
-            out_file << std::fixed << std::setprecision(4) << masses(i) << "\n";
+            out_file << std::fixed << std::setprecision(prec) << masses(i) << "\n";
         }
 
         out_file << "\n\n";
