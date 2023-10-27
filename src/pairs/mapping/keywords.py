@@ -187,6 +187,10 @@ class Keywords:
         # Matrix * Scalar
         return Matrix(self.sim, [lhs[i] * rhs for i in range(nelems)])
 
+    def keyword_default_quaternion(self, args):
+        assert len(args) == 0, "default_quaternion() requires no parameters!"
+        return Quaternion(self.sim, [1.0, 0.0, 0.0, 0.0])
+
     def keyword_quaternion(self, args):
         assert len(args) == 2, "quaternion() keyword requires two parameters!"
         axis = args[0]
@@ -197,10 +201,12 @@ class Keywords:
 
         axis_length = self.keyword_length([axis])
         zero_cond = Abs(self.sim, axis_length) < epsilon or Abs(self.sim, angle) < epsilon
-        sina = Select(self.sim, zero_cond, 0.0, Sin(self.sim, angle * 0.5))
-        cosa = Select(self.sim, zero_cond, 1.0, Cos(self.sim, angle * 0.5))
+        sina = Sin(self.sim, angle * 0.5)
+        cosa = Cos(self.sim, angle * 0.5)
         axisN = axis * (1.0 / axis_length)
-        return Quaternion(self.sim, [cosa, sina * axisN[0], sina * axisN[1], sina * axisN[2]])
+        return Select(self.sim, zero_cond,
+                      Quaternion(self.sim, [1.0, 0.0, 0.0, 0.0]),
+                      Quaternion(self.sim, [cosa, sina * axisN[0], sina * axisN[1], sina * axisN[2]]))
 
     def keyword_quaternion_multiplication(self, args):
         assert len(args) == 2, "quaternion_multiplication() keyword requires two parameters!"
@@ -217,7 +223,7 @@ class Keywords:
         k = lhs[0] * rhs[3] + lhs[3] * rhs[0] + lhs[1] * rhs[2] - lhs[2] * rhs[1]
 
         len2 = r * r + i * i + j * j + k * k
-        ilen = Select(self.sim, len2 - 1.0 < 1E-8, 1.0, 1.0 / Sqrt(self.sim, len2))
+        ilen = Select(self.sim, Abs(self.sim, len2 - 1.0) < 1E-8, 1.0, 1.0 / Sqrt(self.sim, len2))
         return Quaternion(self.sim, [r * ilen, i * ilen, j * ilen, k * ilen])
 
     def keyword_quaternion_to_rotation_matrix(self, args):

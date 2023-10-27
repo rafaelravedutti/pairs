@@ -4,6 +4,9 @@ import sys
 
 
 def update_mass_and_inertia(i):
+    rotation_matrix[i] = diagonal_matrix(1.0)
+    rotation_quat[i] = default_quaternion()
+
     if is_sphere(i):
         mass[i] = ((4.0 / 3.0) * pi) * radius[i] * radius[i] * radius[i] * densityParticle_SI
         inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
@@ -109,7 +112,7 @@ restitutionCoefficient = 0.1
 collisionTime_SI = 5e-4
 poissonsRatio = 0.22
 timeSteps = 10000
-visSpacing = 100
+visSpacing = 1
 denseBottomLayer = False
 bottomLayerOffsetFactor = 1.0
 kappa = 2.0 * (1.0 - poissonsRatio) / (2.0 - poissonsRatio) # from Thornton et al
