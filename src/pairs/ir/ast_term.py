@@ -8,6 +8,7 @@ class ASTTerm(ASTNode):
         super().__init__(sim)
         self._class_type = class_type
         self._indexes_to_generate = set()
+        self._label = None
 
     def __add__(self, other):
         return self._class_type(self.sim, self, other, Operators.Add)
@@ -83,6 +84,12 @@ class ASTTerm(ASTNode):
 
     def is_quaternion(self):
         return self.type() == Types.Quaternion
+
+    def set_label(self, label):
+        self._label = label
+
+    def label_suffix(self):
+        return "" if self._label is None else f"_{self._label}"
 
     def indexes_to_generate(self):
         return self._indexes_to_generate

@@ -32,6 +32,9 @@ class AtomicAdd(ASTTerm):
     def id(self):
         return self.atomic_add_id
 
+    def name(self):
+        return f"atm_add{self.id()}" + self.label_suffix()
+
     def type(self):
         return self.elem.type()
 

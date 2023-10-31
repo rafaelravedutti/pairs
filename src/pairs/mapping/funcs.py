@@ -95,6 +95,7 @@ class BuildParticleIR(ast.NodeVisitor):
 
         if isinstance(lhs, UndefinedSymbol):
             self.add_symbols({lhs.symbol_id: rhs})
+            rhs.set_label(lhs.symbol_id)
         else:
             Assign(self.sim, lhs, rhs)
 
@@ -106,6 +107,7 @@ class BuildParticleIR(ast.NodeVisitor):
 
         if isinstance(lhs, UndefinedSymbol):
             self.add_symbols({lhs.symbol_id: bin_op})
+            rhs.set_label(lhs.symbol_id)
         else:
             Assign(self.sim, lhs, bin_op)
 

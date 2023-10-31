@@ -35,6 +35,9 @@ class VectorOp(ASTTerm):
     def id(self):
         return self._id
 
+    def name(self):
+        return f"vec_op{self.id()}" + self.label_suffix()
+
     def type(self):
         return Types.Vector
 
@@ -107,6 +110,9 @@ class Vector(ASTTerm):
 
     def id(self):
         return self._id
+
+    def name(self):
+        return f"vec{self.id()}" + self.label_suffix()
 
     def type(self):
         return Types.Vector

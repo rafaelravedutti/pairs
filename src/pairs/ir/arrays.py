@@ -190,6 +190,9 @@ class ArrayAccess(ASTTerm):
     def id(self):
         return self.acc_id
 
+    def name(self):
+        return f"arr_acc{self.id()}" + self.label_suffix()
+
     def type(self):
         return self.array.type()
 

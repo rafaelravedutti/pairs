@@ -12,7 +12,7 @@ def update_mass_and_inertia(i):
         inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
 
     else:
-        #mass[i] = infinity
+        mass[i] = infinity
         inv_inertia[i] = 0.0
 
 
@@ -112,7 +112,7 @@ restitutionCoefficient = 0.1
 collisionTime_SI = 5e-4
 poissonsRatio = 0.22
 timeSteps = 10000
-visSpacing = 1
+visSpacing = 100
 denseBottomLayer = False
 bottomLayerOffsetFactor = 1.0
 kappa = 2.0 * (1.0 - poissonsRatio) / (2.0 - poissonsRatio) # from Thornton et al

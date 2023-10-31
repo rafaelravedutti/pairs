@@ -185,6 +185,9 @@ class FeaturePropertyAccess(ASTTerm):
     def id(self):
         return self.acc_id
 
+    def name(self):
+        return f"feat_prop_acc{self.id()}" + self.label_suffix()
+
     def type(self):
         return self.feature_prop.type()
 

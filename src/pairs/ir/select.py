@@ -36,6 +36,9 @@ class Select(ASTTerm):
     def id(self):
         return self.select_id
 
+    def name(self):
+        return f"sel{self.id()}" + self.label_suffix()
+
     def type(self):
         return self.expr_if.type()
 

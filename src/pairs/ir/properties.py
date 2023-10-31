@@ -30,6 +30,9 @@ class Properties:
     def volatiles(self):
         return [p for p in self.props if p.volatile is True]
 
+    def non_volatiles(self):
+        return [p for p in self.props if p.volatile is False]
+
     def nprops(self):
         return len(self.props)
 
@@ -134,6 +137,9 @@ class PropertyAccess(ASTTerm):
 
     def id(self):
         return self.acc_id
+
+    def name(self):
+        return f"prop_acc{self.id()}" + self.label_suffix()
 
     def type(self):
         return self.prop.type()
@@ -297,6 +303,9 @@ class ContactPropertyAccess(ASTTerm):
 
     def id(self):
         return self.acc_id
+
+    def name(self):
+        return f"cont_prop_acc{self.id()}" + self.label_suffix()
 
     def type(self):
         return self.contact_prop.type()

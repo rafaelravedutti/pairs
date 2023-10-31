@@ -35,6 +35,9 @@ class QuaternionOp(ASTTerm):
     def id(self):
         return self._id
 
+    def name(self):
+        return f"quat_op{self.id()}" + self.label_suffix()
+
     def type(self):
         return Types.Quaternion
 
@@ -99,6 +102,9 @@ class Quaternion(ASTTerm):
 
     def id(self):
         return self._id
+
+    def name(self):
+        return f"quat{self.id()}" + self.label_suffix()
 
     def type(self):
         return Types.Quaternion

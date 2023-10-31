@@ -23,6 +23,9 @@ class MathFunction(ASTTerm):
     def id(self):
         return self._id
 
+    def name(self):
+        return f"mf{self.id()}" + self.label_suffix()
+
     def function_name(self):
         return "undefined"
 

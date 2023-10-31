@@ -46,9 +46,10 @@ class Comm:
 
     @pairs_inline
     def borders(self):
-        # Every property that is constant across timesteps and have neighbor accesses during any
-        # interaction kernel (i.e. property[j] in force calculation kernel)
-        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'linear_velocity', 'angular_velocity', 'flags']]
+        # Every property that has neighbor accesses during any interaction kernel (i.e. property[j]
+        # exists in any force calculation kernel)
+        # We ignore normal because there should be no halfspace ghosts
+        prop_list = [self.sim.property(p) for p in ['mass', 'radius', 'position', 'linear_velocity', 'angular_velocity', 'shape']]
         Assign(self.sim, self.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
 
@@ -64,7 +65,7 @@ class Comm:
     @pairs_inline
     def exchange(self):
         # Every property except volatiles
-        prop_list = [self.sim.property(p) for p in ['mass', 'position', 'linear_velocity', 'shape', 'flags']]
+        prop_list = self.sim.properties.non_volatiles()
         for step in range(self.dom_part.number_of_steps()):
             Assign(self.sim, self.nsend_all, 0)
             Assign(self.sim, self.sim.nghost, 0)

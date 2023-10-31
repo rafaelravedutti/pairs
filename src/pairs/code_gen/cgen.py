@@ -206,12 +206,12 @@ class CGen:
 
         for array_access in kernel.array_accesses():
             type_kw = Types.c_keyword(array_access.type())
-            decl = f"{type_kw} a{array_access.id()}"
+            decl = f"{type_kw} {array_access.name()}"
             kernel_params += f", {decl}"
 
         for scalar_op in kernel.scalar_ops():
             type_kw = Types.c_keyword(scalar_op.type())
-            decl = f"{type_kw} e{scalar_op.id()}"
+            decl = f"{type_kw} {scalar_op.name()}"
             kernel_params += f", {decl}"
 
         self.print(f"__global__ void {kernel.name}({kernel_params}) {{")
@@ -268,7 +268,7 @@ class CGen:
                 array_name = self.generate_expression(array_access.array)
                 tkw = Types.c_keyword(array_access.type())
                 acc_index = self.generate_expression(array_access.flat_index)
-                acc_ref = f"a{array_access.id()}"
+                acc_ref = array_access.name()
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
 
             if isinstance(ast_node.elem, AtomicAdd):
@@ -276,7 +276,7 @@ class CGen:
                 elem = self.generate_expression(atomic_add.elem)
                 value = self.generate_expression(atomic_add.value)
                 tkw = Types.c_keyword(atomic_add.type())
-                acc_ref = f"atm_add{atomic_add.id()}"
+                acc_ref = atomic_add.name()
                 prefix = "" if ast_node.elem.device_flag else "host_"
 
                 if atomic_add.check_for_resize():
@@ -290,7 +290,7 @@ class CGen:
                 contact_prop_access = ast_node.elem
                 contact_prop = contact_prop_access.contact_prop
                 prop_name = self.generate_expression(contact_prop)
-                acc_ref = f"cp{contact_prop_access.id()}"
+                acc_ref = contact_prop_access.name()
 
                 if not contact_prop_access.is_scalar():
                     for dim in contact_prop_access.indexes_to_generate():
@@ -306,7 +306,7 @@ class CGen:
                 feature_prop_access = ast_node.elem
                 feature_prop = feature_prop_access.feature_prop
                 prop_name = self.generate_expression(feature_prop)
-                acc_ref = f"f{feature_prop_access.id()}"
+                acc_ref = feature_prop_access.name()
 
                 if not feature_prop_access.is_scalar():
                     for dim in feature_prop_access.indexes_to_generate():
@@ -321,7 +321,7 @@ class CGen:
             if isinstance(ast_node.elem, PropertyAccess):
                 prop_access = ast_node.elem
                 prop_name = self.generate_expression(prop_access.prop)
-                acc_ref = f"p{prop_access.id()}"
+                acc_ref = prop_access.name()
 
                 if not prop_access.is_scalar():
                     for dim in prop_access.indexes_to_generate():
@@ -336,7 +336,7 @@ class CGen:
                 quaternion = ast_node.elem
                 for i in quaternion.indexes_to_generate():
                     expr = self.generate_expression(quaternion.get_value(i))
-                    self.print(f"const double q{quaternion.id()}_{i} = {expr};")
+                    self.print(f"const double {quaternion.name()}_{i} = {expr};")
 
             if isinstance(ast_node.elem, QuaternionOp):
                 quat_op = ast_node.elem
@@ -346,9 +346,9 @@ class CGen:
                     operator = quat_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const double e{quat_op.id()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const double {quat_op.name()}_{dim} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const double e{quat_op.id()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const double {quat_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, ScalarOp):
                 scalar_op = ast_node.elem
@@ -359,13 +359,13 @@ class CGen:
                     tkw = Types.c_keyword(scalar_op.type())
 
                     if operator.is_unary():
-                        self.print(f"const {tkw} e{scalar_op.id()} = {operator.symbol()}({lhs});")
+                        self.print(f"const {tkw} {scalar_op.name()} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const {tkw} e{scalar_op.id()} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const {tkw} {scalar_op.name()} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, Select):
                 select = ast_node.elem
-                acc_ref = f"s{select.id()}"
+                acc_ref = select.name()
 
                 if not select.is_scalar():
                     for dim in select.indexes_to_generate():
@@ -382,16 +382,15 @@ class CGen:
 
             if isinstance(ast_node.elem, MathFunction):
                 math_func = ast_node.elem
-                acc_ref = f"mf{math_func.id()}"
                 params = ", ".join([str(self.generate_expression(p)) for p in math_func.parameters()])
                 tkw = Types.c_keyword(math_func.type())
-                self.print(f"const {tkw} {acc_ref} = {math_func.function_name()}({params});")
+                self.print(f"const {tkw} {math_func.name()} = {math_func.function_name()}({params});")
 
             if isinstance(ast_node.elem, Matrix):
                 matrix = ast_node.elem
                 for i in matrix.indexes_to_generate():
                     expr = self.generate_expression(matrix.get_value(i))
-                    self.print(f"const double m{matrix.id()}_{i} = {expr};")
+                    self.print(f"const double {matrix.name()}_{i} = {expr};")
 
             if isinstance(ast_node.elem, MatrixOp):
                 matrix_op = ast_node.elem
@@ -401,15 +400,15 @@ class CGen:
                     operator = vector_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const double e{matrix_op.id()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const double {matrix_op.name()}_{dim} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const double e{matrix_op.id()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const double {matrix_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, Vector):
                 vector = ast_node.elem
                 for dim in vector.indexes_to_generate():
                     expr = self.generate_expression(vector.get_value(dim))
-                    self.print(f"const double v{vector.id()}_{dim} = {expr};")
+                    self.print(f"const double {vector.name()}_{dim} = {expr};")
 
             if isinstance(ast_node.elem, VectorOp):
                 vector_op = ast_node.elem
@@ -419,9 +418,9 @@ class CGen:
                     operator = vector_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const double e{vector_op.id()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const double {vector_op.name()}_{dim} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const double e{vector_op.id()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const double {vector_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
@@ -745,10 +744,10 @@ class CGen:
                 acc_index = self.generate_expression(ast_node.flat_index)
                 return f"{array_name}[{acc_index}]"
 
-            return f"a{ast_node.id()}"
+            return f"{ast_node.name()}"
 
         if isinstance(ast_node, AtomicAdd):
-            return f"atm_add{ast_node.id()}"
+            return f"{ast_node.name()}"
 
         if isinstance(ast_node, ScalarOp):
             if ast_node.inlined is True:
@@ -758,7 +757,7 @@ class CGen:
                 return f"({operator.symbol()}({lhs}))" if operator.is_unary() else \
                        f"({lhs} {operator.symbol()} {rhs})"
 
-            return f"e{ast_node.id()}"
+            return f"{ast_node.name()}"
 
         if isinstance(ast_node, Call):
             extra_params = []
@@ -797,7 +796,7 @@ class CGen:
 
         if isinstance(ast_node, Iter):
             assert mem is False, "Iterator is not lvalue!"
-            return f"i{ast_node.id()}"
+            return f"{ast_node.name()}"
 
         if isinstance(ast_node, Lit):
             assert mem is False, "Literal is not lvalue!"
@@ -820,7 +819,7 @@ class CGen:
                 params = ", ".join([str(self.generate_expression(p)) for p in ast_node.parameters()])
                 return f"{ast_node.function_name()}({params})"
 
-            return f"mf{ast_node.id()}"
+            return f"{ast_node.name()}"
 
         if isinstance(ast_node, Property):
             return ast_node.name()
@@ -837,7 +836,7 @@ class CGen:
 
                 return f"{prop_name}[{index_expr}]"
 
-            return f"p{ast_node.id()}" + (f"_{index}" if not ast_node.is_scalar() else "")
+            return f"{ast_node.name()}" + (f"_{index}" if not ast_node.is_scalar() else "")
 
         if isinstance(ast_node, ContactPropertyAccess):
             assert ast_node.is_scalar() or index is not None, \
@@ -851,7 +850,7 @@ class CGen:
 
                 return f"{prop_name}[{index_expr}]"
 
-            return f"cp{ast_node.id()}" + (f"_{index}" if not ast_node.is_scalar() else "")
+            return f"{ast_node.name()}" + (f"_{index}" if not ast_node.is_scalar() else "")
 
         if isinstance(ast_node, FeaturePropertyAccess):
             assert ast_node.is_scalar() or index is not None, \
@@ -865,7 +864,7 @@ class CGen:
 
                 return f"{feature_name}[{index_expr}]"
 
-            return f"f{ast_node.id()}" + (f"_{index}" if not ast_node.is_scalar() else "")
+            return f"{ast_node.name()}" + (f"_{index}" if not ast_node.is_scalar() else "")
 
         if isinstance(ast_node, ParticleAttributeList):
             tid = CGen.temp_id
@@ -892,9 +891,9 @@ class CGen:
 
             if not ast_node.is_scalar():
                 assert index is not None, "Index must be set for non-scalar reference."
-                return f"s{ast_node.id()}_{index}"
+                return f"{ast_node.name()}_{index}"
 
-            return f"s{ast_node.id()}"
+            return f"{ast_node.name()}"
 
         if isinstance(ast_node, Var):
             return ast_node.name() if ast_node.is_scalar() else f"{ast_node.name()}_{index}"
@@ -910,27 +909,27 @@ class CGen:
 
         if isinstance(ast_node, Vector):
             assert index is not None, "Index must be set for vector."
-            return f"v{ast_node.id()}_{index}"
+            return f"{ast_node.name()}_{index}"
 
         if isinstance(ast_node, Matrix):
             assert index is not None, "Index must be set for matrix."
-            return f"m{ast_node.id()}_{index}"
+            return f"{ast_node.name()}_{index}"
 
         if isinstance(ast_node, Quaternion):
             assert index is not None, "Index must be set for quaternion."
-            return f"q{ast_node.id()}_{index}"
+            return f"{ast_node.name()}_{index}"
 
         if isinstance(ast_node, VectorOp):
             assert index is not None, "Index must be set for vector operation."
-            return f"e{ast_node.id()}_{index}"
+            return f"{ast_node.name()}_{index}"
 
         if isinstance(ast_node, MatrixOp):
             assert index is not None, "Index must be set for matrix operation."
-            return f"e{ast_node.id()}_{index}"
+            return f"{ast_node.name()}_{index}"
 
         if isinstance(ast_node, QuaternionOp):
             assert index is not None, "Index must be set for quaternion operation."
-            return f"e{ast_node.id()}_{index}"
+            return f"{ast_node.name()}_{index}"
 
         if isinstance(ast_node, ZeroVector):
             return "0.0"

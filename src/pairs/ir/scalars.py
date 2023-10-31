@@ -116,6 +116,9 @@ class ScalarOp(ASTTerm):
     def id(self):
         return self.scalar_op_id
 
+    def name(self):
+        return f"sca_op{self.id()}" + self.label_suffix()
+
     def type(self):
         return self.scalar_op_type
 

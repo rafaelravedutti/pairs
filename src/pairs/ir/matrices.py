@@ -35,6 +35,9 @@ class MatrixOp(ASTTerm):
     def id(self):
         return self._id
 
+    def name(self):
+        return f"mat_op{self.id()}" + self.label_suffix()
+
     def type(self):
         return Types.Matrix
 
@@ -99,6 +102,9 @@ class Matrix(ASTTerm):
 
     def id(self):
         return self._id
+
+    def name(self):
+        return f"mat{self.id()}" + self.label_suffix()
 
     def type(self):
         return Types.Matrix
