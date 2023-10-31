@@ -8,11 +8,11 @@ def update_mass_and_inertia(i):
     rotation_quat[i] = default_quaternion()
 
     if is_sphere(i):
-        mass[i] = ((4.0 / 3.0) * pi) * radius[i] * radius[i] * radius[i] * densityParticle_SI
+        #mass[i] = ((4.0 / 3.0) * pi) * radius[i] * radius[i] * radius[i] * densityParticle_SI
         inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
 
     else:
-        mass[i] = infinity
+        #mass[i] = infinity
         inv_inertia[i] = 0.0
 
 
