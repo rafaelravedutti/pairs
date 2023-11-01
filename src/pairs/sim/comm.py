@@ -23,14 +23,14 @@ class Comm:
         self.neigh_capacity = sim.add_var('neigh_capacity', Types.Int32, 6)
         self.nsend          = sim.add_array('nsend', [self.neigh_capacity], Types.Int32)
         self.send_offsets   = sim.add_array('send_offsets', [self.neigh_capacity], Types.Int32)
-        self.send_buffer    = sim.add_array('send_buffer', [self.send_capacity, self.elem_capacity], Types.Double)
+        self.send_buffer    = sim.add_array('send_buffer', [self.send_capacity, self.elem_capacity], Types.Real)
         self.send_map       = sim.add_array('send_map', [self.send_capacity], Types.Int32)
         self.exchg_flag     = sim.add_array('exchg_flag', [sim.particle_capacity], Types.Int32)
         self.exchg_copy_to  = sim.add_array('exchg_copy_to', [self.send_capacity], Types.Int32)
         self.send_mult      = sim.add_array('send_mult', [self.send_capacity, sim.ndims()], Types.Int32)
         self.nrecv          = sim.add_array('nrecv', [self.neigh_capacity], Types.Int32)
         self.recv_offsets   = sim.add_array('recv_offsets', [self.neigh_capacity], Types.Int32)
-        self.recv_buffer    = sim.add_array('recv_buffer', [self.recv_capacity, self.elem_capacity], Types.Double)
+        self.recv_buffer    = sim.add_array('recv_buffer', [self.recv_capacity, self.elem_capacity], Types.Real)
         self.recv_map       = sim.add_array('recv_map', [self.recv_capacity], Types.Int32)
         self.recv_mult      = sim.add_array('recv_mult', [self.recv_capacity, sim.ndims()], Types.Int32)
 
@@ -227,7 +227,7 @@ class PackGhostParticles(Lowerable):
                     p_offset += nelems
 
                 else:
-                    cast_fn = lambda x: Cast(self.sim, x, Types.Double) if p.type() != Types.Double else x
+                    cast_fn = lambda x: Cast(self.sim, x, Types.Real) if p.type() != Types.Real else x
                     Assign(self.sim, send_buffer[i][p_offset], cast_fn(p[m]))
                     p_offset += 1
 
@@ -264,7 +264,7 @@ class UnpackGhostParticles(Lowerable):
                     p_offset += nelems
 
                 else:
-                    cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Double else x
+                    cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Real else x
                     Assign(self.sim, p[nlocal + i], cast_fn(recv_buffer[i][p_offset]))
                     p_offset += 1
 

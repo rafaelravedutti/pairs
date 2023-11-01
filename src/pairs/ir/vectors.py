@@ -82,7 +82,7 @@ class VectorAccess(ASTTerm):
         return f"VectorAccess<{self.expr}, {self.index}>"
 
     def type(self):
-        return Types.Double
+        return Types.Real
 
     def children(self):
         return [self.expr]

@@ -2,7 +2,12 @@
 
 #pragma once
 
-typedef double real_t;
+//#ifdef USE_DOUBLE_PRECISION
+//typedef double real_t;
+//#else
+typedef float real_t;
+//#endif
+
 typedef int array_t;
 typedef int property_t;
 typedef int layout_t;
@@ -10,7 +15,7 @@ typedef int layout_t;
 enum PropertyType {
     Prop_Invalid = -1,
     Prop_Integer = 0,
-    Prop_Float,
+    Prop_Real,
     Prop_Vector,
     Prop_Matrix,
     Prop_Quaternion

@@ -22,7 +22,7 @@ class Lit(ASTTerm):
         else:
             scalar_mapping = {
                 int: Types.Int32,
-                float: Types.Double,
+                float: Types.Real,
                 bool: Types.Boolean,
                 str: Types.String,
             }

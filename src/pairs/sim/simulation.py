@@ -32,7 +32,7 @@ from pairs.transformations import Transformations
 
 
 class Simulation:
-    def __init__(self, code_gen, dims=3, timesteps=100):
+    def __init__(self, code_gen, dims=3, timesteps=100, double_prec=False):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.position_prop = None
@@ -65,6 +65,7 @@ class Simulation:
         self._check_properties_resize = False
         self._resizes_to_check = {}
         self._module_name = None
+        self._double_prec = double_prec
         self.dims = dims
         self.ntimesteps = timesteps
         self.expr_id = 0
@@ -75,6 +76,9 @@ class Simulation:
         self._target = None
         self._dom_part = DimensionRanges(self)
         self._pbc = [True for _ in range(dims)]
+
+    def use_double_precision(self):
+        return self._double_prec
 
     def max_shapes(self):
         return 2

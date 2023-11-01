@@ -5,8 +5,8 @@ from pairs.sim.shapes import Shapes
 from pairs.sim.simulation import Simulation
 
 
-def simulation(ref, dims=3, timesteps=100, debug=False):
-    return Simulation(CGen(ref, debug), dims, timesteps)
+def simulation(ref, dims=3, timesteps=100, double_prec=False, debug=False):
+    return Simulation(CGen(ref, debug), dims, timesteps, double_prec)
 
 def target_cpu():
     return Target(Target.Backend_CPP, Target.Feature_CPU)
@@ -17,8 +17,14 @@ def target_gpu():
 def int32():
     return Types.Int32
 
+def float():
+    return Types.Float
+
 def double():
     return Types.Double
+
+def real():
+    return Types.Real
 
 def vector():
     return Types.Vector

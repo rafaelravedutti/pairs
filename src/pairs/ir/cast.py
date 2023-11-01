@@ -19,6 +19,12 @@ class Cast(ASTTerm):
     def uint64(sim, expr):
         return Cast(sim, expr, Types.UInt64)
 
+    def real(sim, expr):
+        return Cast(sim, expr, Types.Real)
+
+    def float(sim, expr):
+        return Cast(sim, expr, Types.Float)
+
     def double(sim, expr):
         return Cast(sim, expr, Types.Double)
 

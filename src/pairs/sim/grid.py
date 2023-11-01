@@ -58,8 +58,8 @@ class MutableGrid(Grid):
         self.id = MutableGrid.last_id
         prefix = f"grid{self.id}_"
         super().__init__(sim, [
-            (sim.add_var(f"{prefix}d{d}_min", Types.Double),
-             sim.add_var(f"{prefix}d{d}_max", Types.Double))
+            (sim.add_var(f"{prefix}d{d}_min", Types.Real),
+             sim.add_var(f"{prefix}d{d}_max", Types.Real))
             for d in range(ndims)
         ])
 

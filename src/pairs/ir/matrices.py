@@ -73,7 +73,7 @@ class MatrixAccess(ASTTerm):
         return f"MatrixAccess<{self.expr}, {self.index}>"
 
     def type(self):
-        return Types.Double
+        return Types.Real
 
     def children(self):
         return [self.expr]

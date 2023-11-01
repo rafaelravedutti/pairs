@@ -10,7 +10,7 @@
 
 namespace pairs {
 
-void read_grid_data(PairsSimulation *ps, const char *filename, double *grid_buffer) {
+void read_grid_data(PairsSimulation *ps, const char *filename, real_t *grid_buffer) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
 
@@ -92,7 +92,7 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
                     if(prop.getName() == "flags") {
                         flags = int_ptr(n);
                     }
-                } else if(prop_type == Prop_Float) {
+                } else if(prop_type == Prop_Real) {
                     auto float_ptr = ps->getAsFloatProperty(prop);
                     float_ptr(n) = std::stod(in0);
                 } else {
@@ -147,7 +147,7 @@ size_t read_feature_data(PairsSimulation *ps, const char *filename, const int fe
                 } else if(prop_type == Prop_Integer) {
                     auto int_ptr = ps->getAsIntegerFeatureProperty(prop);
                     int_ptr(i, j) = std::stoi(in0);
-                } else if(prop_type == Prop_Float) {
+                } else if(prop_type == Prop_Real) {
                     auto float_ptr = ps->getAsFloatFeatureProperty(prop);
                     float_ptr(i, j) = std::stod(in0);
                 } else {

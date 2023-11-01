@@ -14,7 +14,7 @@ class DimensionRanges:
         self.sim = sim
         self.neighbor_ranks = sim.add_static_array('neighbor_ranks', [sim.ndims() * 2], Types.Int32)
         self.pbc            = sim.add_static_array('pbc', [sim.ndims() * 2], Types.Int32)
-        self.subdom         = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Double)
+        self.subdom         = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Real)
 
     def number_of_steps(self):
         return self.sim.ndims()
@@ -27,7 +27,7 @@ class DimensionRanges:
             return
 
         # Particles with one of the following flags are ignored
-        flags_to_exclude = (Flags.Infinite | Flags.Fixed | Flags.Global)
+        flags_to_exclude = (Flags.Infinite | Flags.Global)
 
         for i in For(self.sim, 0, self.sim.nlocal + self.sim.nghost):
             for _ in Filter(self.sim, ScalarOp.cmp(self.sim.particle_flags[i] & flags_to_exclude, 0)):

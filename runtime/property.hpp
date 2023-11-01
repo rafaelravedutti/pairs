@@ -37,10 +37,10 @@ public:
     layout_t getLayout() { return layout; }
     size_t getElemSize() {
         return  (type == Prop_Integer) ? sizeof(int) :
-                (type == Prop_Float) ? sizeof(double) :
-                (type == Prop_Vector) ? sizeof(double) :
-                (type == Prop_Matrix) ? sizeof(double) :
-                (type == Prop_Quaternion) ? sizeof(double) : 0;
+                (type == Prop_Real) ? sizeof(real_t) :
+                (type == Prop_Vector) ? sizeof(real_t) :
+                (type == Prop_Matrix) ? sizeof(real_t) :
+                (type == Prop_Quaternion) ? sizeof(real_t) : 0;
     }
 };
 
@@ -51,14 +51,14 @@ public:
 
 class FloatProperty : public Property {
 public:
-    inline double &operator()(int i) { return static_cast<double *>(h_ptr)[i]; }
+    inline real_t &operator()(int i) { return static_cast<real_t *>(h_ptr)[i]; }
 };
 
 class VectorProperty : public Property {
 public:
-    double &operator()(int i, int j) {
+    real_t &operator()(int i, int j) {
         PAIRS_ASSERT(type != Prop_Invalid && layout != Invalid && sx > 0 && sy > 0);
-        double *dptr = static_cast<double *>(h_ptr);
+        real_t *dptr = static_cast<real_t *>(h_ptr);
         if(layout == AoS) { return dptr[i * sy + j]; }
         if(layout == SoA) { return dptr[j * sx + i]; }
         PAIRS_ERROR("VectorProperty::operator[]: Invalid data layout!");
@@ -68,9 +68,9 @@ public:
 
 class MatrixProperty : public Property {
 public:
-    double &operator()(int i, int j) {
+    real_t &operator()(int i, int j) {
         PAIRS_ASSERT(type != Prop_Invalid && layout != Invalid && sx > 0 && sy > 0);
-        double *dptr = static_cast<double *>(h_ptr);
+        real_t *dptr = static_cast<real_t *>(h_ptr);
         if(layout == AoS) { return dptr[i * sy + j]; }
         if(layout == SoA) { return dptr[j * sx + i]; }
         PAIRS_ERROR("MatrixProperty::operator[]: Invalid data layout!");
@@ -80,9 +80,9 @@ public:
 
 class QuaternionProperty : public Property {
 public:
-    double &operator()(int i, int j) {
+    real_t &operator()(int i, int j) {
         PAIRS_ASSERT(type != Prop_Invalid && layout != Invalid && sx > 0 && sy > 0);
-        double *dptr = static_cast<double *>(h_ptr);
+        real_t *dptr = static_cast<real_t *>(h_ptr);
         if(layout == AoS) { return dptr[i * sy + j]; }
         if(layout == SoA) { return dptr[j * sx + i]; }
         PAIRS_ERROR("QuaternionProperty::operator[]: Invalid data layout!");

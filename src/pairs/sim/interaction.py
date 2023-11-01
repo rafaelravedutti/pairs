@@ -93,8 +93,8 @@ class InteractionData:
         self._i = sim.add_symbol(Types.Int32)
         self._j = sim.add_symbol(Types.Int32)
         self._delta = sim.add_symbol(Types.Vector)
-        self._squared_distance = sim.add_symbol(Types.Double)
-        self._penetration_depth = sim.add_symbol(Types.Double)
+        self._squared_distance = sim.add_symbol(Types.Real)
+        self._penetration_depth = sim.add_symbol(Types.Real)
         self._contact_point = sim.add_symbol(Types.Vector)
         self._contact_normal = sim.add_symbol(Types.Vector)
         self._shape = shape

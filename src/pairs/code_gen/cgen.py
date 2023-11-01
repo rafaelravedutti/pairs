@@ -49,6 +49,9 @@ class CGen:
     def assign_target(self, target):
         self.target = target
 
+    def real_type(self):
+        return Types.c_keyword(self.sim, Types.Real)
+
     def generate_program(self, ast_node):
         ext = ".cu" if self.target.is_gpu() else ".cpp"
         self.print = Printer(self.ref + ext)
@@ -80,14 +83,14 @@ class CGen:
             for array in self.sim.arrays.statics():
                 if array.device_flag:
                     t = array.type()
-                    tkw = Types.c_keyword(t)
+                    tkw = Types.c_keyword(self.sim, t)
                     size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
                     self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
 
             for feature_prop in self.sim.feature_properties:
                 if feature_prop.device_flag:
                     t = feature_prop.type()
-                    tkw = Types.c_keyword(t)
+                    tkw = Types.c_keyword(self.sim, t)
                     size = feature_prop.array_size()
                     self.print(f"__constant__ {tkw} d_{feature_prop.name()}[{size}];")
 
@@ -117,17 +120,17 @@ class CGen:
         else:
             module_params = "PairsSimulation *pairs"
             for var in module.read_only_variables():
-                type_kw = Types.c_keyword(var.type())
+                type_kw = Types.c_keyword(self.sim, var.type())
                 decl = f"{type_kw} {var.name()}"
                 module_params += f", {decl}"
 
             for var in module.write_variables():
-                type_kw = Types.c_keyword(var.type())
+                type_kw = Types.c_keyword(self.sim, var.type())
                 decl = f"{type_kw} *{var.name()}"
                 module_params += f", {decl}"
 
             for array in module.arrays():
-                type_kw = Types.c_keyword(array.type())
+                type_kw = Types.c_keyword(self.sim, array.type())
                 decl = f"{type_kw} *{array.name()}"
                 module_params += f", {decl}"
 
@@ -136,7 +139,7 @@ class CGen:
                     module_params += f", {decl}"
 
             for prop in module.properties():
-                type_kw = Types.c_keyword(prop.type())
+                type_kw = Types.c_keyword(self.sim, prop.type())
                 decl = f"{type_kw} *{prop.name()}"
                 module_params += f", {decl}"
 
@@ -145,7 +148,7 @@ class CGen:
                     module_params += f", {decl}"
 
             for contact_prop in module.contact_properties():
-                type_kw = Types.c_keyword(contact_prop.type())
+                type_kw = Types.c_keyword(self.sim, contact_prop.type())
                 decl = f"{type_kw} *{contact_prop.name()}"
                 module_params += f", {decl}"
 
@@ -154,7 +157,7 @@ class CGen:
                     module_params += f", {decl}"
 
             for feature_prop in module.feature_properties():
-                type_kw = Types.c_keyword(feature_prop.type())
+                type_kw = Types.c_keyword(self.sim, feature_prop.type())
                 decl = f"{type_kw} *{feature_prop.name()}"
                 module_params += f", {decl}"
 
@@ -175,42 +178,42 @@ class CGen:
     def generate_kernel(self, kernel):
         kernel_params = "int range_start"
         for var in kernel.read_only_variables():
-            type_kw = Types.c_keyword(var.type())
+            type_kw = Types.c_keyword(self.sim, var.type())
             decl = f"{type_kw} {var.name()}"
             kernel_params += f", {decl}"
 
         for var in kernel.write_variables():
-            type_kw = Types.c_keyword(var.type())
+            type_kw = Types.c_keyword(self.sim, var.type())
             decl = f"{type_kw} *{var.name()}"
             kernel_params += f", {decl}"
 
         for array in kernel.arrays():
-            type_kw = Types.c_keyword(array.type())
+            type_kw = Types.c_keyword(self.sim, array.type())
             decl = f"{type_kw} *{array.name()}"
             kernel_params += f", {decl}"
 
         for prop in kernel.properties():
-            type_kw = Types.c_keyword(prop.type())
+            type_kw = Types.c_keyword(self.sim, prop.type())
             decl = f"{type_kw} *{prop.name()}"
             kernel_params += f", {decl}"
 
         for contact_prop in kernel.contact_properties():
-            type_kw = Types.c_keyword(contact_prop.type())
+            type_kw = Types.c_keyword(self.sim, contact_prop.type())
             decl = f"{type_kw} *{contact_prop.name()}"
             kernel_params += f", {decl}"
 
         for feature_prop in kernel.feature_properties():
-            type_kw = Types.c_keyword(feature_prop.type())
+            type_kw = Types.c_keyword(self.sim, feature_prop.type())
             decl = f"{type_kw} *{feature_prop.name()}"
             kernel_params += f", {decl}"
 
         for array_access in kernel.array_accesses():
-            type_kw = Types.c_keyword(array_access.type())
+            type_kw = Types.c_keyword(self.sim, array_access.type())
             decl = f"{type_kw} {array_access.name()}"
             kernel_params += f", {decl}"
 
         for scalar_op in kernel.scalar_ops():
-            type_kw = Types.c_keyword(scalar_op.type())
+            type_kw = Types.c_keyword(self.sim, scalar_op.type())
             decl = f"{type_kw} {scalar_op.name()}"
             kernel_params += f", {decl}"
 
@@ -226,7 +229,7 @@ class CGen:
     def generate_statement(self, ast_node):
         if isinstance(ast_node, DeclareStaticArray):
             t = ast_node.array.type()
-            tkw = Types.c_keyword(t)
+            tkw = Types.c_keyword(self.sim, t)
             size = self.generate_expression(ScalarOp.inline(ast_node.array.alloc_size()))
             if ast_node.array.init_value is not None:
                 v_str = str(ast_node.array.init_value)
@@ -266,7 +269,7 @@ class CGen:
             if isinstance(ast_node.elem, ArrayAccess):
                 array_access = ast_node.elem
                 array_name = self.generate_expression(array_access.array)
-                tkw = Types.c_keyword(array_access.type())
+                tkw = Types.c_keyword(self.sim, array_access.type())
                 acc_index = self.generate_expression(array_access.flat_index)
                 acc_ref = array_access.name()
                 self.print(f"const {tkw} {acc_ref} = {array_name}[{acc_index}];")
@@ -275,7 +278,7 @@ class CGen:
                 atomic_add = ast_node.elem
                 elem = self.generate_expression(atomic_add.elem)
                 value = self.generate_expression(atomic_add.value)
-                tkw = Types.c_keyword(atomic_add.type())
+                tkw = Types.c_keyword(self.sim, atomic_add.type())
                 acc_ref = atomic_add.name()
                 prefix = "" if ast_node.elem.device_flag else "host_"
 
@@ -295,10 +298,10 @@ class CGen:
                 if not contact_prop_access.is_scalar():
                     for dim in contact_prop_access.indexes_to_generate():
                         expr = self.generate_expression(contact_prop_access.vector_index(dim))
-                        self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
+                        self.print(f"const {self.real_type()} {acc_ref}_{dim} = {prop_name}[{expr}];")
 
                 else:
-                    tkw = Types.c_keyword(contact_prop_access.type())
+                    tkw = Types.c_keyword(self.sim, contact_prop_access.type())
                     acc_index = self.generate_expression(contact_prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
 
@@ -311,10 +314,10 @@ class CGen:
                 if not feature_prop_access.is_scalar():
                     for dim in feature_prop_access.indexes_to_generate():
                         expr = self.generate_expression(feature_prop_access.vector_index(dim))
-                        self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
+                        self.print(f"const {self.real_type()} {acc_ref}_{dim} = {prop_name}[{expr}];")
 
                 else:
-                    tkw = Types.c_keyword(feature_prop_access.type())
+                    tkw = Types.c_keyword(self.sim, feature_prop_access.type())
                     acc_index = self.generate_expression(feature_prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{acc_index}];")
 
@@ -326,9 +329,9 @@ class CGen:
                 if not prop_access.is_scalar():
                     for dim in prop_access.indexes_to_generate():
                         expr = self.generate_expression(prop_access.vector_index(dim))
-                        self.print(f"const double {acc_ref}_{dim} = {prop_name}[{expr}];")
+                        self.print(f"const {self.real_type()} {acc_ref}_{dim} = {prop_name}[{expr}];")
                 else:
-                    tkw = Types.c_keyword(prop_access.type())
+                    tkw = Types.c_keyword(self.sim, prop_access.type())
                     index_g = self.generate_expression(prop_access.index)
                     self.print(f"const {tkw} {acc_ref} = {prop_name}[{index_g}];")
 
@@ -336,7 +339,7 @@ class CGen:
                 quaternion = ast_node.elem
                 for i in quaternion.indexes_to_generate():
                     expr = self.generate_expression(quaternion.get_value(i))
-                    self.print(f"const double {quaternion.name()}_{i} = {expr};")
+                    self.print(f"const {self.real_type()} {quaternion.name()}_{i} = {expr};")
 
             if isinstance(ast_node.elem, QuaternionOp):
                 quat_op = ast_node.elem
@@ -346,9 +349,9 @@ class CGen:
                     operator = quat_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const double {quat_op.name()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const {self.real_type()} {quat_op.name()}_{dim} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const double {quat_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const {self.real_type()} {quat_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, ScalarOp):
                 scalar_op = ast_node.elem
@@ -356,7 +359,7 @@ class CGen:
                     lhs = self.generate_expression(scalar_op.lhs, scalar_op.mem)
                     rhs = self.generate_expression(scalar_op.rhs)
                     operator = scalar_op.operator()
-                    tkw = Types.c_keyword(scalar_op.type())
+                    tkw = Types.c_keyword(self.sim, scalar_op.type())
 
                     if operator.is_unary():
                         self.print(f"const {tkw} {scalar_op.name()} = {operator.symbol()}({lhs});")
@@ -372,25 +375,25 @@ class CGen:
                         cond = self.generate_expression(select.cond, index=dim)
                         expr_if = self.generate_expression(select.expr_if, index=dim)
                         expr_else = self.generate_expression(select.expr_else, index=dim)
-                        self.print(f"const double {acc_ref}_{dim} = ({cond}) ? ({expr_if}) : ({expr_else});")
+                        self.print(f"const {self.real_type()} {acc_ref}_{dim} = ({cond}) ? ({expr_if}) : ({expr_else});")
                 else:
                     cond = self.generate_expression(select.cond)
                     expr_if = self.generate_expression(select.expr_if)
                     expr_else = self.generate_expression(select.expr_else)
-                    tkw = Types.c_keyword(select.type())
+                    tkw = Types.c_keyword(self.sim, select.type())
                     self.print(f"const {tkw} {acc_ref} = ({cond}) ? ({expr_if}) : ({expr_else});")
 
             if isinstance(ast_node.elem, MathFunction):
                 math_func = ast_node.elem
                 params = ", ".join([str(self.generate_expression(p)) for p in math_func.parameters()])
-                tkw = Types.c_keyword(math_func.type())
+                tkw = Types.c_keyword(self.sim, math_func.type())
                 self.print(f"const {tkw} {math_func.name()} = {math_func.function_name()}({params});")
 
             if isinstance(ast_node.elem, Matrix):
                 matrix = ast_node.elem
                 for i in matrix.indexes_to_generate():
                     expr = self.generate_expression(matrix.get_value(i))
-                    self.print(f"const double {matrix.name()}_{i} = {expr};")
+                    self.print(f"const {self.real_type()} {matrix.name()}_{i} = {expr};")
 
             if isinstance(ast_node.elem, MatrixOp):
                 matrix_op = ast_node.elem
@@ -400,15 +403,15 @@ class CGen:
                     operator = vector_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const double {matrix_op.name()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const double {matrix_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, Vector):
                 vector = ast_node.elem
                 for dim in vector.indexes_to_generate():
                     expr = self.generate_expression(vector.get_value(dim))
-                    self.print(f"const double {vector.name()}_{dim} = {expr};")
+                    self.print(f"const {self.real_type()} {vector.name()}_{dim} = {expr};")
 
             if isinstance(ast_node.elem, VectorOp):
                 vector_op = ast_node.elem
@@ -418,9 +421,9 @@ class CGen:
                     operator = vector_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const double {vector_op.name()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const {self.real_type()} {vector_op.name()}_{dim} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const double {vector_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const {self.real_type()} {vector_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
 
         if isinstance(ast_node, Branch):
             cond = self.generate_expression(ast_node.cond)
@@ -509,7 +512,7 @@ class CGen:
 
 
         if isinstance(ast_node, Malloc):
-            tkw = Types.c_keyword(ast_node.array.type())
+            tkw = Types.c_keyword(self.sim, ast_node.array.type())
             size = self.generate_expression(ast_node.size)
             array_name = ast_node.array.name()
 
@@ -607,7 +610,7 @@ class CGen:
             self.print(f"PAIRS_DEBUG(\"{ast_node.string}\\n\");")
 
         if isinstance(ast_node, Realloc):
-            tkw = Types.c_keyword(ast_node.array.type())
+            tkw = Types.c_keyword(self.sim, ast_node.array.type())
             size = self.generate_expression(ast_node.size)
             array_name = ast_node.array.name()
             self.print(f"{array_name} = ({tkw} *) realloc({array_name}, {size});")
@@ -618,7 +621,7 @@ class CGen:
             a = ast_node.array()
             ptr = a.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
-            tkw = Types.c_keyword(a.type())
+            tkw = Types.c_keyword(self.sim, a.type())
             size = self.generate_expression(ast_node.size())
 
             if a.is_static():
@@ -637,7 +640,7 @@ class CGen:
             p = ast_node.property()
             ptr = p.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
-            tkw = Types.c_keyword(p.type())
+            tkw = Types.c_keyword(self.sim, p.type())
             ptype = Types.c_property_keyword(p.type())
             assert ptype != "Prop_Invalid", "Invalid property type!"
 
@@ -656,7 +659,7 @@ class CGen:
             p = ast_node.property()
             ptr = p.name()
             d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
-            tkw = Types.c_keyword(p.type())
+            tkw = Types.c_keyword(self.sim, p.type())
             ptype = Types.c_property_keyword(p.type())
             assert ptype != "Prop_Invalid", "Invalid property type!"
 
@@ -677,7 +680,7 @@ class CGen:
             d_ptr = f"&d_{ptr}" if self.target.is_gpu() and fp.device_flag else "nullptr"
             array_size = fp.array_size()
             nkinds = fp.feature().nkinds()
-            tkw = Types.c_keyword(fp.type())
+            tkw = Types.c_keyword(self.sim, fp.type())
             fptype = Types.c_property_keyword(fp.type())
             assert fptype != "Prop_Invalid", "Invalid feature property type!"
 
@@ -710,7 +713,7 @@ class CGen:
             #self.print(f"pairs->reallocArray({a.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {size});")
 
         if isinstance(ast_node, DeclareVariable):
-            tkw = Types.c_keyword(ast_node.var.type())
+            tkw = Types.c_keyword(self.sim, ast_node.var.type())
 
             if ast_node.var.is_scalar():
                 var = self.generate_expression(ast_node.var)
@@ -772,7 +775,7 @@ class CGen:
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):
-            tkw = Types.c_keyword(ast_node.cast_type)
+            tkw = Types.c_keyword(self.sim, ast_node.cast_type)
             expr = self.generate_expression(ast_node.expr)
             return f"({tkw})({expr})"
 
@@ -808,7 +811,7 @@ class CGen:
                 return ast_node.value[index]
 
             if isinstance(ast_node.value, float) and math.isinf(ast_node.value):
-                return "std::numeric_limits<double>::infinity()"
+                return f"std::numeric_limits<{self.real_type()}>::infinity()"
 
             return ast_node.value
 
@@ -876,7 +879,7 @@ class CGen:
 
         if isinstance(ast_node, Sizeof):
             assert mem is False, "Sizeof expression is not lvalue!"
-            tkw = Types.c_keyword(ast_node.data_type)
+            tkw = Types.c_keyword(self.sim, ast_node.data_type)
             return f"sizeof({tkw})"
 
         if isinstance(ast_node, Select):

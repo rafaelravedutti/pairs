@@ -37,10 +37,10 @@ public:
     layout_t getLayout() { return layout; }
     size_t getElemSize() {
         return  (type == Prop_Integer) ? sizeof(int) :
-                (type == Prop_Float) ? sizeof(double) :
-                (type == Prop_Vector) ? sizeof(double) :
-                (type == Prop_Matrix) ? sizeof(double) :
-                (type == Prop_Quaternion) ? sizeof(double) : 0;
+                (type == Prop_Real) ? sizeof(real_t) :
+                (type == Prop_Vector) ? sizeof(real_t) :
+                (type == Prop_Matrix) ? sizeof(real_t) :
+                (type == Prop_Quaternion) ? sizeof(real_t) : 0;
     }
 };
 

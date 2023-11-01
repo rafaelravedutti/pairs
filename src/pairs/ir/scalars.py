@@ -87,7 +87,7 @@ class ScalarOp(ASTTerm):
             return Types.Quaternion
 
         if Types.is_real(lhs_type) or Types.is_real(rhs_type):
-            return Types.Double
+            return Types.Real
 
         if Types.is_integer(lhs_type) or Types.is_integer(rhs_type):
             if isinstance(lhs, Lit) or Lit.is_literal(lhs):

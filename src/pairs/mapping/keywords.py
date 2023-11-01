@@ -48,7 +48,7 @@ class Keywords:
     def keyword_sqrt(self, args):
         assert len(args) == 1, "sqrt() keyword requires one parameter!"
         value = args[0]
-        assert value.type() == Types.Double, "sqrt(): Value must be a real."
+        assert value.type() == Types.Real, "sqrt(): Value must be a real."
         return Sqrt(self.sim, value)
 
     def keyword_skip_when(self, args):

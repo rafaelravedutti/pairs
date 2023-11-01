@@ -62,7 +62,7 @@ class Sqrt(MathFunction):
         return f"Sqrt<{self._params}>"
 
     def function_name(self):
-        return "sqrt"
+        return "sqrt" if self.sim.use_double_precision() else "sqrtf"
 
     def type(self):
         return self._params[0].type()
@@ -92,7 +92,7 @@ class Sin(MathFunction):
         return f"Sin<{self._params}>"
 
     def function_name(self):
-        return "sin"
+        return "sin" if self.sim.use_double_precision() else "sinf"
 
     def type(self):
         return self._params[0].type()
@@ -107,7 +107,7 @@ class Cos(MathFunction):
         return f"Cos<{self._params}>"
 
     def function_name(self):
-        return "cos"
+        return "cos" if self.sim.use_double_precision() else "cosf"
 
     def type(self):
         return self._params[0].type()
@@ -123,7 +123,7 @@ class Ceil(MathFunction):
         return f"Ceil<{self._params}>"
 
     def function_name(self):
-        return "ceil"
+        return "ceil" if self.sim.use_double_precision() else "ceilf"
 
     def type(self):
         return Types.Int32
