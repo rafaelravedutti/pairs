@@ -131,11 +131,19 @@ class BuildParticleIR(ast.NodeVisitor):
 
     def visit_BoolOp(self, node):
         #print(ast.dump(node))
-        lhs = self.visit(node.values[0])
-        assert not isinstance(lhs, UndefinedSymbol), f"Undefined lhs used in BoolOp: {lhs.symbol_id}"
-        rhs = self.visit(node.values[1])
-        assert not isinstance(rhs, UndefinedSymbol), f"Undefined rhs used in BoolOp: {rhs.symbol_id}"
-        return ScalarOp(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
+        op = BuildParticleIR.get_binary_op(node.op)
+        first = self.visit(node.values[0])
+        assert not isinstance(first, UndefinedSymbol), \
+            f"Undefined operator used in BoolOp: {first.symbol_id}"
+
+        expr = first
+        for value in node.values[1:]:
+            voper = self.visit(value)
+            assert not isinstance(voper, UndefinedSymbol), \
+                f"Undefined operator used in BoolOp: {voper.symbol_id}"
+            expr = ScalarOp(self.sim, expr, voper, op)
+
+        return expr
 
     def visit_Call(self, node):
         func = self.visit(node.func).symbol_id
