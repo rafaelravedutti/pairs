@@ -89,7 +89,7 @@ def euler(i):
 
 def gravity(i):
     volume = (4.0 / 3.0) * pi * radius[i] * radius[i] * radius[i]
-    force[i][2] += -(densityParticle_SI - densityFluid_SI) * volume * gravity_SI
+    force[i][2] = force[i][2] - (densityParticle_SI - densityFluid_SI) * volume * gravity_SI
 
 
 cmd = sys.argv[0]
@@ -112,7 +112,7 @@ restitutionCoefficient = 0.1
 collisionTime_SI = 5e-4
 poissonsRatio = 0.22
 timeSteps = 10000
-visSpacing = 1
+visSpacing = 100
 denseBottomLayer = False
 bottomLayerOffsetFactor = 1.0
 kappa = 2.0 * (1.0 - poissonsRatio) / (2.0 - poissonsRatio) # from Thornton et al
