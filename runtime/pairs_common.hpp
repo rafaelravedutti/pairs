@@ -3,9 +3,9 @@
 #pragma once
 
 //#ifdef USE_DOUBLE_PRECISION
-//typedef double real_t;
+typedef double real_t;
 //#else
-typedef float real_t;
+//typedef float real_t;
 //#endif
 
 typedef int array_t;

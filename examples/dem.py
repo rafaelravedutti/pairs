@@ -30,7 +30,7 @@ def linear_spring_dashpot(i, j):
     velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point(i, j) - position[i])
     velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point(i, j) - position[j])
 
-    rel_vel = -velocity_wf_i - velocity_wf_j
+    rel_vel = -(velocity_wf_i - velocity_wf_j)
     rel_vel_n = dot(rel_vel, contact_normal(i, j)) * contact_normal(i, j)
     rel_vel_t = rel_vel - rel_vel_n
     fN = stiffness_norm * delta_ij * contact_normal(i, j) + damping_norm * rel_vel_n;
@@ -40,11 +40,12 @@ def linear_spring_dashpot(i, j):
     impact_magnitude = select(impact_vel_magnitude > 0.0, impact_vel_magnitude, length(rel_vel))
     sticking = is_sticking[i, j]
 
-    rotated_tan_disp = tan_spring_disp - contact_normal(i, j) * (contact_normal(i, j) * tan_spring_disp)
+    rot_tan_disp = tan_spring_disp - contact_normal(i, j) * dot(tan_spring_disp, contact_normal(i, j))
+    rot_tan_disp_len2 = squared_length(rot_tan_disp)
     new_tan_spring_disp = dt * rel_vel_t + \
-                          select(squared_length(rotated_tan_disp) <= 0.0,
+                          select(rot_tan_disp_len2 <= 0.0,
                                  zero_vector(),
-                                 rotated_tan_disp * length(tan_spring_disp) / length(rotated_tan_disp))
+                                 rot_tan_disp * sqrt(squared_length(tan_spring_disp) / rot_tan_disp_len2))
 
     fTLS = stiffness_tan * new_tan_spring_disp + damping_tan * rel_vel_t
     fTLS_len = length(fTLS)
@@ -78,10 +79,13 @@ def linear_spring_dashpot(i, j):
 
 
 def euler(i):
-    linear_velocity[i] += dt * force[i] / mass[i]
-    position[i] += dt * linear_velocity[i]
+    #linear_velocity[i] += dt * force[i] / mass[i]
+    #position[i] += dt * linear_velocity[i]
+    inv_mass = 1.0 / mass[i]
+    position[i] += 0.5 * inv_mass * force[i] * dt * dt + linear_velocity[i] * dt
+    linear_velocity[i] += inv_mass * force[i] * dt
     wdot = rotation_matrix[i] * (inv_inertia[i] * torque[i]) * transposed(rotation_matrix[i])
-    phi = angular_velocity[i] * dt + wdot * dt * dt
+    phi = angular_velocity[i] * dt + 0.5 * wdot * dt * dt
     rotation_quat[i] = quaternion(phi, length(phi)) * rotation_quat[i]
     rotation_matrix[i] = quaternion_to_rotation_matrix(rotation_quat[i])
     angular_velocity[i] += wdot * dt
@@ -128,7 +132,7 @@ lnDryResCoeff = math.log(restitutionCoefficient);
 frictionStatic = 0.0
 frictionDynamic = frictionCoefficient
 
-psim = pairs.simulation("dem", timesteps=timeSteps)
+psim = pairs.simulation("dem", timesteps=timeSteps, double_prec=True)
 #psim = pairs.simulation("dem", debug=True, timesteps=timeSteps)
 psim.add_position('position')
 psim.add_property('mass', pairs.real(), 1.0)
@@ -159,10 +163,10 @@ psim.read_particle_data(
     ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
     pairs.sphere())
 
-psim.read_particle_data(
-    "data/spheres_bottom.input",
-    ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
-    pairs.sphere())
+#psim.read_particle_data(
+#    "data/spheres_bottom.input",
+#    ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
+#    pairs.sphere())
 
 psim.read_particle_data(
     "data/planes.input",

@@ -33,7 +33,7 @@ void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int en
     ps->copyPropertyToHost(positions);
 
     for(int i = start; i < end; i++) {
-        if(!(flags(i) & FLAGS_INFINITE)) {
+        if(flags(i) & FLAGS_INFINITE) {
             n--;
         }
     }

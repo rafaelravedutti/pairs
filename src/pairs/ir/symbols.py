@@ -13,7 +13,7 @@ class Symbol(ASTTerm):
         self.assign_to = None
 
     def __str__(self):
-        return f"Symbol<{Types.c_keyword(self.sym_type)}>"
+        return f"Symbol<{Types.c_keyword(self.sim, self.sym_type)}>"
 
     def assign(self, node):
         self.assign_to = node
@@ -44,6 +44,6 @@ class SymbolAccess(ASTTerm):
 
     def type(self):
         if not Types.is_scalar(self._symbol.type()):
-            return Types.Float
+            return Types.Real
 
         return self._symbol.type()
