@@ -49,7 +49,7 @@ class Comm:
         # Every property that has neighbor accesses during any interaction kernel (i.e. property[j]
         # exists in any force calculation kernel)
         # We ignore normal because there should be no halfspace ghosts
-        prop_list = [self.sim.property(p) for p in ['mass', 'radius', 'position', 'linear_velocity', 'angular_velocity', 'shape']]
+        prop_list = [self.sim.property(p) for p in ['uid', 'mass', 'radius', 'position', 'linear_velocity', 'angular_velocity', 'shape']]
         Assign(self.sim, self.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
 

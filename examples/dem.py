@@ -159,7 +159,7 @@ psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_S
 psim.pbc([True, True, False])
 psim.read_particle_data(
     "data/spheres.input",
-    ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
+    ['uid', 'type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
     pairs.sphere())
 
 #psim.read_particle_data(
@@ -169,7 +169,7 @@ psim.read_particle_data(
 
 psim.read_particle_data(
     "data/planes.input",
-    ['type', 'mass', 'position', 'normal', 'flags'],
+    ['uid', 'type', 'mass', 'position', 'normal', 'flags'],
     pairs.halfspace())
 
 psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,

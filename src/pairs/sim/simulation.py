@@ -47,6 +47,7 @@ class Simulation:
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
+        self.particle_uid = self.add_property('uid', Types.Int32, 0)
         self.particle_shape = self.add_property('shape', Types.Int32, 0)
         self.particle_flags = self.add_property('flags', Types.Int32, 0)
         self.grid = None

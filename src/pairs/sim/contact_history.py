@@ -27,6 +27,7 @@ class BuildContactHistory(Lowerable):
     def lower(self):
         contact_history = self.contact_history
         cell_lists = self.cell_lists
+        particle_uid = self.sim.particle_uid
         neighbor_lists = self.sim.neighbor_lists
         contact_lists = self.contact_history.contact_lists
         contact_used = self.contact_history.contact_used
@@ -41,7 +42,7 @@ class BuildContactHistory(Lowerable):
                 j = neigh.particle_index()
                 Assign(self.sim, contact_index, -1)
                 for k in For(self.sim, 0, num_contacts[i]):
-                    for _ in Filter(self.sim, ScalarOp.cmp(contact_lists[i][k], j)):
+                    for _ in Filter(self.sim, ScalarOp.cmp(contact_lists[i][k], particle_uid[j])):
                         Assign(self.sim, contact_index, k)
 
                 for _ in Filter(self.sim,
@@ -53,18 +54,18 @@ class BuildContactHistory(Lowerable):
                         Assign(self.sim, contact_prop[i, contact_index], tmp)
 
                     Assign(self.sim, contact_lists[i][contact_index], contact_lists[i][last_contact])
-                    Assign(self.sim, contact_lists[i][last_contact], j)
+                    Assign(self.sim, contact_lists[i][last_contact], particle_uid[j])
 
                 Assign(self.sim, last_contact, last_contact + 1)
 
             Assign(self.sim, last_contact, 0)
             for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                 j = neigh.particle_index()
-                for _ in Filter(self.sim, ScalarOp.neq(contact_lists[i][last_contact], j)):
+                for _ in Filter(self.sim, ScalarOp.neq(contact_lists[i][last_contact], particle_uid[j])):
                     for contact_prop in self.sim.contact_properties:
                         Assign(self.sim, contact_prop[i, last_contact], contact_prop.default())
 
-                    Assign(self.sim, contact_lists[i][last_contact], j)
+                    Assign(self.sim, contact_lists[i][last_contact], particle_uid[j])
 
                 Assign(self.sim, last_contact, last_contact + 1)
 
