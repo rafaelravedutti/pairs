@@ -40,6 +40,7 @@ class BuildNeighborLists(Lowerable):
             j = interaction_data.j()
             shape = interaction_data.shape()
 
+            neighs_start = sum([neighbor_lists.numneighs[i][s] for s in range(shape)], 0)
             numneighs = neighbor_lists.numneighs[i][shape]
-            Assign(sim, neighbor_lists.neighborlists[i][numneighs], j)
+            Assign(sim, neighbor_lists.neighborlists[i][neighs_start + numneighs], j)
             Assign(sim, neighbor_lists.numneighs[i][shape], numneighs + 1)

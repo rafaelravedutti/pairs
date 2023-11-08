@@ -68,6 +68,7 @@ def linear_spring_dashpot(i, j):
 
     impact_velocity_magnitude[i, j] = impact_magnitude
     is_sticking[i, j] = n_sticking
+    contact_used[i][j] = 1
 
     fTabs = min(fTLS_len, f_friction_abs)
     fT = fTabs * t
@@ -79,8 +80,6 @@ def linear_spring_dashpot(i, j):
 
 
 def euler(i):
-    #linear_velocity[i] += dt * force[i] / mass[i]
-    #position[i] += dt * linear_velocity[i]
     inv_mass = 1.0 / mass[i]
     position[i] += 0.5 * inv_mass * force[i] * dt * dt + linear_velocity[i] * dt
     linear_velocity[i] += inv_mass * force[i] * dt
@@ -132,7 +131,7 @@ lnDryResCoeff = math.log(restitutionCoefficient);
 frictionStatic = 0.0
 frictionDynamic = frictionCoefficient
 
-psim = pairs.simulation("dem", timesteps=timeSteps, double_prec=True)
+psim = pairs.simulation("dem", timesteps=timeSteps, double_prec=True, use_contact_history=True)
 #psim = pairs.simulation("dem", debug=True, timesteps=timeSteps)
 psim.add_position('position')
 psim.add_property('mass', pairs.real(), 1.0)

@@ -15,7 +15,7 @@ from pairs.mapping.funcs import compute, setup
 from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists
 from pairs.sim.comm import Comm
-from pairs.sim.contact_history import ContactHistory, BuildContactHistory
+from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.domain import InitializeDomain
 from pairs.sim.domain_partitioning import DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
@@ -32,7 +32,7 @@ from pairs.transformations import Transformations
 
 
 class Simulation:
-    def __init__(self, code_gen, dims=3, timesteps=100, double_prec=False):
+    def __init__(self, code_gen, dims=3, timesteps=100, double_prec=False, use_contact_history=False):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.position_prop = None
@@ -76,6 +76,8 @@ class Simulation:
         self._target = None
         self._dom_part = DimensionRanges(self)
         self._pbc = [True for _ in range(dims)]
+        self._use_contact_history = use_contact_history
+        self._contact_history = ContactHistory(self) if use_contact_history else None
 
     def use_double_precision(self):
         return self._double_prec
@@ -300,14 +302,17 @@ class Simulation:
             (BuildNeighborLists(self, self.neighbor_lists), self.reneighbor_frequency),
         ]
 
-        if not self.contact_properties.empty():
-            contact_history = ContactHistory(self.cell_lists)
-            timestep_procedures.append((BuildContactHistory(self, contact_history), self.reneighbor_frequency))
+        if self._use_contact_history:
+            timestep_procedures.append((BuildContactHistory(self, self._contact_history, self.cell_lists), self.reneighbor_frequency))
+            timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
         timestep_procedures += [
             ResetVolatileProperties(self),
             self.functions
         ]
+
+        if self._use_contact_history:
+            timestep_procedures.append(ClearUnusedContactHistory(self, self._contact_history))
 
         timestep = Timestep(self, self.ntimesteps, timestep_procedures)
         self.enter(timestep.block)

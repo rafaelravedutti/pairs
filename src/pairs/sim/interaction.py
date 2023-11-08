@@ -84,7 +84,8 @@ class NeighborFor:
             numneighs = self.neighbor_lists.numneighs
 
             for shape in range(self.sim.max_shapes()):
-                for k in For(self.sim, 0, numneighs[self.particle][shape]):
+                start = sum([numneighs[self.particle][s] for s in range(shape)], 0)
+                for k in For(self.sim, start, start + numneighs[self.particle][shape]):
                     yield Neighbor(self.sim, k, None, neighborlists[self.particle][k], shape)
 
 
