@@ -29,6 +29,12 @@ class Keywords:
         method = self.get_method(f"keyword_{keyword}")
         return method is not None
 
+    def keyword_is_point_mass(self, args):
+        assert len(args) == 1, "is_point_mass() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.PointMass)
+
     def keyword_is_sphere(self, args):
         assert len(args) == 1, "is_sphere() keyword requires one parameter."
         particle_id = args[0]

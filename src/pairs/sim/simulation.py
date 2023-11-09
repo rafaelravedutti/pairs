@@ -32,7 +32,7 @@ from pairs.transformations import Transformations
 
 
 class Simulation:
-    def __init__(self, code_gen, dims=3, timesteps=100, double_prec=False, use_contact_history=False):
+    def __init__(self, code_gen, shapes, dims=3, timesteps=100, double_prec=False, use_contact_history=False):
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.position_prop = None
@@ -79,12 +79,16 @@ class Simulation:
         self._pbc = [True for _ in range(dims)]
         self._use_contact_history = use_contact_history
         self._contact_history = ContactHistory(self) if use_contact_history else None
+        self._shapes = shapes
 
     def use_double_precision(self):
         return self._double_prec
 
+    def get_shape_id(self, shape):
+        return self._shapes[shape]
+
     def max_shapes(self):
-        return 2
+        return len(self._shapes)
 
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"

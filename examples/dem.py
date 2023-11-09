@@ -131,7 +131,13 @@ lnDryResCoeff = math.log(restitutionCoefficient);
 frictionStatic = 0.0
 frictionDynamic = frictionCoefficient
 
-psim = pairs.simulation("dem", timesteps=timeSteps, double_prec=True, use_contact_history=True)
+psim = pairs.simulation(
+    "dem",
+    [pairs.sphere(), pairs.halfspace()],
+    timesteps=timeSteps,
+    double_prec=True,
+    use_contact_history=True)
+
 #psim = pairs.simulation("dem", debug=True, timesteps=timeSteps)
 psim.add_position('position')
 psim.add_property('mass', pairs.real(), 1.0)

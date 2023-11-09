@@ -38,7 +38,7 @@ class Comm:
     def synchronize(self):
         # Every property that is not constant across timesteps and have neighbor accesses during any
         # interaction kernel (i.e. property[j] in force calculation kernel)
-        prop_list = [self.sim.property(p) for p in ['position', 'linear_velocity', 'angular_velocity']]
+        prop_list = [self.sim.property(p) for p in ['position', 'linear_velocity', 'angular_velocity'] if self.sim.property(p) is not None]
         for step in range(self.dom_part.number_of_steps()):
             PackGhostParticles(self, step, prop_list)
             CommunicateData(self, step, prop_list)
@@ -49,7 +49,7 @@ class Comm:
         # Every property that has neighbor accesses during any interaction kernel (i.e. property[j]
         # exists in any force calculation kernel)
         # We ignore normal because there should be no halfspace ghosts
-        prop_list = [self.sim.property(p) for p in ['uid', 'mass', 'radius', 'position', 'linear_velocity', 'angular_velocity', 'shape']]
+        prop_list = [self.sim.property(p) for p in ['uid', 'mass', 'radius', 'position', 'linear_velocity', 'angular_velocity', 'shape'] if self.sim.property(p) is not None]
         Assign(self.sim, self.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
 

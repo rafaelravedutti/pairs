@@ -26,17 +26,16 @@ sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
 
-psim = pairs.simulation("lj", debug=True, timesteps=200)
+psim = pairs.simulation("lj", [pairs.point_mass()], timesteps=200, double_prec=True)
 psim.add_position('position')
-psim.add_property('mass', pairs.double(), 1.0)
+psim.add_property('mass', pairs.real(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_feature('type', ntypes)
-psim.add_feature_property('type', 'epsilon', pairs.double(), [sigma for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'sigma6', pairs.double(), [epsilon for i in range(ntypes * ntypes)])
-#psim.set_domain(0.0, 0.0, 0.0, 6.7184, 6.7184, 6.7184) # for 4x4x4 setup
-psim.set_domain(0.0, 0.0, 0.0, 53.747078, 53.747078, 53.747078)
-psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'flags'], pairs.sphere())
+psim.add_feature_property('type', 'epsilon', pairs.real(), [sigma for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'sigma6', pairs.real(), [epsilon for i in range(ntypes * ntypes)])
+psim.set_domain([0.0, 0.0, 0.0, 53.747078, 53.747078, 53.747078])
+psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'flags'], pairs.point_mass())
 psim.reneighbor_every(20)
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/lj_{target}")

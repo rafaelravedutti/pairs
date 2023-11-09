@@ -158,8 +158,6 @@ class ParticleInteraction(Lowerable):
     def lower(self):
         if self.nbody == 2:
             position = self.sim.position()
-            radius = self.sim.property('radius')
-            normal = self.sim.property('normal')
             cell_lists = self.sim.cell_lists
             neighbor_lists = None if self.use_cell_lists else self.sim.neighbor_lists
 
@@ -169,9 +167,23 @@ class ParticleInteraction(Lowerable):
                     for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                         interaction_data = self.interactions_data[interaction]
                         shape = interaction_data.shape()
+                        shape_id = self.sim.get_shape_id(shape)
                         j = neigh.particle_index()
 
-                        if shape == Shapes.Sphere:
+                        if shape_id == Shapes.PointMass:
+                            delta = position[i] - position[j]
+                            squared_distance = delta.x() * delta.x() + \
+                                               delta.y() * delta.y() + \
+                                               delta.z() * delta.z()
+                            separation_dist = self.cutoff_radius
+                            cutoff_condition = squared_distance < self.cutoff_radius
+                            distance = Sqrt(self.sim, squared_distance)
+                            penetration_depth = None
+                            contact_normal = None
+                            contact_point = None
+
+                        elif shape_id == Shapes.Sphere:
+                            radius = self.sim.property('radius')
                             delta = position[i] - position[j]
                             squared_distance = delta.x() * delta.x() + \
                                                delta.y() * delta.y() + \
@@ -184,7 +196,10 @@ class ParticleInteraction(Lowerable):
                             k = radius[j] + 0.5 * penetration_depth
                             contact_point = position[j] + contact_normal * k
 
-                        elif shape == Shapes.Halfspace:
+                        elif shape_id == Shapes.Halfspace:
+                            radius = self.sim.property('radius')
+                            normal = self.sim.property('normal')
+
                             d = normal[j][0] * position[j][0] + \
                                 normal[j][1] * position[j][1] + \
                                 normal[j][2] * position[j][2]
@@ -200,7 +215,7 @@ class ParticleInteraction(Lowerable):
                             contact_point = position[i] - Vector(self.sim, [tmp, tmp, tmp]) * normal[j]
 
                         else:
-                            raise Exception("Invalid shape!")
+                            raise Exception("Invalid shape id.")
 
                         interaction_data.i().assign(i)
                         interaction_data.j().assign(j)
