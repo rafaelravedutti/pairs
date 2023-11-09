@@ -303,10 +303,11 @@ class Simulation:
             (comm.exchange(), self.reneighbor_frequency),
             (comm.borders(), comm.synchronize(), self.reneighbor_frequency),
             (BuildCellLists(self, self.cell_lists), self.reneighbor_frequency),
-            (PartitionCellLists(self, self.cell_lists), self.reneighbor_frequency),
-            (BuildNeighborLists(self, self.neighbor_lists), self.reneighbor_frequency),
+            (PartitionCellLists(self, self.cell_lists), self.reneighbor_frequency)
         ]
 
+        if self.neighbor_lists is not None:
+            timestep_procedures.append((BuildNeighborLists(self, self.neighbor_lists), self.reneighbor_frequency))
         if self._use_contact_history:
             timestep_procedures.append((BuildContactHistory(self, self._contact_history, self.cell_lists), self.reneighbor_frequency))
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))

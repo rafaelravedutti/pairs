@@ -46,7 +46,6 @@ class BuildCellListsStencil(Lowerable):
     def lower(self):
         sim = self.sim
         cl = self.cell_lists
-        grid = sim.grid
         index = None
         ntotal_cells = 1
 
@@ -54,7 +53,9 @@ class BuildCellListsStencil(Lowerable):
         sim.check_resize(cl.ncells_capacity, cl.ncells)
 
         for d in range(sim.ndims()):
-            Assign(sim, cl.dim_ncells[d], Ceil(sim, (grid.max(d) - grid.min(d)) / cl.spacing[d]) + 2)
+            dmin = sim.grid.min(d) - cl.spacing[d]
+            dmax = sim.grid.max(d) + cl.spacing[d]
+            Assign(sim, cl.dim_ncells[d], Ceil(sim, (dmax - dmin) / cl.spacing[d]) + 1)
             ntotal_cells *= cl.dim_ncells[d]
 
         Assign(sim, cl.ncells, ntotal_cells + 1)
@@ -66,7 +67,7 @@ class BuildCellListsStencil(Lowerable):
                 nneigh = cl.nneighbor_cells[d]
 
                 for d_idx in For(sim, -nneigh, nneigh + 1):
-                    index = (d_idx if index is None else index * cl.dim_ncells[d - 1] + d_idx)
+                    index = (d_idx if index is None else index + cl.dim_ncells[d - 1] * d_idx)
                     if d == sim.ndims() - 1:
                         Assign(sim, cl.stencil[cl.nstencil], index)
                         Assign(sim, cl.nstencil, cl.nstencil + 1)
@@ -81,7 +82,6 @@ class BuildCellLists(Lowerable):
     def lower(self):
         sim = self.sim
         cl = self.cell_lists
-        grid = sim.grid
         particle_flags = sim.particle_flags
         positions = sim.position()
         sim.module_name("build_cell_lists")
@@ -94,11 +94,13 @@ class BuildCellLists(Lowerable):
             flat_index = sim.add_temp_var(0)
 
             for _ in Filter(sim, ASTTerm.not_op(particle_flags[i] & Flags.Infinite)):
-                cell_index = [Cast.int(sim, (positions[i][d] - grid.min(d)) / cl.spacing[d]) for d in range(sim.ndims())]
+                cell_index = [
+                    Cast.int(sim, (positions[i][d] - (sim.grid.min(d) - cl.spacing[d])) / cl.spacing[d]) \
+                    for d in range(sim.ndims())]
                 index_1d = None
 
                 for d in range(sim.ndims()):
-                    index_1d = (cell_index[d] if index_1d is None else index_1d * cl.dim_ncells[d] + cell_index[d])
+                    index_1d = (cell_index[d] if index_1d is None else index_1d + cl.dim_ncells[d - 1] * cell_index[d])
 
                 Assign(sim, flat_index, index_1d + 1)
 
