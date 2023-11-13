@@ -80,6 +80,11 @@ class Simulation:
         self._use_contact_history = use_contact_history
         self._contact_history = ContactHistory(self) if use_contact_history else None
         self._shapes = shapes
+        self._compute_half = False
+        self._apply_list = None
+
+    def compute_half(self):
+        self._compute_half = True
 
     def use_double_precision(self):
         return self._double_prec
@@ -280,6 +285,15 @@ class Simulation:
             self.scope.pop()
         else:
             self.nested_count += 1
+
+    def use_apply_list(self, apply_list):
+        self._apply_list = apply_list
+
+    def release_apply_list(self):
+        self._apply_list = None
+
+    def current_apply_list(self):
+        return self._apply_list
 
     def vtk_output(self, filename, frequency=0):
         self.vtk_file = filename

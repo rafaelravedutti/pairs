@@ -3,6 +3,7 @@ from pairs.ir.ast_term import ASTTerm
 from pairs.ir.assign import Assign
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
+from pairs.ir.operator_class import OperatorClass
 
 
 class Variables:
@@ -39,7 +40,7 @@ class Variables:
 
 class Var(ASTTerm):
     def __init__(self, sim, var_name, var_type, init_value=0, temp=False):
-        super().__init__(sim, ScalarOp)
+        super().__init__(sim, OperatorClass.from_type(var_type))
         self.var_name = var_name
         self.var_type = var_type
         self.var_init_value = Lit.cvt(sim, init_value)

@@ -73,10 +73,9 @@ def linear_spring_dashpot(i, j):
     fTabs = min(fTLS_len, f_friction_abs)
     fT = fTabs * t
     partial_force = fN + fT
-    partial_torque = cross(contact_point(i, j) - position[i], partial_force)
 
-    force[i] += partial_force
-    torque[i] += partial_torque
+    apply(force, partial_force)
+    apply(torque, cross(contact_point(i, j) - position[i], partial_force))
 
 
 def euler(i):
@@ -124,7 +123,7 @@ minDiameter_SI = diameter_SI * 0.9
 maxDiameter_SI = diameter_SI * 1.1
 linkedCellWidth = 1.01 * maxDiameter_SI
 
-skin = 0.003
+skin = 0.0
 ntypes = 1
 
 lnDryResCoeff = math.log(restitutionCoefficient);

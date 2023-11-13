@@ -1,9 +1,11 @@
+from pairs.ir.apply import Apply
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.lit import Lit
 from pairs.ir.loops import Continue
 from pairs.ir.math import Abs, Cos, Sin, Sqrt
 from pairs.ir.matrices import Matrix
+from pairs.ir.properties import Property
 from pairs.ir.quaternions import Quaternion
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
@@ -247,3 +249,11 @@ class Keywords:
                                   2.0 * (quat[1] * quat[3] - quat[0] * quat[2]),
                                   2.0 * (quat[2] * quat[3] + quat[0] * quat[1]),
                                   1.0 - 2.0 * quat[1] * quat[1] - 2.0 * quat[2] * quat[2] ])
+
+    def keyword_apply(self, args):
+        assert len(args) == 3, "apply() keyword requires two parameters."
+        prop = args[0]
+        expr = args[1]
+        assert isinstance(prop, Property), "apply(): First argument must be a property."
+        assert prop.type() == expr.type(), "apply(): Property and expression must be of same type."
+        Apply(self.sim, prop, expr, args[2])

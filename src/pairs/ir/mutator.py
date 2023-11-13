@@ -39,6 +39,16 @@ class Mutator:
 
         return ast_node
 
+    def mutate_Apply(self, ast_node):
+        ast_node._prop = self.mutate(ast_node._prop)
+        ast_node._expr = self.mutate(ast_node._expr)
+        ast_node._j = self.mutate(ast_node._j)
+
+        if ast_node._reduction_variable is not None:
+            ast_node._reduction_variable = self.mutate(ast_node._reduction_variable)
+
+        return ast_node
+
     def mutate_ArrayAccess(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
         ast_node.partial_indexes = [self.mutate(i) for i in ast_node.partial_indexes]

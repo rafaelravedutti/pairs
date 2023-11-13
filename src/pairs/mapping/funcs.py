@@ -150,6 +150,9 @@ class BuildParticleIR(ast.NodeVisitor):
         args = [self.visit(a) for a in node.args]
 
         if self.keywords.exists(func):
+            if func == 'apply':
+                args += [self.ctx_symbols['__j__']]
+
             return self.keywords(func, args)
 
         if func in ['delta', 'squared_distance', 'penetration_depth', 'contact_point', 'contact_normal']:
@@ -274,6 +277,8 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
             ir.add_symbols({
                 params[0]: interaction_data.i(),
                 params[1]: interaction_data.j(),
+                '__i__': interaction_data.i(),
+                '__j__': interaction_data.j(),
                 '__delta__': interaction_data.delta(),
                 '__squared_distance__': interaction_data.squared_distance(),
                 '__penetration_depth__': interaction_data.penetration_depth(),

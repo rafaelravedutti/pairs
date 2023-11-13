@@ -1,3 +1,4 @@
+from pairs.ir.assign import Assign
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block, pairs_inline
@@ -136,6 +137,7 @@ class ParticleInteraction(Lowerable):
         self.interactions_data = []
         self.blocks = [Block(sim, []) for _ in range(sim.max_shapes() * self.ncases)]
         self.active_block = None
+        self.apply_list = set()
 
     def add_statement(self, stmt):
         self.active_block.add_statement(stmt)
@@ -143,6 +145,7 @@ class ParticleInteraction(Lowerable):
     def __iter__(self):
         self.sim.add_statement(self)
         self.sim.enter(self)
+        self.sim.use_apply_list(self.apply_list)
 
         # Neighbors vary across iterations
         for shape in range(self.sim.max_shapes()):
@@ -151,6 +154,7 @@ class ParticleInteraction(Lowerable):
                 self.interactions_data.append(InteractionData(self.sim, shape))
                 yield self.interactions_data[-1]
 
+        self.sim.release_apply_list()
         self.sim.leave()
         self.active_block = None
 
@@ -163,6 +167,9 @@ class ParticleInteraction(Lowerable):
 
             for i in ParticleFor(self.sim):
                 for _ in Filter(self.sim, ScalarOp.cmp(self.sim.particle_flags[i] & Flags.Fixed, 0)):
+                    for app in self.apply_list:
+                        app.add_reduction_variable()
+
                     interaction = 0
                     for neigh in NeighborFor(self.sim, i, cell_lists, neighbor_lists):
                         interaction_data = self.interactions_data[interaction]
@@ -226,6 +233,20 @@ class ParticleInteraction(Lowerable):
                         interaction_data.contact_normal().assign(contact_normal)
                         self.sim.add_statement(Filter(self.sim, cutoff_condition, self.blocks[interaction]))
                         interaction += 1
+
+                    prop_reductions = {}
+                    for app in self.apply_list:
+                        prop = app.prop()
+                        reduction = app.reduction_variable()
+
+                        if prop not in prop_reductions:
+                            prop_reductions[prop] = reduction
+
+                        else:
+                            prop_reductions[prop] = prop_reductions[prop] + reduction
+
+                    for prop, reduction in prop_reductions.items():
+                        Assign(self.sim, prop[i], reduction)
 
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")

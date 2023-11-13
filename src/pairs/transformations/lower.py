@@ -11,6 +11,9 @@ class Lower(Mutator):
     def set_data(self, data):
         self.lower_finals = data[0]
 
+    def mutate_Apply(self, ast_node):
+        return self.mutate_Unknown(ast_node)
+
     def mutate_Unknown(self, ast_node):
         if isinstance(ast_node, Lowerable) or (self.lower_finals and isinstance(ast_node, FinalLowerable)):
             self.lowered_nodes += 1
