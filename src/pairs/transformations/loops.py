@@ -42,10 +42,7 @@ class LICM(Mutator):
             Matrix,
             MatrixOp,
             PropertyAccess,
-            # TODO: This is commented to avoid errors from the CUDA Explicit Euler kernel used
-            # for the DEM test cases. Allow lifting of Vector, Quaternion and Matrix until the
-            # kernel loops only (maybe other elements as well)
-            #Quaternion,
+            Quaternion,
             QuaternionOp,
             ScalarOp,
             Select,
@@ -57,7 +54,8 @@ class LICM(Mutator):
             last_loop = self.loops[-1]
             loop_lifts = self.lifts[id(last_loop)]
             #print(f"id = {ast_node.elem.id()}, variants = {last_loop.block.variants}, terminals = {ast_node.elem.terminals}")
-            if not last_loop.block.variants.intersection(ast_node.elem.terminals):
+            if not last_loop.block.variants.intersection(ast_node.elem.terminals) and \
+               not last_loop.is_kernel_candidate():
                 found = False
                 for lifted_decls in loop_lifts:
                     if ast_node.elem == lifted_decls.elem:

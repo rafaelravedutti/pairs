@@ -49,6 +49,7 @@ class Transformations:
         self.apply(LiftDeclarations(), [ownership, expressions_to_lift])
 
     def licm(self):
+        self.analysis().mark_candidate_loops()
         self.analysis().discover_block_variants()
         self.analysis().determine_expressions_terminals()
         self.apply(LICM())

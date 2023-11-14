@@ -1,7 +1,7 @@
 import time
 from pairs.analysis.expressions import DetermineExpressionsTerminals, ResetInPlaceOperations, DetermineInPlaceOperations, ListDeclaredExpressions
 from pairs.analysis.blocks import DiscoverBlockVariants, DetermineExpressionsOwnership, DetermineParentBlocks
-from pairs.analysis.devices import FetchKernelReferences
+from pairs.analysis.devices import FetchKernelReferences, MarkCandidateLoops
 from pairs.analysis.modules import FetchModulesReferences
 
 
@@ -43,3 +43,6 @@ class Analysis:
         list_expressions = ListDeclaredExpressions()
         self.apply(list_expressions)
         return list_expressions.declared_exprs
+
+    def mark_candidate_loops(self):
+        self.apply(MarkCandidateLoops())

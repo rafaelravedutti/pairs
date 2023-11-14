@@ -1,9 +1,24 @@
 from pairs.ir.arrays import ArrayAccess
-from pairs.ir.scalars import ScalarOp
+from pairs.ir.lit import Lit
+from pairs.ir.loops import For
 from pairs.ir.quaternions import QuaternionOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.matrices import MatrixOp
 from pairs.ir.visitor import Visitor
 from pairs.ir.vectors import VectorOp
+
+
+class MarkCandidateLoops(Visitor):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+
+    def visit_Module(self, ast_node):
+        for s in ast_node._block.stmts:
+            if s is not None:
+                if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
+                    s.mark_as_kernel_candidate()
+
+        self.visit_children(ast_node)
 
 
 class FetchKernelReferences(Visitor):

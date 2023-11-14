@@ -79,7 +79,7 @@ class AddDeviceKernels(Mutator):
             kernel_id = 0
             for s in ast_node._block.stmts:
                 if s is not None:
-                    if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
+                    if isinstance(s, For) and s.is_kernel_candidate():
                         kernel_name = f"{ast_node.name}_kernel{kernel_id}"
                         kernel = ast_node.sim.find_kernel_by_name(kernel_name)
                         if kernel is None:

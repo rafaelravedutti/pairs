@@ -44,33 +44,37 @@ class BuildCellListsStencil(Lowerable):
 
     @pairs_host_block
     def lower(self):
-        sim = self.sim
-        cl = self.cell_lists
+        stencil = self.cell_lists.stencil
+        nstencil = self.cell_lists.nstencil
+        spacing = self.cell_lists.spacing
+        nneighbor_cells = self.cell_lists.nneighbor_cells
+        dim_ncells = self.cell_lists.dim_ncells
+        ncells = self.cell_lists.ncells
+        ncells_capacity = self.cell_lists.ncells_capacity
         index = None
         ntotal_cells = 1
 
-        sim.module_name("build_cell_lists_stencil")
-        sim.check_resize(cl.ncells_capacity, cl.ncells)
+        self.sim.module_name("build_cell_lists_stencil")
+        self.sim.check_resize(ncells_capacity, ncells)
 
-        for d in range(sim.ndims()):
-            dmin = sim.grid.min(d) - cl.spacing[d]
-            dmax = sim.grid.max(d) + cl.spacing[d]
-            Assign(sim, cl.dim_ncells[d], Ceil(sim, (dmax - dmin) / cl.spacing[d]) + 1)
-            ntotal_cells *= cl.dim_ncells[d]
+        for dim in range(self.sim.ndims()):
+            dim_min = self.sim.grid.min(dim) - spacing[dim]
+            dim_max = self.sim.grid.max(dim) + spacing[dim]
+            Assign(self.sim, dim_ncells[dim], Ceil(self.sim, (dim_max - dim_min) / spacing[dim]) + 1)
+            ntotal_cells *= dim_ncells[dim]
 
-        Assign(sim, cl.ncells, ntotal_cells + 1)
+        Assign(self.sim, ncells, ntotal_cells + 1)
 
-        for _ in sim.nest_mode():
-            Assign(sim, cl.nstencil, 0)
+        for _ in self.sim.nest_mode():
+            Assign(self.sim, nstencil, 0)
 
-            for d in range(sim.ndims()):
-                nneigh = cl.nneighbor_cells[d]
-
-                for d_idx in For(sim, -nneigh, nneigh + 1):
-                    index = (d_idx if index is None else index + cl.dim_ncells[d - 1] * d_idx)
-                    if d == sim.ndims() - 1:
-                        Assign(sim, cl.stencil[cl.nstencil], index)
-                        Assign(sim, cl.nstencil, cl.nstencil + 1)
+            for dim in range(self.sim.ndims()):
+                nneigh = nneighbor_cells[dim]
+                for dim_offset in For(self.sim, -nneigh, nneigh + 1):
+                    index = dim_offset if index is None else index * dim_ncells[dim] + dim_offset
+                    if dim == self.sim.ndims() - 1:
+                        Assign(self.sim, stencil[nstencil], index)
+                        Assign(self.sim, nstencil, nstencil + 1)
 
 
 class BuildCellLists(Lowerable):
@@ -80,34 +84,42 @@ class BuildCellLists(Lowerable):
 
     @pairs_device_block
     def lower(self):
-        sim = self.sim
-        cl = self.cell_lists
-        particle_flags = sim.particle_flags
-        positions = sim.position()
-        sim.module_name("build_cell_lists")
-        sim.check_resize(cl.cell_capacity, cl.cell_sizes)
+        particle_flags = self.sim.particle_flags
+        particle_cell = self.cell_lists.particle_cell
+        cell_particles = self.cell_lists.cell_particles
+        cell_sizes = self.cell_lists.cell_sizes
+        cell_capacity = self.cell_lists.cell_capacity
+        spacing = self.cell_lists.spacing
+        dim_ncells = self.cell_lists.dim_ncells
+        ncells = self.cell_lists.ncells
+        positions = self.sim.position()
 
-        for c in For(sim, 0, cl.ncells):
-            Assign(sim, cl.cell_sizes[c], 0)
+        self.sim.module_name("build_cell_lists")
+        self.sim.check_resize(cell_capacity, cell_sizes)
 
-        for i in ParticleFor(sim, local_only=False):
-            flat_index = sim.add_temp_var(0)
+        for c in For(self.sim, 0, ncells):
+            Assign(self.sim, cell_sizes[c], 0)
 
-            for _ in Filter(sim, ASTTerm.not_op(particle_flags[i] & Flags.Infinite)):
+        for i in ParticleFor(self.sim, local_only=False):
+            flat_index = self.sim.add_temp_var(0)
+
+            for _ in Filter(self.sim, ASTTerm.not_op(particle_flags[i] & Flags.Infinite)):
                 cell_index = [
-                    Cast.int(sim, (positions[i][d] - (sim.grid.min(d) - cl.spacing[d])) / cl.spacing[d]) \
-                    for d in range(sim.ndims())]
-                index_1d = None
+                    Cast.int(self.sim,
+                        (positions[i][dim] - (self.sim.grid.min(dim) - spacing[dim])) / spacing[dim]) \
+                    for dim in range(self.sim.ndims())]
 
-                for d in range(sim.ndims()):
-                    index_1d = (cell_index[d] if index_1d is None else index_1d + cl.dim_ncells[d - 1] * cell_index[d])
+                index = None
+                for dim in range(self.sim.ndims()):
+                    index = cell_index[dim] if index is None \
+                            else index * dim_ncells[dim] + cell_index[dim]
 
-                Assign(sim, flat_index, index_1d + 1)
+                Assign(self.sim, flat_index, index + 1)
 
-            for _ in Filter(sim, ScalarOp.and_op(flat_index >= 0, flat_index < cl.ncells)):
-                index_in_cell = AtomicAdd(sim, cl.cell_sizes[flat_index], 1)
-                Assign(sim, cl.particle_cell[i], flat_index)
-                Assign(sim, cl.cell_particles[flat_index][index_in_cell], i)
+            for _ in Filter(self.sim, ScalarOp.and_op(flat_index >= 0, flat_index < ncells)):
+                index_in_cell = AtomicAdd(self.sim, cell_sizes[flat_index], 1)
+                Assign(self.sim, particle_cell[i], flat_index)
+                Assign(self.sim, cell_particles[flat_index][index_in_cell], i)
 
 
 class PartitionCellLists(Lowerable):

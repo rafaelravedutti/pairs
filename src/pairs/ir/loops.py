@@ -46,18 +46,25 @@ class For(ASTNode):
         self.max = Lit.cvt(sim, range_max)
         self.block = Block(sim, []) if block is None else block
         self.kernel = None
+        self._kernel_candidate = False
 
     def __str__(self):
         return f"For<{self.iterator}, {self.min} ... {self.max}>"
-
-    def iter(self):
-        return self.iterator
 
     def __iter__(self):
         self.sim.add_statement(self)
         self.sim.enter(self)
         yield self.iterator
         self.sim.leave()
+
+    def iter(self):
+        return self.iterator
+
+    def mark_as_kernel_candidate(self):
+        self._kernel_candidate = True
+
+    def is_kernel_candidate(self):
+        return self._kernel_candidate
 
     def add_statement(self, stmt):
         self.block.add_statement(stmt)
@@ -95,6 +102,9 @@ class While(ASTNode):
 
     def add_statement(self, stmt):
         self.block.add_statement(stmt)
+
+    def is_kernel_candidate(self):
+        return False
 
     def children(self):
         return [self.cond, self.block]
