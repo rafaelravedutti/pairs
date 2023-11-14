@@ -42,7 +42,10 @@ class LICM(Mutator):
             Matrix,
             MatrixOp,
             PropertyAccess,
-            Quaternion,
+            # TODO: This is commented to avoid errors from the CUDA Explicit Euler kernel used
+            # for the DEM test cases. Allow lifting of Vector, Quaternion and Matrix until the
+            # kernel loops only (maybe other elements as well)
+            #Quaternion,
             QuaternionOp,
             ScalarOp,
             Select,

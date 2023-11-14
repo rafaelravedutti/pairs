@@ -7,6 +7,7 @@ from pairs.ir.properties import Property
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.vectors import Vector
 from pairs.ir.types import Types
+from pairs.sim.flags import Flags
 from pairs.sim.lowerable import FinalLowerable, Lowerable
 
 
@@ -45,8 +46,8 @@ class Apply(Lowerable):
     def lower(self):
         if self.sim._compute_half:
             for _ in Filter(self.sim,
-                            ScalarOp.and_op(j < self.sim.nlocal,
-                                            ScalarOp.cmp(self.sim.particle_flags[j] & Flags.Fixed, 0))):
+                            ScalarOp.and_op(self._j < self.sim.nlocal,
+                                            ScalarOp.cmp(self.sim.particle_flags[self._j] & Flags.Fixed, 0))):
 
                 Assign(self.sim, self._prop[self._j], self._prop[self._j] - self._expr)
 

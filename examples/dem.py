@@ -137,7 +137,6 @@ psim = pairs.simulation(
     double_prec=True,
     use_contact_history=True)
 
-#psim = pairs.simulation("dem", debug=True, timesteps=timeSteps)
 psim.add_position('position')
 psim.add_property('mass', pairs.real(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
@@ -177,6 +176,7 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
                                      'pi': math.pi,
                                      'infinity': math.inf })
 
+#psim.compute_half()
 psim.build_neighbor_lists(linkedCellWidth + skin)
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 

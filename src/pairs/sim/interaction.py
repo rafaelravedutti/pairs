@@ -59,6 +59,7 @@ class NeighborFor:
             ncells = self.cell_lists.ncells
             particle_cell = self.cell_lists.particle_cell
             cell_particles = self.cell_lists.cell_particles
+            particle_shape = self.sim.particle_shape
             nshapes = self.cell_lists.nshapes
 
             for shape in range(self.sim.max_shapes()):
@@ -67,17 +68,36 @@ class NeighborFor:
 
                     for _ in Filter(self.sim, ScalarOp.and_op(neigh_cell > 0, neigh_cell < ncells)):
                         start = sum([nshapes[neigh_cell][s] for s in range(shape)], 0)
-
                         for cell_particle in For(self.sim, start, start + nshapes[neigh_cell][shape]):
                             particle_id = cell_particles[neigh_cell][cell_particle]
-                            for _ in Filter(self.sim, ScalarOp.neq(particle_id, self.particle)):
+
+                            if self.sim._compute_half:
+                                shape_cond = particle_shape[particle_id] > shape
+                                condition = ScalarOp.or_op(shape_cond,
+                                                           ScalarOp.and_op(ScalarOp.not_op(shape_cond),
+                                                                           self.particle < particle_id))
+
+                            else:
+                                condition = ScalarOp.neq(particle_id, self.particle)
+
+                            for _ in Filter(self.sim, condition):
                                 yield Neighbor(self.sim, cell_particle, neigh_cell, particle_id, shape)
 
                 # Infinite particles
                 start = sum([nshapes[0][s] for s in range(shape)], 0)
                 for inf_id in For(self.sim, start, start + nshapes[0][shape]):
                     inf_particle = cell_particles[0][inf_id]
-                    for _ in Filter(self.sim, ScalarOp.neq(inf_particle, self.particle)):
+
+                    if self.sim._compute_half:
+                        shape_cond = particle_shape[inf_particle] > shape
+                        condition = ScalarOp.or_op(shape_cond,
+                                                   ScalarOp.and_op(ScalarOp.not_op(shape_cond),
+                                                                   self.particle < inf_particle))
+
+                    else:
+                        condition = ScalarOp.neq(inf_particle, self.particle)
+
+                    for _ in Filter(self.sim, condition):
                         yield Neighbor(self.sim, inf_id, 0, inf_particle, shape)
 
         else:
