@@ -44,11 +44,11 @@ class Apply(Lowerable):
 
     @pairs_inline
     def lower(self):
+        Assign(self.sim, self._reduction_variable, self._reduction_variable + self._expr)
+
         if self.sim._compute_half:
             for _ in Filter(self.sim,
                             ScalarOp.and_op(self._j < self.sim.nlocal,
                                             ScalarOp.cmp(self.sim.particle_flags[self._j] & Flags.Fixed, 0))):
 
                 Assign(self.sim, self._prop[self._j], self._prop[self._j] - self._expr)
-
-        Assign(self.sim, self._reduction_variable, self._reduction_variable + self._expr)

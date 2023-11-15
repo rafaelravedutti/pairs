@@ -72,10 +72,8 @@ class NeighborFor:
                             particle_id = cell_particles[neigh_cell][cell_particle]
 
                             if self.sim._compute_half:
-                                shape_cond = particle_shape[particle_id] > shape
-                                condition = ScalarOp.or_op(shape_cond,
-                                                           ScalarOp.and_op(ScalarOp.not_op(shape_cond),
-                                                                           self.particle < particle_id))
+                                shape_cond = particle_shape[particle_id] > self.sim.get_shape_id(shape)
+                                condition = ScalarOp.or_op(shape_cond, self.particle < particle_id)
 
                             else:
                                 condition = ScalarOp.neq(particle_id, self.particle)
@@ -89,10 +87,8 @@ class NeighborFor:
                     inf_particle = cell_particles[0][inf_id]
 
                     if self.sim._compute_half:
-                        shape_cond = particle_shape[inf_particle] > shape
-                        condition = ScalarOp.or_op(shape_cond,
-                                                   ScalarOp.and_op(ScalarOp.not_op(shape_cond),
-                                                                   self.particle < inf_particle))
+                        shape_cond = particle_shape[inf_particle] > self.sim.get_shape_id(shape)
+                        condition = ScalarOp.or_op(shape_cond, self.particle < inf_particle)
 
                     else:
                         condition = ScalarOp.neq(inf_particle, self.particle)
@@ -266,7 +262,11 @@ class ParticleInteraction(Lowerable):
                             prop_reductions[prop] = prop_reductions[prop] + reduction
 
                     for prop, reduction in prop_reductions.items():
-                        Assign(self.sim, prop[i], reduction)
+                        if self.sim._compute_half:
+                            Assign(self.sim, prop[i], prop[i] + reduction)
+
+                        else:
+                            Assign(self.sim, prop[i], reduction)
 
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")

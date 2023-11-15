@@ -5,7 +5,7 @@ import sys
 def lj(i, j):
     sr2 = 1.0 / squared_distance(i, j)
     sr6 = sr2 * sr2 * sr2 * sigma6[i, j]
-    apply(force, delta(i, j) * 48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon[i, j])
+    apply(force, delta(i, j) * (48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon[i, j]))
 
 def euler(i):
     linear_velocity[i] += dt * force[i] / mass[i]
@@ -36,6 +36,7 @@ psim.add_feature_property('type', 'sigma6', pairs.real(), [epsilon for i in rang
 psim.set_domain([0.0, 0.0, 0.0, 53.747078, 53.747078, 53.747078])
 psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'flags'], pairs.point_mass())
 psim.reneighbor_every(20)
+#psim.compute_half()
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/lj_{target}")
 psim.compute(lj, cutoff_radius)
