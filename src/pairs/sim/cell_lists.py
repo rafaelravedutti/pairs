@@ -28,8 +28,8 @@ class CellLists:
         self.ncells             =   self.sim.add_var('ncells', Types.Int32, 1)
         self.ncells_capacity    =   self.sim.add_var('ncells_capacity', Types.Int32, 100)
         self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 20)
-        self.dim_ncells         =   self.sim.add_static_array('dim_cells', self.sim.ndims(), Types.Int32)
-        self.shapes_buffer      =   self.sim.add_static_array('shapes_buffer', self.sim.max_shapes(), Types.Int32)
+        self.dim_ncells         =   self.sim.add_array('dim_cells', self.sim.ndims(), Types.Int32)
+        self.shapes_buffer      =   self.sim.add_array('shapes_buffer', self.sim.max_shapes(), Types.Int32)
         self.cell_particles     =   self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Types.Int32)
         self.cell_sizes         =   self.sim.add_array('cell_sizes', self.ncells_capacity, Types.Int32)
         self.nshapes            =   self.sim.add_array('nshapes', [self.ncells_capacity, self.sim.max_shapes()], Types.Int32)
@@ -51,11 +51,15 @@ class BuildCellListsStencil(Lowerable):
         dim_ncells = self.cell_lists.dim_ncells
         ncells = self.cell_lists.ncells
         ncells_capacity = self.cell_lists.ncells_capacity
+        shapes_buffer = self.cell_lists.shapes_buffer
         index = None
         ntotal_cells = 1
 
         self.sim.module_name("build_cell_lists_stencil")
         self.sim.check_resize(ncells_capacity, ncells)
+
+        for s in range(self.sim.max_shapes()):
+            Assign(self.sim, shapes_buffer[s], self.sim.get_shape_id(s))
 
         for dim in range(self.sim.ndims()):
             dim_min = self.sim.grid.min(dim) - spacing[dim]
@@ -133,9 +137,6 @@ class PartitionCellLists(Lowerable):
         cell_particles = self.cell_lists.cell_particles
         shapes_buffer = self.cell_lists.shapes_buffer
 
-        for s in range(self.sim.max_shapes()):
-            Assign(self.sim, shapes_buffer[s], self.sim.get_shape_id(s))
-
         for cell in For(self.sim, 0, self.cell_lists.ncells):
             start = self.sim.add_temp_var(0)
             end = self.sim.add_temp_var(0)
@@ -144,6 +145,7 @@ class PartitionCellLists(Lowerable):
                 shape_id = shapes_buffer[shape]
                 shape_start = self.sim.add_temp_var(start)
                 Assign(self.sim, end, self.cell_lists.cell_sizes[cell] - 1)
+                Assign(self.sim, self.cell_lists.nshapes[cell][shape], 0)
 
                 for _ in While(self.sim, start <= end):
                     particle = cell_particles[cell][start]
