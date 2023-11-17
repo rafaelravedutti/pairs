@@ -251,9 +251,9 @@ class Keywords:
                                   1.0 - 2.0 * quat[1] * quat[1] - 2.0 * quat[2] * quat[2] ])
 
     def keyword_apply(self, args):
-        assert len(args) == 3, "apply() keyword requires two parameters."
+        assert len(args) == 4, "apply() keyword requires two parameters."
         prop = args[0]
         expr = args[1]
         assert isinstance(prop, Property), "apply(): First argument must be a property."
         assert prop.type() == expr.type(), "apply(): Property and expression must be of same type."
-        Apply(self.sim, prop, expr, args[2])
+        Apply(self.sim, prop, expr, args[2], args[3])

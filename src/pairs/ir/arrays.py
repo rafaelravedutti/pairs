@@ -160,7 +160,7 @@ class ArrayAccess(ASTTerm):
         self.inlined = True
         return self
 
-    def copy(self):
+    def copy(self, deep=False):
         return ArrayAccess(self.sim, self.array, self.partial_indexes)
 
     def check_and_set_flat_index(self):

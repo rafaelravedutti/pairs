@@ -151,7 +151,7 @@ class BuildParticleIR(ast.NodeVisitor):
 
         if self.keywords.exists(func):
             if func == 'apply':
-                args += [self.ctx_symbols['__j__']]
+                args += [self.ctx_symbols['__i__'], self.ctx_symbols['__j__']]
 
             return self.keywords(func, args)
 

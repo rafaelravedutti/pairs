@@ -37,22 +37,22 @@ class ScalarOp(ASTTerm):
         self.scalar_op_type = ScalarOp.infer_type(self.lhs, self.rhs, self.op)
         self.terminals = set()
 
-    def reassign(self, lhs, rhs, op):
-        self.lhs = Lit.cvt(self.sim, lhs)
-        self.rhs = Lit.cvt(self.sim, rhs)
-        self.op = op
-        self.scalar_op_type = ScalarOp.infer_type(self.lhs, self.rhs, self.op)
-
     def __str__(self):
         a = f"ScalarOp<{self.lhs.id()}>" if isinstance(self.lhs, ScalarOp) else self.lhs
         b = f"ScalarOp<{self.rhs.id()}>" if isinstance(self.rhs, ScalarOp) else self.rhs
         return f"ScalarOp<id={self.id()}, {a} {self.op.symbol()} {b}>"
 
-    def copy(self):
-        return ScalarOp(self.sim, self.lhs.copy(), self.rhs.copy(), self.op, self.mem)
+    def copy(self, deep=False):
+        if self.op.is_unary():
+            if deep:
+                return ScalarOp(self.sim, self.lhs.copy(True), None, self.op, self.mem)
 
-    def match(self, scalar_op):
-        return self.lhs == scalar_op.lhs and self.rhs == scalar_op.rhs and self.op == scalar_op.operator()
+            return ScalarOp(self.sim, self.lhs, None, self.op, self.mem)
+
+        if deep:
+            return ScalarOp(self.sim, self.lhs.copy(True), self.rhs.copy(True), self.op, self.mem)
+
+        return ScalarOp(self.sim, self.lhs, self.rhs, self.op, self.mem)
 
     def x(self):
         return self.__getitem__(0)

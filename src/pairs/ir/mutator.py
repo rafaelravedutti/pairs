@@ -44,6 +44,12 @@ class Mutator:
         ast_node._expr = self.mutate(ast_node._expr)
         ast_node._j = self.mutate(ast_node._j)
 
+        if ast_node._expr_i is not None:
+            ast_node._expr_i = self.mutate(ast_node._expr_i)
+
+        if ast_node._expr_j is not None:
+            ast_node._expr_j = self.mutate(ast_node._expr_j)
+
         if ast_node._reduction_variable is not None:
             ast_node._reduction_variable = self.mutate(ast_node._reduction_variable)
 

@@ -172,7 +172,7 @@ class FeaturePropertyAccess(ASTTerm):
     def __str__(self):
         return f"FeaturePropertyAccess<{self.feature_prop}, {self.index}>"
 
-    def copy(self):
+    def copy(self, deep=False):
         return FeaturePropertyAccess(self.sim, self.feature_prop, self.index)
 
     def vector_index(self, dimension):

@@ -75,7 +75,7 @@ def linear_spring_dashpot(i, j):
     partial_force = fN + fT
 
     apply(force, partial_force)
-    apply(torque, cross(contact_point(i, j) - position[i], partial_force))
+    apply(torque, cross(contact_point(i, j) - position, partial_force))
 
 
 def euler(i):

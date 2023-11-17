@@ -44,16 +44,17 @@ class VectorOp(ASTTerm):
     def operator(self):
         return self.op
 
-    def reassign(self, lhs, rhs, op):
-        self.lhs = Lit.cvt(self.sim, lhs)
-        self.rhs = Lit.cvt(self.sim, rhs)
-        self.op = op
+    def copy(self, deep=False):
+        if self.op.is_unary():
+            if deep:
+                return VectorOp(self.sim, self.lhs.copy(True), None, self.op, self.mem)
 
-    def copy(self):
-        return VectorOp(self.sim, self.lhs.copy(), self.rhs.copy(), self.op, self.mem)
+            return VectorOp(self.sim, self.lhs, None, self.op, self.mem)
 
-    def match(self, vector_op):
-        return self.lhs == vector_op.lhs and self.rhs == vector_op.rhs and self.op == vector_op.operator()
+        if deep:
+            return VectorOp(self.sim, self.lhs.copy(True), self.rhs.copy(True), self.op, self.mem)
+
+        return VectorOp(self.sim, self.lhs, self.rhs, self.op, self.mem)
 
     def x(self):
         return self.__getitem__(0)
@@ -81,6 +82,12 @@ class VectorAccess(ASTTerm):
     def __str__(self):
         return f"VectorAccess<{self.expr}, {self.index}>"
 
+    def copy(self, deep=False):
+        if deep:
+            return VectorAccess(self.sim, self.expr.copy(), self.index.copy())
+
+        return VectorAccess(self.sim, self.expr, self.index)
+
     def type(self):
         return Types.Real
 
@@ -103,7 +110,8 @@ class Vector(ASTTerm):
         self.terminals = set()
 
     def __str__(self):
-        return f"Vector<{self._values}>"
+        values_str = ", ".join([str(v) for v in self._values])
+        return f"Vector<{values_str}>"
 
     def __getitem__(self, index):
         return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
@@ -113,6 +121,12 @@ class Vector(ASTTerm):
 
     def name(self):
         return f"vec{self.id()}" + self.label_suffix()
+
+    def copy(self, deep=False):
+        if deep:
+            return Vector(self.sim, [value.copy(True) for value in self._values])
+
+        return Vector(self.sim, [value for value in self._values])
 
     def type(self):
         return Types.Vector

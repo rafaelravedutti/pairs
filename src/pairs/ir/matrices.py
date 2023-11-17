@@ -44,16 +44,11 @@ class MatrixOp(ASTTerm):
     def operator(self):
         return self.op
 
-    def reassign(self, lhs, rhs, op):
-        self.lhs = Lit.cvt(self.sim, lhs)
-        self.rhs = Lit.cvt(self.sim, rhs)
-        self.op = op
+    def copy(self, deep=False):
+        if deep:
+            return MatrixOp(self.sim, self.lhs.copy(True), self.rhs.copy(True), self.op, self.mem)
 
-    def copy(self):
-        return MatrixOp(self.sim, self.lhs.copy(), self.rhs.copy(), self.op, self.mem)
-
-    def match(self, matrix_op):
-        return self.lhs == matrix_op.lhs and self.rhs == matrix_op.rhs and self.op == matrix_op.operator()
+        return MatrixOp(self.sim, self.lhs, self.rhs, self.op, self.mem)
 
     def add_terminal(self, terminal):
         self.terminals.add(terminal)

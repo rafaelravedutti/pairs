@@ -55,7 +55,7 @@ class Var(ASTTerm):
     def __str__(self):
         return f"Var<{self.var_name}>"
 
-    def copy(self):
+    def copy(self, deep=False):
         # Terminal copies are just themselves
         return self
 

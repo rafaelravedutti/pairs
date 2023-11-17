@@ -125,7 +125,7 @@ class PropertyAccess(ASTTerm):
         _acc_class = AccessorClass.from_type(self.prop.type())
         return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
 
-    def copy(self):
+    def copy(self, deep=False):
         return PropertyAccess(self.sim, self.prop, self.index)
 
     def vector_index(self, dimension):
@@ -291,7 +291,7 @@ class ContactPropertyAccess(ASTTerm):
         _acc_class = AccessorClass.from_type(self.contact_prop.type())
         return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
 
-    def copy(self):
+    def copy(self, deep=False):
         return ContactPropertyAccess(self.sim, self.contact_prop, self.index)
 
     def vector_index(self, dimension):
