@@ -1,6 +1,6 @@
 .PHONY: all build clean
 
-TESTCASE=lj
+TESTCASE=dem
 PYCMD=python3
 CC=mpicxx
 NVCC=nvcc
@@ -12,7 +12,8 @@ CPU_SRC="$(TESTCASE).cpp"
 CPU_BIN="$(TESTCASE)_cpu"
 GPU_SRC="$(TESTCASE).cu"
 GPU_BIN="$(TESTCASE)_gpu"
-DEBUG_FLAGS="-DDEBUG"
+DEBUG_FLAGS=
+#DEBUG_FLAGS="-DDEBUG"
 
 all: clean build $(CPU_BIN) $(GPU_BIN)
 	@echo "Everything was done!"
@@ -42,10 +43,10 @@ $(OBJ_PATH)/dummy.o: runtime/devices/dummy.cpp
 
 # Targets
 $(CPU_BIN): $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OBJ_PATH)/dummy.o
-	$(CC) -O3 -o $(CPU_BIN) $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OBJ_PATH)/dummy.o -DDEBUG
+	$(CC) -O3 -o $(CPU_BIN) $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OBJ_PATH)/dummy.o ${DEBUG_FLAGS}
 
 $(GPU_BIN): $(GPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o 
-	$(NVCC) -c -o $(OBJ_PATH)/cuda_runtime.o runtime/devices/cuda.cu -DDEBUG
+	$(NVCC) -c -o $(OBJ_PATH)/cuda_runtime.o runtime/devices/cuda.cu ${DEBUG_FLAGS}
 	$(NVCC) -c -o $(OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) -DDEBUG
 	$(CC) -o $(GPU_BIN) $(OBJ_PATH)/$(GPU_BIN).o $(OBJ_PATH)/cuda_runtime.o $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64
 

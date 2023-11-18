@@ -177,6 +177,7 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
                                      'infinity': math.inf })
 
 #psim.compute_half()
+#psim.build_cell_lists(linkedCellWidth)
 psim.build_neighbor_lists(linkedCellWidth + skin)
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
