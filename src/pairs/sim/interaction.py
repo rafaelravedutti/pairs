@@ -198,8 +198,8 @@ class ParticleInteraction(Lowerable):
                             squared_distance = delta.x() * delta.x() + \
                                                delta.y() * delta.y() + \
                                                delta.z() * delta.z()
-                            separation_dist = self.cutoff_radius
-                            cutoff_condition = squared_distance < self.cutoff_radius
+                            separation_dist = self.cutoff_radius * self.cutoff_radius
+                            cutoff_condition = squared_distance < separation_dist
                             distance = Sqrt(self.sim, squared_distance)
                             penetration_depth = None
                             contact_normal = None
