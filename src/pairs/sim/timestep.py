@@ -1,6 +1,6 @@
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
-from pairs.ir.branches import Branch
+from pairs.ir.branches import Branch, Filter
 from pairs.ir.loops import For
 
 
@@ -8,22 +8,30 @@ class Timestep:
     def __init__(self, sim, nsteps, item_list=None):
         self.sim = sim
         self.block = Block(sim, [])
-        self.timestep_loop = For(sim, 0, nsteps + 1, self.block)
+        self.timestep_loop = For(sim, 0, nsteps, self.block)
 
         if item_list is not None:
             for item in item_list:
                 if isinstance(item, tuple):
-                    if len(item) >= 3:
-                        self.add(item[0], item[2], item[1])
-                    else:
-                        self.add(item[0], item[1])
+                    stmt_else = None
+
+                    if len(item) == 2:
+                        stmt, params = item
+
+                    if len(item) == 3:
+                        stmt, stmt_else, params = item
+
+                    exec_every = 0 if 'every' not in params else params['every']
+                    skip_first = False if 'skip_first' not in params else params['skip_first']
+                    self.add(stmt, exec_every, stmt_else, skip_first)
+
                 else:
                     self.add(item)
 
     def timestep(self):
         return self.timestep_loop.iter()
 
-    def add(self, item, exec_every=0, item_else=None):
+    def add(self, item, exec_every=0, item_else=None, skip_first=False):
         assert exec_every >= 0, "exec_every parameter must be higher or equal than zero!"
         stmts = item if not isinstance(item, Block) else item.statements()
         stmts_else = None
@@ -37,6 +45,10 @@ class Timestep:
             self.block.add_statement(
                 Branch(self.sim, ScalarOp.inline(ScalarOp.cmp(ts % exec_every, 0)), True if stmts_else is None else False,
                 Block(self.sim, stmts), None if stmts_else is None else Block(self.sim, stmts_else)))
+
+        elif skip_first:
+            self.block.add_statement(Filter(self.sim, ScalarOp.inline(ts > 0), Block(self.sim, stmts)))
+
         else:
             self.block.add_statement(stmts)
 

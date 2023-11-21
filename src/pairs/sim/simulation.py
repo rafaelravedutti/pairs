@@ -10,7 +10,7 @@ from pairs.ir.properties import Properties, ContactProperties
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
 from pairs.ir.variables import Variables
-from pairs.graph.graphviz import ASTGraph
+#from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute, setup
 from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists
@@ -59,8 +59,9 @@ class Simulation:
         self._capture_statements = True
         self._block = Block(self, [])
         self.setups = Block(self, [])
-        self.setup_functions = Block(self, [])
-        self.functions = Block(self, [])
+        self.setup_functions = []
+        self.pre_step_functions = []
+        self.functions = []
         self.module_list = []
         self.kernel_list = []
         self._check_properties_resize = False
@@ -215,8 +216,8 @@ class Simulation:
         self.neighbor_lists = NeighborLists(self.cell_lists)
         return self.neighbor_lists
 
-    def compute(self, func, cutoff_radius=None, symbols={}):
-        return compute(self, func, cutoff_radius, symbols)
+    def compute(self, func, cutoff_radius=None, symbols={}, pre_step=False, skip_first=False):
+        return compute(self, func, cutoff_radius, symbols, pre_step, skip_first)
 
     def setup(self, func, symbols={}):
         return setup(self, func, symbols)
@@ -240,7 +241,7 @@ class Simulation:
             raise Exception("Two sizes assigned to same capacity!")
 
     def build_setup_module_with_statements(self):
-        self.setup_functions.add_statement(
+        self.setup_functions.append(
             Module(self,
                 name=self._module_name,
                 block=Block(self, self._block),
@@ -248,14 +249,31 @@ class Simulation:
                 check_properties_resize=self._check_properties_resize,
                 run_on_device=False))
 
-    def build_module_with_statements(self, run_on_device=True):
-        self.functions.add_statement(
-            Module(self,
-                name=self._module_name,
-                block=Block(self, self._block),
-                resizes_to_check=self._resizes_to_check,
-                check_properties_resize=self._check_properties_resize,
-                run_on_device=run_on_device))
+    def build_pre_step_module_with_statements(self, run_on_device=True, skip_first=False):
+        module = Module(self, name=self._module_name,
+                              block=Block(self, self._block),
+                              resizes_to_check=self._resizes_to_check,
+                              check_properties_resize=self._check_properties_resize,
+                              run_on_device=run_on_device)
+
+        if skip_first:
+            self.pre_step_functions.append((module, {'skip_first': True}))
+
+        else:
+            self.pre_step_functions.append(module)
+
+    def build_module_with_statements(self, run_on_device=True, skip_first=False):
+        module = Module(self, name=self._module_name,
+                              block=Block(self, self._block),
+                              resizes_to_check=self._resizes_to_check,
+                              check_properties_resize=self._check_properties_resize,
+                              run_on_device=run_on_device)
+
+        if skip_first:
+            self.functions.append((module, {'skip_first': True}))
+
+        else:
+            self.functions.append(module)
 
     def capture_statements(self, capture=True):
         self._capture_statements = capture
@@ -312,41 +330,45 @@ class Simulation:
     def generate(self):
         assert self._target is not None, "Target not specified!"
         comm = Comm(self, self._dom_part)
+        every_reneighbor_params = {'every': self.reneighbor_frequency}
 
-        timestep_procedures = [
-            (comm.exchange(), self.reneighbor_frequency),
-            (comm.borders(), comm.synchronize(), self.reneighbor_frequency),
-            (BuildCellLists(self, self.cell_lists), self.reneighbor_frequency),
-            (PartitionCellLists(self, self.cell_lists), self.reneighbor_frequency)
+        timestep_procedures = self.pre_step_functions + [
+            (comm.exchange(), every_reneighbor_params),
+            (comm.borders(), comm.synchronize(), every_reneighbor_params),
+            (BuildCellLists(self, self.cell_lists), every_reneighbor_params),
+            (PartitionCellLists(self, self.cell_lists), every_reneighbor_params)
         ]
 
         if self.neighbor_lists is not None:
-            timestep_procedures.append((BuildNeighborLists(self, self.neighbor_lists), self.reneighbor_frequency))
+            timestep_procedures.append(
+                (BuildNeighborLists(self, self.neighbor_lists), every_reneighbor_params))
 
         if self._use_contact_history:
             if self.neighbor_lists is not None:
-                timestep_procedures.append((BuildContactHistory(self, self._contact_history, self.cell_lists), self.reneighbor_frequency))
+                timestep_procedures.append(
+                    (BuildContactHistory(self, self._contact_history, self.cell_lists), every_reneighbor_params))
 
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
-        timestep_procedures += [
-            ResetVolatileProperties(self),
-            self.functions
-        ]
+        timestep_procedures += [ResetVolatileProperties(self)] + self.functions
 
         if self._use_contact_history:
             timestep_procedures.append(ClearUnusedContactHistory(self, self._contact_history))
 
         timestep = Timestep(self, self.ntimesteps, timestep_procedures)
         self.enter(timestep.block)
-        timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1, self.vtk_frequency))
+
+        if self.vtk_file is not None:
+            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1, self.vtk_frequency))
+
         self.leave()
 
+        vtk_item = [] if self.vtk_file is None else VTKWrite(self, self.vtk_file, 0, self.vtk_frequency)
         body = Block.from_list(self, [
             self.setups,
             self.setup_functions,
             BuildCellListsStencil(self, self.cell_lists),
-            VTKWrite(self, self.vtk_file, 0, self.vtk_frequency),
+            vtk_item,
             timestep.as_block()
         ])
 

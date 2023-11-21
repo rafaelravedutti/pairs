@@ -7,9 +7,14 @@ def lj(i, j):
     sr6 = sr2 * sr2 * sr2 * sigma6[i, j]
     apply(force, delta(i, j) * (48.0 * sr6 * (sr6 - 0.5) * sr2 * epsilon[i, j]))
 
-def euler(i):
-    linear_velocity[i] += dt * force[i] / mass[i]
+
+def initial_integrate(i):
+    linear_velocity[i] += (dt * 0.5) * force[i] / mass[i]
     position[i] += dt * linear_velocity[i]
+
+
+def final_integrate(i):
+    linear_velocity[i] += (dt * 0.5) * force[i] / mass[i]
 
 
 cmd = sys.argv[0]
@@ -25,7 +30,7 @@ sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
 
-psim = pairs.simulation("lj", [pairs.point_mass()], timesteps=200, double_prec=True, debug=True)
+psim = pairs.simulation("lj", [pairs.point_mass()], timesteps=200, double_prec=True)
 psim.add_position('position')
 psim.add_property('mass', pairs.real(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
@@ -39,8 +44,9 @@ psim.reneighbor_every(20)
 #psim.compute_half()
 psim.build_neighbor_lists(cutoff_radius + skin)
 psim.vtk_output(f"output/lj_{target}")
+psim.compute(initial_integrate, symbols={'dt': dt}, pre_step=True, skip_first=True)
 psim.compute(lj, cutoff_radius)
-psim.compute(euler, symbols={'dt': dt})
+psim.compute(final_integrate, symbols={'dt': dt}, skip_first=True)
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())

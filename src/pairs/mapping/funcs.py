@@ -273,7 +273,7 @@ class BuildParticleIR(ast.NodeVisitor):
         return op_class(self.sim, operand, None, BuildParticleIR.get_unary_op(node.op))
 
 
-def compute(sim, func, cutoff_radius=None, symbols={}):
+def compute(sim, func, cutoff_radius=None, symbols={}, pre_step=False, skip_first=False):
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
     #print(ast.dump(ast.parse(src, mode='exec')))
@@ -318,7 +318,11 @@ def compute(sim, func, cutoff_radius=None, symbols={}):
 
             ir.visit(tree)
 
-    sim.build_module_with_statements()
+    if pre_step:
+        sim.build_pre_step_module_with_statements(skip_first=skip_first)
+
+    else:
+        sim.build_module_with_statements(skip_first=skip_first)
 
 
 def setup(sim, func, symbols={}):
