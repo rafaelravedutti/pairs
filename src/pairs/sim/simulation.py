@@ -359,16 +359,14 @@ class Simulation:
         self.enter(timestep.block)
 
         if self.vtk_file is not None:
-            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep() + 1, self.vtk_frequency))
+            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep(), self.vtk_frequency))
 
         self.leave()
 
-        vtk_item = [] if self.vtk_file is None else VTKWrite(self, self.vtk_file, 0, self.vtk_frequency)
         body = Block.from_list(self, [
             self.setups,
             self.setup_functions,
             BuildCellListsStencil(self, self.cell_lists),
-            vtk_item,
             timestep.as_block()
         ])
 
