@@ -22,7 +22,6 @@ from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
-from pairs.sim.pbc import EnforcePBC
 from pairs.sim.properties import AllocateProperties, AllocateContactProperties, ResetVolatileProperties
 from pairs.sim.read_from_file import ReadParticleData
 from pairs.sim.timestep import Timestep
