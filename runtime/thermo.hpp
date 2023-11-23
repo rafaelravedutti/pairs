@@ -1,4 +1,5 @@
 #include <iostream>
+#include <mpi.h>
 //---
 #include "pairs.hpp"
 
@@ -29,9 +30,17 @@ void compute_thermo(PairsSimulation *ps, int nlocal) {
                             velocities(i, 2) * velocities(i, 2)   );
     }
 
-    t = t * t_scale;
-    p = (t * dof_boltz) * p_scale;
-    std::cout << t << "\t" << p << std::endl;
+    if(ps->getDomainPartitioner()->getWorldSize() > 1) {
+        double global_t;
+        MPI_Reduce(&t, &global_t, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        t = global_t;
+    }
+
+    if(ps->getDomainPartitioner()->getRank() == 0) {
+        t = t * t_scale;
+        p = (t * dof_boltz) * p_scale;
+        std::cout << t << "\t" << p << std::endl;
+    }
 }
 
 }
