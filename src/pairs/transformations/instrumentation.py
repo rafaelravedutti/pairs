@@ -16,11 +16,11 @@ class AddModulesInstrumentation(Mutator):
 
         timer_id = module.module_id + 1
         start_timer = Call_Void(ast_node.sim, "pairs::start_timer", [timer_id])
-        end_timer = Call_Void(ast_node.sim, "pairs::stop_timer", [timer_id])
+        stop_timer = Call_Void(ast_node.sim, "pairs::stop_timer", [timer_id])
 
         if module.must_profile():
             start_marker = Call_Void(ast_node.sim, "LIKWID_MARKER_START", [module.name])
             stop_marker = Call_Void(ast_node.sim, "LIKWID_MARKER_STOP", [module.name])
-            return Block(ast_node.sim, [start_timer, start_marker, ast_node, end_marker, end_timer])
+            return Block(ast_node.sim, [start_timer, start_marker, ast_node, stop_marker, stop_timer])
 
-        return Block(ast_node.sim, [start_timer, ast_node, end_timer])
+        return Block(ast_node.sim, [start_timer, ast_node, stop_timer])

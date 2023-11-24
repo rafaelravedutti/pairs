@@ -319,10 +319,10 @@ def compute(sim, func, cutoff_radius=None, symbols={}, pre_step=False, skip_firs
             ir.visit(tree)
 
     if pre_step:
-        sim.build_pre_step_module_with_statements(skip_first=skip_first)
+        sim.build_pre_step_module_with_statements(skip_first=skip_first, profile=True)
 
     else:
-        sim.build_module_with_statements(skip_first=skip_first)
+        sim.build_module_with_statements(skip_first=skip_first, profile=True)
 
 
 def setup(sim, func, symbols={}):

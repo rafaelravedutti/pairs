@@ -252,12 +252,15 @@ class Simulation:
                 check_properties_resize=self._check_properties_resize,
                 run_on_device=False))
 
-    def build_pre_step_module_with_statements(self, run_on_device=True, skip_first=False):
+    def build_pre_step_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
         module = Module(self, name=self._module_name,
                               block=Block(self, self._block),
                               resizes_to_check=self._resizes_to_check,
                               check_properties_resize=self._check_properties_resize,
                               run_on_device=run_on_device)
+
+        if profile:
+            module.profile()
 
         if skip_first:
             self.pre_step_functions.append((module, {'skip_first': True}))
@@ -265,12 +268,14 @@ class Simulation:
         else:
             self.pre_step_functions.append(module)
 
-    def build_module_with_statements(self, run_on_device=True, skip_first=False):
+    def build_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
         module = Module(self, name=self._module_name,
                               block=Block(self, self._block),
                               resizes_to_check=self._resizes_to_check,
                               check_properties_resize=self._check_properties_resize,
                               run_on_device=run_on_device)
+        if profile:
+            module.profile()
 
         if skip_first:
             self.functions.append((module, {'skip_first': True}))

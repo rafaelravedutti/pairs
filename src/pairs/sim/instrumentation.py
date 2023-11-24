@@ -23,6 +23,6 @@ class RegisterMarkers(FinalLowerable):
     @pairs_inline
     def lower(self):
         if self.sim._enable_profiler:
-            for m in self.module_list:
+            for m in self.sim.module_list:
                 if m.name != 'main' and m.must_profile():
                     Call_Void(self.sim, "LIKWID_MARKER_REGISTER", [m.name])
