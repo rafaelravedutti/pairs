@@ -3,6 +3,7 @@ from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftDeclarations, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
 from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PruneUnusedVectorIndexes, AddExpressionDeclarations
+from pairs.transformations.instrumentation import AddModulesInstrumentation
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
 from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLogic, ReplaceModulesByCalls
@@ -84,6 +85,9 @@ class Transformations:
         if self._target.is_gpu():
             self.apply(AddDeviceReferencesToModules())
 
+    def add_instrumentation(self):
+        self.apply(AddModulesInstrumentation())
+
     def apply_all(self):
         self.lower()
         self.optimize_expressions()
@@ -93,6 +97,7 @@ class Transformations:
         self.modularize()
         self.add_device_kernels()
         self.add_device_copies()
+        self.add_instrumentation()
         self.lower(True)
         self.add_expression_declarations()
         self.add_host_references_to_modules()

@@ -18,7 +18,7 @@ void compute_thermo(PairsSimulation *ps, int nlocal) {
     const double dof_boltz = (natoms * 3 - 3);
     const double t_scale = mvv2e / dof_boltz;
     const double p_scale = 1.0 / 3 / xprd / yprd / zprd;
-    const double e_scale = 0.5;
+    //const double e_scale = 0.5;
     double t = 0.0, p;
 
     ps->copyPropertyToHost(masses);

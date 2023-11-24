@@ -68,6 +68,8 @@ class CGen:
         self.print("//---")
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
+        self.print("#include \"runtime/timing.hpp\"")
+        self.print("#include \"runtime/thermo.hpp\"")
         self.print("#include \"runtime/vtk.hpp\"")
 
         #if self.target.is_gpu():
@@ -112,7 +114,16 @@ class CGen:
             narrays = module.sim.arrays.narrays()
             self.print("int main(int argc, char **argv) {")
             self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {ncontactprops}, {narrays}, DimRanges);")
+
+            if module.sim._enable_profiler:
+                self.print("    LIKWID_MARKER_INIT;")
+
             self.generate_statement(module.block)
+
+            if module.sim._enable_profiler:
+                self.print("    LIKWID_MARKER_CLOSE;")
+
+            self.print("    pairs::print_timers(pairs);")
             self.print("    delete pairs;")
             self.print("    return 0;")
             self.print("}")

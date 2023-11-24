@@ -10,6 +10,7 @@
 #include "pairs_common.hpp"
 #include "property.hpp"
 #include "runtime_var.hpp"
+#include "timers.hpp"
 #include "devices/device.hpp"
 #include "domain/regular_6d_stencil.hpp"
 
@@ -32,12 +33,15 @@ private:
     std::vector<Array> arrays;
     DeviceFlags *prop_flags, *contact_prop_flags, *array_flags;
     DomainPartitioning dom_part_type;
+    Timers<double> *timers;
+
 public:
     PairsSimulation(int nprops_, int ncontactprops_, int narrays_, DomainPartitioning dom_part_type_) {
         dom_part_type = dom_part_type_;
         prop_flags = new DeviceFlags(nprops_);
         contact_prop_flags = new DeviceFlags(ncontactprops_);
         array_flags = new DeviceFlags(narrays_);
+        timers = new Timers<double>(1e-6);
     }
 
     ~PairsSimulation() {
@@ -45,10 +49,12 @@ public:
         delete prop_flags;
         delete contact_prop_flags;
         delete array_flags;
+        delete timers;
     }
 
     void initDomain(int *argc, char ***argv, real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
     Regular6DStencil *getDomainPartitioner() { return dom_part; }
+    Timers<double> *getTimers() { return timers; }
 
     template<typename T>
     RuntimeVar<T> addDeviceVariable(T *h_ptr) {

@@ -2,7 +2,6 @@ from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.features import Features, FeatureProperties
-from pairs.ir.functions import Call_Void
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
 from pairs.ir.module import Module
@@ -20,6 +19,7 @@ from pairs.sim.domain import InitializeDomain
 from pairs.sim.domain_partitioning import DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.grid import Grid2D, Grid3D
+from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
 from pairs.sim.properties import AllocateProperties, AllocateContactProperties, ResetVolatileProperties
@@ -82,6 +82,10 @@ class Simulation:
         self._shapes = shapes
         self._compute_half = False
         self._apply_list = None
+        self._enable_profiler = False
+
+    def enable_profiler(self):
+        self._enable_profiler = True
 
     def compute_half(self):
         self._compute_half = True
@@ -374,7 +378,9 @@ class Simulation:
             DeclareArrays(self),
             AllocateProperties(self),
             AllocateContactProperties(self),
-            AllocateFeatureProperties(self)
+            AllocateFeatureProperties(self),
+            RegisterTimers(self),
+            RegisterMarkers(self)
         ])
 
         program = Module(self, name='main', block=Block.merge_blocks(inits, body))

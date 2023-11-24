@@ -22,6 +22,7 @@ class Module(ASTNode):
         self._resizes_to_check = resizes_to_check
         self._check_properties_resize = check_properties_resize
         self._run_on_device = run_on_device
+        self._profile = False
         sim.add_module(self)
         Module.last_module += 1
 
@@ -43,6 +44,13 @@ class Module(ASTNode):
     @property
     def run_on_device(self):
         return self._run_on_device
+
+    def profile(self):
+        self._profile = True
+        self.sim.enable_profiler()
+
+    def must_profile(self):
+        return self._profile
 
     def variables(self):
         return self._variables
