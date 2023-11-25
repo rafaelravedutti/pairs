@@ -53,7 +53,11 @@ public:
                 categorySums["neighbors"] += counterValue;
 
             } else {
-                categorySums[counterName] += counterValue;
+                if(counterName.length() > 0) {
+                    categorySums[counterName] += counterValue;
+                } else {
+                    categorySums["other"] += counterValue;
+                }
             }
         }
 
