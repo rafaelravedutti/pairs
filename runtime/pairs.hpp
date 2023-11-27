@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 //---
+#include "allocate.hpp"
 #include "array.hpp"
 #include "contact_property.hpp"
 #include "device_flags.hpp"
@@ -176,7 +177,7 @@ template<typename T_ptr>
 void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) malloc(size);
+    *h_ptr = (T_ptr *) pairs::host_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr);
     addArray(Array(id, name, *h_ptr, nullptr, size, false));
 }
@@ -185,7 +186,7 @@ template<typename T_ptr>
 void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) malloc(size);
+    *h_ptr = (T_ptr *) pairs::host_alloc(size);
     *d_ptr = (T_ptr *) pairs::device_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr && *d_ptr != nullptr);
     addArray(Array(id, name, *h_ptr, *d_ptr, size, false));
@@ -208,7 +209,8 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, si
     PAIRS_ASSERT(a != std::end(arrays));
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) realloc(*h_ptr, size);
+    size_t old_size = a->getSize();
+    *h_ptr = (T_ptr *) pairs::host_realloc(*h_ptr, size, old_size);
     PAIRS_ASSERT(*h_ptr != nullptr);
 
     a->setPointers(*h_ptr, nullptr);
@@ -222,7 +224,8 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, siz
     PAIRS_ASSERT(a != std::end(arrays));
     PAIRS_ASSERT(size > 0);
 
-    void *new_h_ptr = realloc(*h_ptr, size);
+    size_t old_size = a->getSize();
+    void *new_h_ptr = pairs::host_realloc(*h_ptr, size, old_size);
     void *new_d_ptr = pairs::device_realloc(*d_ptr, size);
     PAIRS_ASSERT(new_h_ptr != nullptr && new_d_ptr != nullptr);
 
@@ -243,7 +246,7 @@ void PairsSimulation::addProperty(
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) malloc(size);
+    *h_ptr = (T_ptr *) pairs::host_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr);
     addProperty(Property(id, name, *h_ptr, nullptr, type, layout, sx, sy));
 }
@@ -255,7 +258,7 @@ void PairsSimulation::addProperty(
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) malloc(size);
+    *h_ptr = (T_ptr *) pairs::host_alloc(size);
     *d_ptr = (T_ptr *) pairs::device_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr && *d_ptr != nullptr);
     addProperty(Property(id, name, *h_ptr, *d_ptr, type, layout, sx, sy));
@@ -272,7 +275,8 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr
     size_t size = sx * sy * p->getElemSize();
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) realloc(*h_ptr, size);
+    size_t old_size = p->getTotalSize();
+    *h_ptr = (T_ptr *) pairs::host_realloc(*h_ptr, size, old_size);
     PAIRS_ASSERT(*h_ptr != nullptr);
 
     p->setPointers(*h_ptr, nullptr);
@@ -290,7 +294,8 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_pt
     size_t size = sx * sy * p->getElemSize();
     PAIRS_ASSERT(size > 0);
 
-    void *new_h_ptr = realloc(*h_ptr, size);
+    size_t old_size = p->getTotalSize();
+    void *new_h_ptr = pairs::host_realloc(*h_ptr, size, old_size);
     void *new_d_ptr = pairs::device_realloc(*d_ptr, size);
     PAIRS_ASSERT(new_h_ptr != nullptr && new_d_ptr != nullptr);
 
@@ -311,7 +316,7 @@ void PairsSimulation::addContactProperty(
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) malloc(size);
+    *h_ptr = (T_ptr *) pairs::host_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr);
     addContactProperty(ContactProperty(id, name, *h_ptr, nullptr, type, layout, sx, sy));
 }
@@ -323,7 +328,7 @@ void PairsSimulation::addContactProperty(
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) malloc(size);
+    *h_ptr = (T_ptr *) pairs::host_alloc(size);
     *d_ptr = (T_ptr *) pairs::device_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr && *d_ptr != nullptr);
     addContactProperty(ContactProperty(id, name, *h_ptr, *d_ptr, type, layout, sx, sy));
@@ -340,7 +345,8 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, std::
     size_t size = sx * sy * cp->getElemSize();
     PAIRS_ASSERT(size > 0);
 
-    *h_ptr = (T_ptr *) realloc(*h_ptr, size);
+    size_t old_size = cp->getTotalSize();
+    *h_ptr = (T_ptr *) pairs::host_realloc(*h_ptr, size, old_size);
     PAIRS_ASSERT(*h_ptr != nullptr);
 
     cp->setPointers(*h_ptr, nullptr);
@@ -358,7 +364,8 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr
     size_t size = sx * sy * cp->getElemSize();
     PAIRS_ASSERT(size > 0);
 
-    void *new_h_ptr = realloc(*h_ptr, size);
+    size_t old_size = cp->getTotalSize();
+    void *new_h_ptr = pairs::host_realloc(*h_ptr, size, old_size);
     void *new_d_ptr = pairs::device_realloc(*d_ptr, size);
     PAIRS_ASSERT(new_h_ptr != nullptr && new_d_ptr != nullptr);
 
