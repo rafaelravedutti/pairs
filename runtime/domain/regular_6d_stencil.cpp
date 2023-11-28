@@ -97,7 +97,7 @@ void Regular6DStencil::fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom)
 }
 
 void Regular6DStencil::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
-    std::cout << "communicateSizes" << std::endl;
+    //std::cout << "communicateSizes" << std::endl;
 
     if(prev[dim] != rank) {
         MPI_Send(&send_sizes[dim * 2 + 0], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
@@ -118,7 +118,7 @@ void Regular6DStencil::communicateData(
     int dim, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
-    std::cout << "communicateData" << std::endl;
+    //std::cout << "communicateData" << std::endl;
 
     const real_t *send_prev = &send_buf[send_offsets[dim * 2 + 0] * elem_size];
     const real_t *send_next = &send_buf[send_offsets[dim * 2 + 1] * elem_size];
@@ -126,7 +126,7 @@ void Regular6DStencil::communicateData(
     real_t *recv_next = &recv_buf[recv_offsets[dim * 2 + 1] * elem_size];
 
     if(prev[dim] != rank) {
-        std::cout << rank << ": send " << nsend[dim * 2 + 0] << " elems to " << prev[dim] << ", recv " << nrecv[dim * 2 + 0] << " elems from " << next[dim] << std::endl;
+        //std::cout << rank << ": send " << nsend[dim * 2 + 0] << " elems to " << prev[dim] << ", recv " << nrecv[dim * 2 + 0] << " elems from " << next[dim] << std::endl;
         //MPI_Send(send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD);
         //MPI_Recv(recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
@@ -142,7 +142,7 @@ void Regular6DStencil::communicateData(
     }
 
     if(next[dim] != rank) {
-        std::cout << rank << ": send " << nsend[dim * 2 + 1] << " elems to " << next[dim] << ", recv " << nrecv[dim * 2 + 1] << " elems from " << prev[dim] << std::endl;
+        //std::cout << rank << ": send " << nsend[dim * 2 + 1] << " elems to " << next[dim] << ", recv " << nrecv[dim * 2 + 1] << " elems from " << prev[dim] << std::endl;
         //MPI_Send(send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0, MPI_COMM_WORLD);
         //MPI_Recv(recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 

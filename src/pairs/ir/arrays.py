@@ -1,7 +1,7 @@
 from functools import reduce
-from pairs.ir.assign import Assign
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import ASTTerm, BinOp
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.memory import Realloc
@@ -134,7 +134,7 @@ class ArrayAccess(ASTTerm):
         return ArrayAccess.last_acc - 1
 
     def __init__(self, sim, array, indexes):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self.acc_id = ArrayAccess.new_id()
         self.array = array
         self.partial_indexes = indexes if isinstance(indexes, list) else [Lit.cvt(sim, indexes)]
@@ -144,7 +144,11 @@ class ArrayAccess(ASTTerm):
         self.check_and_set_flat_index()
 
     def __str__(self):
-        return f"ArrayAccess<{self.array}, {self.partial_indexes}>"
+        part_indexes = \
+            ", ".join(map(str, self.partial_indexes)) if isinstance(self.partial_indexes, list) \
+            else self.partial_indexes
+
+        return f"ArrayAccess<{self.array}, [{part_indexes}]>"
 
     def __getitem__(self, index):
         assert self.flat_index is None, "Number of partial indexes higher than array dimension!"
@@ -152,11 +156,11 @@ class ArrayAccess(ASTTerm):
         self.check_and_set_flat_index()
         return self
 
-    def inline_rec(self):
+    def inline_recursively(self):
         self.inlined = True
         return self
 
-    def copy(self):
+    def copy(self, deep=False):
         return ArrayAccess(self.sim, self.array, self.partial_indexes)
 
     def check_and_set_flat_index(self):
@@ -183,14 +187,11 @@ class ArrayAccess(ASTTerm):
 
         return False
 
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
-
     def id(self):
         return self.acc_id
+
+    def name(self):
+        return f"arr_acc{self.id()}" + self.label_suffix()
 
     def type(self):
         return self.array.type()
@@ -205,7 +206,7 @@ class ArrayAccess(ASTTerm):
         return [self.array] + self.partial_indexes
 
 
-class ArrayDecl(ASTNode):
+class DeclareStaticArray(ASTNode):
     def __init__(self, sim, array):
         super().__init__(sim)
         self.array = array
@@ -217,7 +218,7 @@ class RegisterArray(ASTNode):
         super().__init__(sim)
         self._array = array
         self._prim_size = Sizeof(sim, array.type())
-        self._size = BinOp.inline(self._prim_size * size)
+        self._size = ScalarOp.inline(self._prim_size * size)
         self.sim.add_statement(self)
 
     def array(self):
@@ -235,7 +236,7 @@ class ReallocArray(ASTNode):
         super().__init__(sim)
         self._array = array
         self._prim_size = Sizeof(sim, array.type())
-        self._size = BinOp.inline(self._prim_size * size)
+        self._size = ScalarOp.inline(self._prim_size * size)
         self.sim.add_statement(self)
 
     def array(self):

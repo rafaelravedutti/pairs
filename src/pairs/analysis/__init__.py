@@ -1,6 +1,7 @@
-from pairs.analysis.bin_ops import ResetInPlaceBinOps, SetBinOpTerminals, SetInPlaceBinOps, SetDeclaredExprs
-from pairs.analysis.blocks import SetBlockVariants, SetExprOwnerBlock, SetParentBlock
-from pairs.analysis.devices import FetchKernelReferences
+import time
+from pairs.analysis.expressions import DetermineExpressionsTerminals, ResetInPlaceOperations, DetermineInPlaceOperations, ListDeclaredExpressions
+from pairs.analysis.blocks import DiscoverBlockVariants, DetermineExpressionsOwnership, DetermineParentBlocks
+from pairs.analysis.devices import FetchKernelReferences, MarkCandidateLoops
 from pairs.analysis.modules import FetchModulesReferences
 
 
@@ -9,32 +10,39 @@ class Analysis:
         self._ast = ast
 
     def apply(self, analysis):
+        print(f"Performing analysis: {type(analysis).__name__}... ", end="")
+        start = time.time()
         analysis.set_ast(self._ast)
         analysis.visit()
+        elapsed = time.time() - start
+        print(f"{elapsed:.2f}s elapsed.")
 
-    def set_bin_op_terminals(self):
-        self.apply(SetBinOpTerminals())
+    def determine_expressions_terminals(self):
+        self.apply(DetermineExpressionsTerminals())
 
-    def set_block_variants(self):
-        SetBlockVariants(self._ast).mutate()
+    def discover_block_variants(self):
+        self.apply(DiscoverBlockVariants())
 
-    def set_parent_block(self):
-        self.apply(SetParentBlock())
+    def determine_parent_blocks(self):
+        self.apply(DetermineParentBlocks())
 
-    def set_expressions_owner_block(self):
-        set_expr_owner_block = SetExprOwnerBlock()
-        self.apply(set_expr_owner_block)
-        return (set_expr_owner_block.ownership, set_expr_owner_block.expressions_to_lift)
+    def determine_expressions_ownership(self):
+        determine_ownership = DetermineExpressionsOwnership()
+        self.apply(determine_ownership)
+        return (determine_ownership.ownership, determine_ownership.expressions_to_lift)
 
     def fetch_kernel_references(self):
-        self.apply(ResetInPlaceBinOps())
-        self.apply(SetInPlaceBinOps())
+        self.apply(ResetInPlaceOperations())
+        self.apply(DetermineInPlaceOperations())
         self.apply(FetchKernelReferences())
 
     def fetch_modules_references(self):
         self.apply(FetchModulesReferences())
 
-    def set_declared_expressions(self):
-        set_decl_exprs = SetDeclaredExprs()
-        self.apply(set_decl_exprs)
-        return set_decl_exprs.declared_exprs
+    def list_declared_expressions(self):
+        list_expressions = ListDeclaredExpressions()
+        self.apply(list_expressions)
+        return list_expressions.declared_exprs
+
+    def mark_candidate_loops(self):
+        self.apply(MarkCandidateLoops())

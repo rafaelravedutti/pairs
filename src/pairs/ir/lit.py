@@ -1,8 +1,8 @@
-from pairs.ir.ast_node import ASTNode
+from pairs.ir.ast_term import ASTTerm
 from pairs.ir.types import Types
 
 
-class Lit(ASTNode):
+class Lit(ASTTerm):
     def is_literal(a):
         return isinstance(a, (int, float, bool, str, list))
 
@@ -10,26 +10,29 @@ class Lit(ASTNode):
         return Lit(sim, a) if Lit.is_literal(a) else a
 
     def __init__(self, sim, value):
-        super().__init__(sim)
-        self.value = value
-        self.lit_type = Types.Invalid
-
-        if isinstance(value, int):
-            self.lit_type = Types.Int32
-
-        if isinstance(value, float):
-            self.lit_type = Types.Double
-
-        if isinstance(value, bool):
-            self.lit_type = Types.Boolean
-
-        if isinstance(value, str):
-            self.lit_type = Types.String
-
         if isinstance(value, list):
-            self.lit_type = Types.Vector
+            non_scalar_mapping = {
+                sim.ndims(): Types.Vector,
+                sim.ndims() * sim.ndims(): Types.Matrix,
+                sim.ndims() + 1: Types.Quaternion
+            }
 
-        assert self.lit_type != Types.Invalid, "Invalid literal type!"
+            self.lit_type = non_scalar_mapping.get(len(value), Types.Invalid)
+
+        else:
+            scalar_mapping = {
+                int: Types.Int32,
+                float: Types.Real,
+                bool: Types.Boolean,
+                str: Types.String,
+            }
+
+            self.lit_type = scalar_mapping.get(type(value), Types.Invalid)
+
+        assert self.lit_type != Types.Invalid, "Invalid literal type."
+        from pairs.ir.operator_class import OperatorClass
+        super().__init__(sim, OperatorClass.from_type(self.lit_type))
+        self.value = value
 
     def __str__(self):
         return f"Lit<{self.value}>"
@@ -43,7 +46,7 @@ class Lit(ASTNode):
     def __req__(self, other):
         return self.__cmp__(other)
 
-    def copy(self):
+    def copy(self, deep=False):
         return Lit(self.sim, self.value)
 
     def type(self):

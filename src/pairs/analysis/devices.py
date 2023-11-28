@@ -1,6 +1,24 @@
 from pairs.ir.arrays import ArrayAccess
-from pairs.ir.bin_op import BinOp
+from pairs.ir.lit import Lit
+from pairs.ir.loops import For
+from pairs.ir.quaternions import QuaternionOp
+from pairs.ir.scalars import ScalarOp
+from pairs.ir.matrices import MatrixOp
 from pairs.ir.visitor import Visitor
+from pairs.ir.vectors import VectorOp
+
+
+class MarkCandidateLoops(Visitor):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+
+    def visit_Module(self, ast_node):
+        for s in ast_node._block.stmts:
+            if s is not None:
+                if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
+                    s.mark_as_kernel_candidate()
+
+        self.visit_children(ast_node)
 
 
 class FetchKernelReferences(Visitor):
@@ -9,7 +27,10 @@ class FetchKernelReferences(Visitor):
         self.kernel_stack = []
         self.kernel_decls = {}
         self.kernel_used_array_accesses = {}
-        self.kernel_used_bin_ops = {}
+        self.kernel_used_scalar_ops = {}
+        self.kernel_used_vector_ops = {}
+        self.kernel_used_matrix_ops = {}
+        self.kernel_used_quat_ops = {}
         self.writing = False
 
     def visit_ArrayAccess(self, ast_node):
@@ -28,9 +49,9 @@ class FetchKernelReferences(Visitor):
 
     def visit_Assign(self, ast_node):
         self.writing = True
-        self.visit(ast_node.destinations())
+        self.visit(ast_node._dest)
         self.writing = False
-        self.visit(ast_node.sources())
+        self.visit(ast_node._src)
 
     def visit_AtomicAdd(self, ast_node):
         self.writing = True
@@ -46,12 +67,19 @@ class FetchKernelReferences(Visitor):
         kernel_id = ast_node.kernel_id
         self.kernel_decls[kernel_id] = []
         self.kernel_used_array_accesses[kernel_id] = []
-        self.kernel_used_bin_ops[kernel_id] = []
+        self.kernel_used_scalar_ops[kernel_id] = []
+        self.kernel_used_vector_ops[kernel_id] = []
+        self.kernel_used_matrix_ops[kernel_id] = []
+        self.kernel_used_quat_ops[kernel_id] = []
         self.kernel_stack.append(ast_node)
         self.visit_children(ast_node)
         self.kernel_stack.pop()
+
         ast_node.add_array_access([a for a in self.kernel_used_array_accesses[kernel_id] if a not in self.kernel_decls[kernel_id]])
-        ast_node.add_bin_op([b for b in self.kernel_used_bin_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
+        ast_node.add_scalar_op([b for b in self.kernel_used_scalar_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
+        ast_node.add_vector_op([b for b in self.kernel_used_vector_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
+        ast_node.add_matrix_op([b for b in self.kernel_used_matrix_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
+        ast_node.add_quaternion_op([b for b in self.kernel_used_quat_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
 
     def visit_PropertyAccess(self, ast_node):
         # Visit property and save current writing state
@@ -63,15 +91,53 @@ class FetchKernelReferences(Visitor):
         self.visit([roc for roc in ast_node.children() if roc != ast_node.prop])
         self.writing = writing_state
 
+    def visit_ContactPropertyAccess(self, ast_node):
+        # Visit property and save current writing state
+        self.visit(ast_node.contact_prop)
+        writing_state = self.writing
+
+        # Index elements are read-only
+        self.writing = False
+        self.visit([roc for roc in ast_node.children() if roc != ast_node.contact_prop])
+        self.writing = writing_state
+
+    def visit_FeaturePropertyAccess(self, ast_node):
+        # Visit property and save current writing state
+        self.visit(ast_node.feature_prop)
+        writing_state = self.writing
+
+        # Index elements are read-only
+        self.writing = False
+        self.visit([roc for roc in ast_node.children() if roc != ast_node.feature_prop])
+        self.writing = writing_state
+
     def visit_Decl(self, ast_node):
-        if isinstance(ast_node.elem, (ArrayAccess, BinOp)):
+        if isinstance(ast_node.elem, (ArrayAccess, ScalarOp, VectorOp, MatrixOp, QuaternionOp)):
             for k in self.kernel_stack:
                 self.kernel_decls[k.kernel_id].append(ast_node.elem)
 
-    def visit_BinOp(self, ast_node):
+    def visit_ScalarOp(self, ast_node):
         if ast_node.inlined is False:
             for k in self.kernel_stack:
-                self.kernel_used_bin_ops[k.kernel_id].append(ast_node)
+                self.kernel_used_scalar_ops[k.kernel_id].append(ast_node)
+
+        self.visit_children(ast_node)
+
+    def visit_VectorOp(self, ast_node):
+        for k in self.kernel_stack:
+            self.kernel_used_vector_ops[k.kernel_id].append(ast_node)
+
+        self.visit_children(ast_node)
+
+    def visit_MatrixOp(self, ast_node):
+        for k in self.kernel_stack:
+            self.kernel_used_matrix_ops[k.kernel_id].append(ast_node)
+
+        self.visit_children(ast_node)
+
+    def visit_QuaternionOp(self, ast_node):
+        for k in self.kernel_stack:
+            self.kernel_used_quat_ops[k.kernel_id].append(ast_node)
 
         self.visit_children(ast_node)
 
@@ -82,6 +148,10 @@ class FetchKernelReferences(Visitor):
     def visit_Property(self, ast_node):
         for k in self.kernel_stack:
             k.add_property(ast_node, self.writing)
+
+    def visit_ContactProperty(self, ast_node):
+        for k in self.kernel_stack:
+            k.add_contact_property(ast_node)
 
     def visit_FeatureProperty(self, ast_node):
         for k in self.kernel_stack:

@@ -1,7 +1,11 @@
+import pairs.ir.utils as util
+
+
 class Mutator:
     def __init__(self, ast=None, max_depth=0):
         self.ast = ast
         self.max_depth = 0
+        self.visited_nodes = set()
 
     def set_ast(self, ast):
         self.ast = ast
@@ -14,13 +18,40 @@ class Mutator:
         if ast_node is None:
             ast_node = self.ast
 
-        method = self.get_method(f"mutate_{type(ast_node).__name__}")
-        if method is not None:
-            return method(ast_node)
+        terminal_node = util.is_terminal(ast_node)
+        node_id = id(ast_node)
+        if terminal_node or node_id not in self.visited_nodes:
+            if not terminal_node:
+                self.visited_nodes.add(node_id)
 
-        method_unknown = self.get_method("mutate_Unknown")
-        if method_unknown is not None:
-            return method_unknown(ast_node)
+            method = self.get_method(f"mutate_{type(ast_node).__name__}")
+            if method is not None:
+                return method(ast_node)
+
+            for b in type(ast_node).__bases__:
+                method = self.get_method(f"mutate_{b.__name__}")
+                if method is not None:
+                    return method(ast_node)
+
+            method_unknown = self.get_method("mutate_Unknown")
+            if method_unknown is not None:
+                return method_unknown(ast_node)
+
+        return ast_node
+
+    def mutate_Apply(self, ast_node):
+        ast_node._prop = self.mutate(ast_node._prop)
+        ast_node._expr = self.mutate(ast_node._expr)
+        ast_node._j = self.mutate(ast_node._j)
+
+        if ast_node._expr_i is not None:
+            ast_node._expr_i = self.mutate(ast_node._expr_i)
+
+        if ast_node._expr_j is not None:
+            ast_node._expr_j = self.mutate(ast_node._expr_j)
+
+        if ast_node._reduction_variable is not None:
+            ast_node._reduction_variable = self.mutate(ast_node._reduction_variable)
 
         return ast_node
 
@@ -34,7 +65,8 @@ class Mutator:
         return ast_node 
 
     def mutate_Assign(self, ast_node):
-        ast_node.assignments = [(self.mutate(a[0]), self.mutate(a[1])) for a in ast_node.assignments]
+        ast_node._dest = self.mutate(ast_node._dest)
+        ast_node._src = self.mutate(ast_node._src)
         return ast_node
 
     def mutate_AtomicAdd(self, ast_node):
@@ -45,12 +77,6 @@ class Mutator:
             ast_node.resize = self.mutate(ast_node.resize)
             ast_node.capacity = self.mutate(ast_node.capacity)
 
-        return ast_node
-
-    def mutate_BinOp(self, ast_node):
-        ast_node.lhs = self.mutate(ast_node.lhs)
-        ast_node.rhs = self.mutate(ast_node.rhs)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
         return ast_node
 
     def mutate_Block(self, ast_node):
@@ -72,10 +98,6 @@ class Mutator:
         return ast_node
 
     def mutate_Cast(self, ast_node):
-        ast_node.expr = self.mutate(ast_node.expr)
-        return ast_node
-
-    def mutate_Ceil(self, ast_node):
         ast_node.expr = self.mutate(ast_node.expr)
         return ast_node
 
@@ -120,18 +142,60 @@ class Mutator:
     def mutate_PropertyAccess(self, ast_node):
         ast_node.prop = self.mutate(ast_node.prop)
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
+        return ast_node
+
+    def mutate_ContactPropertyAccess(self, ast_node):
+        ast_node.contact_prop = self.mutate(ast_node.contact_prop)
+        ast_node.index = self.mutate(ast_node.index)
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
         return ast_node
 
     def mutate_FeaturePropertyAccess(self, ast_node):
         ast_node.feature_prop = self.mutate(ast_node.feature_prop)
         ast_node.index = self.mutate(ast_node.index)
-        ast_node.expressions = {i: self.mutate(e) for i, e in ast_node.expressions.items()}
+        ast_node.vector_indexes = {d: self.mutate(i) for d, i in ast_node.vector_indexes.items()}
+        return ast_node
+
+    def mutate_Quaternion(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        return ast_node
+
+    def mutate_QuaternionAccess(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
+    def mutate_QuaternionOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         return ast_node
 
     def mutate_Malloc(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
         ast_node.size = self.mutate(ast_node.size)
+        return ast_node
+
+    def mutate_MathFunction(self, ast_node):
+        ast_node._params = [self.mutate(p) for p in ast_node._params]
+        return ast_node
+
+    def mutate_Matrix(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        return ast_node
+
+    def mutate_MatrixAccess(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
+    def mutate_MatrixOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         return ast_node
 
     def mutate_Module(self, ast_node):
@@ -142,9 +206,26 @@ class Mutator:
         ast_node._module = self.mutate(ast_node._module)
         return ast_node
 
+    def mutate_Neighbor(self, ast_node):
+        ast_node._neighbor_index = self.mutate(ast_node._neighbor_index)
+        ast_node._particle_index = self.mutate(ast_node._particle_index)
+
+        if ast_node._cell_id is not None:
+            ast_node._cell_id = self.mutate(ast_node._cell_id)
+
+        return ast_node
+
     def mutate_Realloc(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
         ast_node.size = self.mutate(ast_node.size)
+        return ast_node
+
+    def mutate_ScalarOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         return ast_node
 
     def mutate_Select(self, ast_node):
@@ -153,16 +234,24 @@ class Mutator:
         ast_node.expr_else = self.mutate(ast_node.expr_else)
         return ast_node
 
-    def mutate_Sqrt(self, ast_node):
-        ast_node.expr = self.mutate(ast_node.expr)
-        return ast_node
-
     def mutate_Timestep(self, ast_node):
         ast_node.block = self.mutate(ast_node.block)
         return ast_node
 
+    def mutate_Vector(self, ast_node):
+        ast_node._values = [self.mutate(v) for v in ast_node._values]
+        return ast_node
+
     def mutate_VectorAccess(self, ast_node):
         ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+
+    def mutate_VectorOp(self, ast_node):
+        ast_node.lhs = self.mutate(ast_node.lhs)
+
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
         return ast_node
 
     def mutate_While(self, ast_node):

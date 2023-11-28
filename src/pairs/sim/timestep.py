@@ -1,6 +1,7 @@
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
-from pairs.ir.branches import Branch
+from pairs.ir.branches import Branch, Filter
+from pairs.ir.functions import Call_Void
 from pairs.ir.loops import For
 
 
@@ -13,17 +14,25 @@ class Timestep:
         if item_list is not None:
             for item in item_list:
                 if isinstance(item, tuple):
-                    if len(item) >= 3:
-                        self.add(item[0], item[2], item[1])
-                    else:
-                        self.add(item[0], item[1])
+                    stmt_else = None
+
+                    if len(item) == 2:
+                        stmt, params = item
+
+                    if len(item) == 3:
+                        stmt, stmt_else, params = item
+
+                    exec_every = 0 if 'every' not in params else params['every']
+                    skip_first = False if 'skip_first' not in params else params['skip_first']
+                    self.add(stmt, exec_every, stmt_else, skip_first)
+
                 else:
                     self.add(item)
 
     def timestep(self):
         return self.timestep_loop.iter()
 
-    def add(self, item, exec_every=0, item_else=None):
+    def add(self, item, exec_every=0, item_else=None, skip_first=False):
         assert exec_every >= 0, "exec_every parameter must be higher or equal than zero!"
         stmts = item if not isinstance(item, Block) else item.statements()
         stmts_else = None
@@ -34,13 +43,29 @@ class Timestep:
             stmts_else = item_else if not isinstance(item_else, Block) else item_else.statements()
 
         if exec_every > 0:
+            cond = ScalarOp.or_op(ScalarOp.cmp((ts + 1) % exec_every, 0), ScalarOp.cmp(ts, 0))
+            one_way = True if stmts_else is None else False
+
             self.block.add_statement(
-                Branch(self.sim, BinOp.inline(BinOp.cmp(ts % exec_every, 0)), True if stmts_else is None else False,
-                Block(self.sim, stmts), None if stmts_else is None else Block(self.sim, stmts_else)))
+                Branch(self.sim, ScalarOp.inline(cond), one_way,
+                    Block(self.sim, stmts),
+                    Block(self.sim, stmts_else) if not one_way else None))
+
+        elif skip_first:
+            self.block.add_statement(Filter(self.sim, ScalarOp.inline(ts > 0), Block(self.sim, stmts)))
+
         else:
             self.block.add_statement(stmts)
 
         self.sim.leave()
 
     def as_block(self):
-        return Block(self.sim, [self.timestep_loop])
+        _capture = self.sim._capture_statements
+        self.sim.capture_statements(False)
+
+        block = Block(self.sim, [Call_Void(self.sim, "pairs::start_timer", [0]),
+                                 self.timestep_loop,
+                                 Call_Void(self.sim, "pairs::stop_timer", [0])])
+
+        self.sim.capture_statements(_capture)
+        return block

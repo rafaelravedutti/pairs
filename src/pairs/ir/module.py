@@ -1,29 +1,33 @@
 from pairs.ir.arrays import Array
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.features import FeatureProperty
-from pairs.ir.properties import Property
+from pairs.ir.properties import Property, ContactProperty
 from pairs.ir.variables import Var
 
 
 class Module(ASTNode):
     last_module = 0
 
-    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False, temps=[]):
+    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False):
         super().__init__(sim)
         self._id = Module.last_module
         self._name = name if name is not None else "module" + str(Module.last_module)
-        self._temps = temps
         self._variables = {}
         self._arrays = {}
         self._properties = {}
+        self._contact_properties = {}
         self._feature_properties = {}
         self._host_references = set()
         self._block = block
         self._resizes_to_check = resizes_to_check
         self._check_properties_resize = check_properties_resize
         self._run_on_device = run_on_device
+        self._profile = False
         sim.add_module(self)
         Module.last_module += 1
+
+    def __str__(self):
+        return f"Module<{self._name}>"
 
     @property
     def module_id(self):
@@ -41,9 +45,12 @@ class Module(ASTNode):
     def run_on_device(self):
         return self._run_on_device
 
-    @property
-    def temporaries(self):
-        return self._temps
+    def profile(self):
+        self._profile = True
+        self.sim.enable_profiler()
+
+    def must_profile(self):
+        return self._profile
 
     def variables(self):
         return self._variables
@@ -62,6 +69,9 @@ class Module(ASTNode):
 
     def properties(self):
         return self._properties
+
+    def contact_properties(self):
+        return self._contact_properties
 
     def feature_properties(self):
         return self._feature_properties
@@ -103,6 +113,13 @@ class Module(ASTNode):
         for p in prop_list:
             assert isinstance(p, Property), "Module.add_property(): given element is not of type Property!"
             self._properties[p] = character if p not in self._properties else self._properties[p] + character
+
+    def add_contact_property(self, contact_prop, write=False):
+        contact_prop_list = contact_prop if isinstance(contact_prop, list) else [contact_prop]
+        character = 'w' if write else 'r'
+        for cp in contact_prop_list:
+            assert isinstance(cp, ContactProperty), "Module.add_contact_property(): given element is not of type ContactProperty!"
+            self._contact_properties[cp] = character if cp not in self._contact_properties else self._contact_properties[cp] + character
 
     def add_feature_property(self, feature_prop):
         feature_prop_list = feature_prop if isinstance(feature_prop, list) else [feature_prop]

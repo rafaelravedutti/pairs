@@ -1,7 +1,9 @@
+import time
 from pairs.analysis import Analysis
-from pairs.transformations.blocks import LiftExprOwnerBlocks, MergeAdjacentBlocks
+from pairs.transformations.blocks import LiftDeclarations, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
-from pairs.transformations.expressions import ReplaceSymbols, SimplifyExpressions, PrioritizeScalarOps, AddExpressionDeclarations
+from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PruneUnusedVectorIndexes, AddExpressionDeclarations
+from pairs.transformations.instrumentation import AddModulesInstrumentation
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
 from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLogic, ReplaceModulesByCalls
@@ -14,11 +16,15 @@ class Transformations:
         self._module_resizes = None
 
     def apply(self, transformation, data=None):
+        print(f"Applying transformation: {type(transformation).__name__}... ", end="")
+        start = time.time()
         transformation.set_ast(self._ast)
         if data is not None:
             transformation.set_data(data)
 
         self._ast = transformation.mutate()
+        elapsed = time.time() - start
+        print(f"{elapsed:.2f}s elapsed.")
 
     def analysis(self):
         return Analysis(self._ast)
@@ -33,19 +39,20 @@ class Transformations:
         self.apply(MergeAdjacentBlocks())
 
     def optimize_expressions(self):
+        self.apply(PruneUnusedVectorIndexes())
+        self.apply(LowerNeighborIndexes())
         self.apply(ReplaceSymbols())
         self.apply(SimplifyExpressions())
-        self.apply(PrioritizeScalarOps())
-        self.apply(SimplifyExpressions())
 
-    def lift_expressions_to_owner_blocks(self):
-        ownership, expressions_to_lift = self.analysis().set_expressions_owner_block()
-        self.apply(LiftExprOwnerBlocks(), [ownership, expressions_to_lift])
+    def lift_declarations_to_owner_blocks(self):
+        #self.analysis().determine_parent_block()
+        ownership, expressions_to_lift = self.analysis().determine_expressions_ownership()
+        self.apply(LiftDeclarations(), [ownership, expressions_to_lift])
 
     def licm(self):
-        self.analysis().set_parent_block()
-        self.analysis().set_block_variants()
-        self.analysis().set_bin_op_terminals()
+        self.analysis().mark_candidate_loops()
+        self.analysis().discover_block_variants()
+        self.analysis().determine_expressions_terminals()
         self.apply(LICM())
 
     def modularize(self):
@@ -67,7 +74,7 @@ class Transformations:
             self.analysis().fetch_kernel_references()
 
     def add_expression_declarations(self):
-        declared_exprs = self.analysis().set_declared_expressions()
+        declared_exprs = self.analysis().list_declared_expressions()
         self.apply(AddExpressionDeclarations(), [declared_exprs])
 
     def add_host_references_to_modules(self):
@@ -78,15 +85,19 @@ class Transformations:
         if self._target.is_gpu():
             self.apply(AddDeviceReferencesToModules())
 
+    def add_instrumentation(self):
+        self.apply(AddModulesInstrumentation())
+
     def apply_all(self):
         self.lower()
         self.optimize_expressions()
         self.add_expression_declarations()
-        self.lift_expressions_to_owner_blocks()
+        self.lift_declarations_to_owner_blocks()
         self.licm()
         self.modularize()
         self.add_device_kernels()
         self.add_device_copies()
+        self.add_instrumentation()
         self.lower(True)
         self.add_expression_declarations()
         self.add_host_references_to_modules()

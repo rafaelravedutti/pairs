@@ -10,7 +10,7 @@
 
 namespace pairs {
 
-void read_grid_data(PairsSimulation *ps, const char *filename, double *grid_buffer) {
+void read_grid_data(PairsSimulation *ps, const char *filename, real_t *grid_buffer) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
 
@@ -30,18 +30,20 @@ void read_grid_data(PairsSimulation *ps, const char *filename, double *grid_buff
     }
 }
 
-size_t read_particle_data(PairsSimulation *ps, const char *filename, const property_t properties[], size_t nprops) {
+size_t read_particle_data(PairsSimulation *ps, const char *filename, const property_t properties[], size_t nprops, int shape_id, int start) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
-    size_t n = 0;
+    auto shape_ptr = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
+    size_t n = start;
 
     if(in_file.is_open()) {
-        std::getline(in_file, line);
+        //std::getline(in_file, line);
         while(std::getline(in_file, line)) {
             std::stringstream line_stream(line);
             std::string in0;
             int within_domain = 1;
             int i = 0;
+            int flags = 0;
 
             while(std::getline(line_stream, in0, ',')) {
                 property_t p_id = properties[i];
@@ -63,10 +65,34 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
                     if(prop.getName() == "position") {
                         within_domain = ps->getDomainPartitioner()->isWithinSubdomain(x, y, z);
                     }
+                } else if(prop_type == Prop_Matrix) {
+                    auto matrix_ptr = ps->getAsMatrixProperty(prop);
+                    constexpr int nelems = 9;
+                    std::string in_buf;
+
+                    matrix_ptr(n, 0) = std::stod(in0);
+                    for(int i = 1; i < nelems; i++) {
+                        std::getline(line_stream, in_buf, ',');
+                        matrix_ptr(n, i) = std::stod(in_buf);
+                    }
+                } else if(prop_type == Prop_Quaternion) {
+                    auto quat_ptr = ps->getAsQuaternionProperty(prop);
+                    constexpr int nelems = 4;
+                    std::string in_buf;
+
+                    quat_ptr(n, 0) = std::stod(in0);
+                    for(int i = 1; i < nelems; i++) {
+                        std::getline(line_stream, in_buf, ',');
+                        quat_ptr(n, i) = std::stod(in_buf);
+                    }
                 } else if(prop_type == Prop_Integer) {
                     auto int_ptr = ps->getAsIntegerProperty(prop);
                     int_ptr(n) = std::stoi(in0);
-                } else if(prop_type == Prop_Float) {
+
+                    if(prop.getName() == "flags") {
+                        flags = int_ptr(n);
+                    }
+                } else if(prop_type == Prop_Real) {
                     auto float_ptr = ps->getAsFloatProperty(prop);
                     float_ptr(n) = std::stod(in0);
                 } else {
@@ -77,7 +103,9 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
                 i++;
             }
 
-            n += (within_domain) ? 1 : 0;
+            if(within_domain || flags & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL)) {
+                shape_ptr(n++) = shape_id;
+            }
         }
 
         in_file.close();
@@ -119,7 +147,7 @@ size_t read_feature_data(PairsSimulation *ps, const char *filename, const int fe
                 } else if(prop_type == Prop_Integer) {
                     auto int_ptr = ps->getAsIntegerFeatureProperty(prop);
                     int_ptr(i, j) = std::stoi(in0);
-                } else if(prop_type == Prop_Float) {
+                } else if(prop_type == Prop_Real) {
                     auto float_ptr = ps->getAsFloatFeatureProperty(prop);
                     float_ptr(i, j) = std::stod(in0);
                 } else {

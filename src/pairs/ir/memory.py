@@ -1,7 +1,7 @@
 from functools import reduce
 import operator
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.sizeof import Sizeof
 
 
@@ -11,7 +11,7 @@ class Malloc(ASTNode):
         self.array = array
         self.decl = decl
         self.prim_size = Sizeof(sim, array.type())
-        self.size = BinOp.inline(self.prim_size * (reduce(operator.mul, sizes) if isinstance(sizes, list) else sizes))
+        self.size = ScalarOp.inline(self.prim_size * (reduce(operator.mul, sizes) if isinstance(sizes, list) else sizes))
         self.sim.add_statement(self)
 
     def children(self):
@@ -23,7 +23,7 @@ class Realloc(ASTNode):
         super().__init__(sim)
         self.array = array
         self.prim_size = Sizeof(sim, array.type())
-        self.size = BinOp.inline(self.prim_size * size)
+        self.size = ScalarOp.inline(self.prim_size * size)
         self.sim.add_statement(self)
 
     def children(self):

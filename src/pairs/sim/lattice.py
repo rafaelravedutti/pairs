@@ -1,3 +1,4 @@
+from pairs.ir.assign import Assign
 from pairs.ir.block import pairs_inline
 from pairs.ir.loops import For
 from pairs.ir.types import Types
@@ -32,17 +33,17 @@ class ParticleLattice(Lowerable):
 
                         for d_ in range(0, self.sim.ndims()):
                             pos = self.grid.min(d_) + self.spacing[d_] * loop_indexes[d_]
-                            self.positions[index][d_].set(pos)
+                            Assign(self.sim, self.positions[index][d_], pos)
 
                         for prop in [p for p in self.sim.properties.all()
                                      if p.volatile is False and p.name() != self.positions.name()]:
                             if prop.type() == Types.Vector:
                                 for d_ in range(0, self.sim.ndims()):
-                                    prop[index][d_].set(prop.default()[d_])
+                                    Assign(self.sim, prop[index][d_], prop.default()[d_])
 
                             else:
-                                prop[index].set(prop.default())
+                                Assign(self.sim, prop[index], prop.default())
 
-                        self.sim.nlocal.set(self.sim.nlocal + 1)
+                        Assign(self.sim, self.sim.nlocal, self.sim.nlocal + 1)
 
         return self.sim.block

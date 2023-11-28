@@ -1,14 +1,27 @@
 from collections import deque
+import pairs.ir.utils as util
 
 
 class Visitor:
-    def __init__(self, ast=None, max_depth=0, breadth_first=False):
+    def __init__(self, ast=None, max_depth=0, breadth_first=False, visit_nodes_once=True):
         self.ast = ast
         self.max_depth = max_depth
         self.breadth_first = breadth_first
+        self.visit_nodes_once = visit_nodes_once
+        self.visited_nodes = set()
+
+    def __iter__(self):
+        if self.breadth_first:
+            yield from self.yield_elements_breadth_first(self.ast)
+        else:
+            yield self.ast
+            yield from self.yield_elements(self.ast, 1)
 
     def set_ast(self, ast):
         self.ast = ast
+
+    def clear_visited_nodes(self):
+        self.visited_nodes = set()
 
     def get_method(self, method_name):
         method = getattr(self, method_name, None)
@@ -22,9 +35,19 @@ class Visitor:
             ast_nodes = [ast_nodes]
 
         for node in ast_nodes:
+            terminal_node = util.is_terminal(node)
+            if not terminal_node:
+                if self.visit_nodes_once:
+                    node_id = id(node)
+                    if node_id in self.visited_nodes:
+                        continue
+
+                    self.visited_nodes.add(node_id)
+
             method = self.get_method(f"visit_{type(node).__name__}")
             if method is not None:
                 method(node)
+
             else:
                 for b in type(node).__bases__:
                     method = self.get_method(f"visit_{b.__name__}")
@@ -56,10 +79,3 @@ class Visitor:
             for child in ast.children():
                 yield child
                 yield from self.yield_elements(child, depth + 1)
-
-    def __iter__(self):
-        if self.breadth_first:
-            yield from self.yield_elements_breadth_first(self.ast)
-        else:
-            yield self.ast
-            yield from self.yield_elements(self.ast, 1)

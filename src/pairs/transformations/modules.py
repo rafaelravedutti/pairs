@@ -1,6 +1,6 @@
 from pairs.ir.arrays import Array, ArrayAccess
 from pairs.ir.assign import Assign
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.lit import Lit
@@ -68,22 +68,24 @@ class AddResizeLogic(Mutator):
         return None
 
     def mutate_Assign(self, ast_node):
-        for dest, src in ast_node.assignments:
-            if not isinstance(src, Lit):
-                match_capacity = None
+        dest = ast_node._dest
+        src = ast_node._src
 
-                if isinstance(dest, (ArrayAccess, Var)):
-                    match_capacity = self.lookup_capacity([dest])
+        if not isinstance(src, Lit):
+            match_capacity = None
 
-                # Resize var is used in index, this statement should be checked for safety
-                if match_capacity is not None:
-                    module = self.module_stack[-1]
-                    resizes = list(self.module_resizes[module].keys())
-                    capacities = list(self.module_resizes[module].values())
-                    resize_id = resizes[capacities.index(match_capacity)]
-                    return Branch(ast_node.sim, src + 1 >= match_capacity,
-                                  blk_if=Block(ast_node.sim, ast_node.sim.resizes[resize_id].set(src)),
-                                  blk_else=Block(ast_node.sim, ast_node))
+            if isinstance(dest, (ArrayAccess, Var)):
+                match_capacity = self.lookup_capacity([dest])
+
+            # Resize var is used in index, this statement should be checked for safety
+            if match_capacity is not None:
+                module = self.module_stack[-1]
+                resizes = list(self.module_resizes[module].keys())
+                capacities = list(self.module_resizes[module].values())
+                resize_id = resizes[capacities.index(match_capacity)]
+                return Branch(ast_node.sim, src + 1 >= match_capacity,
+                              blk_if=Block(ast_node.sim, Assign(ast_node.sim, ast_node.sim.resizes[resize_id], src)),
+                              blk_else=Block(ast_node.sim, ast_node))
 
         return ast_node
 
@@ -162,14 +164,15 @@ class ReplaceModulesByCalls(Mutator):
             for resize_id, capacity in self.module_resizes[ast_node].items():
                 init_stmts.append(Assign(sim, sim.resizes[resize_id], 1))
                 reset_stmts.append(Assign(sim, sim.resizes[resize_id], 0))
-                cond = BinOp.inline(sim.resizes[resize_id] > 0)
-                branch_cond = cond if branch_cond is None else BinOp.or_op(cond, branch_cond)
+                cond = ScalarOp.inline(sim.resizes[resize_id] > 0)
+                branch_cond = cond if branch_cond is None else ScalarOp.or_op(cond, branch_cond)
                 props_realloc = []
 
-                if properties.is_capacity(capacity):
+                if capacity == sim.particle_capacity:
                     for p in properties.all():
-                        new_capacity = sum(properties.capacities)
-                        sizes = [new_capacity, sim.ndims()] if p.type() == Types.Vector else [new_capacity]
+                        new_capacity = sim.particle_capacity
+                        sizes = [new_capacity] if Types.is_scalar(p.type()) else \
+                                [new_capacity, Types.number_of_elements(sim, p.type())]
                         props_realloc += [ReallocProperty(sim, p, sizes)]
 
                 resize_stmts.append(

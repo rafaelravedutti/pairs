@@ -1,6 +1,5 @@
 import math
-from pairs.ir.assign import Assign
-from pairs.ir.bin_op import BinOp
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
@@ -80,11 +79,11 @@ class AddDeviceKernels(Mutator):
             kernel_id = 0
             for s in ast_node._block.stmts:
                 if s is not None:
-                    if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
+                    if isinstance(s, For) and s.is_kernel_candidate():
                         kernel_name = f"{ast_node.name}_kernel{kernel_id}"
                         kernel = ast_node.sim.find_kernel_by_name(kernel_name)
                         if kernel is None:
-                            kernel_body = Filter(ast_node.sim, BinOp.inline(s.iterator < s.max.copy()), s.block)
+                            kernel_body = Filter(ast_node.sim, ScalarOp.inline(s.iterator < s.max.copy(True)), s.block)
                             kernel = Kernel(ast_node.sim, kernel_name, kernel_body, s.iterator)
                             kernel_id += 1
 
@@ -129,6 +128,13 @@ class AddHostReferencesToModules(Mutator):
         return ast_node
 
     def mutate_FeatureProperty(self, ast_node):
+        if self.device_context:
+            self.module_stack[-1].add_host_reference(ast_node)
+            return HostRef(ast_node.sim, ast_node)
+
+        return ast_node
+
+    def mutate_ContactProperty(self, ast_node):
         if self.device_context:
             self.module_stack[-1].add_host_reference(ast_node)
             return HostRef(ast_node.sim, ast_node)
@@ -199,6 +205,19 @@ class AddDeviceReferencesToModules(Mutator):
         return ast_node
 
     def mutate_FeatureProperty(self, ast_node):
+        if self.add_reference:
+            return DeviceStaticRef(ast_node.sim, ast_node)
+
+        return ast_node
+
+    def mutate_ContactPropertyAccess(self, ast_node):
+        _add_reference = self.add_reference
+        self.add_reference = self.must_add_reference(ast_node)
+        ast_node.feature_prop = self.mutate(ast_node.contact_prop)
+        self.add_reference = _add_reference
+        return ast_node
+
+    def mutate_ContactProperty(self, ast_node):
         if self.add_reference:
             return DeviceStaticRef(ast_node.sim, ast_node)
 

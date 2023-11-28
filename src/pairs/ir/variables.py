@@ -1,7 +1,9 @@
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.ast_term import ASTTerm 
 from pairs.ir.assign import Assign
-from pairs.ir.bin_op import ASTTerm 
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
+from pairs.ir.operator_class import OperatorClass
 
 
 class Variables:
@@ -25,7 +27,7 @@ class Variables:
         lit = Lit.cvt(self.sim, init)
         tmp_id = Variables.new_temp_id()
         tmp_var = Var(self.sim, f"tmp{tmp_id}", lit.type(), temp=True)
-        self.sim.add_statement(Assign(self.sim, tmp_var, lit))
+        Assign(self.sim, tmp_var, lit)
         return tmp_var
 
     def all(self):
@@ -38,27 +40,24 @@ class Variables:
 
 class Var(ASTTerm):
     def __init__(self, sim, var_name, var_type, init_value=0, temp=False):
-        super().__init__(sim)
+        super().__init__(sim, OperatorClass.from_type(var_type))
         self.var_name = var_name
         self.var_type = var_type
-        self.var_init_value = init_value
+        self.var_init_value = Lit.cvt(sim, init_value)
         self.var_temporary = temp
         self.mutable = True
         self.var_bonded_arrays = []
         self.device_flag = False
 
+        if temp:
+            DeclareVariable(sim, self)
+
     def __str__(self):
         return f"Var<{self.var_name}>"
 
-    def copy(self):
+    def copy(self, deep=False):
         # Terminal copies are just themselves
         return self
-
-    def set(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, other))
-
-    def add(self, other):
-        return self.sim.add_statement(Assign(self.sim, self, self + other))
 
     def name(self):
         return self.var_name
@@ -82,7 +81,7 @@ class Var(ASTTerm):
         return self.var_bonded_arrays
 
 
-class VarDecl(ASTNode):
+class DeclareVariable(ASTNode):
     def __init__(self, sim, var):
         super().__init__(sim)
         self.var = var
@@ -91,7 +90,7 @@ class VarDecl(ASTNode):
 
 class Deref(ASTTerm):
     def __init__(self, sim, var):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self._var = var
 
     def __str__(self):

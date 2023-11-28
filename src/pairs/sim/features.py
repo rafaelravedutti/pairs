@@ -3,7 +3,7 @@ from pairs.ir.features import RegisterFeatureProperty
 from pairs.sim.lowerable import FinalLowerable
 
 
-class FeaturePropertiesAlloc(FinalLowerable):
+class AllocateFeatureProperties(FinalLowerable):
     def __init__(self, sim):
         self.sim = sim
 

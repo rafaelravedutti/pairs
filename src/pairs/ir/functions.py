@@ -1,11 +1,12 @@
-from pairs.ir.bin_op import ASTTerm
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
 from pairs.ir.types import Types
 
 
 class Call(ASTTerm):
     def __init__(self, sim, func_name, params, return_type):
-        super().__init__(sim)
+        super().__init__(sim, ScalarOp)
         self.func_name = func_name
         self.params = [Lit.cvt(sim, p) for p in params]
         self.return_type = return_type

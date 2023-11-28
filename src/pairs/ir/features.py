@@ -1,10 +1,12 @@
+from pairs.ir.accessor_class import AccessorClass
 from pairs.ir.ast_node import ASTNode
-from pairs.ir.assign import Assign
-from pairs.ir.bin_op import BinOp, Decl, ASTTerm, VectorAccess
+from pairs.ir.ast_term import ASTTerm
+from pairs.ir.declaration import Decl
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
+from pairs.ir.operator_class import OperatorClass
 from pairs.ir.types import Types
-from pairs.ir.vector_expr import VectorExpression
 
 
 class Features:
@@ -85,7 +87,7 @@ class FeatureProperties:
         yield from self.feature_properties
 
 
-class FeatureProperty(ASTTerm):
+class FeatureProperty(ASTNode):
     last_feature_prop_id = 0
 
     def __init__(self, sim, feature, name, dtype, data, layout=Layouts.AoS):
@@ -121,22 +123,23 @@ class FeatureProperty(ASTTerm):
         return self.feature_prop_layout
 
     def ndims(self):
-        return 1 if self.feature_prop_type != Types.Vector else 2
+        return 1 if Types.is_scalar(self.prop_type) else 2
 
     def sizes(self):
-        return [self.feature_prop_feature.nkinds()] if self.feature_prop_type != Types.Vector \
-               else [self.sim.ndims(), self.feature_prop_feature.nkinds()]
+        return [self.feature_prop_feature.nkinds()] if Types.is_scalar(self.feature_prop_type) \
+               else [Types.number_of_elements(self.sim, self.feature_prop_type),
+                     self.feature_prop_feature.nkinds()]
 
     def array_size(self):
         nelems = self.feature_prop_feature.nkinds() * \
-                 (1 if self.feature_prop_type != Types.Vector else self.sim.ndims())
+                 Types.number_of_elements(self.sim, self.feature_prop_type)
         return nelems * nelems
 
     def __getitem__(self, expr):
         return FeaturePropertyAccess(self.sim, self, expr)
 
 
-class FeaturePropertyAccess(ASTTerm, VectorExpression):
+class FeaturePropertyAccess(ASTTerm):
     last_feature_prop_acc = 0
 
     def new_id():
@@ -145,39 +148,45 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
 
     def __init__(self, sim, feature_prop, index):
         assert isinstance(index, tuple), "Two indexes must be used for feature property access!"
-        super().__init__(sim)
+        super().__init__(sim, OperatorClass.from_type(feature_prop.type()))
         self.acc_id = FeaturePropertyAccess.new_id()
         self.feature_prop = feature_prop
         feature = self.feature_prop.feature()
         self.index = Lit.cvt(sim, feature[index[0]] * feature.nkinds() + feature[index[1]])
         self.inlined = False
         self.terminals = set()
+        self.vector_indexes = {}
+
+        if not Types.is_scalar(feature_prop.type()):
+            sizes = feature_prop.sizes()
+            layout = feature_prop.layout()
+
+            for elem in range(Types.number_of_elements(feature_prop.type())):
+                if layout == Layouts.AoS:
+                    self.vector_indexes[elem] = self.index * sizes[0] + elem
+                elif layout == Layouts.SoA:
+                    self.vector_indexes[elem] = elem * sizes[1] + self.index
+                else:
+                    raise Exception("Invalid data layout.")
 
     def __str__(self):
         return f"FeaturePropertyAccess<{self.feature_prop}, {self.index}>"
 
-    def copy(self):
+    def copy(self, deep=False):
         return FeaturePropertyAccess(self.sim, self.feature_prop, self.index)
 
-    def vector_index(self, v_index):
-        sizes = self.prop.sizes()
-        layout = self.prop.layout()
-        index = self.index * sizes[0] + v_index if layout == Layouts.AoS else \
-                v_index * sizes[1] + self.index if layout == Layouts.SoA else \
-                None
+    def vector_index(self, dimension):
+        return self.vector_indexes[dimension]
 
-        assert index is not None, "Invalid data layout"
-        return index
-
-    def inline_rec(self):
+    def inline_recursively(self):
         self.inlined = True
         return self
 
-    def propagate_through(self):
-        return []
-
     def id(self):
         return self.acc_id
+
+    def name(self):
+        return f"feat_prop_acc{self.id()}" + self.label_suffix()
 
     def type(self):
         return self.feature_prop.type()
@@ -186,11 +195,12 @@ class FeaturePropertyAccess(ASTTerm, VectorExpression):
         self.terminals.add(terminal)
 
     def children(self):
-        return [self.feature_prop, self.index] + list(super().children())
+        return [self.feature_prop, self.index] + list(self.vector_indexes.values())
 
     def __getitem__(self, index):
         super().__getitem__(index)
-        return VectorAccess(self.sim, self, Lit.cvt(self.sim, index))
+        _acc_class = AccessorClass.from_type(self.feature_prop.type())
+        return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
 
 
 class RegisterFeatureProperty(ASTNode):

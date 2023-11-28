@@ -2,11 +2,11 @@ from pairs.ir.block import pairs_inline
 from pairs.ir.contexts import Contexts
 from pairs.ir.device import ClearArrayFlag
 from pairs.ir.memory import Malloc
-from pairs.ir.arrays import ArrayDecl, RegisterArray
+from pairs.ir.arrays import DeclareStaticArray, RegisterArray
 from pairs.sim.lowerable import FinalLowerable
 
 
-class ArraysDecl(FinalLowerable):
+class DeclareArrays(FinalLowerable):
     def __init__(self, sim):
         super().__init__(sim)
 
@@ -14,7 +14,7 @@ class ArraysDecl(FinalLowerable):
     def lower(self):
         for a in self.sim.arrays.all():
             if a.is_static():
-                ArrayDecl(self.sim, a)
+                DeclareStaticArray(self.sim, a)
 
             RegisterArray(self.sim, a, a.alloc_size())
 
