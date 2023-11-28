@@ -171,6 +171,11 @@ public:
 
     void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]);
     void sync() { device_synchronize(); }
+    void printTimers() {
+        if(this->getDomainPartitioner()->getRank() == 0) {
+            this->getTimers()->print();
+        }
+    }
 };
 
 template<typename T_ptr>

@@ -19,7 +19,7 @@ void stop_timer(PairsSimulation *ps, int id) {
 }
 
 void print_timers(PairsSimulation *ps) {
-    ps->getTimers()->print();
+    ps->printTimers();
 }
 
 }

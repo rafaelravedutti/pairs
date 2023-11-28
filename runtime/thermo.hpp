@@ -15,7 +15,7 @@ double compute_thermo(PairsSimulation *ps, int nlocal, double xprd, double yprd,
 
     if(ps->getDomainPartitioner()->getWorldSize() > 1) {
         int global_natoms;
-        MPI_Reduce(&natoms, &global_natoms, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Allreduce(&natoms, &global_natoms, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         natoms = global_natoms;
     }
 
@@ -37,7 +37,7 @@ double compute_thermo(PairsSimulation *ps, int nlocal, double xprd, double yprd,
 
     if(ps->getDomainPartitioner()->getWorldSize() > 1) {
         double global_t;
-        MPI_Reduce(&t, &global_t, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Allreduce(&t, &global_t, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         t = global_t;
     }
 
@@ -66,7 +66,7 @@ void adjust_thermo(PairsSimulation *ps, int nlocal, double xprd, double yprd, do
 
     if(ps->getDomainPartitioner()->getWorldSize() > 1) {
         int global_natoms;
-        MPI_Reduce(&natoms, &global_natoms, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Allreduce(&natoms, &global_natoms, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         natoms = global_natoms;
         MPI_Allreduce(&vxtot, &tmp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         vxtot = tmp / natoms;

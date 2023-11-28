@@ -73,7 +73,7 @@ double copper_fcc_lattice(PairsSimulation *ps, int nx, int ny, int nz, double xp
     double ylo = 0.0, yhi = yprd;
     double zlo = 0.0, zhi = zprd;
     int natoms = 0;
-    int natoms_expected = 4 * nx * ny * nz;
+    //int natoms_expected = 4 * nx * ny * nz;
 
     double alat = pow((4.0 / rho), (1.0 / 3.0));
     int ilo = (int) (xlo / (0.5 * alat) - 1);
@@ -140,12 +140,6 @@ double copper_fcc_lattice(PairsSimulation *ps, int nx, int ny, int nz, double xp
         if(sz == subboxdim) { sz = 0; ox++; }
         if(ox * subboxdim > ihi) { ox = 0; oy++; }
         if(oy * subboxdim > jhi) { oy = 0; oz++; }
-    }
-
-    if(natoms != natoms_expected) {
-        std::cerr << "copper_fcc_lattice(): incorrect number of atoms "
-                  << "(" << natoms << " / " << natoms_expected << ")" << std::endl;
-        exit(-1);
     }
 
     return natoms;
