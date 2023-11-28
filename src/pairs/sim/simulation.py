@@ -15,6 +15,7 @@ from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists
 from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
+from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.domain import InitializeDomain
 from pairs.sim.domain_partitioning import DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
@@ -24,6 +25,7 @@ from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
 from pairs.sim.properties import AllocateProperties, AllocateContactProperties, ResetVolatileProperties
 from pairs.sim.read_from_file import ReadParticleData
+from pairs.sim.thermo import ComputeThermo
 from pairs.sim.timestep import Timestep
 from pairs.sim.variables import DeclareVariables 
 from pairs.sim.vtk import VTKWrite
@@ -83,6 +85,7 @@ class Simulation:
         self._compute_half = False
         self._apply_list = None
         self._enable_profiler = False
+        self._compute_thermo = 0
 
     def enable_profiler(self):
         self._enable_profiler = True
@@ -210,6 +213,9 @@ class Simulation:
         props = [self.property(prop_name) for prop_name in prop_names]
         self.setups.add_statement(ReadParticleData(self, filename, props, shape_id))
 
+    def copper_fcc_lattice(self, nx, ny, nz, rho, temperature, ntypes):
+        self.setups.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
+
     def build_cell_lists(self, spacing):
         self.cell_lists = CellLists(self, self.grid, spacing, spacing)
         return self.cell_lists
@@ -335,6 +341,9 @@ class Simulation:
     def domain_partitioning(self):
         return self._dom_part
 
+    def compute_thermo(self, every=0):
+        self._compute_thermo = every
+
     def generate(self):
         assert self._target is not None, "Target not specified!"
         comm = Comm(self, self._dom_part)
@@ -354,7 +363,8 @@ class Simulation:
         if self._use_contact_history:
             if self.neighbor_lists is not None:
                 timestep_procedures.append(
-                    (BuildContactHistory(self, self._contact_history, self.cell_lists), every_reneighbor_params))
+                    (BuildContactHistory(self, self._contact_history, self.cell_lists),
+                    every_reneighbor_params))
 
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
@@ -362,6 +372,10 @@ class Simulation:
 
         if self._use_contact_history:
             timestep_procedures.append(ClearUnusedContactHistory(self, self._contact_history))
+
+        if self._compute_thermo != 0:
+            timestep_procedures.append(
+                (ComputeThermo(self), {'every': self._compute_thermo}))
 
         timestep = Timestep(self, self.ntimesteps, timestep_procedures)
         self.enter(timestep.block)

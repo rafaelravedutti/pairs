@@ -29,6 +29,11 @@ ntypes = 4
 sigma = 1.0
 epsilon = 1.0
 sigma6 = sigma ** 6
+nx = 32
+ny = 32
+nz = 32
+rho = 0.8442
+temp = 1.44
 
 psim = pairs.simulation("lj", [pairs.point_mass()], timesteps=200, double_prec=True)
 psim.add_position('position')
@@ -38,12 +43,12 @@ psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'epsilon', pairs.real(), [sigma for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'sigma6', pairs.real(), [epsilon for i in range(ntypes * ntypes)])
-psim.set_domain([0.0, 0.0, 0.0, 53.747078, 53.747078, 53.747078])
-psim.read_particle_data("data/minimd_setup_32x32x32.input", ['type', 'mass', 'position', 'linear_velocity', 'flags'], pairs.point_mass())
+psim.copper_fcc_lattice(nx, ny, nz, rho, temp, ntypes)
 psim.reneighbor_every(20)
 #psim.compute_half()
 psim.build_neighbor_lists(cutoff_radius + skin)
-psim.vtk_output(f"output/lj_{target}")
+psim.compute_thermo(100)
+#psim.vtk_output(f"output/lj_{target}")
 psim.compute(initial_integrate, symbols={'dt': dt}, pre_step=True, skip_first=True)
 psim.compute(lj, cutoff_radius)
 psim.compute(final_integrate, symbols={'dt': dt}, skip_first=True)

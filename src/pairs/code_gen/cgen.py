@@ -67,6 +67,7 @@ class CGen:
         self.print("#include <stdlib.h>")
         self.print("//---")
         self.print("#include \"runtime/likwid-marker.h\"")
+        self.print("#include \"runtime/copper_fcc_lattice.hpp\"")
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
         self.print("#include \"runtime/timing.hpp\"")
