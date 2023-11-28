@@ -43,7 +43,7 @@ class Simulation:
         self.features = Features(self)
         self.feature_properties = FeatureProperties(self)
         self.contact_properties = ContactProperties(self)
-        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, 200000)
+        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, 800000)
         self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, 100)
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
@@ -217,11 +217,11 @@ class Simulation:
         self.setups.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
 
     def build_cell_lists(self, spacing):
-        self.cell_lists = CellLists(self, self.grid, spacing, spacing)
+        self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 
     def build_neighbor_lists(self, spacing):
-        self.cell_lists = CellLists(self, self.grid, spacing, spacing)
+        self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         self.neighbor_lists = NeighborLists(self.cell_lists)
         return self.neighbor_lists
 

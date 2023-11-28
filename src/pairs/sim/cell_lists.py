@@ -16,9 +16,9 @@ from pairs.sim.lowerable import Lowerable
 
 
 class CellLists:
-    def __init__(self, sim, grid, spacing, cutoff_radius):
+    def __init__(self, sim, dom_part, spacing, cutoff_radius):
         self.sim = sim
-        self.grid = grid
+        self.dom_part = dom_part
         self.spacing = spacing if isinstance(spacing, list) else [spacing for d in range(sim.ndims())]
         self.cutoff_radius = cutoff_radius
         self.nneighbor_cells = [math.ceil(cutoff_radius / self.spacing[d]) for d in range(sim.ndims())]
@@ -26,8 +26,8 @@ class CellLists:
         # Data introduced in the simulation
         self.nstencil           =   self.sim.add_var('nstencil', Types.Int32)
         self.ncells             =   self.sim.add_var('ncells', Types.Int32, 1)
-        self.ncells_capacity    =   self.sim.add_var('ncells_capacity', Types.Int32, 100)
-        self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 20)
+        self.ncells_capacity    =   self.sim.add_var('ncells_capacity', Types.Int32, 100000)
+        self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 64)
         self.dim_ncells         =   self.sim.add_array('dim_cells', self.sim.ndims(), Types.Int32)
         self.shapes_buffer      =   self.sim.add_array('shapes_buffer', self.sim.max_shapes(), Types.Int32)
         self.cell_particles     =   self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Types.Int32)
@@ -62,8 +62,8 @@ class BuildCellListsStencil(Lowerable):
             Assign(self.sim, shapes_buffer[s], self.sim.get_shape_id(s))
 
         for dim in range(self.sim.ndims()):
-            dim_min = self.sim.grid.min(dim) - spacing[dim]
-            dim_max = self.sim.grid.max(dim) + spacing[dim]
+            dim_min = self.cell_lists.dom_part.min(dim) - spacing[dim]
+            dim_max = self.cell_lists.dom_part.max(dim) + spacing[dim]
             Assign(self.sim, dim_ncells[dim], Ceil(self.sim, (dim_max - dim_min) / spacing[dim]) + 1)
             ntotal_cells *= dim_ncells[dim]
 
@@ -96,6 +96,7 @@ class BuildCellLists(Lowerable):
         spacing = self.cell_lists.spacing
         dim_ncells = self.cell_lists.dim_ncells
         ncells = self.cell_lists.ncells
+        dom_part = self.cell_lists.dom_part
         positions = self.sim.position()
 
         self.sim.module_name("build_cell_lists")
@@ -110,7 +111,7 @@ class BuildCellLists(Lowerable):
             for _ in Filter(self.sim, ASTTerm.not_op(particle_flags[i] & Flags.Infinite)):
                 cell_index = [
                     Cast.int(self.sim,
-                        (positions[i][dim] - (self.sim.grid.min(dim) - spacing[dim])) / spacing[dim]) \
+                        (positions[i][dim] - (dom_part.min(dim) - spacing[dim])) / spacing[dim]) \
                     for dim in range(self.sim.ndims())]
 
                 index = None

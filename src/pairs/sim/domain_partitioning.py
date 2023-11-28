@@ -16,6 +16,12 @@ class DimensionRanges:
         self.pbc            = sim.add_static_array('pbc', [sim.ndims() * 2], Types.Int32)
         self.subdom         = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Real)
 
+    def min(self, dim):
+        return self.subdom[dim * 2 + 0]
+
+    def max(self, dim):
+        return self.subdom[dim * 2 + 1]
+
     def number_of_steps(self):
         return self.sim.ndims()
 
