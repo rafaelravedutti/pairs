@@ -11,6 +11,7 @@ typedef double real_t;
 typedef int array_t;
 typedef int property_t;
 typedef int layout_t;
+typedef int action_t;
 
 enum PropertyType {
     Prop_Invalid = -1,
@@ -25,6 +26,15 @@ enum DataLayout {
     Invalid = -1,
     AoS = 0,
     SoA
+};
+
+enum Actions {
+    NoAction = 0,
+    ReadAfterWrite = 1,
+    WriteAfterRead = 2,
+    ReadOnly = 3,
+    WriteOnly = 4,
+    Ignore = 5
 };
 
 enum DomainPartitioning {

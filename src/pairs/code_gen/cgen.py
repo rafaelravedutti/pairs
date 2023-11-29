@@ -1,4 +1,5 @@
 import math
+from pairs.ir.actions import Actions
 from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd
 from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray
@@ -454,28 +455,28 @@ class CGen:
             self.print(f"{call};")
 
         if isinstance(ast_node, CopyArray):
-            array_id = ast_node.array.id()
-            array_name = ast_node.array.name()
+            array_id = ast_node.array().id()
+            array_name = ast_node.array().name()
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
-            write = "true" if ast_node.write else "false"
-            self.print(f"pairs->copyArrayTo{ctx_suffix}({array_id}, {write}); // {array_name}")
+            action = Actions.c_keyword(ast_node.action())
+            self.print(f"pairs->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
 
         if isinstance(ast_node, CopyContactProperty):
-            prop_id = ast_node.contact_prop.id()
-            prop_name = ast_node.contact_prop.name()
-            write = "true" if ast_node.write else "false"
+            prop_id = ast_node.contact_prop().id()
+            prop_name = ast_node.contact_prop().name()
+            action = Actions.c_keyword(ast_node.action())
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
-            self.print(f"pairs->copyContactPropertyTo{ctx_suffix}({prop_id}, {write}); // {prop_name}")
+            self.print(f"pairs->copyContactPropertyTo{ctx_suffix}({prop_id}, {action}); // {prop_name}")
 
         if isinstance(ast_node, CopyProperty):
-            prop_id = ast_node.prop.id()
-            prop_name = ast_node.prop.name()
-            write = "true" if ast_node.write else "false"
+            prop_id = ast_node.prop().id()
+            prop_name = ast_node.prop().name()
+            action = Actions.c_keyword(ast_node.action())
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
-            self.print(f"pairs->copyPropertyTo{ctx_suffix}({prop_id}, {write}); // {prop_name}")
+            self.print(f"pairs->copyPropertyTo{ctx_suffix}({prop_id}, {action}); // {prop_name}")
 
         if isinstance(ast_node, CopyVar):
-            var_name = ast_node.variable.name()
+            var_name = ast_node.variable().name()
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
             self.print(f"rv_{var_name}.copyTo{ctx_suffix}();")
 

@@ -122,29 +122,29 @@ public:
     void setArrayDeviceFlag(Array &array) { array_flags->setDeviceFlag(array.getId()); }
     void clearArrayDeviceFlag(array_t id) { clearArrayDeviceFlag(getArray(id)); }
     void clearArrayDeviceFlag(Array &array) { array_flags->clearDeviceFlag(array.getId()); }
-    void copyArrayToDevice(array_t id, bool write) { copyArrayToDevice(getArray(id), write); }
-    void copyArrayToDevice(Array &array, bool write);
+    void copyArrayToDevice(array_t id, action_t action) { copyArrayToDevice(getArray(id), action); }
+    void copyArrayToDevice(Array &array, action_t action);
 
     void setArrayHostFlag(array_t id) { setArrayHostFlag(getArray(id)); }
     void setArrayHostFlag(Array &array) { array_flags->setHostFlag(array.getId()); }
     void clearArrayHostFlag(array_t id) { clearArrayHostFlag(getArray(id)); }
     void clearArrayHostFlag(Array &array) { array_flags->clearHostFlag(array.getId()); }
-    void copyArrayToHost(array_t id, bool write) { copyArrayToHost(getArray(id), write); }
-    void copyArrayToHost(Array &array, bool write);
+    void copyArrayToHost(array_t id, action_t action) { copyArrayToHost(getArray(id), action); }
+    void copyArrayToHost(Array &array, action_t action);
 
     void setPropertyDeviceFlag(property_t id) { setPropertyDeviceFlag(getProperty(id)); }
     void setPropertyDeviceFlag(Property &prop) { prop_flags->setDeviceFlag(prop.getId()); }
     void clearPropertyDeviceFlag(property_t id) { clearPropertyDeviceFlag(getProperty(id)); }
     void clearPropertyDeviceFlag(Property &prop) { prop_flags->clearDeviceFlag(prop.getId()); }
-    void copyPropertyToDevice(property_t id, bool write) { copyPropertyToDevice(getProperty(id), write); }
-    void copyPropertyToDevice(Property &prop, bool write);
+    void copyPropertyToDevice(property_t id, action_t action) { copyPropertyToDevice(getProperty(id), action); }
+    void copyPropertyToDevice(Property &prop, action_t action);
 
     void setPropertyHostFlag(property_t id) { setPropertyHostFlag(getProperty(id)); }
     void setPropertyHostFlag(Property &prop) { prop_flags->setHostFlag(prop.getId()); }
     void clearPropertyHostFlag(property_t id) { clearPropertyHostFlag(getProperty(id)); }
     void clearPropertyHostFlag(Property &prop) { prop_flags->clearHostFlag(prop.getId()); }
-    void copyPropertyToHost(property_t id, bool write) { copyPropertyToHost(getProperty(id), write); }
-    void copyPropertyToHost(Property &prop, bool write);
+    void copyPropertyToHost(property_t id, action_t action) { copyPropertyToHost(getProperty(id), action); }
+    void copyPropertyToHost(Property &prop, action_t action);
 
     void setContactPropertyDeviceFlag(property_t id) {
         setContactPropertyDeviceFlag(getContactProperty(id));
@@ -162,11 +162,11 @@ public:
         contact_prop_flags->clearDeviceFlag(prop.getId());
     }
 
-    void copyContactPropertyToDevice(property_t id, bool write) {
-        copyContactPropertyToDevice(getContactProperty(id), write);
+    void copyContactPropertyToDevice(property_t id, action_t action) {
+        copyContactPropertyToDevice(getContactProperty(id), action);
     }
 
-    void copyContactPropertyToDevice(ContactProperty &prop, bool write);
+    void copyContactPropertyToDevice(ContactProperty &prop, action_t action);
 
     void setContactPropertyHostFlag(property_t id) {
         setContactPropertyHostFlag(getContactProperty(id));
@@ -184,11 +184,11 @@ public:
         contact_prop_flags->clearHostFlag(prop.getId());
     }
 
-    void copyContactPropertyToHost(property_t id, bool write) {
-        copyContactPropertyToHost(getContactProperty(id), write);
+    void copyContactPropertyToHost(property_t id, action_t action) {
+        copyContactPropertyToHost(getContactProperty(id), action);
     }
 
-    void copyContactPropertyToHost(ContactProperty &prop, bool write);
+    void copyContactPropertyToHost(ContactProperty &prop, action_t action);
 
     void copyFeaturePropertyToDevice(property_t id) {
         copyFeaturePropertyToDevice(getFeatureProperty(id));

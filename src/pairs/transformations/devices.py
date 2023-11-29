@@ -1,5 +1,5 @@
 import math
-from pairs.ir.scalars import ScalarOp
+from pairs.ir.actions import Actions
 from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
@@ -10,6 +10,7 @@ from pairs.ir.lit import Lit
 from pairs.ir.loops import For
 from pairs.ir.module import ModuleCall
 from pairs.ir.mutator import Mutator
+from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 
 
@@ -34,34 +35,33 @@ class AddDeviceCopies(Mutator):
                     copy_context = Contexts.Device if s.module.run_on_device else Contexts.Host
                     clear_context = Contexts.Host if s.module.run_on_device else Contexts.Device
 
-                    for array in s.module.arrays_to_synchronize():
-                        write = array in s.module.write_arrays()
-                        new_stmts += [CopyArray(s.sim, array, copy_context, write)]
+                    for array, action in s.module.arrays().items():
+                        new_stmts += [CopyArray(s.sim, array, copy_context, action)]
 
-                    for prop in s.module.properties_to_synchronize():
-                        write = prop in s.module.write_properties()
-                        new_stmts += [CopyProperty(s.sim, prop, copy_context, write)]
+                    for prop, action in s.module.properties().items():
+                        new_stmts += [CopyProperty(s.sim, prop, copy_context, action)]
 
-                    for contact_prop in s.module.contact_properties_to_synchronize():
-                        write = prop in s.module.write_contact_properties()
-                        new_stmts += [CopyContactProperty(s.sim, contact_prop, copy_context, write)]
+                    for contact_prop, action in s.module.contact_properties().items():
+                        new_stmts += [CopyContactProperty(s.sim, contact_prop, copy_context, action)]
 
                     if self.module_resizes[s.module] and s.module.run_on_device:
-                        new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Device, False)]
+                        new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Device, Actions.Ignore)]
 
                     if s.module.run_on_device:
-                        for var in s.module.variables_to_synchronize():
-                            new_stmts += [CopyVar(s.sim, var, Contexts.Device)]
+                        for var, action in s.module.variables().items():
+                            if action != Actions.ReadOnly and var.device_flag:
+                                new_stmts += [CopyVar(s.sim, var, Contexts.Device, action)]
 
                 new_stmts.append(s)
 
                 if isinstance(s, ModuleCall):
                     if s.module.run_on_device:
-                        for var in s.module.variables_to_synchronize():
-                            new_stmts += [CopyVar(s.sim, var, Contexts.Host)]
+                        for var, action in s.module.variables().items():
+                            if action != Actions.ReadOnly and var.device_flag:
+                                new_stmts += [CopyVar(s.sim, var, Contexts.Host, action)]
 
                         if self.module_resizes[s.module]:
-                            new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host, False)]
+                            new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host, Actions.Ignore)]
 
         ast_node.stmts = new_stmts
         return ast_node

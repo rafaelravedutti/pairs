@@ -1,3 +1,4 @@
+from pairs.ir.actions import Actions
 from pairs.ir.arrays import Array, ArrayAccess
 from pairs.ir.ast_node import ASTNode
 from pairs.ir.scalars import ScalarOp
@@ -50,10 +51,10 @@ class Kernel(ASTNode):
         return self._variables
 
     def read_only_variables(self):
-        return [v for v in self._variables if 'w' not in self._variables[v]]
+        return [var for var in self._variables if self._variables[var] == Actions.ReadOnly]
 
     def write_variables(self):
-        return [v for v in self._variables if 'w' in self._variables[v]]
+        return [var for var in self._variables if self._variables[var] != Actions.ReadOnly]
 
     def arrays(self):
         return self._arrays
@@ -67,9 +68,6 @@ class Kernel(ASTNode):
     def feature_properties(self):
         return self._feature_properties
 
-    def properties_to_synchronize(self):
-        return {p for p in self._properties if self._properties[p][0] == 'r'}
-
     def array_accesses(self):
         return self._array_accesses
 
@@ -79,53 +77,52 @@ class Kernel(ASTNode):
     def vector_ops(self):
         return self._vector_ops
 
-    def write_properties(self):
-        return {p for p in self._properties if 'w' in self._properties[p]}
-
     def add_array(self, array, write=False):
         array_list = array if isinstance(array, list) else [array]
-        character = 'w' if write else 'r'
+        new_op = 'w' if write else 'r'
 
-        for a in array_list:
-            assert isinstance(a, Array), \
+        for array in array_list:
+            assert isinstance(array, Array), \
                 "Kernel.add_array(): Element is not of type Array."
 
-            self._arrays[a] = character if a not in self._arrays else \
-                              self._arrays[a] + character
+            action = Actions.NoAction if array not in self._arrays else self._arrays[array]
+            self._arrays[array] = Actions.update_rule(action, new_op)
 
     def add_variable(self, variable, write=False):
         variable_list = variable if isinstance(variable, list) else [variable]
-        character = 'w' if write else 'r'
+        new_op = 'w' if write else 'r'
 
-        for v in variable_list:
-            if not v.temporary():
-                assert isinstance(v, Var), \
+        for var in variable_list:
+            if not var.temporary():
+                assert isinstance(var, Var), \
                     "Kernel.add_variable(): Element is not of type Var."
 
-                self._variables[v] = character if v not in self._variables else \
-                                     self._variables[v] + character
+                action = Actions.NoAction if var not in self._variables else self._variables[var]
+                self._variables[var] = Actions.update_rule(action, new_op)
 
     def add_property(self, prop, write=False):
         prop_list = prop if isinstance(prop, list) else [prop]
-        character = 'w' if write else 'r'
+        new_op = 'w' if write else 'r'
 
-        for p in prop_list:
-            assert isinstance(p, Property), \
+        for prop in prop_list:
+            assert isinstance(prop, Property), \
                 "Kernel.add_property(): Element is not of type Property."
 
-            self._properties[p] = character if p not in self._properties else \
-                                  self._properties[p] + character
+            action = Actions.NoAction if prop not in self._properties else self._properties[prop]
+            self._properties[prop] = Actions.update_rule(action, new_op)
 
     def add_contact_property(self, contact_prop, write=False):
         contact_prop_list = contact_prop if isinstance(contact_prop, list) else [contact_prop]
-        character = 'w' if write else 'r'
+        new_op = 'w' if write else 'r'
 
-        for cp in contact_prop_list:
+        for contact_prop in contact_prop_list:
             assert isinstance(cp, ContactProperty), \
                 "Kernel.add_contact_property(): Element is not of type ContactProperty."
 
-            self._contact_properties[cp] = character if cp not in self._contact_properties else \
-                                           self._contact_properties[cp] + character
+            action = Actions.NoAction if contact_prop not in self._contact_properties else \
+                     self._contact_properties[contact_prop]
+
+            self._contact_properties[contact_prop] = Actions.update_rule(action, new_op)
 
     def add_feature_property(self, feature_prop):
         feature_prop_list = feature_prop if isinstance(feature_prop, list) else [feature_prop]
@@ -134,7 +131,8 @@ class Kernel(ASTNode):
             assert isinstance(fp, FeatureProperty), \
                 "Kernel.add_feature_property(): Element is not of type FeatureProperty."
 
-            self._feature_properties[fp] = 'r'
+            # Feature properties cannot be written into
+            self._feature_properties[fp] = Actions.ReadOnly
 
     def add_array_access(self, array_access):
         array_access_list = array_access if isinstance(array_access, list) else [array_access]

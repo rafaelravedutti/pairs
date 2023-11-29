@@ -26,8 +26,8 @@ double compute_thermo(PairsSimulation *ps, int nlocal, double xprd, double yprd,
     //const double e_scale = 0.5;
     double t = 0.0, p;
 
-    ps->copyPropertyToHost(masses, false);
-    ps->copyPropertyToHost(velocities, false);
+    ps->copyPropertyToHost(masses, ReadOnly);
+    ps->copyPropertyToHost(velocities, ReadOnly);
 
     for(int i = 0; i < nlocal; i++) {
         t += masses(i) * (  velocities(i, 0) * velocities(i, 0) +
