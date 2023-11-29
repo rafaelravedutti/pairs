@@ -122,45 +122,78 @@ public:
     void setArrayDeviceFlag(Array &array) { array_flags->setDeviceFlag(array.getId()); }
     void clearArrayDeviceFlag(array_t id) { clearArrayDeviceFlag(getArray(id)); }
     void clearArrayDeviceFlag(Array &array) { array_flags->clearDeviceFlag(array.getId()); }
-    void copyArrayToDevice(array_t id) { copyArrayToDevice(getArray(id)); }
-    void copyArrayToDevice(Array &array);
+    void copyArrayToDevice(array_t id, bool write) { copyArrayToDevice(getArray(id), write); }
+    void copyArrayToDevice(Array &array, bool write);
 
     void setArrayHostFlag(array_t id) { setArrayHostFlag(getArray(id)); }
     void setArrayHostFlag(Array &array) { array_flags->setHostFlag(array.getId()); }
     void clearArrayHostFlag(array_t id) { clearArrayHostFlag(getArray(id)); }
     void clearArrayHostFlag(Array &array) { array_flags->clearHostFlag(array.getId()); }
-    void copyArrayToHost(array_t id) { copyArrayToHost(getArray(id)); }
-    void copyArrayToHost(Array &array);
+    void copyArrayToHost(array_t id, bool write) { copyArrayToHost(getArray(id), write); }
+    void copyArrayToHost(Array &array, bool write);
 
     void setPropertyDeviceFlag(property_t id) { setPropertyDeviceFlag(getProperty(id)); }
     void setPropertyDeviceFlag(Property &prop) { prop_flags->setDeviceFlag(prop.getId()); }
     void clearPropertyDeviceFlag(property_t id) { clearPropertyDeviceFlag(getProperty(id)); }
     void clearPropertyDeviceFlag(Property &prop) { prop_flags->clearDeviceFlag(prop.getId()); }
-    void copyPropertyToDevice(property_t id) { copyPropertyToDevice(getProperty(id)); }
-    void copyPropertyToDevice(Property &prop);
+    void copyPropertyToDevice(property_t id, bool write) { copyPropertyToDevice(getProperty(id), write); }
+    void copyPropertyToDevice(Property &prop, bool write);
 
     void setPropertyHostFlag(property_t id) { setPropertyHostFlag(getProperty(id)); }
     void setPropertyHostFlag(Property &prop) { prop_flags->setHostFlag(prop.getId()); }
     void clearPropertyHostFlag(property_t id) { clearPropertyHostFlag(getProperty(id)); }
     void clearPropertyHostFlag(Property &prop) { prop_flags->clearHostFlag(prop.getId()); }
-    void copyPropertyToHost(property_t id) { copyPropertyToHost(getProperty(id)); }
-    void copyPropertyToHost(Property &prop);
+    void copyPropertyToHost(property_t id, bool write) { copyPropertyToHost(getProperty(id), write); }
+    void copyPropertyToHost(Property &prop, bool write);
 
-    void setContactPropertyDeviceFlag(property_t id) { setContactPropertyDeviceFlag(getContactProperty(id)); }
-    void setContactPropertyDeviceFlag(ContactProperty &prop) { contact_prop_flags->setDeviceFlag(prop.getId()); }
-    void clearContactPropertyDeviceFlag(property_t id) { clearContactPropertyDeviceFlag(getContactProperty(id)); }
-    void clearContactPropertyDeviceFlag(ContactProperty &prop) { contact_prop_flags->clearDeviceFlag(prop.getId()); }
-    void copyContactPropertyToDevice(property_t id) { copyContactPropertyToDevice(getContactProperty(id)); }
-    void copyContactPropertyToDevice(ContactProperty &prop);
+    void setContactPropertyDeviceFlag(property_t id) {
+        setContactPropertyDeviceFlag(getContactProperty(id));
+    }
 
-    void setContactPropertyHostFlag(property_t id) { setContactPropertyHostFlag(getContactProperty(id)); }
-    void setContactPropertyHostFlag(ContactProperty &prop) { contact_prop_flags->setHostFlag(prop.getId()); }
-    void clearContactPropertyHostFlag(property_t id) { clearContactPropertyHostFlag(getContactProperty(id)); }
-    void clearContactPropertyHostFlag(ContactProperty &prop) { contact_prop_flags->clearHostFlag(prop.getId()); }
-    void copyContactPropertyToHost(property_t id) { copyContactPropertyToHost(getContactProperty(id)); }
-    void copyContactPropertyToHost(ContactProperty &prop);
+    void setContactPropertyDeviceFlag(ContactProperty &prop) {
+        contact_prop_flags->setDeviceFlag(prop.getId());
+    }
 
-    void copyFeaturePropertyToDevice(property_t id) { copyFeaturePropertyToDevice(getFeatureProperty(id)); }
+    void clearContactPropertyDeviceFlag(property_t id) {
+        clearContactPropertyDeviceFlag(getContactProperty(id));
+    }
+
+    void clearContactPropertyDeviceFlag(ContactProperty &prop) {
+        contact_prop_flags->clearDeviceFlag(prop.getId());
+    }
+
+    void copyContactPropertyToDevice(property_t id, bool write) {
+        copyContactPropertyToDevice(getContactProperty(id), write);
+    }
+
+    void copyContactPropertyToDevice(ContactProperty &prop, bool write);
+
+    void setContactPropertyHostFlag(property_t id) {
+        setContactPropertyHostFlag(getContactProperty(id));
+    }
+
+    void setContactPropertyHostFlag(ContactProperty &prop) {
+        contact_prop_flags->setHostFlag(prop.getId());
+    }
+
+    void clearContactPropertyHostFlag(property_t id) {
+        clearContactPropertyHostFlag(getContactProperty(id));
+    }
+
+    void clearContactPropertyHostFlag(ContactProperty &prop) {
+        contact_prop_flags->clearHostFlag(prop.getId());
+    }
+
+    void copyContactPropertyToHost(property_t id, bool write) {
+        copyContactPropertyToHost(getContactProperty(id), write);
+    }
+
+    void copyContactPropertyToHost(ContactProperty &prop, bool write);
+
+    void copyFeaturePropertyToDevice(property_t id) {
+        copyFeaturePropertyToDevice(getFeatureProperty(id));
+    }
+
     void copyFeaturePropertyToDevice(FeatureProperty &feature_prop);
 
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
@@ -240,7 +273,7 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, siz
     *h_ptr = (T_ptr *) new_h_ptr;
     *d_ptr = (T_ptr *) new_d_ptr;
     if(array_flags->isDeviceFlagSet(id)) {
-        copyArrayToDevice(id);
+        copyArrayToDevice(id, false);
     }
 }
 
@@ -310,7 +343,7 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_pt
     *h_ptr = (T_ptr *) new_h_ptr;
     *d_ptr = (T_ptr *) new_d_ptr;
     if(prop_flags->isDeviceFlagSet(id)) {
-        copyPropertyToDevice(id);
+        copyPropertyToDevice(id, false);
     }
 }
 
@@ -380,7 +413,7 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr
     *h_ptr = (T_ptr *) new_h_ptr;
     *d_ptr = (T_ptr *) new_d_ptr;
     if(contact_prop_flags->isDeviceFlagSet(id)) {
-        copyContactPropertyToDevice(id);
+        copyContactPropertyToDevice(id, false);
     }
 }
 

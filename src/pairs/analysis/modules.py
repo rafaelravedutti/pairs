@@ -18,10 +18,11 @@ class FetchModulesReferences(Visitor):
         self.writing = writing_state
 
     def visit_Assign(self, ast_node):
+        self.writing = False
+        self.visit(ast_node._src)
         self.writing = True
         self.visit(ast_node._dest)
         self.writing = False
-        self.visit(ast_node._src)
 
     def visit_AtomicAdd(self, ast_node):
         self.writing = True

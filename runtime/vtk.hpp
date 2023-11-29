@@ -29,8 +29,8 @@ void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int en
     filename_oss << timestep << ".vtk";
     std::ofstream out_file(filename_oss.str());
 
-    ps->copyPropertyToHost(masses);
-    ps->copyPropertyToHost(positions);
+    ps->copyPropertyToHost(masses, false);
+    ps->copyPropertyToHost(positions, false);
 
     for(int i = start; i < end; i++) {
         if(flags(i) & FLAGS_INFINITE) {

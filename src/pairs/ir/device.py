@@ -30,10 +30,11 @@ class DeviceStaticRef(ASTNode):
 
 
 class CopyArray(ASTNode):
-    def __init__(self, sim, array, ctx):
+    def __init__(self, sim, array, ctx, write):
         super().__init__(sim)
         self.array = array
         self.ctx = ctx
+        self.write = write
         self.sim.add_statement(self)
 
     def context(self):
@@ -44,10 +45,26 @@ class CopyArray(ASTNode):
 
 
 class CopyProperty(ASTNode):
-    def __init__(self, sim, prop, ctx):
+    def __init__(self, sim, prop, ctx, write):
         super().__init__(sim)
         self.prop = prop
         self.ctx = ctx
+        self.write = write
+        self.sim.add_statement(self)
+
+    def context(self):
+        return self.ctx
+
+    def children(self):
+        return [self.prop]
+
+
+class CopyContactProperty(ASTNode):
+    def __init__(self, sim, prop, ctx, write):
+        super().__init__(sim)
+        self.contact_prop = prop
+        self.ctx = ctx
+        self.write = write
         self.sim.add_statement(self)
 
     def context(self):
@@ -69,59 +86,3 @@ class CopyVar(ASTNode):
 
     def children(self):
         return [self.variable]
-
-
-class ClearArrayFlag(ASTNode):
-    def __init__(self, sim, array, ctx):
-        super().__init__(sim)
-        self.array = array
-        self.ctx = ctx
-        self.sim.add_statement(self)
-
-    def context(self):
-        return self.ctx
-
-    def children(self):
-        return [self.array]
-
-
-class ClearPropertyFlag(ASTNode):
-    def __init__(self, sim, prop, ctx):
-        super().__init__(sim)
-        self.prop = prop
-        self.ctx = ctx
-        self.sim.add_statement(self)
-
-    def context(self):
-        return self.ctx
-
-    def children(self):
-        return [self.prop]
-
-
-class SetArrayFlag(ASTNode):
-    def __init__(self, sim, array, ctx):
-        super().__init__(sim)
-        self.array = array
-        self.ctx = ctx
-        self.sim.add_statement(self)
-
-    def context(self):
-        return self.ctx
-
-    def children(self):
-        return [self.array]
-
-
-class SetPropertyFlag(ASTNode):
-    def __init__(self, sim, prop, ctx):
-        super().__init__(sim)
-        self.prop = prop
-        self.ctx = ctx
-        self.sim.add_statement(self)
-
-    def context(self):
-        return self.ctx
-
-    def children(self):
-        return [self.prop]

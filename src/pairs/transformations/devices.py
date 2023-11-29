@@ -4,7 +4,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
-from pairs.ir.device import ClearArrayFlag, ClearPropertyFlag, CopyArray, CopyProperty, CopyVar, DeviceStaticRef, SetArrayFlag, SetPropertyFlag, HostRef
+from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyVar, DeviceStaticRef, HostRef
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For
@@ -34,34 +34,34 @@ class AddDeviceCopies(Mutator):
                     copy_context = Contexts.Device if s.module.run_on_device else Contexts.Host
                     clear_context = Contexts.Host if s.module.run_on_device else Contexts.Device
 
-                    for a in s.module.arrays_to_synchronize():
-                        new_stmts += [CopyArray(s.sim, a, copy_context)]
+                    for array in s.module.arrays_to_synchronize():
+                        write = array in s.module.write_arrays()
+                        new_stmts += [CopyArray(s.sim, array, copy_context, write)]
 
-                    for p in s.module.properties_to_synchronize():
-                        new_stmts += [CopyProperty(s.sim, p, copy_context)]
+                    for prop in s.module.properties_to_synchronize():
+                        write = prop in s.module.write_properties()
+                        new_stmts += [CopyProperty(s.sim, prop, copy_context, write)]
 
-                    for a in s.module.write_arrays():
-                        new_stmts += [SetArrayFlag(s.sim, a, copy_context), ClearArrayFlag(s.sim, a, clear_context)]
-
-                    for p in s.module.write_properties():
-                        new_stmts += [SetPropertyFlag(s.sim, p, copy_context), ClearPropertyFlag(s.sim, p, clear_context)]
+                    for contact_prop in s.module.contact_properties_to_synchronize():
+                        write = prop in s.module.write_contact_properties()
+                        new_stmts += [CopyContactProperty(s.sim, contact_prop, copy_context, write)]
 
                     if self.module_resizes[s.module] and s.module.run_on_device:
-                        new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Device)]
+                        new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Device, False)]
 
                     if s.module.run_on_device:
-                        for v in s.module.variables_to_synchronize():
-                            new_stmts += [CopyVar(s.sim, v, Contexts.Device)]
+                        for var in s.module.variables_to_synchronize():
+                            new_stmts += [CopyVar(s.sim, var, Contexts.Device)]
 
                 new_stmts.append(s)
 
                 if isinstance(s, ModuleCall):
                     if s.module.run_on_device:
-                        for v in s.module.variables_to_synchronize():
-                            new_stmts += [CopyVar(s.sim, v, Contexts.Host)]
+                        for var in s.module.variables_to_synchronize():
+                            new_stmts += [CopyVar(s.sim, var, Contexts.Host)]
 
                         if self.module_resizes[s.module]:
-                            new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host)]
+                            new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host, False)]
 
         ast_node.stmts = new_stmts
         return ast_node
@@ -83,7 +83,10 @@ class AddDeviceKernels(Mutator):
                         kernel_name = f"{ast_node.name}_kernel{kernel_id}"
                         kernel = ast_node.sim.find_kernel_by_name(kernel_name)
                         if kernel is None:
-                            kernel_body = Filter(ast_node.sim, ScalarOp.inline(s.iterator < s.max.copy(True)), s.block)
+                            kernel_body = Filter(ast_node.sim,
+                                                 ScalarOp.inline(s.iterator < s.max.copy(True)),
+                                                 s.block)
+
                             kernel = Kernel(ast_node.sim, kernel_name, kernel_body, s.iterator)
                             kernel_id += 1
 

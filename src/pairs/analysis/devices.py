@@ -48,10 +48,11 @@ class FetchKernelReferences(Visitor):
         self.writing = writing_state
 
     def visit_Assign(self, ast_node):
+        self.writing = False
+        self.visit(ast_node._src)
         self.writing = True
         self.visit(ast_node._dest)
         self.writing = False
-        self.visit(ast_node._src)
 
     def visit_AtomicAdd(self, ast_node):
         self.writing = True
@@ -75,11 +76,25 @@ class FetchKernelReferences(Visitor):
         self.visit_children(ast_node)
         self.kernel_stack.pop()
 
-        ast_node.add_array_access([a for a in self.kernel_used_array_accesses[kernel_id] if a not in self.kernel_decls[kernel_id]])
-        ast_node.add_scalar_op([b for b in self.kernel_used_scalar_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
-        ast_node.add_vector_op([b for b in self.kernel_used_vector_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
-        ast_node.add_matrix_op([b for b in self.kernel_used_matrix_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
-        ast_node.add_quaternion_op([b for b in self.kernel_used_quat_ops[kernel_id] if b not in self.kernel_decls[kernel_id] and not b.in_place])
+        ast_node.add_array_access(
+            [a for a in self.kernel_used_array_accesses[kernel_id] \
+             if a not in self.kernel_decls[kernel_id]])
+
+        ast_node.add_scalar_op(
+            [b for b in self.kernel_used_scalar_ops[kernel_id] \
+            if b not in self.kernel_decls[kernel_id] and not b.in_place])
+
+        ast_node.add_vector_op(
+            [b for b in self.kernel_used_vector_ops[kernel_id] \
+            if b not in self.kernel_decls[kernel_id] and not b.in_place])
+
+        ast_node.add_matrix_op(
+            [b for b in self.kernel_used_matrix_ops[kernel_id] \
+            if b not in self.kernel_decls[kernel_id] and not b.in_place])
+
+        ast_node.add_quaternion_op(
+            [b for b in self.kernel_used_quat_ops[kernel_id] \
+            if b not in self.kernel_decls[kernel_id] and not b.in_place])
 
     def visit_PropertyAccess(self, ast_node):
         # Visit property and save current writing state

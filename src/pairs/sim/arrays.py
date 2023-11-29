@@ -1,6 +1,5 @@
 from pairs.ir.block import pairs_inline
 from pairs.ir.contexts import Contexts
-from pairs.ir.device import ClearArrayFlag
 from pairs.ir.memory import Malloc
 from pairs.ir.arrays import DeclareStaticArray, RegisterArray
 from pairs.sim.lowerable import FinalLowerable
@@ -17,7 +16,3 @@ class DeclareArrays(FinalLowerable):
                 DeclareStaticArray(self.sim, a)
 
             RegisterArray(self.sim, a, a.alloc_size())
-
-            if not a.sync():
-                ClearArrayFlag(self.sim, self.sim.resizes, Contexts.Host)
-                ClearArrayFlag(self.sim, self.sim.resizes, Contexts.Device)

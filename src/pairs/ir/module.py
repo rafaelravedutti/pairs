@@ -86,6 +86,13 @@ class Module(ASTNode):
     def write_properties(self):
         return {p for p in self._properties if 'w' in self._properties[p]}
 
+    def contact_properties_to_synchronize(self):
+        #return {cp for cp in self._contact_properties if self._contact_properties[cp][0] == 'r'}
+        return {cp for cp in self._contact_properties}
+
+    def write_contact_properties(self):
+        return {cp for cp in self._contact_properties if 'w' in self._contact_properties[cp]}
+
     def arrays_to_synchronize(self):
         #return {a for a in self._arrays if a.sync() and self._arrays[a][0] == 'r'}
         return {a for a in self._arrays if a.sync()}
@@ -96,35 +103,54 @@ class Module(ASTNode):
     def add_array(self, array, write=False):
         array_list = array if isinstance(array, list) else [array]
         character = 'w' if write else 'r'
+
         for a in array_list:
-            assert isinstance(a, Array), "Module.add_array(): given element is not of type Array!"
-            self._arrays[a] = character if a not in self._arrays else self._arrays[a] + character
+            assert isinstance(a, Array), \
+                "Module.add_array(): given element is not of type Array!"
+
+            self._arrays[a] = character if a not in self._arrays else \
+                              self._arrays[a] + character
 
     def add_variable(self, variable, write=False):
         variable_list = variable if isinstance(variable, list) else [variable]
         character = 'w' if write else 'r'
+
         for v in variable_list:
-            assert isinstance(v, Var), "Module.add_variable(): given element is not of type Var!"
-            self._variables[v] = character if v not in self._variables else self._variables[v] + character
+            assert isinstance(v, Var), \
+                "Module.add_variable(): given element is not of type Var!"
+
+            self._variables[v] = character if v not in self._variables else \
+                                 self._variables[v] + character
 
     def add_property(self, prop, write=False):
         prop_list = prop if isinstance(prop, list) else [prop]
         character = 'w' if write else 'r'
+
         for p in prop_list:
-            assert isinstance(p, Property), "Module.add_property(): given element is not of type Property!"
-            self._properties[p] = character if p not in self._properties else self._properties[p] + character
+            assert isinstance(p, Property), \
+                "Module.add_property(): given element is not of type Property!"
+
+            self._properties[p] = character if p not in self._properties else \
+                                  self._properties[p] + character
 
     def add_contact_property(self, contact_prop, write=False):
         contact_prop_list = contact_prop if isinstance(contact_prop, list) else [contact_prop]
         character = 'w' if write else 'r'
+
         for cp in contact_prop_list:
-            assert isinstance(cp, ContactProperty), "Module.add_contact_property(): given element is not of type ContactProperty!"
-            self._contact_properties[cp] = character if cp not in self._contact_properties else self._contact_properties[cp] + character
+            assert isinstance(cp, ContactProperty), \
+                "Module.add_contact_property(): given element is not of type ContactProperty!"
+
+            self._contact_properties[cp] = character if cp not in self._contact_properties else \
+                                           self._contact_properties[cp] + character
 
     def add_feature_property(self, feature_prop):
         feature_prop_list = feature_prop if isinstance(feature_prop, list) else [feature_prop]
+
         for fp in feature_prop_list:
-            assert isinstance(fp, FeatureProperty), "Module.add_feature_property(): given element is not of type FeatureProperty!"
+            assert isinstance(fp, FeatureProperty), \
+                "Module.add_feature_property(): given element is not of type FeatureProperty!"
+
             self._feature_properties[fp] = 'r'
 
     def add_host_reference(self, elem):
