@@ -79,6 +79,16 @@ class Mutator:
 
         return ast_node
 
+    def mutate_AtomicInc(self, ast_node):
+        ast_node.elem = self.mutate(ast_node.elem)
+        ast_node.value = self.mutate(ast_node.value)
+
+        if ast_node.check_for_resize():
+            ast_node.resize = self.mutate(ast_node.resize)
+            ast_node.capacity = self.mutate(ast_node.capacity)
+
+        return ast_node
+
     def mutate_Block(self, ast_node):
         ast_node.stmts = [self.mutate(s) for s in ast_node.stmts]
         return ast_node

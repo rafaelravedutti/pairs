@@ -1,3 +1,4 @@
+from pairs.ir.ast_node import ASTNode
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
@@ -39,5 +40,30 @@ class AtomicAdd(ASTTerm):
         return self.elem.type()
 
     def children(self):
-        return  [self.elem, self.value] + \
-                ([self.resize, self.capacity] if self.resize is not None else [])
+        return [self.elem, self.value] + \
+               ([self.resize, self.capacity] if self.resize is not None else [])
+
+
+class AtomicInc(ASTNode):
+    def __init__(self, sim, elem, value):
+        super().__init__(sim)
+        self.elem = ScalarOp.inline(elem)
+        self.value = Lit.cvt(sim, value)
+        self.resize = None
+        self.capacity = None
+        self.device_flag = False
+        sim.add_statement(self)
+
+    def __str__(self):
+        return f"AtomicInc<{self.elem, self.value}>"
+
+    def add_resize_check(self, resize, capacity):
+        self.resize = ScalarOp.inline(resize)
+        self.capacity = capacity
+
+    def check_for_resize(self):
+        return self.resize is not None
+
+    def children(self):
+        return [self.elem, self.value] + \
+               ([self.resize, self.capacity] if self.resize is not None else [])

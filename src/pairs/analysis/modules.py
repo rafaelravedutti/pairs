@@ -38,6 +38,20 @@ class FetchModulesReferences(Visitor):
             self.visit(ast_node.resize)
             self.visit(ast_node.capacity)
 
+    def visit_AtomicInc(self, ast_node):
+        self.writing = True
+        self.visit(ast_node.elem)
+        self.writing = False
+        self.visit(ast_node.value)
+
+        for m in self.module_stack:
+            if m.run_on_device:
+                ast_node.device_flag = True
+
+        if ast_node.resize is not None:
+            self.visit(ast_node.resize)
+            self.visit(ast_node.capacity)
+
     def visit_Module(self, ast_node):
         self.module_stack.append(ast_node)
         self.visit_children(ast_node)

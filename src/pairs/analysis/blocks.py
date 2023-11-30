@@ -34,6 +34,16 @@ class DiscoverBlockVariants(Visitor):
             self.visit(ast_node.resize)
             self.visit(ast_node.capacity)
 
+    def visit_AtomicInc(self, ast_node):
+        self.in_assignment = ast_node
+        self.visit(ast_node.elem)
+        self.in_assignment = None
+        self.visit(ast_node.value)
+
+        if ast_node.check_for_resize():
+            self.visit(ast_node.resize)
+            self.visit(ast_node.capacity)
+
     def visit_For(self, ast_node):
         self.push_variant(ast_node.iterator)
         ast_node.block.add_variant(ast_node.iterator.name())

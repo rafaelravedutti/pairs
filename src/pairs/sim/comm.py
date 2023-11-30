@@ -1,9 +1,12 @@
+from pairs.ir.actions import Actions
 from pairs.ir.assign import Assign
-from pairs.ir.atomic import AtomicAdd
+from pairs.ir.atomic import AtomicAdd, AtomicInc
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.block import pairs_device_block, pairs_host_block, pairs_inline
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
+from pairs.ir.contexts import Contexts
+from pairs.ir.device import CopyArray
 from pairs.ir.functions import Call_Void
 from pairs.ir.loops import For, ParticleFor, While
 from pairs.ir.utils import Print
@@ -54,6 +57,18 @@ class Comm:
         Assign(self.sim, self.sim.nghost, 0)
 
         for step in range(self.dom_part.number_of_steps()):
+            if self.sim._target.is_gpu():
+                CopyArray(self.sim, self.nsend, Contexts.Host, Actions.Ignore)
+                CopyArray(self.sim, self.nrecv, Contexts.Host, Actions.Ignore)
+
+            for j in self.dom_part.step_indexes(step):
+                Assign(self.sim, self.nsend[j], 0)
+                Assign(self.sim, self.nrecv[j], 0)
+
+            if self.sim._target.is_gpu():
+                CopyArray(self.sim, self.nsend, Contexts.Device, Actions.Ignore)
+                CopyArray(self.sim, self.nrecv, Contexts.Device, Actions.Ignore)
+
             DetermineGhostParticles(self, step, self.sim.cell_spacing())
             CommunicateSizes(self, step)
             SetCommunicationOffsets(self, step)
@@ -70,12 +85,16 @@ class Comm:
             Assign(self.sim, self.nsend_all, 0)
             Assign(self.sim, self.sim.nghost, 0)
 
-            for s in range(step):
+            for s in range(step + 1):
                 for j in self.dom_part.step_indexes(s):
                     Assign(self.sim, self.nsend[j], 0)
                     Assign(self.sim, self.nrecv[j], 0)
                     Assign(self.sim, self.send_offsets[j], 0)
                     Assign(self.sim, self.recv_offsets[j], 0)
+
+            if self.sim._target.is_gpu():
+                CopyArray(self.sim, self.nsend, Contexts.Device, Actions.Ignore)
+                CopyArray(self.sim, self.nrecv, Contexts.Device, Actions.Ignore)
 
             DetermineGhostParticles(self, step, 0.0)
             CommunicateSizes(self, step)
@@ -124,12 +143,10 @@ class DetermineGhostParticles(Lowerable):
         self.spacing = spacing
         self.sim.add_statement(self)
 
-    #@pairs_device_block
-    @pairs_host_block
+    @pairs_device_block
     def lower(self):
         nsend_all = self.comm.nsend_all
         nsend = self.comm.nsend
-        nrecv = self.comm.nrecv
         send_map = self.comm.send_map
         send_mult = self.comm.send_mult
         exchg_flag = self.comm.exchg_flag
@@ -138,10 +155,6 @@ class DetermineGhostParticles(Lowerable):
         self.sim.module_name(f"determine_{ghost_or_exchg}_particles{self.step}")
         self.sim.check_resize(self.comm.send_capacity, nsend)
         #self.sim.check_resize(self.comm.send_capacity, nsend_all)
-
-        for j in self.comm.dom_part.step_indexes(self.step):
-            Assign(self.sim, nsend[j], 0)
-            Assign(self.sim, nrecv[j], 0)
 
         if is_exchange:
             for i in ParticleFor(self.sim):
@@ -157,7 +170,8 @@ class DetermineGhostParticles(Lowerable):
             for d in range(self.sim.ndims()):
                 Assign(self.sim, send_mult[next_idx][d], pbc[d])
 
-            Assign(self.sim, nsend[j], nsend[j] + 1)
+            #Assign(self.sim, nsend[j], nsend[j] + 1)
+            AtomicInc(self.sim, nsend[j], 1)
 
 
 class SetCommunicationOffsets(Lowerable):

@@ -1,7 +1,7 @@
 import math
 from pairs.ir.actions import Actions
 from pairs.ir.assign import Assign
-from pairs.ir.atomic import AtomicAdd
+from pairs.ir.atomic import AtomicAdd, AtomicInc
 from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
@@ -268,6 +268,18 @@ class CGen:
                 dest = self.generate_expression(ast_node._dest, mem=True)
                 src = self.generate_expression(ast_node._src)
                 self.print(f"{dest} = {src};")
+
+        if isinstance(ast_node, AtomicInc):
+            elem = self.generate_expression(ast_node.elem, mem=True)
+            value = self.generate_expression(ast_node.value)
+            prefix = "" if ast_node.device_flag else "host_"
+
+            if ast_node.check_for_resize():
+                resize = self.generate_expression(ast_node.resize)
+                capacity = self.generate_expression(ast_node.capacity)
+                self.print(f"pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
+            else:
+                self.print(f"pairs::{prefix}atomic_add(&({elem}), {value});")
 
         if isinstance(ast_node, Block):
             self.print.add_indent(4)
