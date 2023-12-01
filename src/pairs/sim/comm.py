@@ -41,18 +41,31 @@ class Comm:
     def synchronize(self):
         # Every property that is not constant across timesteps and have neighbor accesses during any
         # interaction kernel (i.e. property[j] in force calculation kernel)
-        prop_list = [self.sim.property(p) for p in ['position', 'linear_velocity', 'angular_velocity'] if self.sim.property(p) is not None]
-        for step in range(self.dom_part.number_of_steps()):
-            PackGhostParticles(self, step, prop_list)
-            CommunicateData(self, step, prop_list)
-            UnpackGhostParticles(self, step, prop_list)
+        prop_names = ['position', 'linear_velocity', 'angular_velocity']
+        prop_list = [ self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
+
+        PackAllGhostParticles(self, prop_list)
+        CommunicateAllData(self, prop_list)
+        UnpackAllGhostParticles(self, prop_list)
 
     @pairs_inline
     def borders(self):
         # Every property that has neighbor accesses during any interaction kernel (i.e. property[j]
         # exists in any force calculation kernel)
-        # We ignore normal because there should be no halfspace ghosts
-        prop_list = [self.sim.property(p) for p in ['uid', 'type', 'mass', 'radius', 'position', 'linear_velocity', 'angular_velocity', 'shape'] if self.sim.property(p) is not None]
+        # We ignore normal because there should be no ghost half-spaces
+        prop_names = [
+            'uid',
+            'type',
+            'mass',
+            'radius',
+            'position',
+            'linear_velocity',
+            'angular_velocity',
+            'shape'
+        ]
+
+        prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
+
         Assign(self.sim, self.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
 
@@ -75,12 +88,15 @@ class Comm:
             PackGhostParticles(self, step, prop_list)
             CommunicateData(self, step, prop_list)
             UnpackGhostParticles(self, step, prop_list)
-            Assign(self.sim, self.sim.nghost, self.sim.nghost + sum([self.nrecv[j] for j in self.dom_part.step_indexes(step)]))
+
+            step_nrecv = sum([self.nrecv[j] for j in self.dom_part.step_indexes(step)])
+            Assign(self.sim, self.sim.nghost, self.sim.nghost + step_nrecv)
 
     @pairs_inline
     def exchange(self):
         # Every property except volatiles
         prop_list = self.sim.properties.non_volatiles()
+
         for step in range(self.dom_part.number_of_steps()):
             Assign(self.sim, self.nsend_all, 0)
             Assign(self.sim, self.sim.nghost, 0)
@@ -130,9 +146,31 @@ class CommunicateData(Lowerable):
     @pairs_inline
     def lower(self):
         elem_size = sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
-        Call_Void(self.sim, "pairs->communicateData", [self.step, elem_size,
-                                                       self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
-                                                       self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
+
+        Call_Void(self.sim,
+                  "pairs->communicateData",
+                  [self.step, elem_size,
+                   self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
+                   self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
+
+
+class CommunicateAllData(Lowerable):
+    def __init__(self, comm, prop_list):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.prop_list = prop_list
+        self.sim.add_statement(self)
+
+    @pairs_inline
+    def lower(self):
+        elem_size = sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+        Call_Void(
+            self.sim,
+            "pairs->communicateAllData",
+            [self.comm.dom_part.number_of_steps(), elem_size,
+             self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
+             self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
 
 
 class DetermineGhostParticles(Lowerable):
@@ -266,6 +304,82 @@ class UnpackGhostParticles(Lowerable):
         step_indexes = self.comm.dom_part.step_indexes(self.step)
         start = self.comm.recv_offsets[step_indexes[0]]
         for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nrecv[j] for j in step_indexes]))):
+            p_offset = 0
+            for p in self.prop_list:
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        Assign(self.sim, p[nlocal + i][e], recv_buffer[i][p_offset + e])
+
+                    p_offset += nelems
+
+                else:
+                    cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Real else x
+                    Assign(self.sim, p[nlocal + i], cast_fn(recv_buffer[i][p_offset]))
+                    p_offset += 1
+
+
+class PackAllGhostParticles(Lowerable):
+    def __init__(self, comm, prop_list):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.prop_list = prop_list
+        self.sim.add_statement(self)
+
+    def get_elems_per_particle(self):
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+    @pairs_device_block
+    def lower(self):
+        send_buffer = self.comm.send_buffer
+        send_buffer.set_stride(1, self.get_elems_per_particle())
+        send_map = self.comm.send_map
+        send_mult = self.comm.send_mult
+        self.sim.module_name(f"pack_all_ghost_particles" + "_".join([str(p.id()) for p in self.prop_list]))
+
+        for i in For(self.sim, 0, self.comm.nsend_all):
+            p_offset = 0
+            m = send_map[i]
+            for p in self.prop_list:
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        src = p[m][e]
+                        if p == self.sim.position():
+                            src += send_mult[i][e] * self.sim.grid.length(e)
+
+                        Assign(self.sim, send_buffer[i][p_offset + e], src)
+
+                    p_offset += nelems
+
+                else:
+                    cast_fn = lambda x: Cast(self.sim, x, Types.Real) if p.type() != Types.Real else x
+                    Assign(self.sim, send_buffer[i][p_offset], cast_fn(p[m]))
+                    p_offset += 1
+
+
+class UnpackAllGhostParticles(Lowerable):
+    def __init__(self, comm, prop_list):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.prop_list = prop_list
+        self.sim.add_statement(self)
+
+    def get_elems_per_particle(self):
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+    @pairs_device_block
+    def lower(self):
+        nlocal = self.sim.nlocal
+        dom_part = self.comm.dom_part
+        recv_buffer = self.comm.recv_buffer
+        recv_buffer.set_stride(1, self.get_elems_per_particle())
+        self.sim.module_name(f"unpack_all_ghost_particles" + "_".join([str(p.id()) for p in self.prop_list]))
+
+        nrecv_size = sum([len(dom_part.step_indexes(s)) for s in range(dom_part.number_of_steps())])
+        nrecv_all = sum([self.comm.nrecv[j] for j in range(nrecv_size)])
+
+        for i in For(self.sim, 0, nrecv_all):
             p_offset = 0
             for p in self.prop_list:
                 if not Types.is_scalar(p.type()):

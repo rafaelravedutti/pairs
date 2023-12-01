@@ -305,7 +305,6 @@ void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
-    //PAIRS_DEBUG("send_sizes=[%d, %d], recv_sizes=[%d, %d]\n", send_sizes[dim * 2 + 0], send_sizes[dim * 2 + 1], recv_sizes[dim * 2 + 0], recv_sizes[dim * 2 + 1]);
 }
 
 void PairsSimulation::communicateData(
@@ -342,59 +341,42 @@ void PairsSimulation::communicateData(
         dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
+}
 
-    /*
-    // Debug messages
-    const int elems_to_print = 5;
+void PairsSimulation::communicateAllData(
+    int ndims, int elem_size,
+    const real_t *send_buf, const int *send_offsets, const int *nsend,
+    real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    // Send buffer debug
-    for(int i = 0; i < 2; i++) {
-        int nsnd = nsend[dim * 2 + i];
+    auto send_buf_id = getArrayByHostPointer(send_buf).getId();
+    auto recv_buf_id = getArrayByHostPointer(recv_buf).getId();
+    auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
+    auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
+    auto nsend_id = getArrayByHostPointer(nsend).getId();
+    auto nrecv_id = getArrayByHostPointer(nrecv).getId();
 
-        PAIRS_DEBUG("send_buf=[");
-        for(int j = 0; j < MIN(elems_to_print, nsnd); j++) {
-            for(int k = 0; k < elem_size; k++) {
-                PAIRS_DEBUG("%f,", send_buf[(send_offsets[dim * 2 + i] + j) * elem_size + k]);
-            }
-        }
+    copyArrayToHost(send_offsets_id, ReadOnly);
+    copyArrayToHost(recv_offsets_id, ReadOnly);
+    copyArrayToHost(nsend_id, ReadOnly);
+    copyArrayToHost(nrecv_id, ReadOnly);
 
-        if(elems_to_print * 2 < nsnd) {
-            PAIRS_DEBUG("\b ... ");
-        }
-
-        for(int j = MAX(elems_to_print, nsnd - elems_to_print); j < nsnd; j++) {
-            for(int k = 0; k < elem_size; k++) {
-                PAIRS_DEBUG("%f,", send_buf[(send_offsets[dim * 2 + i] + j) * elem_size + k]);
-            }
-        }
-
-        PAIRS_DEBUG("\b]\n");
+    int nsend_all = 0;
+    int nrecv_all = 0;
+    for(int d = 0; d <= ndims; d++) {
+        nsend_all += nsend[d * 2 + 0];
+        nsend_all += nsend[d * 2 + 1];
+        nrecv_all += nrecv[d * 2 + 0];
+        nrecv_all += nrecv[d * 2 + 1];
     }
 
-    // Receive buffer debug
-    for(int i = 0; i < 2; i++) {
-        int nrec = nrecv[dim * 2 + i];
+    copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
 
-        PAIRS_DEBUG("recv_buf=[");
-        for(int j = 0; j < MIN(elems_to_print, nrec); j++) {
-            for(int k = 0; k < elem_size; k++) {
-                PAIRS_DEBUG("%f,", recv_buf[(recv_offsets[dim * 2 + i] + j) * elem_size + k]);
-            }
-        }
+    array_flags->setHostFlag(recv_buf_id);
+    array_flags->clearDeviceFlag(recv_buf_id);
+    this->getDomainPartitioner()->communicateAllData(
+        ndims, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 
-        if(elems_to_print * 2 < nrec) {
-            PAIRS_DEBUG("\b ... ");
-        }
-
-        for(int j = MAX(elems_to_print, nrec - elems_to_print); j < nrec; j++) {
-            for(int k = 0; k < elem_size; k++) {
-                PAIRS_DEBUG("%f,", recv_buf[(recv_offsets[dim * 2 + i] + j) * elem_size + k]);
-            }
-        }
-
-        PAIRS_DEBUG("\b]\n");
-    }
-    */
+    copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
 }
 
 void PairsSimulation::fillCommunicationArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {
