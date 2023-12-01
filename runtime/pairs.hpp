@@ -53,142 +53,168 @@ public:
         delete timers;
     }
 
-    void initDomain(int *argc, char ***argv, real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
-    Regular6DStencil *getDomainPartitioner() { return dom_part; }
-    Timers<double> *getTimers() { return timers; }
-
+    // Variables
     template<typename T>
     RuntimeVar<T> addDeviceVariable(T *h_ptr) {
        return RuntimeVar<T>(h_ptr); 
     }
 
-    template<typename T_ptr> void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size);
-    template<typename T_ptr> void addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size);
-    template<typename T_ptr> void addStaticArray(array_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, size_t size);
-    template<typename T_ptr> void addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, size_t size);
-    void addArray(Array array);
-
-    template<typename T_ptr> void reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size);
-    template<typename T_ptr> void reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size);
-
+    // Arrays
     Array &getArray(array_t id);
     Array &getArrayByName(std::string name);
     Array &getArrayByHostPointer(const void *h_ptr);
+    void addArray(Array array);
 
-    template<typename T_ptr> void addProperty(
-        property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
-    template<typename T_ptr> void addProperty(
-        property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
-    void addProperty(Property prop);
+    template<typename T_ptr>
+    void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size);
 
-    template<typename T_ptr> void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx = 1, size_t sy = 1);
-    template<typename T_ptr> void reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx = 1, size_t sy = 1);
+    template<typename T_ptr>
+    void addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size);
 
+    template<typename T_ptr>
+    void addStaticArray(array_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, size_t size);
+
+    template<typename T_ptr>
+    void addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, size_t size);
+
+    template<typename T_ptr>
+    void reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size);
+
+    template<typename T_ptr>
+    void reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size);
+
+    void copyArrayToDevice(array_t id, action_t action, size_t size = 0) {
+        copyArrayToDevice(getArray(id), action, size);
+    }
+
+    void copyArrayToDevice(Array &array, action_t action, size_t size = 0);
+    void copyArrayToHost(array_t id, action_t action, size_t size = 0) {
+        copyArrayToHost(getArray(id), action, size);
+    }
+
+    void copyArrayToHost(Array &array, action_t action, size_t size = 0);
+
+    // Properties
     Property &getProperty(property_t id);
     Property &getPropertyByName(std::string name);
+    void addProperty(Property prop);
 
-    inline IntProperty &getAsIntegerProperty(Property &prop) { return static_cast<IntProperty&>(prop); }
-    inline FloatProperty &getAsFloatProperty(Property &prop) { return static_cast<FloatProperty&>(prop); }
-    inline VectorProperty &getAsVectorProperty(Property &prop) { return static_cast<VectorProperty&>(prop); }
-    inline MatrixProperty &getAsMatrixProperty(Property &prop) { return static_cast<MatrixProperty&>(prop); }
-    inline QuaternionProperty &getAsQuaternionProperty(Property &prop) { return static_cast<QuaternionProperty&>(prop); }
+    template<typename T_ptr>
+    void addProperty(
+        property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t,
+        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
 
-    inline IntProperty &getIntegerProperty(property_t property) { return static_cast<IntProperty&>(getProperty(property)); }
-    inline FloatProperty &getFloatProperty(property_t property) { return static_cast<FloatProperty&>(getProperty(property)); }
-    inline VectorProperty &getVectorProperty(property_t property) { return static_cast<VectorProperty&>(getProperty(property)); }
-    inline MatrixProperty &getMatrixProperty(property_t property) { return static_cast<MatrixProperty&>(getProperty(property)); }
-    inline QuaternionProperty &getQuaternionProperty(property_t property) { return static_cast<QuaternionProperty&>(getProperty(property)); }
+    template<typename T_ptr> void addProperty(
+        property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr,
+        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
 
-    template<typename T_ptr> void addContactProperty(
-        property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
-    template<typename T_ptr> void addContactProperty(
-        property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
-    void addContactProperty(ContactProperty prop);
+    template<typename T_ptr>
+    void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx = 1, size_t sy = 1);
 
-    template<typename T_ptr> void reallocContactProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx = 1, size_t sy = 1);
-    template<typename T_ptr> void reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx = 1, size_t sy = 1);
+    template<typename T_ptr>
+    void reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx = 1, size_t sy = 1);
 
+    inline IntProperty &getAsIntegerProperty(Property &prop) {
+        return static_cast<IntProperty&>(prop);
+    }
+
+    inline FloatProperty &getAsFloatProperty(Property &prop) {
+        return static_cast<FloatProperty&>(prop);
+    }
+
+    inline VectorProperty &getAsVectorProperty(Property &prop) {
+        return static_cast<VectorProperty&>(prop);
+    }
+
+    inline MatrixProperty &getAsMatrixProperty(Property &prop) {
+        return static_cast<MatrixProperty&>(prop);
+    }
+
+    inline QuaternionProperty &getAsQuaternionProperty(Property &prop) {
+        return static_cast<QuaternionProperty&>(prop);
+    }
+
+    inline IntProperty &getIntegerProperty(property_t property) {
+        return static_cast<IntProperty&>(getProperty(property));
+    }
+
+    inline FloatProperty &getFloatProperty(property_t property) {
+        return static_cast<FloatProperty&>(getProperty(property));
+    }
+
+    inline VectorProperty &getVectorProperty(property_t property) {
+        return static_cast<VectorProperty&>(getProperty(property));
+    }
+
+    inline MatrixProperty &getMatrixProperty(property_t property) {
+        return static_cast<MatrixProperty&>(getProperty(property));
+    }
+
+    inline QuaternionProperty &getQuaternionProperty(property_t property) {
+        return static_cast<QuaternionProperty&>(getProperty(property));
+    }
+
+    void copyPropertyToDevice(property_t id, action_t action, size_t size = 0) {
+        copyPropertyToDevice(getProperty(id), action, size);
+    }
+
+    void copyPropertyToDevice(Property &prop, action_t action, size_t size = 0);
+
+    void copyPropertyToHost(property_t id, action_t action, size_t size = 0) {
+        copyPropertyToHost(getProperty(id), action, size);
+    }
+
+    void copyPropertyToHost(Property &prop, action_t action, size_t size = 0);
+
+    // Contact properties
     ContactProperty &getContactProperty(property_t id);
     ContactProperty &getContactPropertyByName(std::string name);
+    void addContactProperty(ContactProperty prop);
 
-    template<typename T_ptr> void addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, PropertyType type, int nkinds, int array_size);
-    template<typename T_ptr> void addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, PropertyType type, int nkinds, int array_size);
-    void addFeatureProperty(FeatureProperty feature_prop);
+    template<typename T_ptr>
+    void addContactProperty(
+        property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t,
+        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
 
+    template<typename T_ptr>
+    void addContactProperty(
+        property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr,
+        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
+
+    template<typename T_ptr>
+    void reallocContactProperty(
+        property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx = 1, size_t sy = 1);
+
+    template<typename T_ptr>
+    void reallocContactProperty(
+        property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx = 1, size_t sy = 1);
+
+    void copyContactPropertyToDevice(property_t id, action_t action, size_t size = 0) {
+        copyContactPropertyToDevice(getContactProperty(id), action, size);
+    }
+
+    void copyContactPropertyToDevice(ContactProperty &prop, action_t action, size_t size = 0);
+
+    void copyContactPropertyToHost(property_t id, action_t action, size_t size = 0) {
+        copyContactPropertyToHost(getContactProperty(id), action, size);
+    }
+
+    void copyContactPropertyToHost(ContactProperty &prop, action_t action, size_t size = 0);
+
+    // Feature properties
     FeatureProperty &getFeatureProperty(property_t id);
     FeatureProperty &getFeaturePropertyByName(std::string name);
+    void addFeatureProperty(FeatureProperty feature_prop);
 
-    void setArrayDeviceFlag(array_t id) { setArrayDeviceFlag(getArray(id)); }
-    void setArrayDeviceFlag(Array &array) { array_flags->setDeviceFlag(array.getId()); }
-    void clearArrayDeviceFlag(array_t id) { clearArrayDeviceFlag(getArray(id)); }
-    void clearArrayDeviceFlag(Array &array) { array_flags->clearDeviceFlag(array.getId()); }
-    void copyArrayToDevice(array_t id, action_t action) { copyArrayToDevice(getArray(id), action); }
-    void copyArrayToDevice(Array &array, action_t action);
+    template<typename T_ptr>
+    void addFeatureProperty(
+        property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t,
+        PropertyType type, int nkinds, int array_size);
 
-    void setArrayHostFlag(array_t id) { setArrayHostFlag(getArray(id)); }
-    void setArrayHostFlag(Array &array) { array_flags->setHostFlag(array.getId()); }
-    void clearArrayHostFlag(array_t id) { clearArrayHostFlag(getArray(id)); }
-    void clearArrayHostFlag(Array &array) { array_flags->clearHostFlag(array.getId()); }
-    void copyArrayToHost(array_t id, action_t action) { copyArrayToHost(getArray(id), action); }
-    void copyArrayToHost(Array &array, action_t action);
-
-    void setPropertyDeviceFlag(property_t id) { setPropertyDeviceFlag(getProperty(id)); }
-    void setPropertyDeviceFlag(Property &prop) { prop_flags->setDeviceFlag(prop.getId()); }
-    void clearPropertyDeviceFlag(property_t id) { clearPropertyDeviceFlag(getProperty(id)); }
-    void clearPropertyDeviceFlag(Property &prop) { prop_flags->clearDeviceFlag(prop.getId()); }
-    void copyPropertyToDevice(property_t id, action_t action) { copyPropertyToDevice(getProperty(id), action); }
-    void copyPropertyToDevice(Property &prop, action_t action);
-
-    void setPropertyHostFlag(property_t id) { setPropertyHostFlag(getProperty(id)); }
-    void setPropertyHostFlag(Property &prop) { prop_flags->setHostFlag(prop.getId()); }
-    void clearPropertyHostFlag(property_t id) { clearPropertyHostFlag(getProperty(id)); }
-    void clearPropertyHostFlag(Property &prop) { prop_flags->clearHostFlag(prop.getId()); }
-    void copyPropertyToHost(property_t id, action_t action) { copyPropertyToHost(getProperty(id), action); }
-    void copyPropertyToHost(Property &prop, action_t action);
-
-    void setContactPropertyDeviceFlag(property_t id) {
-        setContactPropertyDeviceFlag(getContactProperty(id));
-    }
-
-    void setContactPropertyDeviceFlag(ContactProperty &prop) {
-        contact_prop_flags->setDeviceFlag(prop.getId());
-    }
-
-    void clearContactPropertyDeviceFlag(property_t id) {
-        clearContactPropertyDeviceFlag(getContactProperty(id));
-    }
-
-    void clearContactPropertyDeviceFlag(ContactProperty &prop) {
-        contact_prop_flags->clearDeviceFlag(prop.getId());
-    }
-
-    void copyContactPropertyToDevice(property_t id, action_t action) {
-        copyContactPropertyToDevice(getContactProperty(id), action);
-    }
-
-    void copyContactPropertyToDevice(ContactProperty &prop, action_t action);
-
-    void setContactPropertyHostFlag(property_t id) {
-        setContactPropertyHostFlag(getContactProperty(id));
-    }
-
-    void setContactPropertyHostFlag(ContactProperty &prop) {
-        contact_prop_flags->setHostFlag(prop.getId());
-    }
-
-    void clearContactPropertyHostFlag(property_t id) {
-        clearContactPropertyHostFlag(getContactProperty(id));
-    }
-
-    void clearContactPropertyHostFlag(ContactProperty &prop) {
-        contact_prop_flags->clearHostFlag(prop.getId());
-    }
-
-    void copyContactPropertyToHost(property_t id, action_t action) {
-        copyContactPropertyToHost(getContactProperty(id), action);
-    }
-
-    void copyContactPropertyToHost(ContactProperty &prop, action_t action);
+    template<typename T_ptr>
+    void addFeatureProperty(
+        property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr,
+        PropertyType type, int nkinds, int array_size);
 
     void copyFeaturePropertyToDevice(property_t id) {
         copyFeaturePropertyToDevice(getFeatureProperty(id));
@@ -196,6 +222,12 @@ public:
 
     void copyFeaturePropertyToDevice(FeatureProperty &feature_prop);
 
+    // Communication
+    void initDomain(
+        int *argc, char ***argv,
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
+
+    Regular6DStencil *getDomainPartitioner() { return dom_part; }
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
     void communicateData(
         int dim, int elem_size,
@@ -203,7 +235,12 @@ public:
         real_t *recv_buf, const int *recv_offsets, const int *nrecv);
 
     void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]);
+
+    // Device functions
     void sync() { device_synchronize(); }
+
+    // Timers
+    Timers<double> *getTimers() { return timers; }
     void printTimers() {
         if(this->getDomainPartitioner()->getRank() == 0) {
             this->getTimers()->print();
@@ -310,7 +347,7 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr
 			  [id](Property _p) { return _p.getId() == id; });
     PAIRS_ASSERT(p != std::end(properties));
 
-    size_t size = sx * sy * p->getElemSize();
+    size_t size = sx * sy * p->getPrimitiveTypeSize();
     PAIRS_ASSERT(size > 0);
 
     size_t old_size = p->getTotalSize();
@@ -329,7 +366,7 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_pt
 			  [id](Property _p) { return _p.getId() == id; });
     PAIRS_ASSERT(p != std::end(properties));
 
-    size_t size = sx * sy * p->getElemSize();
+    size_t size = sx * sy * p->getPrimitiveTypeSize();
     PAIRS_ASSERT(size > 0);
 
     size_t old_size = p->getTotalSize();
@@ -380,7 +417,7 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, std::
 			   [id](ContactProperty _cp) { return _cp.getId() == id; });
     PAIRS_ASSERT(cp != std::end(contact_properties));
 
-    size_t size = sx * sy * cp->getElemSize();
+    size_t size = sx * sy * cp->getPrimitiveTypeSize();
     PAIRS_ASSERT(size > 0);
 
     size_t old_size = cp->getTotalSize();
@@ -399,7 +436,7 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr
 			   [id](ContactProperty _cp) { return _cp.getId() == id; });
     PAIRS_ASSERT(cp != std::end(contact_properties));
 
-    size_t size = sx * sy * cp->getElemSize();
+    size_t size = sx * sy * cp->getPrimitiveTypeSize();
     PAIRS_ASSERT(size > 0);
 
     size_t old_size = cp->getTotalSize();

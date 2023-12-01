@@ -6,6 +6,7 @@ from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.operator_class import OperatorClass
 from pairs.ir.scalars import ScalarOp
+from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
 
 
@@ -85,9 +86,14 @@ class Property(ASTNode):
     def ndims(self):
         return 1 if Types.is_scalar(self.prop_type) else 2
 
+    def copy_size(self):
+        return ScalarOp.inline((self.sim.nlocal + self.sim.nghost) *
+                               Types.number_of_elements(self.sim, self.prop_type) *
+                               Sizeof(self.sim, self.type()))
+
     def sizes(self):
-        return [self.sim.particle_capacity] if Types.is_scalar(self.prop_type) \
-               else [Types.number_of_elements(self.sim, self.prop_type), self.sim.particle_capacity]
+        return [self.sim.particle_capacity] if Types.is_scalar(self.prop_type) else \
+               [Types.number_of_elements(self.sim, self.prop_type), self.sim.particle_capacity]
 
 
 class PropertyAccess(ASTTerm):
@@ -249,10 +255,16 @@ class ContactProperty(ASTNode):
     def ndims(self):
         return 1 if Types.is_scalar(self.contact_prop_type) else 2
 
+    def copy_size(self):
+        return ScalarOp.inline(self.sim.nlocal *
+                               self.sim.neighbor_capacity *
+                               Types.number_of_elements(self.sim, self.prop_type) *
+                               Sizeof(self.sim, self.type()))
+
     def sizes(self):
         neighbor_list_sizes = [self.sim.particle_capacity, self.sim.neighbor_capacity]
-        return neighbor_list_sizes if Types.is_scalar(self.contact_prop_type) \
-               else [Types.number_of_elements(self.sim, self.contact_prop_type)] + neighbor_list_sizes
+        return neighbor_list_sizes if Types.is_scalar(self.contact_prop_type) else \
+               [Types.number_of_elements(self.sim, self.contact_prop_type)] + neighbor_list_sizes
 
 
 class ContactPropertyAccess(ASTTerm):

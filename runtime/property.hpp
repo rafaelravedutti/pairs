@@ -32,10 +32,10 @@ public:
     void *getDevicePointer() { return d_ptr; }
     void setPointers(void *h_ptr_, void *d_ptr_) { h_ptr = h_ptr_, d_ptr = d_ptr_; }
     void setSizes(size_t sx_, size_t sy_) { sx = sx_, sy = sy_; }
-    size_t getTotalSize() { return sx * sy * getElemSize(); };
+    size_t getTotalSize() { return sx * sy * getPrimitiveTypeSize(); };
     PropertyType getType() { return type; }
     layout_t getLayout() { return layout; }
-    size_t getElemSize() {
+    size_t getPrimitiveTypeSize() {
         return  (type == Prop_Integer) ? sizeof(int) :
                 (type == Prop_Real) ? sizeof(real_t) :
                 (type == Prop_Vector) ? sizeof(real_t) :

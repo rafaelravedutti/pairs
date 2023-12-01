@@ -48,8 +48,8 @@ class Array(ASTNode):
         super().__init__(sim)
         self.arr_id = Array.last_array_id
         self.arr_name = a_name
-        self.arr_sizes = [Lit.cvt(sim, a_sizes)] if not isinstance(a_sizes, list) \
-                         else [Lit.cvt(sim, s) for s in a_sizes]
+        self.arr_sizes = [Lit.cvt(sim, a_sizes)] if not isinstance(a_sizes, list) else \
+                         [Lit.cvt(sim, s) for s in a_sizes]
         self.arr_type = a_type
         self.arr_layout = a_layout
         self.arr_sync = a_sync
@@ -93,7 +93,8 @@ class Array(ASTNode):
         self.arr_strides[dim] = stride
 
     def strides(self):
-        return [self.arr_strides[i] if i in self.arr_strides else self.arr_sizes[i] for i in range(self.arr_ndims)]
+        return [self.arr_strides[i] if i in self.arr_strides else self.arr_sizes[i] \
+                for i in range(self.arr_ndims)]
 
     def alloc_size(self):
         return reduce((lambda x, y: x * y), [s for s in self.arr_sizes])

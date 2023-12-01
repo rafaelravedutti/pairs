@@ -478,14 +478,16 @@ class CGen:
             prop_name = ast_node.contact_prop().name()
             action = Actions.c_keyword(ast_node.action())
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
-            self.print(f"pairs->copyContactPropertyTo{ctx_suffix}({prop_id}, {action}); // {prop_name}")
+            size = self.generate_expression(ast_node.contact_prop().copy_size())
+            self.print(f"pairs->copyContactPropertyTo{ctx_suffix}({prop_id}, {action}, {size}); // {prop_name}")
 
         if isinstance(ast_node, CopyProperty):
             prop_id = ast_node.prop().id()
             prop_name = ast_node.prop().name()
             action = Actions.c_keyword(ast_node.action())
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
-            self.print(f"pairs->copyPropertyTo{ctx_suffix}({prop_id}, {action}); // {prop_name}")
+            size = self.generate_expression(ast_node.prop().copy_size())
+            self.print(f"pairs->copyPropertyTo{ctx_suffix}({prop_id}, {action}, {size}); // {prop_name}")
 
         if isinstance(ast_node, CopyVar):
             var_name = ast_node.variable().name()

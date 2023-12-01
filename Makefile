@@ -3,14 +3,16 @@
 TESTCASE=lj
 PYCMD=python3
 #CC=icc
-CC=mpiicc
+#CC=mpiicpx
+CC=mpiicpc
 NVCC=nvcc
 NVCC_PATH:="$(shell which ${NVCC})"
 LIKWID_INC ?= -I/usr/local/include
 LIKWID_DEFINES ?= -DLIKWID_PERFMON
 LIKWID_LIB ?= -L/usr/local/lib
 LIKWID_FLAGS = -llikwid ${LIKWID_INC} ${LIKWID_DEFINES} ${LIKWID_LIB}
-CFLAGS=-Ofast -xCORE-AVX512 -qopt-zmm-usage=high ${LIKWID_FLAGS}
+CFLAGS=-Ofast -xHost -qopt-zmm-usage=high ${LIKWID_FLAGS}
+#CFLAGS=-Ofast -xCORE-AVX512 -qopt-zmm-usage=high ${LIKWID_FLAGS}
 CUDA_BIN_PATH:="$(shell dirname ${NVCC_PATH})"
 CUDA_PATH:="$(shell dirname ${CUDA_BIN_PATH})"
 OBJ_PATH=obj
@@ -19,7 +21,7 @@ CPU_BIN="$(TESTCASE)_cpu"
 GPU_SRC="$(TESTCASE).cu"
 GPU_BIN="$(TESTCASE)_gpu"
 DEBUG_FLAGS=
-#DEBUG_FLAGS="-DDEBUG"
+#DEBUG_FLAGS=-DDEBUG
 
 all: clean build $(CPU_BIN) $(GPU_BIN)
 	@echo "Everything was done!"
@@ -54,7 +56,7 @@ $(CPU_BIN): $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OB
 $(GPU_BIN): $(GPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o 
 	$(NVCC) -c -o $(OBJ_PATH)/cuda_runtime.o runtime/devices/cuda.cu ${DEBUG_FLAGS}
 	$(NVCC) -c -o $(OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) -DDEBUG
-	$(CC) -o $(CFLAGS) $(GPU_BIN) $(OBJ_PATH)/$(GPU_BIN).o $(OBJ_PATH)/cuda_runtime.o $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64
+	$(CC) -o $(GPU_BIN) $(CFLAGS) $(OBJ_PATH)/$(GPU_BIN).o $(OBJ_PATH)/cuda_runtime.o $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64
 
 clean:
 	@echo "Cleaning..."
