@@ -1,7 +1,7 @@
 from pairs.ir.block import pairs_inline
 from pairs.ir.functions import Call_Void
+from pairs.ir.timers import Timers
 from pairs.sim.lowerable import FinalLowerable
-
 
 class RegisterTimers(FinalLowerable):
     def __init__(self, sim):
@@ -9,11 +9,12 @@ class RegisterTimers(FinalLowerable):
 
     @pairs_inline
     def lower(self):
-        Call_Void(self.sim, "pairs::register_timer", [0, "all"])
+        for t in range(Timers.Offset):
+            Call_Void(self.sim, "pairs::register_timer", [t, Timers.name(t)])
 
         for m in self.sim.module_list:
             if m.name != 'main':
-                Call_Void(self.sim, "pairs::register_timer", [m.module_id + 1, m.name])
+                Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, m.name])
 
 
 class RegisterMarkers(FinalLowerable):

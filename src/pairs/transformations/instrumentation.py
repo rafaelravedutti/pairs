@@ -2,6 +2,7 @@ from pairs.ir.block import Block
 from pairs.ir.functions import Call_Void
 from pairs.ir.module import ModuleCall
 from pairs.ir.mutator import Mutator
+from pairs.ir.timers import Timers
 
 
 class AddModulesInstrumentation(Mutator):
@@ -14,7 +15,7 @@ class AddModulesInstrumentation(Mutator):
         if module.name == 'main':
             return ast_node
 
-        timer_id = module.module_id + 1
+        timer_id = module.module_id + Timers.Offset
         start_timer = Call_Void(ast_node.sim, "pairs::start_timer", [timer_id])
         stop_timer = Call_Void(ast_node.sim, "pairs::stop_timer", [timer_id])
 

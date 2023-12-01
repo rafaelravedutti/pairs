@@ -37,6 +37,13 @@ enum Actions {
     Ignore = 5
 };
 
+enum Timers {
+    All = 0,
+    Communication = 1,
+    DeviceTransfers = 2,
+    Offset = 3
+};
+
 enum DomainPartitioning {
     DimRanges = 0,
     BoxList,

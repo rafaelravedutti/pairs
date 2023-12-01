@@ -5,12 +5,14 @@ from pairs.ir.branches import Filter
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
 from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyVar, DeviceStaticRef, HostRef
+from pairs.ir.functions import Call_Void
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For
 from pairs.ir.module import ModuleCall
 from pairs.ir.mutator import Mutator
 from pairs.ir.scalars import ScalarOp
+from pairs.ir.timers import Timers
 from pairs.ir.types import Types
 
 
@@ -34,6 +36,9 @@ class AddDeviceCopies(Mutator):
                 if isinstance(s, ModuleCall):
                     copy_context = Contexts.Device if s.module.run_on_device else Contexts.Host
                     clear_context = Contexts.Host if s.module.run_on_device else Contexts.Device
+                    new_stmts += [
+                        Call_Void(ast_node.sim, "pairs::start_timer", [Timers.DeviceTransfers])
+                    ]
 
                     for array, action in s.module.arrays().items():
                         new_stmts += [CopyArray(s.sim, array, copy_context, action)]
@@ -52,16 +57,27 @@ class AddDeviceCopies(Mutator):
                             if action != Actions.ReadOnly and var.device_flag:
                                 new_stmts += [CopyVar(s.sim, var, Contexts.Device, action)]
 
+                    new_stmts += [
+                        Call_Void(ast_node.sim, "pairs::stop_timer", [Timers.DeviceTransfers])
+                    ]
+
                 new_stmts.append(s)
 
                 if isinstance(s, ModuleCall):
                     if s.module.run_on_device:
+                        new_stmts += [
+                            Call_Void(ast_node.sim, "pairs::start_timer", [Timers.DeviceTransfers])
+                        ]
+
                         for var, action in s.module.variables().items():
                             if action != Actions.ReadOnly and var.device_flag:
                                 new_stmts += [CopyVar(s.sim, var, Contexts.Host, action)]
 
                         if self.module_resizes[s.module]:
                             new_stmts += [CopyArray(s.sim, s.sim.resizes, Contexts.Host, Actions.Ignore)]
+                        new_stmts += [
+                            Call_Void(ast_node.sim, "pairs::stop_timer", [Timers.DeviceTransfers])
+                        ]
 
         ast_node.stmts = new_stmts
         return ast_node

@@ -3,6 +3,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.functions import Call_Void
 from pairs.ir.loops import For
+from pairs.ir.timers import Timers
 
 
 class Timestep:
@@ -63,9 +64,9 @@ class Timestep:
         _capture = self.sim._capture_statements
         self.sim.capture_statements(False)
 
-        block = Block(self.sim, [Call_Void(self.sim, "pairs::start_timer", [0]),
+        block = Block(self.sim, [Call_Void(self.sim, "pairs::start_timer", [Timers.All]),
                                  self.timestep_loop,
-                                 Call_Void(self.sim, "pairs::stop_timer", [0])])
+                                 Call_Void(self.sim, "pairs::stop_timer", [Timers.All])])
 
         self.sim.capture_statements(_capture)
         return block

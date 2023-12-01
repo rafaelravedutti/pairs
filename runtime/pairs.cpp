@@ -301,10 +301,15 @@ void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv
     auto nsend_id = getArrayByHostPointer(send_sizes).getId();
     auto nrecv_id = getArrayByHostPointer(recv_sizes).getId();
 
+    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(nsend_id, ReadOnly);
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
+    this->getTimers()->stop(DeviceTransfers);
+
+    this->getTimers()->start(Communication);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
+    this->getTimers()->stop(Communication);
 }
 
 void PairsSimulation::communicateData(
@@ -319,6 +324,7 @@ void PairsSimulation::communicateData(
     auto nsend_id = getArrayByHostPointer(nsend).getId();
     auto nrecv_id = getArrayByHostPointer(nrecv).getId();
 
+    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(send_offsets_id, ReadOnly);
     copyArrayToHost(recv_offsets_id, ReadOnly);
     copyArrayToHost(nsend_id, ReadOnly);
@@ -334,13 +340,18 @@ void PairsSimulation::communicateData(
     }
 
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
-
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
+    this->getTimers()->stop(DeviceTransfers);
+
+    this->getTimers()->start(Communication);
     this->getDomainPartitioner()->communicateData(
         dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
+    this->getTimers()->stop(Communication);
 
+    this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
+    this->getTimers()->stop(DeviceTransfers);
 }
 
 void PairsSimulation::communicateAllData(
@@ -355,6 +366,7 @@ void PairsSimulation::communicateAllData(
     auto nsend_id = getArrayByHostPointer(nsend).getId();
     auto nrecv_id = getArrayByHostPointer(nrecv).getId();
 
+    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(send_offsets_id, ReadOnly);
     copyArrayToHost(recv_offsets_id, ReadOnly);
     copyArrayToHost(nsend_id, ReadOnly);
@@ -370,13 +382,18 @@ void PairsSimulation::communicateAllData(
     }
 
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
-
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
+    this->getTimers()->stop(DeviceTransfers);
+
+    this->getTimers()->start(Communication);
     this->getDomainPartitioner()->communicateAllData(
         ndims, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
+    this->getTimers()->stop(Communication);
 
+    this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
+    this->getTimers()->stop(DeviceTransfers);
 }
 
 void PairsSimulation::fillCommunicationArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {
