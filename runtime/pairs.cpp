@@ -325,7 +325,6 @@ void PairsSimulation::communicateData(
     copyArrayToHost(nsend_id, ReadOnly);
     copyArrayToHost(nrecv_id, ReadOnly);
 
-    /*
     int nsend_all = 0;
     int nrecv_all = 0;
     for(int d = 0; d <= dim; d++) {
@@ -334,18 +333,15 @@ void PairsSimulation::communicateData(
         nrecv_all += nrecv[d * 2 + 0];
         nrecv_all += nrecv[d * 2 + 1];
     }
-    */
 
-    copyArrayToHost(send_buf_id, ReadOnly);
-    //copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
+    copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
 
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     this->getDomainPartitioner()->communicateData(
         dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 
-    //copyArrayToHost(recv_buf_id, Ignore);
-    //copyArrayToHost(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
+    copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
 
     /*
     // Debug messages
