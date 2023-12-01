@@ -36,6 +36,12 @@ rho = 0.8442
 temp = 1.44
 
 psim = pairs.simulation("lj", [pairs.point_mass()], timesteps=200, double_prec=True)
+
+if target == 'gpu':
+    psim.target(pairs.target_gpu())
+else:
+    psim.target(pairs.target_cpu())
+
 psim.add_position('position')
 psim.add_property('mass', pairs.real(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
@@ -52,10 +58,4 @@ psim.compute_thermo(100)
 psim.compute(initial_integrate, symbols={'dt': dt}, pre_step=True, skip_first=True)
 psim.compute(lj, cutoff_radius)
 psim.compute(final_integrate, symbols={'dt': dt}, skip_first=True)
-
-if target == 'gpu':
-    psim.target(pairs.target_gpu())
-else:
-    psim.target(pairs.target_cpu())
-
 psim.generate()

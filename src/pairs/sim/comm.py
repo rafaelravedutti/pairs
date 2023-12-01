@@ -20,8 +20,8 @@ class Comm:
         self.sim = sim
         self.dom_part = dom_part
         self.nsend_all      = sim.add_var('nsend_all', Types.Int32)
-        self.send_capacity  = sim.add_var('send_capacity', Types.Int32, 200000)
-        self.recv_capacity  = sim.add_var('recv_capacity', Types.Int32, 200000)
+        self.send_capacity  = sim.add_var('send_capacity', Types.Int32, 80000)
+        self.recv_capacity  = sim.add_var('recv_capacity', Types.Int32, 80000)
         self.elem_capacity  = sim.add_var('elem_capacity', Types.Int32, 40)
         self.neigh_capacity = sim.add_var('neigh_capacity', Types.Int32, 10)
         self.nsend          = sim.add_array('nsend', [self.neigh_capacity], Types.Int32)
