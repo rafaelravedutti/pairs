@@ -222,7 +222,7 @@ class Simulation:
 
     def build_neighbor_lists(self, spacing):
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
-        self.neighbor_lists = NeighborLists(self.cell_lists)
+        self.neighbor_lists = NeighborLists(self, self.cell_lists)
         return self.neighbor_lists
 
     def compute(self, func, cutoff_radius=None, symbols={}, pre_step=False, skip_first=False):
