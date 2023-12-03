@@ -54,7 +54,7 @@ class Apply(Lowerable):
         return self._build_expression_with_index(expr, index)[0]
 
     # TODO: This method should comprise all operators and dynamic data types, it would also be
-    # better to provide a better way to implement it such as a Mutator or Visitor
+    # better to provide a way to implement it with a Mutator or Visitor
     def _build_expression_with_index(self, expr, index):
         if isinstance(expr, (ScalarOp, VectorOp)):
             new_lhs, changed_lhs = self._build_expression_with_index(expr.lhs, index)

@@ -258,7 +258,7 @@ class ContactProperty(ASTNode):
     def copy_size(self):
         return ScalarOp.inline(self.sim.nlocal *
                                self.sim.neighbor_capacity *
-                               Types.number_of_elements(self.sim, self.prop_type) *
+                               Types.number_of_elements(self.sim, self.contact_prop_type) *
                                Sizeof(self.sim, self.type()))
 
     def sizes(self):

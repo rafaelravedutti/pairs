@@ -72,7 +72,7 @@ class CopyProperty(ASTNode):
 
 
 class CopyContactProperty(ASTNode):
-    def __init__(self, sim, prop, ctx, write):
+    def __init__(self, sim, prop, ctx, action):
         super().__init__(sim)
         self._contact_prop = prop
         self._ctx = ctx
@@ -89,7 +89,7 @@ class CopyContactProperty(ASTNode):
         return self._action
 
     def children(self):
-        return [self._prop]
+        return [self._contact_prop]
 
 
 class CopyVar(ASTNode):

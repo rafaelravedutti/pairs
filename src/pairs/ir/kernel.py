@@ -116,7 +116,7 @@ class Kernel(ASTNode):
         new_op = 'w' if write else 'r'
 
         for contact_prop in contact_prop_list:
-            assert isinstance(cp, ContactProperty), \
+            assert isinstance(contact_prop, ContactProperty), \
                 "Kernel.add_contact_property(): Element is not of type ContactProperty."
 
             action = Actions.NoAction if contact_prop not in self._contact_properties else \
