@@ -137,6 +137,11 @@ psim = pairs.simulation(
     double_prec=True,
     use_contact_history=True)
 
+if target == 'gpu':
+    psim.target(pairs.target_gpu())
+else:
+    psim.target(pairs.target_cpu())
+
 psim.add_position('position')
 psim.add_property('mass', pairs.real(), 1.0)
 psim.add_property('linear_velocity', pairs.vector())
@@ -196,10 +201,4 @@ psim.compute(linear_spring_dashpot,
                       'collisionTime_SI': collisionTime_SI})
 
 psim.compute(euler, symbols={'dt': dt_SI})
-
-if target == 'gpu':
-    psim.target(pairs.target_gpu())
-else:
-    psim.target(pairs.target_cpu())
-
 psim.generate()

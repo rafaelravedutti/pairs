@@ -1,7 +1,7 @@
 from pairs.ir.assign import Assign
 from pairs.ir.block import pairs_device_block
 from pairs.ir.branches import Branch, Filter
-from pairs.ir.loops import ParticleFor, For
+from pairs.ir.loops import ParticleFor, For, While
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
@@ -95,12 +95,33 @@ class ClearUnusedContactHistory(Lowerable):
 
     @pairs_device_block
     def lower(self):
+        contact_lists = self.contact_history.contact_lists
         contact_used = self.contact_history.contact_used
         num_contacts = self.contact_history.num_contacts
         self.sim.module_name("clear_unused_contact_history")
 
-        for i in ParticleFor(self.sim):
-            for c in For(self.sim, 0, num_contacts[i]):
-                for _ in Filter(self.sim, ScalarOp.cmp(contact_used[i][c], 0)):
-                    for contact_prop in self.sim.contact_properties:
-                        Assign(self.sim, contact_prop[i, c], contact_prop.default())
+        if self.sim.neighbor_lists is None:
+            for i in ParticleFor(self.sim):
+                c = self.sim.add_temp_var(0)
+                for _ in While(self.sim, c < num_contacts[i]):
+                    for unused in Branch(self.sim, ScalarOp.cmp(contact_used[i][c], 0)):
+                        if unused:
+                            last_contact = num_contacts[i] - 1
+                            for _ in Filter(self.sim, last_contact > 0):
+                                for contact_prop in self.sim.contact_properties:
+                                    Assign(self.sim, contact_prop[i, c], contact_prop[i, last_contact])
+
+                                Assign(self.sim, contact_lists[i][c], contact_lists[i][last_contact])
+                                Assign(self.sim, contact_used[i][c], contact_used[i][last_contact])
+
+                            Assign(self.sim, num_contacts[i], num_contacts[i] - 1)
+
+                        else:
+                            Assign(self.sim, c, c + 1)
+
+        else:
+            for i in ParticleFor(self.sim):
+                for c in For(self.sim, 0, num_contacts[i]):
+                    for _ in Filter(self.sim, ScalarOp.cmp(contact_used[i][c], 0)):
+                        for contact_prop in self.sim.contact_properties:
+                            Assign(self.sim, contact_prop[i, c], contact_prop.default())
