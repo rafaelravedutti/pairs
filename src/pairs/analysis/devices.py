@@ -1,4 +1,5 @@
 from pairs.ir.arrays import ArrayAccess
+from pairs.ir.branches import Branch
 from pairs.ir.lit import Lit
 from pairs.ir.loops import For
 from pairs.ir.quaternions import QuaternionOp
@@ -13,10 +14,25 @@ class MarkCandidateLoops(Visitor):
         super().__init__(ast)
 
     def visit_Module(self, ast_node):
-        for s in ast_node._block.stmts:
-            if s is not None:
-                if isinstance(s, For) and (not isinstance(s.min, Lit) or not isinstance(s.max, Lit)):
-                    s.mark_as_kernel_candidate()
+        possible_candidates = []
+        for stmt in ast_node._block.stmts:
+            if stmt is not None:
+                if isinstance(stmt, Branch):
+                    for branch_stmt in stmt.block_if.stmts:
+                        if isinstance(branch_stmt, For):
+                            possible_candidates.append(branch_stmt)
+
+                    if stmt.block_else is not None:
+                        for branch_stmt in stmt.block_else.stmts:
+                            if isinstance(branch_stmt, For):
+                                possible_candidates.append(branch_stmt)
+
+                if isinstance(stmt, For):
+                    possible_candidates.append(stmt)
+
+        for stmt in possible_candidates:
+            if not isinstance(stmt.min, Lit) or not isinstance(stmt.max, Lit):
+                stmt.mark_as_kernel_candidate()
 
         self.visit_children(ast_node)
 
