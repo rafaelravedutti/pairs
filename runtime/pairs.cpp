@@ -164,15 +164,11 @@ void PairsSimulation::copyArrayToDevice(Array &array, action_t action, size_t si
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isDeviceFlagSet(array_id)) {
             if(array.isStatic()) {
-                PAIRS_DEBUG("Copying static array %s to device\n", array.getName().c_str());
-                pairs::copy_static_symbol_to_device(
-                    array.getHostPointer(), array.getDevicePointer(), array.getSize());
+                PAIRS_DEBUG("Copying static array %s to device (n=%d)\n", array.getName().c_str(), size);
+                pairs::copy_static_symbol_to_device(array.getHostPointer(), array.getDevicePointer(), size);
             } else {
-                PAIRS_DEBUG("Copying array %s to device\n", array.getName().c_str());
-                pairs::copy_to_device(
-                    array.getHostPointer(),
-                    array.getDevicePointer(),
-                    (size > 0) ? size : array.getSize());
+                PAIRS_DEBUG("Copying array %s to device (n=%d)\n", array.getName().c_str(), size);
+                pairs::copy_to_device(array.getHostPointer(), array.getDevicePointer(), size);
             }
         }
     }
@@ -190,17 +186,12 @@ void PairsSimulation::copyArrayToHost(Array &array, action_t action, size_t size
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isHostFlagSet(array_id)) {
             if(array.isStatic()) {
-                PAIRS_DEBUG("Copying static array %s to host\n", array.getName().c_str());
-                pairs::copy_static_symbol_to_host(
-                    array.getDevicePointer(), array.getHostPointer(), array.getSize());
+                PAIRS_DEBUG("Copying static array %s to host (n=%d)\n", array.getName().c_str(), size);
+                pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getHostPointer(), size);
             } else {
-                PAIRS_DEBUG("Copying array %s to host\n", array.getName().c_str());
-                pairs::copy_to_host(
-                    array.getDevicePointer(),
-                    array.getHostPointer(),
-                    (size > 0) ? size : array.getSize());
+                PAIRS_DEBUG("Copying array %s to host (n=%d)\n", array.getName().c_str(), size);
+                pairs::copy_to_host(array.getDevicePointer(), array.getHostPointer(), size);
             }
-
         }
     }
 
@@ -216,11 +207,8 @@ void PairsSimulation::copyPropertyToDevice(Property &prop, action_t action, size
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to device\n", prop.getName().c_str());
-            pairs::copy_to_device(
-                prop.getHostPointer(),
-                prop.getDevicePointer(),
-                (size > 0) ? size : prop.getTotalSize());
+            PAIRS_DEBUG("Copying property %s to device (n=%d)\n", prop.getName().c_str(), size);
+            pairs::copy_to_device(prop.getHostPointer(), prop.getDevicePointer(), size);
         }
     }
 
@@ -236,11 +224,8 @@ void PairsSimulation::copyPropertyToHost(Property &prop, action_t action, size_t
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isHostFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to host\n", prop.getName().c_str());
-            pairs::copy_to_host(
-                prop.getDevicePointer(),
-                prop.getHostPointer(),
-                (size > 0) ? size : prop.getTotalSize());
+            PAIRS_DEBUG("Copying property %s to host (n=%d)\n", prop.getName().c_str(), size);
+            pairs::copy_to_host(prop.getDevicePointer(), prop.getHostPointer(), size);
         }
     }
 
@@ -258,12 +243,8 @@ void PairsSimulation::copyContactPropertyToDevice(
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !contact_prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying contact property %s to device\n", contact_prop.getName().c_str());
-            pairs::copy_to_device(
-                contact_prop.getHostPointer(),
-                contact_prop.getDevicePointer(),
-                (size > 0) ? size : contact_prop.getTotalSize());
-
+            PAIRS_DEBUG("Copying contact property %s to device (n=%d)\n", contact_prop.getName().c_str(), size);
+            pairs::copy_to_device(contact_prop.getHostPointer(), contact_prop.getDevicePointer(), size);
             contact_prop_flags->setDeviceFlag(prop_id);
         }
     }
@@ -280,12 +261,8 @@ void PairsSimulation::copyContactPropertyToHost(
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(!contact_prop_flags->isHostFlagSet(contact_prop.getId())) {
-            PAIRS_DEBUG("Copying contact property %s to host\n", contact_prop.getName().c_str());
-            pairs::copy_to_host(
-                contact_prop.getDevicePointer(),
-                contact_prop.getHostPointer(),
-                (size > 0) ? size : contact_prop.getTotalSize());
-
+            PAIRS_DEBUG("Copying contact property %s to host (n=%d)\n", contact_prop.getName().c_str(), size);
+            pairs::copy_to_host(contact_prop.getDevicePointer(), contact_prop.getHostPointer(), size);
             contact_prop_flags->setHostFlag(prop_id);
         }
     }
@@ -296,9 +273,9 @@ void PairsSimulation::copyContactPropertyToHost(
 }
 
 void PairsSimulation::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
-    PAIRS_DEBUG("Copying static array %s to device\n", feature_prop.getName().c_str());
-    pairs::copy_static_symbol_to_device(
-        feature_prop.getHostPointer(), feature_prop.getDevicePointer(), feature_prop.getArraySize());
+    const size_t n = feature_prop.getArraySize();
+    PAIRS_DEBUG("Copying feature property %s to device (n=%d)\n", feature_prop.getName().c_str(), n);
+    pairs::copy_static_symbol_to_device(feature_prop.getHostPointer(), feature_prop.getDevicePointer(), n);
 }
 
 void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {

@@ -11,6 +11,7 @@ from pairs.ir.functions import Call_Void
 from pairs.ir.loops import For, ParticleFor, While
 from pairs.ir.utils import Print
 from pairs.ir.select import Select
+from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
 from pairs.sim.lowerable import Lowerable
 
@@ -27,9 +28,9 @@ class Comm:
         self.nsend          = sim.add_array('nsend', [self.neigh_capacity], Types.Int32)
         self.send_offsets   = sim.add_array('send_offsets', [self.neigh_capacity], Types.Int32)
         self.send_buffer    = sim.add_array('send_buffer', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
-        self.send_map       = sim.add_array('send_map', [self.send_capacity], Types.Int32)
-        self.exchg_flag     = sim.add_array('exchg_flag', [sim.particle_capacity], Types.Int32)
-        self.exchg_copy_to  = sim.add_array('exchg_copy_to', [self.send_capacity], Types.Int32)
+        self.send_map       = sim.add_array('send_map', [self.send_capacity], Types.Int32, arr_sync=False)
+        self.exchg_flag     = sim.add_array('exchg_flag', [sim.particle_capacity], Types.Int32, arr_sync=False)
+        self.exchg_copy_to  = sim.add_array('exchg_copy_to', [self.send_capacity], Types.Int32, arr_sync=False)
         self.send_mult      = sim.add_array('send_mult', [self.send_capacity, sim.ndims()], Types.Int32)
         self.nrecv          = sim.add_array('nrecv', [self.neigh_capacity], Types.Int32)
         self.recv_offsets   = sim.add_array('recv_offsets', [self.neigh_capacity], Types.Int32)
@@ -116,7 +117,20 @@ class Comm:
             CommunicateSizes(self, step)
             SetCommunicationOffsets(self, step)
             PackGhostParticles(self, step, prop_list)
+
+            if self.sim._target.is_gpu():
+                send_map_size = self.nsend_all * Sizeof(self.sim, Types.Int32)
+                exchg_flag_size = self.sim.nlocal * Sizeof(self.sim, Types.Int32)
+                CopyArray(self.sim, self.send_map, Contexts.Host, Actions.ReadOnly, send_map_size)
+                CopyArray(self.sim, self.exchg_flag, Contexts.Host, Actions.ReadOnly, exchg_flag_size)
+
             RemoveExchangedParticles_part1(self)
+
+            if self.sim._target.is_gpu():
+                exchg_copy_to_size = self.nsend_all * Sizeof(self.sim, Types.Int32)
+                CopyArray(
+                    self.sim, self.exchg_copy_to, Contexts.Device, Actions.ReadOnly, exchg_copy_to_size)
+
             RemoveExchangedParticles_part2(self, prop_list)
             CommunicateData(self, step, prop_list)
             UnpackGhostParticles(self, step, prop_list)

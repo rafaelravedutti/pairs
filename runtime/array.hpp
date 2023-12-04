@@ -24,7 +24,7 @@ public:
         PAIRS_ASSERT(size_ > 0);
     }
 
-    property_t getId() { return id; }
+    array_t getId() { return id; }
     std::string getName() { return name; }
     void *getHostPointer() { return h_ptr; }
     void *getDevicePointer() { return d_ptr; }

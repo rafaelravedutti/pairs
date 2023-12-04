@@ -83,16 +83,27 @@ public:
     template<typename T_ptr>
     void reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size);
 
-    void copyArrayToDevice(array_t id, action_t action, size_t size = 0) {
+    void copyArrayToDevice(array_t id, action_t action) {
+        auto& array = getArray(id);
+        copyArrayToDevice(array, action, array.getSize());
+    }
+
+    void copyArrayToDevice(array_t id, action_t action, size_t size) {
         copyArrayToDevice(getArray(id), action, size);
     }
 
-    void copyArrayToDevice(Array &array, action_t action, size_t size = 0);
-    void copyArrayToHost(array_t id, action_t action, size_t size = 0) {
+    void copyArrayToDevice(Array &array, action_t action, size_t size);
+
+    void copyArrayToHost(array_t id, action_t action) {
+        auto& array = getArray(id);
+        copyArrayToHost(array, action, array.getSize());
+    }
+
+    void copyArrayToHost(array_t id, action_t action, size_t size) {
         copyArrayToHost(getArray(id), action, size);
     }
 
-    void copyArrayToHost(Array &array, action_t action, size_t size = 0);
+    void copyArrayToHost(Array &array, action_t action, size_t size);
 
     // Properties
     Property &getProperty(property_t id);
@@ -154,17 +165,31 @@ public:
         return static_cast<QuaternionProperty&>(getProperty(property));
     }
 
-    void copyPropertyToDevice(property_t id, action_t action, size_t size = 0) {
+    void copyPropertyToDevice(property_t id, action_t action) {
+        auto& prop = getProperty(id);
+        copyPropertyToDevice(prop, action, prop.getTotalSize());
+    }
+
+    void copyPropertyToDevice(property_t id, action_t action, size_t size) {
         copyPropertyToDevice(getProperty(id), action, size);
     }
 
-    void copyPropertyToDevice(Property &prop, action_t action, size_t size = 0);
+    void copyPropertyToDevice(Property &prop, action_t action, size_t size);
 
-    void copyPropertyToHost(property_t id, action_t action, size_t size = 0) {
+    void copyPropertyToHost(property_t id, action_t action) {
+        auto& prop = getProperty(id);
+        copyPropertyToHost(prop, action, prop.getTotalSize());
+    }
+
+    void copyPropertyToHost(property_t id, action_t action, size_t size) {
         copyPropertyToHost(getProperty(id), action, size);
     }
 
-    void copyPropertyToHost(Property &prop, action_t action, size_t size = 0);
+    void copyPropertyToHost(Property &prop, action_t action) {
+        copyPropertyToHost(prop, action, prop.getTotalSize());
+    }
+
+    void copyPropertyToHost(Property &prop, action_t action, size_t size);
 
     // Contact properties
     ContactProperty &getContactProperty(property_t id);
@@ -189,17 +214,27 @@ public:
     void reallocContactProperty(
         property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx = 1, size_t sy = 1);
 
-    void copyContactPropertyToDevice(property_t id, action_t action, size_t size = 0) {
+    void copyContactPropertyToDevice(property_t id, action_t action) {
+        auto& contact_prop = getContactProperty(id);
+        copyContactPropertyToDevice(contact_prop, action, contact_prop.getTotalSize());
+    }
+
+    void copyContactPropertyToDevice(property_t id, action_t action, size_t size) {
         copyContactPropertyToDevice(getContactProperty(id), action, size);
     }
 
-    void copyContactPropertyToDevice(ContactProperty &prop, action_t action, size_t size = 0);
+    void copyContactPropertyToDevice(ContactProperty &prop, action_t action, size_t size);
 
-    void copyContactPropertyToHost(property_t id, action_t action, size_t size = 0) {
+    void copyContactPropertyToHost(property_t id, action_t action) {
+        auto& contact_prop = getContactProperty(id);
+        copyContactPropertyToHost(contact_prop, action, contact_prop.getTotalSize());
+    }
+
+    void copyContactPropertyToHost(property_t id, action_t action, size_t size) {
         copyContactPropertyToHost(getContactProperty(id), action, size);
     }
 
-    void copyContactPropertyToHost(ContactProperty &prop, action_t action, size_t size = 0);
+    void copyContactPropertyToHost(ContactProperty &prop, action_t action, size_t size);
 
     // Feature properties
     FeatureProperty &getFeatureProperty(property_t id);

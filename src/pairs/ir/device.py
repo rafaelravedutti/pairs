@@ -30,11 +30,12 @@ class DeviceStaticRef(ASTNode):
 
 
 class CopyArray(ASTNode):
-    def __init__(self, sim, array, ctx, action):
+    def __init__(self, sim, array, ctx, action, size=None):
         super().__init__(sim)
         self._array = array
         self._ctx = ctx
         self._action = action
+        self._size = ScalarOp.inline(size)
         self.sim.add_statement(self)
 
     def array(self):
@@ -45,6 +46,9 @@ class CopyArray(ASTNode):
 
     def action(self):
         return self._action
+
+    def size(self):
+        return self._size
 
     def children(self):
         return [self._array]

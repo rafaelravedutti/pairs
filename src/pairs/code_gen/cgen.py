@@ -474,7 +474,13 @@ class CGen:
             array_name = ast_node.array().name()
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
             action = Actions.c_keyword(ast_node.action())
-            self.print(f"pairs->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
+            size = self.generate_expression(ast_node.size())
+
+            if size is not None:
+                self.print(f"pairs->copyArrayTo{ctx_suffix}({array_id}, {action}, {size}); // {array_name}")
+
+            else:
+                self.print(f"pairs->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
 
         if isinstance(ast_node, CopyContactProperty):
             prop_id = ast_node.contact_prop().id()
