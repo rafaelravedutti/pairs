@@ -29,6 +29,7 @@ from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.ir.variables import Var, DeclareVariable, Deref
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
+from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
 
@@ -115,8 +116,10 @@ class CGen:
             nprops = module.sim.properties.nprops()
             ncontactprops = module.sim.contact_properties.nprops()
             narrays = module.sim.arrays.narrays()
+            part = DomainPartitioners.c_keyword(module.sim.partitioner())
+
             self.print("int main(int argc, char **argv) {")
-            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {ncontactprops}, {narrays}, DimRanges);")
+            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {ncontactprops}, {narrays}, {part});")
 
             if module.sim._enable_profiler:
                 self.print("    LIKWID_MARKER_INIT;")

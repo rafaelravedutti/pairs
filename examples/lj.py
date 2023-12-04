@@ -49,12 +49,16 @@ psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'epsilon', pairs.real(), [sigma for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'sigma6', pairs.real(), [epsilon for i in range(ntypes * ntypes)])
+
 psim.copper_fcc_lattice(nx, ny, nz, rho, temp, ntypes)
+psim.set_domain_partitioner(pairs.regular_domain_partitioner())
+psim.compute_thermo(100)
+
 psim.reneighbor_every(20)
 #psim.compute_half()
 psim.build_neighbor_lists(cutoff_radius + skin)
-psim.compute_thermo(100)
 #psim.vtk_output(f"output/lj_{target}")
+
 psim.compute(initial_integrate, symbols={'dt': dt}, pre_step=True, skip_first=True)
 psim.compute(lj, cutoff_radius)
 psim.compute(final_integrate, symbols={'dt': dt}, skip_first=True)

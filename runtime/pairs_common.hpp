@@ -44,9 +44,10 @@ enum Timers {
     Offset = 3
 };
 
-enum DomainPartitioning {
-    DimRanges = 0,
-    BoxList,
+enum DomainPartitioners {
+    Regular = 0,
+    RegularXY = 1,
+    BoxList = 2,
 };
 
 #ifdef DEBUG

@@ -17,6 +17,7 @@ from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.domain import InitializeDomain
+from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.grid import Grid2D, Grid3D
@@ -76,8 +77,9 @@ class Simulation:
         self.reneighbor_frequency = 1
         self.vtk_file = None
         self.vtk_frequency = 0
+        self._dom_part = None
+        self._partitioner = None
         self._target = None
-        self._dom_part = DimensionRanges(self)
         self._pbc = [True for _ in range(dims)]
         self._use_contact_history = use_contact_history
         self._contact_history = ContactHistory(self) if use_contact_history else None
@@ -86,6 +88,18 @@ class Simulation:
         self._apply_list = None
         self._enable_profiler = False
         self._compute_thermo = 0
+
+    def set_domain_partitioner(self, partitioner):
+        self._partitioner = partitioner
+
+        if partitioner in (DomainPartitioners.Regular, DomainPartitioners.RegularXY):
+            self._dom_part = DimensionRanges(self)
+
+        else:
+            raise Exception("Invalid domain partitioner.")
+
+    def partitioner(self):
+        return self._partitioner
 
     def enable_profiler(self):
         self._enable_profiler = True

@@ -10,6 +10,7 @@ namespace pairs {
 class Regular6DStencil : public DomainPartitioner {
 private:
     int world_size, rank;
+    int *partition_flags;
     int *nranks;
     int *prev;
     int *next;
@@ -19,7 +20,8 @@ private:
     real_t *subdom_max;
 
 public:
-    Regular6DStencil(real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) :
+    Regular6DStencil(
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, const int part[]) :
         DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax) {
 
         nranks = new int[ndims];
@@ -29,6 +31,11 @@ public:
         pbc_next = new int[ndims];
         subdom_min = new real_t[ndims];
         subdom_max = new real_t[ndims];
+        partition_flags = new int[ndims];
+
+        for(int d = 0; d < ndims; d++) {
+            partition_flags[d] = part[d];
+        }
     }
 
     ~Regular6DStencil() {

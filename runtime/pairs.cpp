@@ -15,8 +15,12 @@ void PairsSimulation::initDomain(
     int *argc, char ***argv,
     real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
 
-    if(dom_part_type == DimRanges) {
-        dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax);
+    if(dom_part_type == Regular) {
+        const int flags[] = {1, 1, 1};
+        dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
+    } else if(dom_part_type == RegularXY) {
+        const int flags[] = {1, 1, 0};
+        dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
     } else {
         PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");
     }

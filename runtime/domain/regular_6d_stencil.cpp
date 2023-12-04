@@ -24,12 +24,13 @@ void Regular6DStencil::setConfig() {
         }
     }
 
-    for(int i = 1; i < world_size; i++) {
-        if(world_size % i == 0) {
-            const int rem_yz = world_size / i;
-            for(int j = 1; j < rem_yz; j++) {
-                if(rem_yz % j == 0) {
-                    const int k = rem_yz / j;
+    const int imax = partition_flags[0] ? world_size : 1;
+    const int jmax = partition_flags[1] ? world_size : 1;
+    const int kmax = partition_flags[2] ? world_size : 1;
+    for(int i = 1; i <= imax; i++) {
+        for(int j = 1; j <= jmax; j++) {
+            for(int k = 1; k <= kmax; k++) {
+                if((i * j * k) == world_size) {
                     const real_t surf = (area[0] / i / j) + (area[1] / i / k) + (area[2] / j / k);
                     if(surf < best_surf) {
                         nranks[0] = i;

@@ -161,6 +161,7 @@ psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0
 psim.add_contact_property('impact_velocity_magnitude', pairs.real(), 0.0)
 
 psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
+psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
 psim.pbc([True, True, False])
 psim.read_particle_data(
     "data/spheres.input",

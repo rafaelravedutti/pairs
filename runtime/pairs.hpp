@@ -28,16 +28,16 @@ class PairsSimulation {
 private:
     Regular6DStencil *dom_part;
     //DomainPartitioner *dom_part;
+    DomainPartitioners dom_part_type;
     std::vector<Property> properties;
     std::vector<ContactProperty> contact_properties;
     std::vector<FeatureProperty> feature_properties;
     std::vector<Array> arrays;
     DeviceFlags *prop_flags, *contact_prop_flags, *array_flags;
-    DomainPartitioning dom_part_type;
     Timers<double> *timers;
 
 public:
-    PairsSimulation(int nprops_, int ncontactprops_, int narrays_, DomainPartitioning dom_part_type_) {
+    PairsSimulation(int nprops_, int ncontactprops_, int narrays_, DomainPartitioners dom_part_type_) {
         dom_part_type = dom_part_type_;
         prop_flags = new DeviceFlags(nprops_);
         contact_prop_flags = new DeviceFlags(ncontactprops_);

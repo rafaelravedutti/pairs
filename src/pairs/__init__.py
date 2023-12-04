@@ -1,6 +1,7 @@
 from pairs.ir.types import Types
 from pairs.code_gen.cgen import CGen
 from pairs.code_gen.target import Target
+from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.shapes import Shapes
 from pairs.sim.simulation import Simulation
 
@@ -43,3 +44,9 @@ def sphere():
 
 def halfspace():
     return Shapes.Halfspace
+
+def regular_domain_partitioner():
+    return DomainPartitioners.Regular
+
+def regular_domain_partitioner_xy():
+    return DomainPartitioners.RegularXY
