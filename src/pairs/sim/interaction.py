@@ -266,7 +266,7 @@ class ParticleInteraction(Lowerable):
                             Assign(self.sim, prop[i], prop[i] + reduction)
 
                         else:
-                            Assign(self.sim, prop[i], reduction)
+                            Assign(self.sim, prop[i], prop[i] + reduction)
 
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")
