@@ -68,7 +68,6 @@ def linear_spring_dashpot(i, j):
 
     impact_velocity_magnitude[i, j] = impact_magnitude
     is_sticking[i, j] = n_sticking
-    contact_used[i][j] = 1
 
     fTabs = min(fTLS_len, f_friction_abs)
     fT = fTabs * t

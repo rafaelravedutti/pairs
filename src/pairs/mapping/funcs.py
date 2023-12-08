@@ -232,31 +232,40 @@ class BuildParticleIR(ast.NodeVisitor):
         value = self.visit(node.value)
         index = self.visit(node.slice)
 
-        if isinstance(value, ContactProperty) and self.sim.neighbor_lists is None:
+        if isinstance(value, ContactProperty):
             i = index[0]
             j = index[1]
+            contact_used = self.sim._contact_history.contact_used
 
-            if '__contact_id__' not in self.ctx_symbols:
-                particle_uid = self.sim.particle_uid
-                contact_lists = self.sim._contact_history.contact_lists
-                num_contacts = self.sim._contact_history.num_contacts
-                contact_id = self.sim.add_temp_var(-1)
+            if self.sim.neighbor_lists is None:
+                if '__contact_id__' not in self.ctx_symbols:
+                    particle_uid = self.sim.particle_uid
+                    contact_lists = self.sim._contact_history.contact_lists
+                    num_contacts = self.sim._contact_history.num_contacts
+                    contact_id = self.sim.add_temp_var(-1)
 
-                for k in For(self.sim, 0, num_contacts[i]):
-                    for _ in Filter(self.sim, ScalarOp.cmp(contact_lists[i][k], particle_uid[j])):
-                        Assign(self.sim, contact_id, k)
+                    for k in For(self.sim, 0, num_contacts[i]):
+                        for _ in Filter(self.sim, ScalarOp.cmp(contact_lists[i][k], particle_uid[j])):
+                            Assign(self.sim, contact_id, k)
 
-                for _ in Filter(self.sim, ScalarOp.cmp(contact_id, -1)):
-                    last_contact = num_contacts[i]
-                    Assign(self.sim, contact_id, last_contact)
-                    Assign(self.sim, num_contacts[i], last_contact + 1)
+                    for _ in Filter(self.sim, ScalarOp.cmp(contact_id, -1)):
+                        last_contact = num_contacts[i]
+                        Assign(self.sim, contact_id, last_contact)
+                        Assign(self.sim, num_contacts[i], last_contact + 1)
+                        Assign(self.sim, contact_lists[i][last_contact], particle_uid[j])
 
-                    for contact_prop in self.sim.contact_properties:
-                        Assign(self.sim, contact_prop[i, last_contact], contact_prop.default())
+                        for contact_prop in self.sim.contact_properties:
+                            Assign(self.sim, contact_prop[i, last_contact], contact_prop.default())
 
-                self.ctx_symbols.update({'__contact_id__': contact_id})
+                    Assign(self.sim, contact_used[i][contact_id], 1)
+                    self.ctx_symbols.update({'__contact_id__': contact_id})
 
-            return value[i, self.ctx_symbols['__contact_id__']]
+                return value[i, self.ctx_symbols['__contact_id__']]
+
+            else:
+                if '__contact_id__' not in self.ctx_symbols:
+                    Assign(self.sim, contact_used[i][j], 1)
+                    self.ctx_symbols.update({'__contact_id__': j})
 
         return value[index]
 
