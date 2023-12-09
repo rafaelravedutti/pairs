@@ -18,25 +18,29 @@ from pairs.sim.lowerable import Lowerable
 
 class Comm:
     def __init__(self, sim, dom_part):
-        self.sim = sim
-        self.dom_part = dom_part
-        self.nsend_all      = sim.add_var('nsend_all', Types.Int32)
-        self.send_capacity  = sim.add_var('send_capacity', Types.Int32, 80000)
-        self.recv_capacity  = sim.add_var('recv_capacity', Types.Int32, 80000)
-        self.elem_capacity  = sim.add_var('elem_capacity', Types.Int32, 40)
-        self.neigh_capacity = sim.add_var('neigh_capacity', Types.Int32, 10)
-        self.nsend          = sim.add_array('nsend', [self.neigh_capacity], Types.Int32)
-        self.send_offsets   = sim.add_array('send_offsets', [self.neigh_capacity], Types.Int32)
-        self.send_buffer    = sim.add_array('send_buffer', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
-        self.send_map       = sim.add_array('send_map', [self.send_capacity], Types.Int32, arr_sync=False)
-        self.exchg_flag     = sim.add_array('exchg_flag', [sim.particle_capacity], Types.Int32, arr_sync=False)
-        self.exchg_copy_to  = sim.add_array('exchg_copy_to', [self.send_capacity], Types.Int32, arr_sync=False)
-        self.send_mult      = sim.add_array('send_mult', [self.send_capacity, sim.ndims()], Types.Int32)
-        self.nrecv          = sim.add_array('nrecv', [self.neigh_capacity], Types.Int32)
-        self.recv_offsets   = sim.add_array('recv_offsets', [self.neigh_capacity], Types.Int32)
-        self.recv_buffer    = sim.add_array('recv_buffer', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
-        self.recv_map       = sim.add_array('recv_map', [self.recv_capacity], Types.Int32)
-        self.recv_mult      = sim.add_array('recv_mult', [self.recv_capacity, sim.ndims()], Types.Int32)
+        self.sim              = sim
+        self.dom_part         = dom_part
+        self.nsend_all        = sim.add_var('nsend_all', Types.Int32)
+        self.send_capacity    = sim.add_var('send_capacity', Types.Int32, 200000)
+        self.recv_capacity    = sim.add_var('recv_capacity', Types.Int32, 200000)
+        self.elem_capacity    = sim.add_var('elem_capacity', Types.Int32, 40)
+        self.neigh_capacity   = sim.add_var('neigh_capacity', Types.Int32, 10)
+        self.nsend            = sim.add_array('nsend', [self.neigh_capacity], Types.Int32)
+        self.send_offsets     = sim.add_array('send_offsets', [self.neigh_capacity], Types.Int32)
+        self.send_buffer      = sim.add_array('send_buffer', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+        self.send_map         = sim.add_array('send_map', [self.send_capacity], Types.Int32, arr_sync=False)
+        self.exchg_flag       = sim.add_array('exchg_flag', [sim.particle_capacity], Types.Int32, arr_sync=False)
+        self.exchg_copy_to    = sim.add_array('exchg_copy_to', [self.send_capacity], Types.Int32, arr_sync=False)
+        self.send_mult        = sim.add_array('send_mult', [self.send_capacity, sim.ndims()], Types.Int32)
+        self.nrecv            = sim.add_array('nrecv', [self.neigh_capacity], Types.Int32)
+        self.recv_offsets     = sim.add_array('recv_offsets', [self.neigh_capacity], Types.Int32)
+        self.recv_buffer      = sim.add_array('recv_buffer', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+        self.recv_map         = sim.add_array('recv_map', [self.recv_capacity], Types.Int32)
+        self.recv_mult        = sim.add_array('recv_mult', [self.recv_capacity, sim.ndims()], Types.Int32)
+        self.nsend_contact    = sim.add_array('nsend_contact', [self.neigh_capacity], Types.Int32)
+        self.nrecv_contact    = sim.add_array('nrecv_contact', [self.neigh_capacity], Types.Int32)
+        self.contact_soffsets = sim.add_array('contact_soffsets', [self.neigh_capacity], Types.Int32)
+        self.contact_roffsets = sim.add_array('contact_roffsets', [self.neigh_capacity], Types.Int32)
 
     @pairs_inline
     def synchronize(self):
@@ -108,6 +112,10 @@ class Comm:
                     Assign(self.sim, self.nrecv[j], 0)
                     Assign(self.sim, self.send_offsets[j], 0)
                     Assign(self.sim, self.recv_offsets[j], 0)
+                    Assign(self.sim, self.nsend_contact[j], 0)
+                    Assign(self.sim, self.nrecv_contact[j], 0)
+                    Assign(self.sim, self.contact_soffsets[j], 0)
+                    Assign(self.sim, self.contact_soffsets[j], 0)
 
             if self.sim._target.is_gpu():
                 CopyArray(self.sim, self.nsend, Contexts.Device, Actions.Ignore)
@@ -134,6 +142,12 @@ class Comm:
             RemoveExchangedParticles_part2(self, prop_list)
             CommunicateData(self, step, prop_list)
             UnpackGhostParticles(self, step, prop_list)
+
+            if self.sim._use_contact_history:
+                PackContactHistoryData(self, step)
+                CommunicateContactHistoryData(self, step)
+                UnpackContactHistoryData(self, step)
+
             ChangeSizeAfterExchange(self, step)
 
 
@@ -166,6 +180,25 @@ class CommunicateData(Lowerable):
                   [self.step, elem_size,
                    self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
                    self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
+
+
+class CommunicateContactHistoryData(Lowerable):
+    def __init__(self, comm, step):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.sim.add_statement(self)
+
+    @pairs_inline
+    def lower(self):
+        nelems_per_contact = sum([Types.number_of_elements(self.sim, cp.type()) \
+                                  for cp in self.sim.contact_properties]) + 1
+
+        Call_Void(self.sim,
+                  "pairs->communicateContactHistoryData",
+                  [self.step, nelems_per_contact,
+                   self.comm.send_buffer, self.comm.contact_soffsets, self.comm.nsend_contact,
+                   self.comm.recv_buffer, self.comm.contact_roffsets, self.comm.nrecv_contact])
 
 
 class CommunicateAllData(Lowerable):
@@ -456,6 +489,20 @@ class RemoveExchangedParticles_part2(Lowerable):
                     else:
                         Assign(self.sim, p[dst], p[src])
 
+                if self.sim._use_contact_history:
+                    contact_lists = self.sim._contact_history.contact_lists
+                    num_contacts = self.sim._contact_history.num_contacts
+                    contact_used = self.sim._contact_history.contact_used
+
+                    for k in For(self.sim, 0, num_contacts[src]):
+                        Assign(self.sim, contact_lists[dst][k], contact_lists[src][k])
+                        Assign(self.sim, contact_used[dst][k], contact_used[src][k])
+
+                        for contact_prop in self.sim.contact_properties:
+                            Assign(self.sim, contact_prop[dst, k], contact_prop[src, k])
+
+                    Assign(self.sim, num_contacts[dst], num_contacts[src])
+
         Assign(self.sim, self.sim.nlocal, self.sim.nlocal - self.comm.nsend_all)
 
 
@@ -471,3 +518,133 @@ class ChangeSizeAfterExchange(Lowerable):
         self.sim.module_name(f"change_size_after_exchange{self.step}")
         self.sim.check_resize(self.sim.particle_capacity, self.sim.nlocal)
         Assign(self.sim, self.sim.nlocal, self.sim.nlocal + sum([self.comm.nrecv[j] for j in self.comm.dom_part.step_indexes(self.step)]))
+
+
+class PackContactHistoryData(Lowerable):
+    def __init__(self, comm, step):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.sim.add_statement(self)
+
+    @pairs_device_block
+    def lower(self):
+        send_buffer = self.comm.send_buffer
+        send_buffer.set_stride(1, 1)
+        contact_soffsets = self.comm.contact_soffsets
+        nsend_contact = self.comm.nsend_contact
+        contact_lists = self.sim._contact_history.contact_lists
+        num_contacts = self.sim._contact_history.num_contacts
+        self.sim.module_name(f"pack_contact_history{self.step}")
+        nelems_per_contact = sum([Types.number_of_elements(self.sim, cp.type()) \
+                                  for cp in self.sim.contact_properties]) + 1
+
+        previous_step = None
+        for step_index in self.comm.dom_part.step_indexes(self.step):
+            offset = 0 if previous_step is None else \
+                     contact_soffsets[previous_step] + nsend_contact[previous_step]
+
+            Assign(self.sim, contact_soffsets[step_index], offset)
+
+            start = self.comm.send_offsets[step_index]
+            nparticles = self.comm.nsend[step_index]
+
+            Assign(self.sim, nsend_contact[step_index], nparticles * 2)
+
+            for i in For(self.sim, start, ScalarOp.inline(start + nparticles)):
+                buf_i = i - start
+                m = self.comm.send_map[i]
+                ncontacts = num_contacts[m]
+                contact_total_elems = ncontacts * nelems_per_contact
+                soff = contact_soffsets[step_index]
+                offset = AtomicAdd(self.sim, self.comm.nsend_contact[step_index], contact_total_elems)
+
+                Assign(self.sim, send_buffer[soff][buf_i], Cast(self.sim, ncontacts, Types.Real))
+                Assign(self.sim, send_buffer[soff][buf_i + nparticles], Cast(self.sim, offset, Types.Real))
+
+                for k in For(self.sim, 0, ncontacts):
+                    disp = k * nelems_per_contact
+                    cp_offset = 1
+
+                    Assign(self.sim, send_buffer[soff][offset + 0],
+                                     Cast(self.sim, contact_lists[m][k], Types.Real))
+
+                    for contact_prop in self.sim.contact_properties:
+                        if not Types.is_scalar(contact_prop.type()):
+                            nelems = Types.number_of_elements(self.sim, contact_prop.type())
+                            for e in range(nelems):
+                                Assign(self.sim, send_buffer[soff][offset + disp + cp_offset + e],
+                                                 contact_prop[m, k][e])
+
+                            cp_offset += nelems
+
+                        else:
+                            cast_fn = lambda x: x if contact_prop.type() == Types.Real else \
+                                                Cast(self.sim, x, Types.Real)
+
+                            Assign(self.sim, send_buffer[soff][offset + disp + cp_offset],
+                                             cast_fn(contact_prop[m, k]))
+                            cp_offset += 1
+
+            previous_step = step_index
+
+
+class UnpackContactHistoryData(Lowerable):
+    def __init__(self, comm, step):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.sim.add_statement(self)
+
+    @pairs_device_block
+    def lower(self):
+        nlocal = self.sim.nlocal
+        recv_buffer = self.comm.recv_buffer
+        recv_buffer.set_stride(1, 1)
+        contact_roffsets = self.comm.contact_roffsets
+        contact_lists = self.sim._contact_history.contact_lists
+        num_contacts = self.sim._contact_history.num_contacts
+        contact_used = self.sim._contact_history.contact_used
+        self.sim.module_name(f"unpack_contact_history{self.step}")
+
+        step_indexes = self.comm.dom_part.step_indexes(self.step)
+        start = self.comm.recv_offsets[step_indexes[0]]
+        nparticles = sum([self.comm.nrecv[j] for j in step_indexes])
+        nelems_per_contact = sum([Types.number_of_elements(self.sim, cp.type()) \
+                                  for cp in self.sim.contact_properties]) + 1
+
+        for step_index in self.comm.dom_part.step_indexes(self.step):
+            start = self.comm.recv_offsets[step_index]
+            nparticles = self.comm.nrecv[step_index]
+
+            for i in For(self.sim, start, ScalarOp.inline(start + nparticles)):
+                buf_i = i - start
+                roff = contact_roffsets[step_index]
+                ncontacts = Cast(self.sim, recv_buffer[roff][buf_i], Types.Int32)
+                offset = Cast(self.sim, recv_buffer[roff][buf_i + nparticles], Types.Int32)
+
+                Assign(self.sim, num_contacts[nlocal + i], ncontacts)
+
+                for k in For(self.sim, 0, ncontacts):
+                    disp = k * nelems_per_contact
+                    cp_offset = 0
+
+                    Assign(self.sim, contact_lists[nlocal + i][k], recv_buffer[roff][offset + 0])
+                    Assign(self.sim, contact_used[nlocal + i][k], 1)
+
+                    for contact_prop in self.sim.contact_properties:
+                        if not Types.is_scalar(contact_prop.type()):
+                            nelems = Types.number_of_elements(self.sim, contact_prop.type())
+                            for e in range(nelems):
+                                Assign(self.sim, contact_prop[nlocal + i, k][e],
+                                                 recv_buffer[roff][offset + disp + cp_offset + e])
+
+                            cp_offset += nelems
+
+                        else:
+                            cast_fn = lambda x: x if contact_prop.type() == Types.Real else \
+                                                Cast(self.sim, x, contact_prop.type())
+
+                            Assign(self.sim, contact_prop[nlocal + i, k],
+                                             cast_fn(recv_buffer[roff][offset + disp + cp_offset]))
+                            cp_offset += 1

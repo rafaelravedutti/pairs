@@ -275,6 +275,11 @@ public:
         const real_t *send_buf, const int *send_offsets, const int *nsend,
         real_t *recv_buf, const int *recv_offsets, const int *nrecv);
 
+    void communicateContactHistoryData(
+        int dim, int nelems_per_contact,
+        const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
+        real_t *recv_buf, int *contact_roffsets, int *nrecv_contact);
+
     void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]);
 
     // Device functions
