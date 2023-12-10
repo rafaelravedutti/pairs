@@ -262,11 +262,7 @@ class ParticleInteraction(Lowerable):
                             prop_reductions[prop] = prop_reductions[prop] + reduction
 
                     for prop, reduction in prop_reductions.items():
-                        if self.sim._compute_half:
-                            Assign(self.sim, prop[i], prop[i] + reduction)
-
-                        else:
-                            Assign(self.sim, prop[i], prop[i] + reduction)
+                        Assign(self.sim, prop[i], prop[i] + reduction)
 
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")
