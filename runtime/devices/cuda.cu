@@ -42,6 +42,18 @@ __host__ void copy_to_host(const void *d_ptr, void *h_ptr, size_t count) {
     CUDA_ASSERT(cudaMemcpy(h_ptr, d_ptr, count, cudaMemcpyDeviceToHost));
 }
 
+__host__ void copy_slice_to_device(const void *h_ptr, void *d_ptr, size_t offset, size_t count) {
+    void *d_ptr_start = ((char *) d_ptr) + offset;
+    void *h_ptr_start = ((char *) h_ptr) + offset;
+    CUDA_ASSERT(cudaMemcpy(d_ptr_start, h_ptr_start, count, cudaMemcpyHostToDevice));
+}
+
+__host__ void copy_slice_to_host(const void *d_ptr, void *h_ptr, size_t offset, size_t count) {
+    void *d_ptr_start = ((char *) d_ptr) + offset;
+    void *h_ptr_start = ((char *) h_ptr) + offset;
+    CUDA_ASSERT(cudaMemcpy(h_ptr_start, d_ptr_start, count, cudaMemcpyDeviceToHost));
+}
+
 __host__ void copy_static_symbol_to_device(void *h_ptr, const void *d_ptr, size_t count) {
     CUDA_ASSERT(cudaMemcpyToSymbol(d_ptr, h_ptr, count));
 }

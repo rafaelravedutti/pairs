@@ -93,6 +93,7 @@ public:
     }
 
     void copyArrayToDevice(Array &array, action_t action, size_t size);
+    void copyArraySliceToDevice(Array &array, action_t action, size_t offset, size_t size);
 
     void copyArrayToHost(array_t id, action_t action) {
         auto& array = getArray(id);
@@ -104,6 +105,7 @@ public:
     }
 
     void copyArrayToHost(Array &array, action_t action, size_t size);
+    void copyArraySliceToHost(Array &array, action_t action, size_t offset, size_t size);
 
     // Properties
     Property &getProperty(property_t id);

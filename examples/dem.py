@@ -122,9 +122,7 @@ minDiameter_SI = diameter_SI * 0.9
 maxDiameter_SI = diameter_SI * 1.1
 linkedCellWidth = 1.01 * maxDiameter_SI
 
-skin = 0.0
 ntypes = 1
-
 lnDryResCoeff = math.log(restitutionCoefficient);
 frictionStatic = 0.0
 frictionDynamic = frictionCoefficient
@@ -182,8 +180,7 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
                                      'infinity': math.inf })
 
 #psim.compute_half()
-#psim.build_cell_lists(linkedCellWidth)
-psim.build_neighbor_lists(linkedCellWidth + skin)
+psim.build_cell_lists(linkedCellWidth)
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
 psim.compute(gravity,
@@ -193,7 +190,7 @@ psim.compute(gravity,
                       'pi': math.pi })
 
 psim.compute(linear_spring_dashpot,
-             linkedCellWidth + skin,
+             linkedCellWidth,
              symbols={'dt': dt_SI,
                       'pi': math.pi,
                       'kappa': kappa,
