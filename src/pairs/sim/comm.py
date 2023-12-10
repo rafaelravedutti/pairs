@@ -545,14 +545,19 @@ class PackContactHistoryData(Lowerable):
                      contact_soffsets[previous_step] + nsend_contact[previous_step]
 
             Assign(self.sim, contact_soffsets[step_index], offset)
+            Assign(self.sim, nsend_contact[step_index], self.comm.nsend[step_index] * 2)
 
-            start = self.comm.send_offsets[step_index]
-            nparticles = self.comm.nsend[step_index]
+            if self.sim._target.is_gpu():
+                CopyArray(self.sim, contact_soffsets, Contexts.Device, Actions.Ignore)
+                CopyArray(self.sim, nsend_contact, Contexts.Device, Actions.Ignore)
 
-            Assign(self.sim, nsend_contact[step_index], nparticles * 2)
+            for i in For(self.sim,
+                         self.comm.send_offsets[step_index],
+                         ScalarOp.inline(
+                            self.comm.send_offsets[step_index] + self.comm.nsend[step_index])):
 
-            for i in For(self.sim, start, ScalarOp.inline(start + nparticles)):
-                buf_i = i - start
+                nparticles = self.comm.nsend[step_index]
+                buf_i = i - self.comm.send_offsets[step_index]
                 m = self.comm.send_map[i]
                 ncontacts = num_contacts[m]
                 contact_total_elems = ncontacts * nelems_per_contact
@@ -608,17 +613,19 @@ class UnpackContactHistoryData(Lowerable):
         self.sim.module_name(f"unpack_contact_history{self.step}")
 
         step_indexes = self.comm.dom_part.step_indexes(self.step)
-        start = self.comm.recv_offsets[step_indexes[0]]
-        nparticles = sum([self.comm.nrecv[j] for j in step_indexes])
         nelems_per_contact = sum([Types.number_of_elements(self.sim, cp.type()) \
                                   for cp in self.sim.contact_properties]) + 1
 
         for step_index in self.comm.dom_part.step_indexes(self.step):
             start = self.comm.recv_offsets[step_index]
-            nparticles = self.comm.nrecv[step_index]
 
-            for i in For(self.sim, start, ScalarOp.inline(start + nparticles)):
-                buf_i = i - start
+            for i in For(self.sim,
+                         self.comm.recv_offsets[step_index],
+                         ScalarOp.inline(
+                            self.comm.recv_offsets[step_index] + self.comm.nrecv[step_index])):
+
+                nparticles = self.comm.nrecv[step_index]
+                buf_i = i - self.comm.recv_offsets[step_index]
                 roff = contact_roffsets[step_index]
                 ncontacts = Cast(self.sim, recv_buffer[roff][buf_i], Types.Int32)
                 offset = Cast(self.sim, recv_buffer[roff][buf_i + nparticles], Types.Int32)

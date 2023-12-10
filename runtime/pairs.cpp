@@ -425,7 +425,6 @@ void PairsSimulation::communicateContactHistoryData(
     this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * sizeof(real_t));
     copyArrayToDevice(contact_roffsets_id, Ignore);
-    copyArrayToDevice(nrecv_contact_id, Ignore);
     this->getTimers()->stop(DeviceTransfers);
 }
 
