@@ -24,19 +24,27 @@ void Regular6DStencil::setConfig() {
         }
     }
 
-    const int imax = partition_flags[0] ? world_size : 1;
-    const int jmax = partition_flags[1] ? world_size : 1;
-    const int kmax = partition_flags[2] ? world_size : 1;
-    for(int i = 1; i <= imax; i++) {
-        for(int j = 1; j <= jmax; j++) {
-            for(int k = 1; k <= kmax; k++) {
-                if((i * j * k) == world_size) {
-                    const real_t surf = (area[0] / i / j) + (area[1] / i / k) + (area[2] / j / k);
-                    if(surf < best_surf) {
-                        nranks[0] = i;
-                        nranks[1] = j;
-                        nranks[2] = k;
-                        best_surf = surf;
+    for (int i = 1; i <= world_size; i++) {
+        if (world_size % i == 0) {
+            const int rem_yz = world_size / i;
+
+            for (int j = 1; j <= rem_yz; j++) {
+                if (rem_yz % j == 0) {
+                    const int k = rem_yz / j;
+
+                    // Check flags for each dimension
+                    if((partition_flags[0] || i == 1) &&
+                       (partition_flags[1] || j == 1) &&
+                       (partition_flags[2] || k == 1)) {
+
+                        const real_t surf = (area[0] / i / j) + (area[1] / i / k) + (area[2] / j / k);
+
+                        if (surf < best_surf) {
+                            nranks[0] = i;
+                            nranks[1] = j;
+                            nranks[2] = k;
+                            best_surf = surf;
+                        }
                     }
                 }
             }
@@ -124,43 +132,57 @@ void Regular6DStencil::communicateData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    std::vector<MPI_Request> send_requests(ndims * 2, MPI_REQUEST_NULL);
-    std::vector<MPI_Request> recv_requests(ndims * 2, MPI_REQUEST_NULL);
+    //MPI_Request recv_requests[2];
+    //MPI_Request send_requests[2];
     const real_t *send_prev = &send_buf[send_offsets[dim * 2 + 0] * elem_size];
     const real_t *send_next = &send_buf[send_offsets[dim * 2 + 1] * elem_size];
     real_t *recv_prev = &recv_buf[recv_offsets[dim * 2 + 0] * elem_size];
     real_t *recv_next = &recv_buf[recv_offsets[dim * 2 + 1] * elem_size];
 
-    if (prev[dim] != rank) {
-        MPI_Isend(
+    if(prev[dim] != rank) {
+        MPI_Sendrecv(
             send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
-            MPI_COMM_WORLD, &send_requests[0]);
+            recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
+        /*
         MPI_Irecv(
             recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
             MPI_COMM_WORLD, &recv_requests[0]);
+
+        MPI_Isend(
+            send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
+            MPI_COMM_WORLD, &send_requests[0]);
+        */
     } else {
-        for (int i = 0; i < nsend[dim * 2 + 0] * elem_size; i++) {
+        for(int i = 0; i < nsend[dim * 2 + 0] * elem_size; i++) {
             recv_prev[i] = send_prev[i];
         }
     }
 
-    if (next[dim] != rank) {
-        MPI_Isend(
+    if(next[dim] != rank) {
+        MPI_Sendrecv(
             send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
-            MPI_COMM_WORLD, &send_requests[1]);
+            recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
+        /*
         MPI_Irecv(
             recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
             MPI_COMM_WORLD, &recv_requests[1]);
+
+        MPI_Isend(
+            send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
+            MPI_COMM_WORLD, &send_requests[1]);
+        */
     } else {
-        for (int i = 0; i < nsend[dim * 2 + 1] * elem_size; i++) {
+        for(int i = 0; i < nsend[dim * 2 + 1] * elem_size; i++) {
             recv_next[i] = send_next[i];
         }
     }
 
-    MPI_Waitall(2, send_requests.data(), MPI_STATUSES_IGNORE);
-    MPI_Waitall(2, recv_requests.data(), MPI_STATUSES_IGNORE);
+    //MPI_Waitall(2, recv_requests, MPI_STATUSES_IGNORE);
+    //MPI_Waitall(2, send_requests, MPI_STATUSES_IGNORE);
 }
 
 void Regular6DStencil::communicateAllData(
@@ -168,8 +190,8 @@ void Regular6DStencil::communicateAllData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    std::vector<MPI_Request> send_requests(ndims * 2, MPI_REQUEST_NULL);
-    std::vector<MPI_Request> recv_requests(ndims * 2, MPI_REQUEST_NULL);
+    //std::vector<MPI_Request> send_requests(ndims * 2, MPI_REQUEST_NULL);
+    //std::vector<MPI_Request> recv_requests(ndims * 2, MPI_REQUEST_NULL);
 
     for (int d = 0; d < ndims; d++) {
         const real_t *send_prev = &send_buf[send_offsets[d * 2 + 0] * elem_size];
@@ -178,6 +200,12 @@ void Regular6DStencil::communicateAllData(
         real_t *recv_next = &recv_buf[recv_offsets[d * 2 + 1] * elem_size];
 
         if (prev[d] != rank) {
+            MPI_Sendrecv(
+                send_prev, nsend[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
+                recv_prev, nrecv[d * 2 + 0] * elem_size, MPI_DOUBLE, next[d], 0,
+                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            /*
             MPI_Isend(
                 send_prev, nsend[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
                 MPI_COMM_WORLD, &send_requests[d * 2 + 0]);
@@ -185,6 +213,7 @@ void Regular6DStencil::communicateAllData(
             MPI_Irecv(
                 recv_prev, nrecv[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
                 MPI_COMM_WORLD, &recv_requests[d * 2 + 0]);
+            */
         } else {
             for (int i = 0; i < nsend[d * 2 + 0] * elem_size; i++) {
                 recv_prev[i] = send_prev[i];
@@ -192,6 +221,12 @@ void Regular6DStencil::communicateAllData(
         }
 
         if (next[d] != rank) {
+            MPI_Sendrecv(
+                send_next, nsend[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
+                recv_next, nrecv[d * 2 + 1] * elem_size, MPI_DOUBLE, prev[d], 0,
+                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            /*
             MPI_Isend(
                 send_next, nsend[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
                 MPI_COMM_WORLD, &send_requests[d * 2 + 1]);
@@ -199,6 +234,7 @@ void Regular6DStencil::communicateAllData(
             MPI_Irecv(
                 recv_next, nrecv[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
                 MPI_COMM_WORLD, &recv_requests[d * 2 + 1]);
+            */
         } else {
             for (int i = 0; i < nsend[d * 2 + 1] * elem_size; i++) {
                 recv_next[i] = send_next[i];
@@ -206,8 +242,8 @@ void Regular6DStencil::communicateAllData(
         }
     }
 
-    MPI_Waitall(ndims * 2, send_requests.data(), MPI_STATUSES_IGNORE);
-    MPI_Waitall(ndims * 2, recv_requests.data(), MPI_STATUSES_IGNORE);
+    //MPI_Waitall(ndims * 2, send_requests.data(), MPI_STATUSES_IGNORE);
+    //MPI_Waitall(ndims * 2, recv_requests.data(), MPI_STATUSES_IGNORE);
 }
 
 }

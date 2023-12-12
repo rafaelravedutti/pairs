@@ -1,4 +1,5 @@
 #include <iostream>
+#include <mpi.h>
 
 #pragma once
 
@@ -52,7 +53,14 @@ enum DomainPartitioners {
 
 #ifdef DEBUG
 #   include <assert.h>
-#   define PAIRS_DEBUG(...)     fprintf(stderr, __VA_ARGS__)
+#   define PAIRS_DEBUG(...)     {                                                   \
+                                    int __rank;                                     \
+                                    MPI_Comm_rank(MPI_COMM_WORLD, &__rank);         \
+                                    if(__rank == 0) {                               \
+                                       fprintf(stderr, __VA_ARGS__);                \
+                                    }                                               \
+                                }
+
 #   define PAIRS_ASSERT(a)      assert(a)
 #   define PAIRS_EXCEPTION(a)
 #else
