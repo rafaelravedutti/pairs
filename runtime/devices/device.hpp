@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cstddef>
 
+#include "../pairs_common.hpp"
+
 #pragma once
 
 #ifndef PAIRS_TARGET_CUDA
@@ -27,6 +29,12 @@ inline __host__ int host_atomic_add(int *addr, int val) {
     return *addr - val;
 }
 
+inline __host__ real_t host_atomic_add(real_t *addr, real_t val) {
+    real_t tmp = *addr;
+    *addr += val;
+    return tmp;
+}
+
 inline __host__ int host_atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
     const int add_res = *addr + val;
     if(add_res >= capacity) {
@@ -38,7 +46,27 @@ inline __host__ int host_atomic_add_resize_check(int *addr, int val, int *resize
 }
 
 #ifdef PAIRS_TARGET_CUDA
+#if __CUDA_ARCH__ < 600
+__device__ double atomicAdd_double(double* address, double val) {
+    unsigned long long int * ull_addr = (unsigned long long int*) address;
+    unsigned long long int old = *ull_addr, assumed;
+
+    do {
+        assumed = old;
+        old = atomicCAS(ull_addr, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+    // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+
+    return __longlong_as_double(old);
+}
+#else
+__device__ double atomicAdd_double(double* address, double val) {
+    return atomicAdd(address, val);
+}
+#endif
+
 __device__ int atomic_add(int *addr, int val) { return atomicAdd(addr, val); }
+__device__ real_t atomic_add(real_t *addr, real_t val) { return atomicAdd_double(addr, val); }
 __device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
     const int add_res = *addr + val;
     if(add_res >= capacity) {
@@ -50,6 +78,7 @@ __device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capa
 }
 #else
 inline int atomic_add(int *addr, int val) { return host_atomic_add(addr, val); }
+inline int atomic_add(real_t *addr, real_t val) { return host_atomic_add(addr, val); }
 inline int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
     return host_atomic_add_resize_check(addr, val, resize, capacity);
 }

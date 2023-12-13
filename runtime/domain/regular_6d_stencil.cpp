@@ -155,9 +155,17 @@ void Regular6DStencil::communicateData(
             MPI_COMM_WORLD, &send_requests[0]);
         */
     } else {
+        #ifdef ENABLE_CUDA_AWARE_MPI
+        cudaMemcpy(
+            recv_prev,
+            send_prev,
+            nsend[dim * 2 + 0] * elem_size * sizeof(real_t),
+            cudaMemcpyDeviceToDevice);
+        #else
         for(int i = 0; i < nsend[dim * 2 + 0] * elem_size; i++) {
             recv_prev[i] = send_prev[i];
         }
+        #endif
     }
 
     if(next[dim] != rank) {
@@ -176,9 +184,17 @@ void Regular6DStencil::communicateData(
             MPI_COMM_WORLD, &send_requests[1]);
         */
     } else {
+        #ifdef ENABLE_CUDA_AWARE_MPI
+        cudaMemcpy(
+            recv_next,
+            send_next,
+            nsend[dim * 2 + 1] * elem_size * sizeof(real_t),
+            cudaMemcpyDeviceToDevice);
+        #else
         for(int i = 0; i < nsend[dim * 2 + 1] * elem_size; i++) {
             recv_next[i] = send_next[i];
         }
+        #endif
     }
 
     //MPI_Waitall(2, recv_requests, MPI_STATUSES_IGNORE);
@@ -215,9 +231,17 @@ void Regular6DStencil::communicateAllData(
                 MPI_COMM_WORLD, &recv_requests[d * 2 + 0]);
             */
         } else {
+            #ifdef ENABLE_CUDA_AWARE_MPI
+            cudaMemcpy(
+                recv_prev,
+                send_prev,
+                nsend[d * 2 + 0] * elem_size * sizeof(real_t),
+                cudaMemcpyDeviceToDevice);
+            #else
             for (int i = 0; i < nsend[d * 2 + 0] * elem_size; i++) {
                 recv_prev[i] = send_prev[i];
             }
+            #endif
         }
 
         if (next[d] != rank) {
@@ -236,9 +260,17 @@ void Regular6DStencil::communicateAllData(
                 MPI_COMM_WORLD, &recv_requests[d * 2 + 1]);
             */
         } else {
+            #ifdef ENABLE_CUDA_AWARE_MPI
+            cudaMemcpy(
+                recv_next,
+                send_next,
+                nsend[d * 2 + 1] * elem_size * sizeof(real_t),
+                cudaMemcpyDeviceToDevice);
+            #else
             for (int i = 0; i < nsend[d * 2 + 1] * elem_size; i++) {
                 recv_next[i] = send_next[i];
             }
+            #endif
         }
     }
 

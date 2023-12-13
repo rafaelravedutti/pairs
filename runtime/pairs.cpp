@@ -346,8 +346,12 @@ void PairsSimulation::communicateData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    auto send_buf_id = getArrayByHostPointer(send_buf).getId();
-    auto recv_buf_id = getArrayByHostPointer(recv_buf).getId();
+    const real_t *send_buf_ptr = send_buf;
+    real_t *recv_buf_ptr = recv_buf;
+    auto send_buf_array = getArrayByHostPointer(send_buf);
+    auto recv_buf_array = getArrayByHostPointer(recv_buf);
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -359,6 +363,10 @@ void PairsSimulation::communicateData(
     copyArrayToHost(nsend_id, ReadOnly);
     copyArrayToHost(nrecv_id, ReadOnly);
 
+    #ifdef ENABLE_CUDA_AWARE_MPI
+    send_buf_ptr = send_buf_array.getDevicePointer();
+    recv_buf_ptr = recv_buf_array.getDevicePointer();
+    #else
     int nsend_all = 0;
     int nrecv_all = 0;
     for(int d = 0; d <= dim; d++) {
@@ -374,23 +382,28 @@ void PairsSimulation::communicateData(
     int rcv_offset = recv_offsets[dim * 2 + 0] * elem_size * sizeof(real_t);
     int snd_size = (nsend[dim * 2 + 0] + nsend[dim * 2 + 1]) * elem_size * sizeof(real_t);
     int rcv_size = (nrecv[dim * 2 + 0] + nrecv[dim * 2 + 1]) * elem_size * sizeof(real_t);
+
+    copyArraySliceToHost(send_buf_array, Ignore, snd_offset, snd_size * elem_size * sizeof(real_t));
     */
 
-    //copyArraySliceToHost(send_buf_array, Ignore, snd_offset, snd_size * elem_size * sizeof(real_t));
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
+    #endif
+
     this->getTimers()->stop(DeviceTransfers);
 
     this->getTimers()->start(Communication);
     this->getDomainPartitioner()->communicateData(
-        dim, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
+        dim, elem_size, send_buf_ptr, send_offsets, nsend, recv_buf_ptr, recv_offsets, nrecv);
     this->getTimers()->stop(Communication);
 
+    #ifndef ENABLE_CUDA_AWARE_MPI
     this->getTimers()->start(DeviceTransfers);
     //copyArraySliceToDevice(recv_buf_array, Ignore, rcv_offset, rcv_size * elem_size * sizeof(real_t));
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
     this->getTimers()->stop(DeviceTransfers);
+    #endif
 }
 
 void PairsSimulation::communicateAllData(
@@ -398,8 +411,12 @@ void PairsSimulation::communicateAllData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    auto send_buf_id = getArrayByHostPointer(send_buf).getId();
-    auto recv_buf_id = getArrayByHostPointer(recv_buf).getId();
+    const real_t *send_buf_ptr = send_buf;
+    real_t *recv_buf_ptr = recv_buf;
+    auto send_buf_array = getArrayByHostPointer(send_buf);
+    auto recv_buf_array = getArrayByHostPointer(recv_buf);
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -411,6 +428,10 @@ void PairsSimulation::communicateAllData(
     copyArrayToHost(nsend_id, ReadOnly);
     copyArrayToHost(nrecv_id, ReadOnly);
 
+    #ifdef ENABLE_CUDA_AWARE_MPI
+    send_buf_ptr = send_buf_array.getDevicePointer();
+    recv_buf_ptr = recv_buf_array.getDevicePointer();
+    #else
     int nsend_all = 0;
     int nrecv_all = 0;
     for(int d = 0; d <= ndims; d++) {
@@ -423,16 +444,20 @@ void PairsSimulation::communicateAllData(
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
+    #endif
+
     this->getTimers()->stop(DeviceTransfers);
 
     this->getTimers()->start(Communication);
     this->getDomainPartitioner()->communicateAllData(
-        ndims, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
+        ndims, elem_size, send_buf_ptr, send_offsets, nsend, recv_buf_ptr, recv_offsets, nrecv);
     this->getTimers()->stop(Communication);
 
+    #ifndef ENABLE_CUDA_AWARE_MPI
     this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
     this->getTimers()->stop(DeviceTransfers);
+    #endif
 }
 
 void PairsSimulation::communicateContactHistoryData(
@@ -440,8 +465,12 @@ void PairsSimulation::communicateContactHistoryData(
     const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
     real_t *recv_buf, int *contact_roffsets, int *nrecv_contact) {
 
-    auto send_buf_id = getArrayByHostPointer(send_buf).getId();
-    auto recv_buf_id = getArrayByHostPointer(recv_buf).getId();
+    const real_t *send_buf_ptr = send_buf;
+    real_t *recv_buf_ptr = recv_buf;
+    auto send_buf_array = getArrayByHostPointer(send_buf);
+    auto recv_buf_array = getArrayByHostPointer(recv_buf);
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     auto contact_soffsets_id = getArrayByHostPointer(contact_soffsets).getId();
     auto contact_roffsets_id = getArrayByHostPointer(contact_roffsets).getId();
     auto nsend_contact_id = getArrayByHostPointer(nsend_contact).getId();
@@ -459,9 +488,15 @@ void PairsSimulation::communicateContactHistoryData(
         nsend_all += nsend_contact[d * 2 + 1];
     }
 
+    #ifdef ENABLE_CUDA_AWARE_MPI
+    send_buf_ptr = send_buf_array.getDevicePointer();
+    recv_buf_ptr = recv_buf_array.getDevicePointer();
+    #else
     copyArrayToHost(send_buf_id, Ignore, nsend_all * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
+    #endif
+
     this->getTimers()->stop(DeviceTransfers);
 
     this->getTimers()->start(Communication);
@@ -477,13 +512,18 @@ void PairsSimulation::communicateContactHistoryData(
     }
 
     this->getDomainPartitioner()->communicateData(
-        dim, 1, send_buf, contact_soffsets, nsend_contact, recv_buf, contact_roffsets, nrecv_contact);
+        dim, 1,
+        send_buf_ptr, contact_soffsets, nsend_contact,
+        recv_buf_ptr, contact_roffsets, nrecv_contact);
+
     this->getTimers()->stop(Communication);
 
+    #ifndef ENABLE_CUDA_AWARE_MPI
     this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * sizeof(real_t));
     copyArrayToDevice(contact_roffsets_id, Ignore);
     this->getTimers()->stop(DeviceTransfers);
+    #endif
 }
 
 void PairsSimulation::fillCommunicationArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {

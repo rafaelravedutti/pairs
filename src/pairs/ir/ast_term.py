@@ -22,6 +22,9 @@ class ASTTerm(ASTNode):
     def __rsub__(self, other):
         return self._class_type(self.sim, other, self, Operators.Sub)
 
+    def __neg__(self):
+        return self._class_type(self.sim, self, None, Operators.USub)
+
     def __mul__(self, other):
         return self._class_type(self.sim, self, other, Operators.Mul)
 

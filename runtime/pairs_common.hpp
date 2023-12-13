@@ -9,6 +9,12 @@ typedef double real_t;
 //typedef float real_t;
 //#endif
 
+#ifndef PAIRS_TARGET_CUDA
+#   ifdef ENABLE_CUDA_AWARE_MPI
+#       undef ENABLE_CUDA_AWARE_MPI
+#   endif
+#endif
+
 typedef int array_t;
 typedef int property_t;
 typedef int layout_t;

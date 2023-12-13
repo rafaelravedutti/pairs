@@ -1,5 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.ast_node import ASTNode
+from pairs.ir.atomic import AtomicInc
 from pairs.ir.block import pairs_inline
 from pairs.ir.branches import Filter
 from pairs.ir.lit import Lit
@@ -116,4 +117,9 @@ class Apply(Lowerable):
                             ScalarOp.and_op(self._j < self.sim.nlocal,
                                             ScalarOp.cmp(self.sim.particle_flags[self._j] & Flags.Fixed, 0))):
 
-                Assign(self.sim, self._prop[self._j], self._prop[self._j] - self._expr_j)
+                if Types.is_scalar(self._prop.type()):
+                    AtomicInc(self.sim, self._prop[self._j], -self._expr_j)
+
+                else:
+                    for d in range(Types.number_of_elements(self.sim, self._prop.type())):
+                        AtomicInc(self.sim, self._prop[self._j][d], -(self._expr_j[d]))
