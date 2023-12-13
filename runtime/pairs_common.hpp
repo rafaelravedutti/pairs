@@ -9,12 +9,6 @@ typedef double real_t;
 //typedef float real_t;
 //#endif
 
-#ifndef PAIRS_TARGET_CUDA
-#   ifdef ENABLE_CUDA_AWARE_MPI
-#       undef ENABLE_CUDA_AWARE_MPI
-#   endif
-#endif
-
 typedef int array_t;
 typedef int property_t;
 typedef int layout_t;
@@ -60,10 +54,16 @@ enum DomainPartitioners {
 #ifdef DEBUG
 #   include <assert.h>
 #   define PAIRS_DEBUG(...)     {                                                   \
+                                    int __init_flag;                                \
                                     int __rank;                                     \
-                                    MPI_Comm_rank(MPI_COMM_WORLD, &__rank);         \
-                                    if(__rank == 0) {                               \
+                                    MPI_Initialized(&__init_flag);                  \
+                                    if(__init_flag == 0) {                          \
                                        fprintf(stderr, __VA_ARGS__);                \
+                                    } else {                                        \
+                                        MPI_Comm_rank(MPI_COMM_WORLD, &__rank);     \
+                                        if(__rank == 0) {                           \
+                                            fprintf(stderr, __VA_ARGS__);           \
+                                        }                                           \
                                     }                                               \
                                 }
 

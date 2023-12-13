@@ -364,8 +364,8 @@ void PairsSimulation::communicateData(
     copyArrayToHost(nrecv_id, ReadOnly);
 
     #ifdef ENABLE_CUDA_AWARE_MPI
-    send_buf_ptr = send_buf_array.getDevicePointer();
-    recv_buf_ptr = recv_buf_array.getDevicePointer();
+    send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
+    recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -429,8 +429,8 @@ void PairsSimulation::communicateAllData(
     copyArrayToHost(nrecv_id, ReadOnly);
 
     #ifdef ENABLE_CUDA_AWARE_MPI
-    send_buf_ptr = send_buf_array.getDevicePointer();
-    recv_buf_ptr = recv_buf_array.getDevicePointer();
+    send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
+    recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -489,8 +489,8 @@ void PairsSimulation::communicateContactHistoryData(
     }
 
     #ifdef ENABLE_CUDA_AWARE_MPI
-    send_buf_ptr = send_buf_array.getDevicePointer();
-    recv_buf_ptr = recv_buf_array.getDevicePointer();
+    send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
+    recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
     #else
     copyArrayToHost(send_buf_id, Ignore, nsend_all * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);

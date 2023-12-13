@@ -13,7 +13,7 @@ LIKWID_LIB ?= -L/usr/local/lib
 LIKWID_FLAGS = -llikwid ${LIKWID_INC} ${LIKWID_DEFINES} ${LIKWID_LIB}
 #CUDA_FLAGS=
 CUDA_FLAGS=-DENABLE_CUDA_AWARE_MPI
-CFLAGS=-Ofast -march=core-avx2 ${CUDA_FLAGS} ${LIKWID_FLAGS}
+CFLAGS=-Ofast -march=core-avx2 ${LIKWID_FLAGS}
 #CFLAGS=-Ofast -xHost -qopt-zmm-usage=high ${LIKWID_FLAGS}
 #CFLAGS=-Ofast -xCORE-AVX512 -qopt-zmm-usage=high ${LIKWID_FLAGS}
 CUDA_BIN_PATH:="$(shell dirname ${NVCC_PATH})"
@@ -44,10 +44,10 @@ $(GPU_SRC):
 	$(PYCMD) examples/$(TESTCASE).py gpu
 
 $(OBJ_PATH)/pairs.o: runtime/pairs.cpp
-	$(CC) $(CFLAGS) -c -o $@ $< $(DEBUG_FLAGS)
+	$(CC) -c -o $@ $< $(DEBUG_FLAGS) $(CUDA_FLAGS) $(CFLAGS)
 
 $(OBJ_PATH)/regular_6d_stencil.o: runtime/domain/regular_6d_stencil.cpp
-	$(CC) $(CFLAGS) -c -o $@ $< $(DEBUG_FLAGS)
+	$(CC) -c -o $@ $< $(DEBUG_FLAGS) $(CUDA_FLAGS) $(CFLAGS)
 
 $(OBJ_PATH)/dummy.o: runtime/devices/dummy.cpp
 	$(CC) -c -o $@ $< $(DEBUG_FLAGS)
@@ -57,9 +57,9 @@ $(CPU_BIN): $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OB
 	$(CC) $(CFLAGS) -o $(CPU_BIN) $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OBJ_PATH)/dummy.o $(DEBUG_FLAGS)
 
 $(GPU_BIN): $(GPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o 
-	$(NVCC) $(CUDA_FLAGS) -c -o $(OBJ_PATH)/cuda_runtime.o runtime/devices/cuda.cu ${DEBUG_FLAGS}
-	$(NVCC) $(CUDA_FLAGS) -c -o $(OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) -DDEBUG
-	$(CC) -o $(GPU_BIN) $(CFLAGS) $(OBJ_PATH)/$(GPU_BIN).o $(OBJ_PATH)/cuda_runtime.o $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64
+	$(NVCC) -c -o $(OBJ_PATH)/cuda_runtime.o runtime/devices/cuda.cu $(DEBUG_FLAGS) $(CUDA_FLAGS)
+	$(NVCC) -c -o $(OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) $(DEBUG_FLAGS) $(CUDA_FLAGS)
+	$(CC) -o $(GPU_BIN) $(OBJ_PATH)/$(GPU_BIN).o $(OBJ_PATH)/cuda_runtime.o $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64 $(CUDA_FLAGS) $(CFLAGS)
 
 clean:
 	@echo "Cleaning..."

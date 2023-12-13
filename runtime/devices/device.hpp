@@ -19,6 +19,7 @@ __host__ void device_free(void *ptr);
 __host__ void device_synchronize();
 __host__ void copy_to_device(const void *h_ptr, void *d_ptr, size_t count);
 __host__ void copy_to_host(const void *d_ptr, void *h_ptr, size_t count);
+__host__ void copy_in_device(void *d_ptr1, const void *d_ptr2, size_t count);
 __host__ void copy_slice_to_device(const void *h_ptr, void *d_ptr, size_t offset, size_t count);
 __host__ void copy_slice_to_host(const void *d_ptr, void *h_ptr, size_t offset, size_t count);
 __host__ void copy_static_symbol_to_device(void *h_ptr, const void *d_ptr, size_t count);
