@@ -1,6 +1,5 @@
 #include <iostream>
 #include <math.h>
-#include <mpi.h>
 //---
 #include "pairs.hpp"
 

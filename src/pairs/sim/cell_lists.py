@@ -9,6 +9,7 @@ from pairs.ir.cast import Cast
 from pairs.ir.loops import For, ParticleFor, While
 from pairs.ir.math import Ceil
 from pairs.ir.scalars import ScalarOp
+from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.ir.utils import Print
 from pairs.sim.flags import Flags
@@ -116,8 +117,9 @@ class BuildCellLists(Lowerable):
 
                 index = None
                 for dim in range(self.sim.ndims()):
-                    index = cell_index[dim] if index is None \
-                            else index * dim_ncells[dim] + cell_index[dim]
+                    dcell = Select(self.sim, cell_index[dim] >= 0, cell_index[dim], 0)
+                    dcell = Select(self.sim, dcell < dim_ncells[dim], dcell, dim_ncells[dim] - 1)
+                    index = dcell if index is None else index * dim_ncells[dim] + dcell
 
                 Assign(self.sim, flat_index, index + 1)
 
