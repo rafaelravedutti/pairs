@@ -59,12 +59,10 @@ def linear_spring_dashpot(i, j):
     cond2 = sticking == 1 and fTLS_len < f_friction_abs_dynamic
     f_friction_abs = select(cond1, f_friction_abs_static, f_friction_abs_dynamic)
     n_sticking = select(cond1 or cond2 or fTLS_len < f_friction_abs_dynamic, 1, 0)
-
-    if not cond1 and not cond2 and stiffness_tan > 0.0:
-        tangential_spring_displacement[i, j] = (f_friction_abs * t - damping_tan * rel_vel_t) / stiffness_tan
-
-    else:
-        tangential_spring_displacement[i, j] = new_tan_spring_disp
+    tangential_spring_displacement[i, j] = \
+        select(not cond1 and not cond2 and stiffness_tan > 0.0,
+               (f_friction_abs * t - damping_tan * rel_vel_t) / stiffness_tan,
+               new_tan_spring_disp)
 
     impact_velocity_magnitude[i, j] = impact_magnitude
     is_sticking[i, j] = n_sticking
@@ -181,7 +179,7 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
 
 #psim.compute_half()
 psim.build_cell_lists(linkedCellWidth)
-psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
+#psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
 psim.compute(gravity,
              symbols={'densityParticle_SI': densityParticle_SI,
