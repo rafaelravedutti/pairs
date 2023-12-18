@@ -1,21 +1,23 @@
 .PHONY: all build clean
 
-TESTCASE=lj
+TESTCASE=dem
 PYCMD=python3
-#CC=icc
+CC=mpicc
 #CC=mpiicpx
-CC=mpiicpc
+#CC=mpiicpc
 NVCC=nvcc
 NVCC_PATH:="$(shell which ${NVCC})"
+MPI_PATH=/apps/SPACK/0.19.1/opt/linux-almalinux8-zen/intel-2021.10.0/openmpi-4.1.6-ijsnjhq77rjc256wlrp52m37rsq6miff
+MPI_FLAGS=-I${MPI_PATH}/include
 LIKWID_INC ?= -I/usr/local/include
 LIKWID_DEFINES ?= -DLIKWID_PERFMON
 LIKWID_LIB ?= -L/usr/local/lib
 LIKWID_FLAGS = -llikwid ${LIKWID_INC} ${LIKWID_DEFINES} ${LIKWID_LIB}
 #CUDA_FLAGS=
 CUDA_FLAGS=-DENABLE_CUDA_AWARE_MPI
-CFLAGS=-Ofast -march=core-avx2 ${LIKWID_FLAGS}
-#CFLAGS=-Ofast -xHost -qopt-zmm-usage=high ${LIKWID_FLAGS}
-#CFLAGS=-Ofast -xCORE-AVX512 -qopt-zmm-usage=high ${LIKWID_FLAGS}
+CFLAGS=-Ofast -march=core-avx2 ${MPI_FLAGS} ${LIKWID_FLAGS}
+#CFLAGS=-Ofast -xHost -qopt-zmm-usage=high ${MPI_FLAGS} ${LIKWID_FLAGS}
+#CFLAGS=-Ofast -xCORE-AVX512 -qopt-zmm-usage=high ${MPI_FLAGS} ${LIKWID_FLAGS}
 CUDA_BIN_PATH:="$(shell dirname ${NVCC_PATH})"
 CUDA_PATH:="$(shell dirname ${CUDA_BIN_PATH})"
 OBJ_PATH=obj
@@ -57,8 +59,8 @@ $(CPU_BIN): $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OB
 	$(CC) $(CFLAGS) -o $(CPU_BIN) $(CPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o $(OBJ_PATH)/dummy.o $(DEBUG_FLAGS)
 
 $(GPU_BIN): $(GPU_SRC) $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o 
-	$(NVCC) -c -o $(OBJ_PATH)/cuda_runtime.o runtime/devices/cuda.cu $(DEBUG_FLAGS) $(CUDA_FLAGS)
-	$(NVCC) -c -o $(OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) $(DEBUG_FLAGS) $(CUDA_FLAGS)
+	$(NVCC) -c -o $(OBJ_PATH)/cuda_runtime.o runtime/devices/cuda.cu $(DEBUG_FLAGS) $(MPI_FLAGS) $(CUDA_FLAGS)
+	$(NVCC) -c -o $(OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) $(DEBUG_FLAGS) $(MPI_FLAGS) $(CUDA_FLAGS)
 	$(CC) -o $(GPU_BIN) $(OBJ_PATH)/$(GPU_BIN).o $(OBJ_PATH)/cuda_runtime.o $(OBJ_PATH)/pairs.o $(OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64 $(CUDA_FLAGS) $(CFLAGS)
 
 clean:
