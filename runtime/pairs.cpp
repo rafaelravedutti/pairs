@@ -376,16 +376,6 @@ void PairsSimulation::communicateData(
         nrecv_all += nrecv[d * 2 + 1];
     }
 
-    /*
-    // TODO: this is hard-coded for 6D regular stencil, change it
-    int snd_offset = send_offsets[dim * 2 + 0] * elem_size * sizeof(real_t);
-    int rcv_offset = recv_offsets[dim * 2 + 0] * elem_size * sizeof(real_t);
-    int snd_size = (nsend[dim * 2 + 0] + nsend[dim * 2 + 1]) * elem_size * sizeof(real_t);
-    int rcv_size = (nrecv[dim * 2 + 0] + nrecv[dim * 2 + 1]) * elem_size * sizeof(real_t);
-
-    copyArraySliceToHost(send_buf_array, Ignore, snd_offset, snd_size * elem_size * sizeof(real_t));
-    */
-
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
@@ -400,7 +390,6 @@ void PairsSimulation::communicateData(
 
     #ifndef ENABLE_CUDA_AWARE_MPI
     this->getTimers()->start(DeviceTransfers);
-    //copyArraySliceToDevice(recv_buf_array, Ignore, rcv_offset, rcv_size * elem_size * sizeof(real_t));
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
     this->getTimers()->stop(DeviceTransfers);
     #endif

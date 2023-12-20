@@ -111,8 +111,6 @@ void Regular6DStencil::fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom)
 }
 
 void Regular6DStencil::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
-    //std::cout << "communicateSizes" << std::endl;
-
     if(prev[dim] != rank) {
         MPI_Send(&send_sizes[dim * 2 + 0], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
         MPI_Recv(&recv_sizes[dim * 2 + 0], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
