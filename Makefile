@@ -16,7 +16,8 @@ DEBUG_FLAGS=
 
 # CUDA settings
 NVCC=nvcc
-NVCC_FLAGS=-O3
+NVCC_FLAGS=-O3 --use_fast_math
+#NVCC_FLAGS=-ccbin mpicc $(CFLAGS)
 NVCC_PATH:="$(shell which ${NVCC})"
 CUDA_FLAGS=-DENABLE_CUDA_AWARE_MPI
 CUDA_BIN_PATH:="$(shell dirname ${NVCC_PATH})"
@@ -73,14 +74,14 @@ $(GPU_OBJ_PATH)/regular_6d_stencil.o: runtime/domain/regular_6d_stencil.cpp
 	$(CC) -c -o $@ $< $(DEBUG_FLAGS) $(MPI_FLAGS) $(CFLAGS) $(CUDA_FLAGS)
 
 $(GPU_OBJ_PATH)/cuda_runtime.o: runtime/devices/cuda.cu
-	$(NVCC) -c -o $@ $< $(DEBUG_FLAGS) $(MPI_FLAGS) $(NVCC_FLAGS) $(CUDA_FLAGS)
+	$(NVCC) $(NVCC_FLAGS) -c -o $@ $< $(DEBUG_FLAGS) $(MPI_FLAGS) $(CUDA_FLAGS)
 
 # Targets
 $(CPU_BIN): $(CPU_SRC) $(CPU_OBJ_PATH)/pairs.o $(CPU_OBJ_PATH)/regular_6d_stencil.o $(CPU_OBJ_PATH)/dummy.o
 	$(CC) $(CFLAGS) -o $(CPU_BIN) $(CPU_SRC) $(CPU_OBJ_PATH)/pairs.o $(CPU_OBJ_PATH)/regular_6d_stencil.o $(CPU_OBJ_PATH)/dummy.o $(DEBUG_FLAGS)
 
 $(GPU_BIN): $(GPU_SRC) $(GPU_OBJ_PATH)/pairs.o $(GPU_OBJ_PATH)/regular_6d_stencil.o $(GPU_OBJ_PATH)/cuda_runtime.o
-	$(NVCC) -c -o $(GPU_OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) $(DEBUG_FLAGS) $(MPI_FLAGS) $(NVCC_FLAGS) $(CUDA_FLAGS)
+	$(NVCC) $(NVCC_FLAGS) -c -o $(GPU_OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) $(DEBUG_FLAGS) $(MPI_FLAGS) $(CUDA_FLAGS)
 	$(CC) -o $(GPU_BIN) $(GPU_OBJ_PATH)/$(GPU_BIN).o $(GPU_OBJ_PATH)/cuda_runtime.o $(GPU_OBJ_PATH)/pairs.o $(GPU_OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64 $(CUDA_FLAGS) $(CFLAGS)
 
 clean:
