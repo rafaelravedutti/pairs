@@ -17,11 +17,9 @@ DEBUG_FLAGS=
 # CUDA settings
 NVCC=nvcc
 NVCC_FLAGS=-O3 --use_fast_math
-#NVCC_FLAGS=-ccbin mpicc $(CFLAGS)
 NVCC_PATH:="$(shell which ${NVCC})"
 CUDA_FLAGS=-DENABLE_CUDA_AWARE_MPI
-CUDA_BIN_PATH:="$(shell dirname ${NVCC_PATH})"
-CUDA_PATH:="$(shell dirname ${CUDA_BIN_PATH})"
+CUDART_FLAGS=-lcudart -L /apps/SPACK/0.19.1/opt/linux-almalinux8-zen/gcc-8.5.0/nvhpc-23.7-bzxcokzjvx4stynglo4u2ffpljajzlam/Linux_x86_64/23.7/cuda/12.2/targets/x86_64-linux/lib
 
 # MPI settings
 MPI_PATH=/apps/SPACK/0.19.1/opt/linux-almalinux8-zen/intel-2021.10.0/openmpi-4.1.6-ijsnjhq77rjc256wlrp52m37rsq6miff
@@ -82,7 +80,7 @@ $(CPU_BIN): $(CPU_SRC) $(CPU_OBJ_PATH)/pairs.o $(CPU_OBJ_PATH)/regular_6d_stenci
 
 $(GPU_BIN): $(GPU_SRC) $(GPU_OBJ_PATH)/pairs.o $(GPU_OBJ_PATH)/regular_6d_stencil.o $(GPU_OBJ_PATH)/cuda_runtime.o
 	$(NVCC) $(NVCC_FLAGS) -c -o $(GPU_OBJ_PATH)/$(GPU_BIN).o $(GPU_SRC) $(DEBUG_FLAGS) $(MPI_FLAGS) $(CUDA_FLAGS)
-	$(CC) -o $(GPU_BIN) $(GPU_OBJ_PATH)/$(GPU_BIN).o $(GPU_OBJ_PATH)/cuda_runtime.o $(GPU_OBJ_PATH)/pairs.o $(GPU_OBJ_PATH)/regular_6d_stencil.o -lcudart -L$(CUDA_PATH)/lib64 $(CUDA_FLAGS) $(CFLAGS)
+	$(CC) -o $(GPU_BIN) $(GPU_OBJ_PATH)/$(GPU_BIN).o $(GPU_OBJ_PATH)/cuda_runtime.o $(GPU_OBJ_PATH)/pairs.o $(GPU_OBJ_PATH)/regular_6d_stencil.o $(CUDART_FLAGS) $(CUDA_FLAGS) $(CFLAGS)
 
 clean:
 	@echo "Cleaning..."

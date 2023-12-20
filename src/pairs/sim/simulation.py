@@ -34,7 +34,17 @@ from pairs.transformations import Transformations
 
 
 class Simulation:
-    def __init__(self, code_gen, shapes, dims=3, timesteps=100, double_prec=False, use_contact_history=False):
+    def __init__(
+        self,
+        code_gen,
+        shapes,
+        dims=3,
+        timesteps=100,
+        double_prec=False,
+        use_contact_history=False,
+        particle_capacity=800000,
+        neighbor_capacity=100):
+
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
         self.position_prop = None
@@ -44,8 +54,8 @@ class Simulation:
         self.features = Features(self)
         self.feature_properties = FeatureProperties(self)
         self.contact_properties = ContactProperties(self)
-        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, 800000)
-        self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, 100)
+        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
+        self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, neighbor_capacity)
         self.nlocal = self.add_var('nlocal', Types.Int32)
         self.nghost = self.add_var('nghost', Types.Int32)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)

@@ -97,8 +97,9 @@ if target != 'cpu' and target != 'gpu':
     print(f"Invalid target, use {cmd} <cpu/gpu>")
 
 # Config file parameters
-domainSize_SI = [0.8, 0.015, 0.2]
-blocks = [3, 3, 1]
+#domainSize_SI = [0.8, 0.015, 0.2]
+domainSize_SI = [0.6, 0.6, 0.2] # node base
+#domainSize_SI = [0.8, 0.8, 0.2] # node base
 diameter_SI = 0.0029
 gravity_SI = 9.81
 densityFluid_SI = 1000
@@ -111,6 +112,7 @@ restitutionCoefficient = 0.1
 collisionTime_SI = 5e-4
 poissonsRatio = 0.22
 timeSteps = 10000
+#timeSteps = 1000
 visSpacing = 100
 denseBottomLayer = False
 bottomLayerOffsetFactor = 1.0
@@ -130,7 +132,9 @@ psim = pairs.simulation(
     [pairs.sphere(), pairs.halfspace()],
     timesteps=timeSteps,
     double_prec=True,
-    use_contact_history=True)
+    use_contact_history=True,
+    particle_capacity=1000000,
+    neighbor_capacity=20)
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())
@@ -159,7 +163,10 @@ psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_S
 psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
 psim.pbc([True, True, False])
 psim.read_particle_data(
-    "data/spheres.input",
+    #"data/spheres.input",
+    #"data/spheres_4x4x2.input",
+    "data/spheres_6x6x2.input",
+    #"data/spheres_8x8x2.input",
     ['uid', 'type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
     pairs.sphere())
 

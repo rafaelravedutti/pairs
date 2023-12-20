@@ -6,8 +6,20 @@ from pairs.sim.shapes import Shapes
 from pairs.sim.simulation import Simulation
 
 
-def simulation(ref, shapes, dims=3, timesteps=100, double_prec=False, use_contact_history=False, debug=False):
-    return Simulation(CGen(ref, debug), shapes, dims, timesteps, double_prec, use_contact_history)
+def simulation(
+    ref,
+    shapes,
+    dims=3,
+    timesteps=100,
+    double_prec=False,
+    use_contact_history=False,
+    particle_capacity=800000,
+    neighbor_capacity=100,
+    debug=False):
+
+    return Simulation(
+        CGen(ref, debug), shapes, dims, timesteps, double_prec, use_contact_history,
+        particle_capacity, neighbor_capacity)
 
 def target_cpu():
     return Target(Target.Backend_CPP, Target.Feature_CPU)
