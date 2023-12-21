@@ -37,6 +37,11 @@ class CellLists:
         self.stencil            =   self.sim.add_array('stencil', self.nstencil_max, Types.Int32)
         self.particle_cell      =   self.sim.add_array('particle_cell', self.sim.particle_capacity, Types.Int32)
 
+        if sim._store_neighbors_per_cell:
+            self.cell_neigh_capacity = self.sim.add_var('cell_neigh_capacity', Types.Int32, 80)
+            self.cell_nneighs = self.sim.add_array('cell_nneighs', [self.ncells_capacity, self.sim.max_shapes()], Types.Int32)
+            self.cell_neighbors = self.sim.add_array('cell_neighbors', [self.ncells_capacity, self.cell_neigh_capacity], Types.Int32)
+
 
 class BuildCellListsStencil(Lowerable):
     def __init__(self, sim, cell_lists):
@@ -164,3 +169,38 @@ class PartitionCellLists(Lowerable):
                         else:
                             Assign(self.sim, start, start + 1)
                             Assign(self.sim, self.cell_lists.nshapes[cell][shape], start - shape_start)
+
+
+class BuildCellNeighborLists(Lowerable):
+    def __init__(self, sim, cell_lists):
+        super().__init__(sim)
+        self.cell_lists = cell_lists
+
+    @pairs_device_block
+    def lower(self):
+        ncells = self.cell_lists.ncells
+        nshapes = self.cell_lists.nshapes
+        cell_particles = self.cell_lists.cell_particles
+        cell_nneighs = self.cell_lists.cell_nneighs
+        cell_neighbors = self.cell_lists.cell_neighbors
+        self.sim.module_name("build_cell_neighbor_lists")
+        self.sim.check_resize(self.cell_lists.cell_neigh_capacity, cell_nneighs)
+
+        for cell in For(self.sim, 0, ncells):
+            for shape in range(self.sim.max_shapes()):
+                Assign(self.sim, cell_nneighs[cell][shape], 0)
+
+                for disp in For(self.sim, -1, self.cell_lists.nstencil):
+                    neigh_cell = Select(self.sim, disp < 0, 0, cell + self.cell_lists.stencil[disp])
+
+                    for _ in Filter(self.sim, ScalarOp.or_op(disp < 0,
+                                                             ScalarOp.and_op(neigh_cell > 0,
+                                                                             neigh_cell < ncells))):
+
+                        start = sum([nshapes[neigh_cell][s] for s in range(shape)], 0)
+                        for cell_particle in For(self.sim, start, start + nshapes[neigh_cell][shape]):
+                            particle = cell_particles[neigh_cell][cell_particle]
+                            neighs_start = sum([cell_nneighs[cell][s] for s in range(shape)], 0)
+                            numneighs = cell_nneighs[cell][shape]
+                            Assign(self.sim, cell_neighbors[cell][neighs_start + numneighs], particle)
+                            Assign(self.sim, cell_nneighs[cell][shape], numneighs + 1)

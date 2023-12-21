@@ -61,28 +61,57 @@ class NeighborFor:
             particle_shape = self.sim.particle_shape
             nshapes = self.cell_lists.nshapes
 
-            for shape in self.shapes:
-                for disp in For(self.sim, -1, self.cell_lists.nstencil):
-                    neigh_cell = \
-                        Select(self.sim, disp < 0, 0, particle_cell[self.particle] + stencil[disp])
+            if self.sim._store_neighbors_per_cell:
+                cell_nneighs = self.cell_lists.cell_nneighs
+                cell_neighbors = self.cell_lists.cell_neighbors
 
-                    for _ in Filter(self.sim, ScalarOp.or_op(disp < 0,
-                                                             ScalarOp.and_op(neigh_cell > 0,
-                                                                             neigh_cell < ncells))):
+                for shape in self.shapes:
+                    start = sum([cell_nneighs[cell][s] for s in range(shape)], 0)
+                    # FIXME: Without the inline, the 'cell' expression is being generated after
+                    # its usage in the loop upper limit
+                    cell = ScalarOp.inline(particle_cell[self.particle])
+                    for k in For(self.sim, start, start + cell_nneighs[cell][shape]):
+                        particle_id = cell_neighbors[cell][k]
 
-                        start = sum([nshapes[neigh_cell][s] for s in range(shape)], 0)
-                        for cell_particle in For(self.sim, start, start + nshapes[neigh_cell][shape]):
-                            particle_id = cell_particles[neigh_cell][cell_particle]
+                        if self.sim._compute_half:
+                            shape_id = self.sim.get_shape_id(shape)
+                            shape_cond = particle_shape[particle_id] > shape_id
+                            condition = ScalarOp.or_op(shape_cond, self.particle < particle_id)
 
-                            if self.sim._compute_half:
-                                shape_cond = particle_shape[particle_id] > self.sim.get_shape_id(shape)
-                                condition = ScalarOp.or_op(shape_cond, self.particle < particle_id)
+                        else:
+                            condition = ScalarOp.neq(particle_id, self.particle)
 
-                            else:
-                                condition = ScalarOp.neq(particle_id, self.particle)
+                        for _ in Filter(self.sim, condition):
+                            yield Neighbor(self.sim, k, None, particle_id, shape)
 
-                            for _ in Filter(self.sim, condition):
-                                yield Neighbor(self.sim, cell_particle, neigh_cell, particle_id, shape)
+            else:
+                for shape in self.shapes:
+                    for disp in For(self.sim, -1, self.cell_lists.nstencil):
+                        neigh_cell = \
+                            Select(self.sim, disp < 0, 0, particle_cell[self.particle] + stencil[disp])
+
+                        for _ in Filter(self.sim, ScalarOp.or_op(disp < 0,
+                                                                 ScalarOp.and_op(neigh_cell > 0,
+                                                                                 neigh_cell < ncells))):
+
+                            start = sum([nshapes[neigh_cell][s] for s in range(shape)], 0)
+                            for cell_particle in For(self.sim,
+                                                     start,
+                                                     start + nshapes[neigh_cell][shape]):
+
+                                particle_id = cell_particles[neigh_cell][cell_particle]
+
+                                if self.sim._compute_half:
+                                    shape_id = self.sim.get_shape_id(shape)
+                                    shape_cond = particle_shape[particle_id] > shape_id
+                                    condition = ScalarOp.or_op(shape_cond, self.particle < particle_id)
+
+                                else:
+                                    condition = ScalarOp.neq(particle_id, self.particle)
+
+                                for _ in Filter(self.sim, condition):
+                                    yield Neighbor(
+                                        self.sim, cell_particle, neigh_cell, particle_id, shape)
 
         else:
             neighborlists = self.neighbor_lists.neighborlists

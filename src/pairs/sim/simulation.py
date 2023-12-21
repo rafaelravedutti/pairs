@@ -12,7 +12,7 @@ from pairs.ir.variables import Variables
 #from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute, setup
 from pairs.sim.arrays import DeclareArrays
-from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists
+from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists, BuildCellNeighborLists
 from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
@@ -64,6 +64,7 @@ class Simulation:
         self.particle_flags = self.add_property('flags', Types.Int32, 0)
         self.grid = None
         self.cell_lists = None
+        self._store_neighbors_per_cell = False
         self.neighbor_lists = None
         self.scope = []
         self.nested_count = 0
@@ -240,11 +241,15 @@ class Simulation:
     def copper_fcc_lattice(self, nx, ny, nz, rho, temperature, ntypes):
         self.setups.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
 
-    def build_cell_lists(self, spacing):
+    def build_cell_lists(self, spacing, store_neighbors_per_cell=False):
+        self._store_neighbors_per_cell = store_neighbors_per_cell
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 
     def build_neighbor_lists(self, spacing):
+        assert self._store_neighbors_per_cell is False, \
+            "Using neighbor-lists with store_neighbors_per_cell option is invalid."
+
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         self.neighbor_lists = NeighborLists(self, self.cell_lists)
         return self.neighbor_lists
@@ -379,6 +384,10 @@ class Simulation:
             (BuildCellLists(self, self.cell_lists), every_reneighbor_params),
             (PartitionCellLists(self, self.cell_lists), every_reneighbor_params)
         ]
+
+        if self._store_neighbors_per_cell:
+            timestep_procedures.append(
+                (BuildCellNeighborLists(self, self.cell_lists), every_reneighbor_params))
 
         if self.neighbor_lists is not None:
             timestep_procedures.append(
