@@ -21,7 +21,10 @@ def simulation(
         CGen(ref, debug), shapes, dims, timesteps, double_prec, use_contact_history,
         particle_capacity, neighbor_capacity)
 
-def target_cpu():
+def target_cpu(parallel=False):
+    if parallel:
+        return Target(Target.Backend_CPP, [Target.Feature_CPU, Target.Feature_OpenMP])
+
     return Target(Target.Backend_CPP, Target.Feature_CPU)
 
 def target_gpu():

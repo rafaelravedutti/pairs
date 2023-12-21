@@ -8,7 +8,7 @@ PYCMD=python3
 CC=mpicc
 #CC=mpiicpx
 #CC=mpiicpc
-CFLAGS=-Ofast -march=core-avx2 ${MPI_FLAGS} ${LIKWID_FLAGS}
+CFLAGS=-Ofast -march=core-avx2 -fopenmp ${MPI_FLAGS} ${LIKWID_FLAGS}
 #CFLAGS=-Ofast -xHost -qopt-zmm-usage=high ${MPI_FLAGS} ${LIKWID_FLAGS}
 #CFLAGS=-Ofast -xCORE-AVX512 -qopt-zmm-usage=high ${MPI_FLAGS} ${LIKWID_FLAGS}
 DEBUG_FLAGS=

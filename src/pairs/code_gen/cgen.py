@@ -62,6 +62,10 @@ class CGen:
         if self.target.is_gpu():
             self.print("#define PAIRS_TARGET_CUDA")
 
+        if self.target.is_openmp():
+            self.print("#define PAIRS_TARGET_OPENMP")
+            self.print("#include <omp.h>")
+
         self.print("#include <limits.h>")
         self.print("#include <math.h>")
         self.print("#include <stdbool.h>")
@@ -507,6 +511,10 @@ class CGen:
             iterator = self.generate_expression(ast_node.iterator)
             lower_range = self.generate_expression(ast_node.min)
             upper_range = self.generate_expression(ast_node.max)
+
+            if self.target.is_openmp() and ast_node.is_kernel_candidate():
+                self.print("#pragma omp parallel for")
+
             self.print(f"for(int {iterator} = {lower_range}; {iterator} < {upper_range}; {iterator}++) {{")
             self.generate_statement(ast_node.block)
             self.print("}")

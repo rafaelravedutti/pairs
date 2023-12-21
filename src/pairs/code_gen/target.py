@@ -14,6 +14,7 @@ class Target:
     Feature_AVX2 = 3
     Feature_AVX512 = 4
     Feature_GPU = 5
+    Feature_OpenMP = 6
 
     # Operating system
     OS_Unknown = 0
@@ -37,3 +38,6 @@ class Target:
 
     def is_gpu(self):
         return self.has_feature(Target.Feature_GPU)
+
+    def is_openmp(self):
+        return self.has_feature(Target.Feature_OpenMP)
