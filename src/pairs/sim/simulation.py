@@ -16,6 +16,7 @@ from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStenci
 from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
+from pairs.sim.dem_sc_grid import DEMSCGrid
 from pairs.sim.domain import InitializeDomain
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import DimensionRanges
@@ -240,6 +241,11 @@ class Simulation:
 
     def copper_fcc_lattice(self, nx, ny, nz, rho, temperature, ntypes):
         self.setups.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
+
+    def dem_sc_grid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter, initial_velocity, particle_density, ntypes):
+        self.setups.add_statement(
+            DEMSCGrid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
+                      initial_velocity, particle_density, ntypes))
 
     def build_cell_lists(self, spacing, store_neighbors_per_cell=False):
         self._store_neighbors_per_cell = store_neighbors_per_cell

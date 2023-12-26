@@ -8,7 +8,6 @@ def update_mass_and_inertia(i):
     rotation_quat[i] = default_quaternion()
 
     if is_sphere(i):
-        #mass[i] = ((4.0 / 3.0) * pi) * radius[i] * radius[i] * radius[i] * densityParticle_SI
         inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
 
     else:
@@ -164,13 +163,17 @@ psim.add_contact_property('impact_velocity_magnitude', pairs.real(), 0.0)
 psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
 psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
 psim.pbc([True, True, False])
-psim.read_particle_data(
-    "data/spheres.input",
-    #"data/spheres_4x4x2.input",
-    #"data/spheres_6x6x2.input",
-    #"data/spheres_8x8x2.input",
-    ['uid', 'type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
-    pairs.sphere())
+psim.dem_sc_grid(
+    domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
+    diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
+
+#psim.read_particle_data(
+#    "data/spheres.input",
+#    "data/spheres_4x4x2.input",
+#    "data/spheres_6x6x2.input",
+#    #"data/spheres_8x8x2.input",
+#    ['uid', 'type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
+#    pairs.sphere())
 
 #psim.read_particle_data(
 #    "data/spheres_bottom.input",
@@ -187,8 +190,8 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
                                      'infinity': math.inf })
 
 #psim.compute_half()
-psim.build_cell_lists(linkedCellWidth, store_neighbors_per_cell=True)
-#psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
+psim.build_cell_lists(linkedCellWidth)
+psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
 psim.compute(gravity,
              symbols={'densityParticle_SI': densityParticle_SI,

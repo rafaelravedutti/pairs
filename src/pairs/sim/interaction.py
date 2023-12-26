@@ -75,8 +75,11 @@ class NeighborFor:
 
                         if self.sim._compute_half:
                             shape_id = self.sim.get_shape_id(shape)
-                            shape_cond = particle_shape[particle_id] > shape_id
-                            condition = ScalarOp.or_op(shape_cond, self.particle < particle_id)
+                            condition = ScalarOp.or_op(
+                                particle_shape[particle_id] > shape_id,
+                                ScalarOp.and_op(
+                                    ScalarOp.cmp(particle_shape[particle_id], shape_id),
+                                    self.particle < particle_id))
 
                         else:
                             condition = ScalarOp.neq(particle_id, self.particle)
@@ -103,8 +106,11 @@ class NeighborFor:
 
                                 if self.sim._compute_half:
                                     shape_id = self.sim.get_shape_id(shape)
-                                    shape_cond = particle_shape[particle_id] > shape_id
-                                    condition = ScalarOp.or_op(shape_cond, self.particle < particle_id)
+                                    condition = ScalarOp.or_op(
+                                        particle_shape[particle_id] > shape_id,
+                                        ScalarOp.and_op(
+                                            ScalarOp.cmp(particle_shape[particle_id], shape_id),
+                                            self.particle < particle_id))
 
                                 else:
                                     condition = ScalarOp.neq(particle_id, self.particle)
