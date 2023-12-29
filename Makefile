@@ -5,10 +5,8 @@ TESTCASE=dem
 PYCMD=python3
 
 # C/C++ compiler settings
-CC=mpicc
-#CC=mpiicpx
-#CC=mpiicpc
-CFLAGS=-Ofast -march=core-avx2 -fopenmp ${MPI_FLAGS} ${LIKWID_FLAGS}
+CC=mpic++
+CFLAGS=-O3 -mavx2 -mfma -fopenmp ${MPI_FLAGS} ${LIKWID_FLAGS}
 #CFLAGS=-Ofast -xHost -qopt-zmm-usage=high ${MPI_FLAGS} ${LIKWID_FLAGS}
 #CFLAGS=-Ofast -xCORE-AVX512 -qopt-zmm-usage=high ${MPI_FLAGS} ${LIKWID_FLAGS}
 DEBUG_FLAGS=
@@ -16,7 +14,7 @@ DEBUG_FLAGS=
 
 # CUDA settings
 NVCC=nvcc
-NVCC_FLAGS=-O3 --use_fast_math
+NVCC_FLAGS=-O3 -mavx2 -mfma
 NVCC_PATH:="$(shell which ${NVCC})"
 CUDA_FLAGS=-DENABLE_CUDA_AWARE_MPI
 CUDART_FLAGS=-lcudart -L /apps/SPACK/0.19.1/opt/linux-almalinux8-zen/gcc-8.5.0/nvhpc-23.7-bzxcokzjvx4stynglo4u2ffpljajzlam/Linux_x86_64/23.7/cuda/12.2/targets/x86_64-linux/lib

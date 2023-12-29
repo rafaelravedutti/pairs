@@ -171,7 +171,7 @@ psim.dem_sc_grid(
 #    "data/spheres.input",
 #    "data/spheres_4x4x2.input",
 #    "data/spheres_6x6x2.input",
-#    #"data/spheres_8x8x2.input",
+#    "data/spheres_8x8x2.input",
 #    ['uid', 'type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
 #    pairs.sphere())
 

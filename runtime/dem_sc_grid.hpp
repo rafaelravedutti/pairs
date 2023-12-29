@@ -113,10 +113,12 @@ int dem_sc_grid(PairsSimulation *ps, double xmax, double ymax, double zmax, doub
             flags(nparticles) = 0;
             shape(nparticles) = 0; // sphere
 
+            /*
             std::cout << uid(nparticles) << "," << types(nparticles) << "," << masses(nparticles) << "," << radius(nparticles) << ","
                       << positions(nparticles, 0) << "," << positions(nparticles, 1) << "," << positions(nparticles, 2) << ","
                       << velocities(nparticles, 0) << "," << velocities(nparticles, 1) << "," << velocities(nparticles, 2) << ","
                       << flags(nparticles) << std::endl;
+            */
 
             nparticles++;
         }
