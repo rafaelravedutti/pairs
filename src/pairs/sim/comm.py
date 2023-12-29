@@ -47,7 +47,7 @@ class Comm:
         # Every property that is not constant across timesteps and have neighbor accesses during any
         # interaction kernel (i.e. property[j] in force calculation kernel)
         prop_names = ['position', 'linear_velocity', 'angular_velocity']
-        prop_list = [ self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
+        prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
 
         PackAllGhostParticles(self, prop_list)
         CommunicateAllData(self, prop_list)
