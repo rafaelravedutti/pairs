@@ -1,7 +1,7 @@
 .PHONY: all build clean
 
 # General settings
-TESTCASE=dem
+TESTCASE=md
 PYCMD=python3
 
 # C/C++ compiler settings
@@ -82,4 +82,4 @@ $(GPU_BIN): $(GPU_SRC) $(GPU_OBJ_PATH)/pairs.o $(GPU_OBJ_PATH)/regular_6d_stenci
 
 clean:
 	@echo "Cleaning..."
-	rm -rf build $(CPU_BIN) $(GPU_BIN) lj.o $(CPU_SRC) $(GPU_SRC) dist pairs.egg-info functions functions.pdf $(CPU_OBJ_PATH) $(GPU_OBJ_PATH)
+	rm -rf build $(CPU_BIN) $(GPU_BIN) $(CPU_SRC) $(GPU_SRC) dist pairs.egg-info functions functions.pdf $(CPU_OBJ_PATH) $(GPU_OBJ_PATH)
