@@ -151,6 +151,23 @@ int dem_sc_grid(PairsSimulation *ps, double xmax, double ymax, double zmax, doub
         last_uid++;
     }
 
+    int global_nparticles = nparticles;
+    if(ps->getDomainPartitioner()->getWorldSize() > 1) {
+        MPI_Allreduce(&nparticles, &global_nparticles, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    }
+
+    if(ps->getDomainPartitioner()->getRank() == 0) {
+        std::cout << "DEM Simple-Cubic Grid" << std::endl;
+        std::cout << "Domain size: <" << xmax << ", " << ymax << ", " << zmax << ">" << std::endl;
+        std::cout << "Spacing: " << spacing << std::endl;
+        std::cout << "Diameter: " << diameter
+                  << " (min = " << min_diameter << ", max = " << max_diameter << ")" << std::endl;
+        std::cout << "Initial velocity: " << initial_velocity << std::endl;
+        std::cout << "Particle density: " << particle_density << std::endl;
+        std::cout << "Number of types: " << ntypes << std::endl;
+        std::cout << "Number of particles: " << global_nparticles << std::endl;
+    }
+
     return nparticles;
 }
 

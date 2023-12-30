@@ -14,7 +14,9 @@ DEBUG_FLAGS=
 
 # CUDA settings
 NVCC=nvcc
-NVCC_FLAGS=-O3 -mavx2 -mfma
+#NVCC_FLAGS=-O3 -mavx2 -mfma
+NVCC_FLAGS=-O3 -arch=sm_80 -mavx2 -mfma -ffast-math -funroll-loops --forward-unknown-to-host-compiler
+#NVCC_FLAGS=-O3 -arch=sm_80 -march=native -ffast-math -funroll-loops --forward-unknown-to-host-compiler
 NVCC_PATH:="$(shell which ${NVCC})"
 CUDA_FLAGS=-DENABLE_CUDA_AWARE_MPI
 CUDART_FLAGS=-lcudart -L /apps/SPACK/0.19.1/opt/linux-almalinux8-zen/gcc-8.5.0/nvhpc-23.7-bzxcokzjvx4stynglo4u2ffpljajzlam/Linux_x86_64/23.7/cuda/12.2/targets/x86_64-linux/lib

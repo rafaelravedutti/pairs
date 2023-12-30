@@ -10,10 +10,10 @@ obj
 obj_cpu
 obj_gpu
 todo*
-lj_cpu
-lj_gpu
-lj.cu
-lj.cpp
+md_cpu
+md_gpu
+md.cu
+md.cpp
 dem_cpu
 dem_gpu
 dem.cu
