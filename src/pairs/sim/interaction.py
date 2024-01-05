@@ -66,10 +66,10 @@ class NeighborFor:
                 cell_neighbors = self.cell_lists.cell_neighbors
 
                 for shape in self.shapes:
-                    start = sum([cell_nneighs[cell][s] for s in range(shape)], 0)
                     # FIXME: Without the inline, the 'cell' expression is being generated after
                     # its usage in the loop upper limit
                     cell = ScalarOp.inline(particle_cell[self.particle])
+                    start = sum([cell_nneighs[cell][s] for s in range(shape)], 0)
                     for k in For(self.sim, start, start + cell_nneighs[cell][shape]):
                         particle_id = cell_neighbors[cell][k]
 
