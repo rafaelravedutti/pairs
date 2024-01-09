@@ -77,6 +77,7 @@ class CGen:
         self.print("#include \"runtime/dem_sc_grid.hpp\"")
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
+        self.print("#include \"runtime/stats.hpp\"")
         self.print("#include \"runtime/timing.hpp\"")
         self.print("#include \"runtime/thermo.hpp\"")
         self.print("#include \"runtime/vtk.hpp\"")
@@ -135,6 +136,7 @@ class CGen:
                 self.print("    LIKWID_MARKER_CLOSE;")
 
             self.print("    pairs::print_timers(pairs);")
+            self.print("    pairs::print_stats(pairs, nlocal, nghost);")
             self.print("    delete pairs;")
             self.print("    return 0;")
             self.print("}")
