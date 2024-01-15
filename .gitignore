@@ -18,3 +18,6 @@ dem_cpu
 dem_gpu
 dem.cu
 dem.cpp
+debug
+results
+scripts
