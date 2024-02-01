@@ -51,7 +51,8 @@ psim.add_feature_property('type', 'epsilon', pairs.real(), [sigma for i in range
 psim.add_feature_property('type', 'sigma6', pairs.real(), [epsilon for i in range(ntypes * ntypes)])
 
 psim.copper_fcc_lattice(nx, ny, nz, rho, temp, ntypes)
-psim.set_domain_partitioner(pairs.regular_domain_partitioner())
+psim.set_domain_partitioner(pairs.block_forest())
+#psim.set_domain_partitioner(pairs.regular_domain_partitioner())
 psim.compute_thermo(100)
 
 psim.reneighbor_every(20)

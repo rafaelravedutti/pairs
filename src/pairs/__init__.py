@@ -65,3 +65,6 @@ def regular_domain_partitioner():
 
 def regular_domain_partitioner_xy():
     return DomainPartitioners.RegularXY
+
+def block_forest():
+    return DomainPartitioners.BlockForest

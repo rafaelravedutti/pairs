@@ -13,6 +13,7 @@
 #include "runtime_var.hpp"
 #include "timers.hpp"
 #include "devices/device.hpp"
+#include "domain/block_forest.hpp"
 #include "domain/regular_6d_stencil.hpp"
 
 #pragma once

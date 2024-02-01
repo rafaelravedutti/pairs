@@ -19,7 +19,7 @@ from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.dem_sc_grid import DEMSCGrid
 from pairs.sim.domain import InitializeDomain
 from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.sim.domain_partitioning import DimensionRanges
+from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.grid import Grid2D, Grid3D
 from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
@@ -106,6 +106,9 @@ class Simulation:
 
         if partitioner in (DomainPartitioners.Regular, DomainPartitioners.RegularXY):
             self._dom_part = DimensionRanges(self)
+
+        elif partitioner == DomainPartitioners.BlockForest:
+            self._dom_part = BlockForest(self)
 
         else:
             raise Exception("Invalid domain partitioner.")
