@@ -75,38 +75,24 @@ void BlockForest::updateNeighborhood(
         }
     }
 
+    // TODO: delegate these next lines to functions (getRuntimeInt?)
     *nranks = nranks;
-    if(nranks > *rank_capacity) {
-        // reallocateArray?
-        const int new_capacity = nranks + 10;
-        delete[] ranks;
-        delete[] naabbs;
-        delete[] offsets;
-        ranks = new int[new_capacity];
-        naabbs = new int[new_capacity];
-        offsets = new int[new_capacity];
-        *rank_capacity = new_capacity;
-    }    
-
-    if(total_aabbs > *aabb_capacity) {
-        const int new_capacity = total_aabbs + 10;
-        aabbs = new real_t[new_capacity * 6];
-        *aabb_capacity = new_capacity;
-    }
-
-    int offset = 0;
-    for(int i = 0; i < nranks; i++) {
-        ranks[i] = vec_ranks.data()[i];
-        naabbs[i] = vec_naabbs.data()[i];
-        offsets[i] = offset;
-        offset += naabbs[i];
-    }
-
-    for(int i = 0; i < total_aabbs * 6; i++) {
-        aabbs[i] = vec_aabbs.data()[i];
-    }
+    *total_aabbs = total_aabbs;
 
     ps->copyToDevice(aabbs);
+}
+
+void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
+    void *src = name.compare('ranks') ? vec_ranks.data() :
+                name.compare('naabbs') ? vec_naabbs.data() :
+                name.compare('rank_offsets') ? offsets :
+                name.compare('pbc') ? vec_pbc.data() :
+                name.compare('aabbs') ? vec_aabbs.data() :
+                name.compare('subdom') ? subdom;
+
+    bool is_real = name.compare('aabbs') || name.compare('subdom');
+    int tsize = (is_real) ? sizeof(real_t) : sizeof(int);
+    std::memcpy(dest, src, size * tsize)
 }
 
 /*
@@ -149,8 +135,7 @@ void BlockForest::updateWeights(
         auto aabb = block->getAABB();
         auto& block_info = info[block->getId()];
 
-        pairs->callModule(
-            "computeBoundaryWeights",
+        pairs->computeBoundaryWeights(
             aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
             &(block_info.computationalWeight), &(block_info.communicationWeight));
 
@@ -159,8 +144,7 @@ void BlockForest::updateWeights(
             const auto b_aabb = forest->getAABBFromBlockId(b_id);
             auto& b_info = info[b_id];
 
-            pairs->callModule(
-                "computeBoundaryWeights",
+            pairs->computeBoundaryWeights(
                 b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
                 &(b_info.computationalWeight), &(b_info.communicationWeight));
         }
@@ -261,7 +245,11 @@ void BlockForest::getBlockForestAABB(double (&rank_aabb)[6]) {
     rank_aabb[5] = aabb_union.zMax();
 }
 
-void BlockForest::setConfig() {
+void BlockForest::initialize(int *argc, char ***argv) {
+    MPI_Init(argc, argv);
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
     auto mpiManager = mpi::MPIManager::instance();
     mpiManager->initializeMPI(&argc, &argv);
     mpiManager->useWorldComm();
@@ -278,42 +266,9 @@ void BlockForest::setConfig() {
     auto is_within_domain = bind(isWithinBlockForest, _1, _2, _3, forest);
     auto info = make_shared<blockforest::InfoCollection>();
     getBlockForestAABB(forest, rank_aabb);
-}
 
-void BlockForest::setBoundingBox() {
-    MPI_Comm cartesian;
-    int *myloc = new int[ndims];
-    int *periods = new int[ndims];
-    real_t *rank_length = new real_t[ndims];
-    int reorder = 0;
-
-    for(int d = 0; d < ndims; d++) {
-        periods[d] = 1;
-        rank_length[d] = (this->grid_max[d] - this->grid_min[d]) / (real_t) nranks[d];
-    }
-
-    MPI_Cart_create(MPI_COMM_WORLD, ndims, nranks, periods, reorder, &cartesian);
-    MPI_Cart_get(cartesian, ndims, nranks, periods, myloc);
-    for(int d = 0; d < ndims; d++) {
-        MPI_Cart_shift(cartesian, d, 1, &(prev[d]), &(next[d]));
-        pbc_prev[d] = (myloc[d] == 0) ? 1 : 0;
-        pbc_next[d] = (myloc[d] == nranks[d] - 1) ? -1 : 0;
-        subdom_min[d] = this->grid_min[d] + rank_length[d] * (real_t)myloc[d];
-        subdom_max[d] = subdom_min[d] + rank_length[d];
-    }
-
-    delete[] myloc;
-    delete[] periods;
-    delete[] rank_length;
-    MPI_Comm_free(&cartesian);
-}
-
-void BlockForest::initialize(int *argc, char ***argv) {
-    MPI_Init(argc, argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    this->setConfig();
-    this->setBoundingBox();
+    //subdom_min[d] = this->grid_min[d] + rank_length[d] * (real_t)myloc[d];
+    //subdom_max[d] = subdom_min[d] + rank_length[d];
 }
 
 void BlockForest::finalize() {
@@ -330,17 +285,6 @@ bool BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
     }
 
     return false;
-}
-
-void BlockForest::fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {
-    for(int d = 0; d < ndims; d++) {
-        neighbor_ranks[d * 2 + 0] = prev[d];
-        neighbor_ranks[d * 2 + 1] = next[d];
-        pbc[d * 2 + 0] = pbc_prev[d];
-        pbc[d * 2 + 1] = pbc_next[d];
-        subdom[d * 2 + 0] = subdom_min[d];
-        subdom[d * 2 + 1] = subdom_max[d];
-    }
 }
 
 void BlockForest::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {

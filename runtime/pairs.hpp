@@ -283,7 +283,8 @@ public:
         const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
         real_t *recv_buf, int *contact_roffsets, int *nrecv_contact);
 
-    void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]);
+    void PairsSimulation::copyRuntimeArray(
+        const std::string& name, const void *dest, const int size);
 
     // Device functions
     void sync() { device_synchronize(); }

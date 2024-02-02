@@ -31,8 +31,10 @@ class DimensionRanges:
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim]),
-        Call_Void(self.sim, "pairs->fillCommunicationArrays", [self.neighbor_ranks, self.pbc, self.subdom])
+        Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['neighbor_ranks', self.neighbor_ranks, sim.ndims() * 2])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, sim.ndims() * 2])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored
@@ -97,8 +99,14 @@ class BlockForest:
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim]),
-        Call_Void(self.sim, "pairs->fillCommunicationArrays", [self.ranks, self.pbc, self.subdom])
+        Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
+        # TODO: Check nranks_capacity and aabb_capacity and resize arrays if needed
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['ranks', self.ranks, self.nranks_capacity])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks_capacity])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['rank_offsets', self.rank_offsets, self.nranks_capacity])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, self.aabb_capacity * 3])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabbs', self.aabbs, self.aabb_capacity * 6])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored

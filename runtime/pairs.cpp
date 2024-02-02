@@ -515,8 +515,8 @@ void PairsSimulation::communicateContactHistoryData(
     #endif
 }
 
-void PairsSimulation::fillCommunicationArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {
-    this->getDomainPartitioner()->fillArrays(neighbor_ranks, pbc, subdom);
+void PairsSimulation::copyRuntimeArray(const std::string& name, const void *dest, const int size) {
+    this->getDomainPartitioner()->copyRuntimeArray(name, dest, size);
 }
 
 }
