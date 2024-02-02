@@ -283,8 +283,9 @@ public:
         const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
         real_t *recv_buf, int *contact_roffsets, int *nrecv_contact);
 
-    void PairsSimulation::copyRuntimeArray(
-        const std::string& name, const void *dest, const int size);
+    void copyRuntimeArray(const std::string& name, const void *dest, const int size);
+    int getNumberOfNeighborRanks() { return this->getDomainPartitioner()->getNumberOfNeighborRanks(); }
+    int getNumberOfNeighborAABBs() { return this->getDomainPartitioner()->getNumberOfNeighborAABBs(); }
 
     // Device functions
     void sync() { device_synchronize(); }

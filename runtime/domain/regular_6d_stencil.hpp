@@ -52,8 +52,12 @@ public:
     void setBoundingBox();
     void initialize(int *argc, char ***argv);
     void finalize();
+
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }
+    int getNumberOfNeighborRanks() { return 6; }
+    int getNumberOfNeighborAABBs() { return 6; }
+
     int isWithinSubdomain(real_t x, real_t y, real_t z);
     void fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom);
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);

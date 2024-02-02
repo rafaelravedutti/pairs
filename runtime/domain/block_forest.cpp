@@ -15,18 +15,15 @@
 #include "../pairs_common.hpp"
 #include "../devices/device.hpp"
 #include "regular_6d_stencil.hpp"
-#include "MDDataHandling.h"
+#include "ParticleDataHandling.h"
 
 namespace pairs {
 
-void BlockForest::updateNeighborhood(
-    std::shared_ptr<BlockForest> forest,
-    blockforest::InfoCollection& info,
-    real_t *ranks,
-    real_t *naabbs,
-    real_t *aabbs) {
-
+void BlockForest::updateNeighborhood() {
     auto me = mpi::MPIManager::instance()->rank();
+    this->nranks = 0;
+    this->total_aabbs = 0;
+
     for(auto& iblock: *forest) {
         auto block = static_cast<blockforest::Block *>(&iblock);
         auto& block_info = info[block->getId()];
@@ -56,7 +53,6 @@ void BlockForest::updateNeighborhood(
     vec_ranks.clear();
     vec_naabbs.clear();
     vec_aabbs.clear();
-    total_aabbs = 0;
 
     for(auto& nbh: neighborhood) {
         auto rank = nbh.first;
@@ -71,16 +67,14 @@ void BlockForest::updateNeighborhood(
             vec_aabbs.push_back(aabb.yMax());
             vec_aabbs.push_back(aabb.zMin());
             vec_aabbs.push_back(aabb.zMax());
-            total_aabbs++;
+            this->total_aabbs++;
         }
+
+        this->nranks++;
     }
-
-    // TODO: delegate these next lines to functions (getRuntimeInt?)
-    *nranks = nranks;
-    *total_aabbs = total_aabbs;
-
-    ps->copyToDevice(aabbs);
 }
+
+
 
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     void *src = name.compare('ranks') ? vec_ranks.data() :
@@ -91,8 +85,8 @@ void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const in
                 name.compare('subdom') ? subdom;
 
     bool is_real = name.compare('aabbs') || name.compare('subdom');
-    int tsize = (is_real) ? sizeof(real_t) : sizeof(int);
-    std::memcpy(dest, src, size * tsize)
+    int tsize = is_real ? sizeof(real_t) : sizeof(int);
+    std::memcpy(dest, src, size * tsize);
 }
 
 /*
@@ -121,12 +115,7 @@ void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const in
  }) as u32;
  */
 
-void BlockForest::updateWeights(
-    shared_ptr<BlockForest> forest,
-    blockforest::InfoCollection& info,
-    real_t *position,
-    int nparticles) {
-
+void BlockForest::updateWeights(real_t *position, int nparticles) {
     mpi::BufferSystem bs(mpi::MPIManager::instance()->comm(), 756);
 
     info.clear();
@@ -229,20 +218,30 @@ uint_t BlockForest::getInitialRefinementLevel(uint_t num_processes) {
     return refinementLevel;
 }
 
-void BlockForest::getBlockForestAABB(double (&rank_aabb)[6]) {
+void BlockForest::setBoundingBox() {
     auto aabb_union = forest->begin()->getAABB();
-
     for(auto& iblock: *forest) {
         auto block = static_cast<blockforest::Block *>(&iblock);
         aabb_union.merge(block->getAABB());
     }
 
-    rank_aabb[0] = aabb_union.xMin();
-    rank_aabb[1] = aabb_union.xMax();
-    rank_aabb[2] = aabb_union.yMin();
-    rank_aabb[3] = aabb_union.yMax();
-    rank_aabb[4] = aabb_union.zMin();
-    rank_aabb[5] = aabb_union.zMax();
+    subdom[0] = aabb_union.xMin();
+    subdom[1] = aabb_union.xMax();
+    subdom[2] = aabb_union.yMin();
+    subdom[3] = aabb_union.yMax();
+    subdom[4] = aabb_union.zMin();
+    subdom[5] = aabb_union.zMax();
+}
+
+void BlockForest::rebalance() {
+    if(balance_workload) {
+        this->updateWeights();
+        forest->refresh();
+    }
+
+    this->setBoundingBox();
+    this->updateWeights();
+    this->updateNeighborhood();
 }
 
 void BlockForest::initialize(int *argc, char ***argv) {
@@ -260,15 +259,81 @@ void BlockForest::initialize(int *argc, char ***argv) {
     auto block_config = use_load_balancing ? Vector3<uint_t>(1, 1, 1) : getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
     auto ref_level = use_load_balancing ? getInitialRefinementLevel(procs) : 0;
 
-    auto forest = blockforest::createBlockForest(
+    forest = blockforest::createBlockForest(
         domain, block_config, Vector3<bool>(true, true, true), procs, ref_level);
 
-    auto is_within_domain = bind(isWithinBlockForest, _1, _2, _3, forest);
-    auto info = make_shared<blockforest::InfoCollection>();
-    getBlockForestAABB(forest, rank_aabb);
+    info = make_shared<blockforest::InfoCollection>();
+    this->setBoundingBox();
 
-    //subdom_min[d] = this->grid_min[d] + rank_length[d] * (real_t)myloc[d];
-    //subdom_max[d] = subdom_min[d] + rank_length[d];
+    if(balance_workload) {
+        this->initializeWorkloadBalancer();
+    }
+}
+
+void BlockForest::initializeWorkloadBalancer() {
+    const std::string algorithm = "morton";
+    real_t baseWeight = 1.0;
+    real_t metisipc2redist = 1.0;
+    size_t regridMin = 10;
+    size_t regridMax = 100;
+    int maxBlocksPerProcess = 100;
+    string metisAlgorithm = "none";
+    string metisWeightsToUse = "none";
+    string metisEdgeSource = "none";
+
+    forest->recalculateBlockLevelsInRefresh(true);
+    forest->alwaysRebalanceInRefresh(true);
+    forest->reevaluateMinTargetLevelsAfterForcedRefinement(true);
+    forest->allowRefreshChangingDepth(true);
+
+    forest->allowMultipleRefreshCycles(false);
+    forest->checkForEarlyOutInRefresh(false);
+    forest->checkForLateOutInRefresh(false);
+    forest->setRefreshMinTargetLevelDeterminationFunction(pe::amr::MinMaxLevelDetermination(info, regridMin, regridMax));
+
+    for_each(algorithm.begin(), algorithm.end(), [](char& c) { c = (char) ::tolower(c); });
+
+    if(algorithm == "morton") {
+        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::WeightAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+
+        auto prepFunc = blockforest::DynamicCurveBalance<pe::amr::WeightAssignmentFunctor::PhantomBlockWeight>(false, true, false);
+
+        prepFunc.setMaxBlocksPerProcess(maxBlocksPerProcess);
+        forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
+    } else if(algorithm == "hilbert") {
+        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::WeightAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+
+        auto prepFunc = blockforest::DynamicCurveBalance<pe::amr::WeightAssignmentFunctor::PhantomBlockWeight>(true, true, false);
+
+        prepFunc.setMaxBlocksPerProcess(maxBlocksPerProcess);
+        forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
+    } else if(algorithm == "metis") {
+        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::MetisAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::MetisAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::MetisAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+
+        auto alg = blockforest::DynamicParMetis::stringToAlgorithm(metisAlgorithm);
+        auto vWeight = blockforest::DynamicParMetis::stringToWeightsToUse(metisWeightsToUse);
+        auto eWeight = blockforest::DynamicParMetis::stringToEdgeSource(metisEdgeSource);
+        auto prepFunc = blockforest::DynamicParMetis(alg, vWeight, eWeight);
+
+        prepFunc.setipc2redist(metisipc2redist);
+        forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
+    } else if(algorithm == "diffusive") {
+        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::WeightAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+
+        auto prepFunc = blockforest::DynamicDiffusionBalance<pe::amr::WeightAssignmentFunctor::PhantomBlockWeight>(1, 1, false);
+
+        forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
+    }
+
+    forest->addBlockData(make_shared<ParticleDataHandling>(), "Interface");
 }
 
 void BlockForest::finalize() {

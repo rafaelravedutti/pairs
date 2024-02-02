@@ -100,13 +100,27 @@ class BlockForest:
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
         Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
-        # TODO: Check nranks_capacity and aabb_capacity and resize arrays if needed
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['ranks', self.ranks, self.nranks_capacity])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks_capacity])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['rank_offsets', self.rank_offsets, self.nranks_capacity])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, self.aabb_capacity * 3])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabbs', self.aabbs, self.aabb_capacity * 6])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, sim.ndims() * 2])
+
+        Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs->getNumberOfNeighborRanks", []))
+        Assign(self.sim, self.naabbs, Call_Int(self.sim, "pairs->getNumberOfNeighborAABBs", []))
+
+        for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
+            Assign(self.sim, self.nranks_capacity, self.nranks + 10)
+            self.ranks.realloc()
+            self.naabbs.realloc()
+            self.offsets.realloc()
+
+        for _ in Filter(self.sim, self.aabb_capacity < self.naabbs):
+            Assign(self.sim, self.aabb_capacity, self.naabbs + 20)
+            self.pbc.realloc()
+            self.aabbs.realloc()
+
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['rank_offsets', self.rank_offsets, self.nranks])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, self.naabbs * 3])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabbs', self.aabbs, self.naabbs * 6])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored
