@@ -34,9 +34,9 @@ class DimensionRanges:
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
         Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['neighbor_ranks', self.neighbor_ranks, sim.ndims() * 2])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, sim.ndims() * 2])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, sim.ndims() * 2])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['neighbor_ranks', self.neighbor_ranks, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored

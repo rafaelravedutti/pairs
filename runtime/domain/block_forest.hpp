@@ -18,9 +18,8 @@ private:
     std::vector<int> ranks;
     std::vector<int> naabbs;
     std::vector<double> aabbs;
-    real_t *subdom_min;
-    real_t *subdom_max;
-    int world_size, rank, total_aabbs;
+    real_t *subdom;
+    int world_size, rank, nranks, naabbs;
     bool balance_workload;
 
 public:
