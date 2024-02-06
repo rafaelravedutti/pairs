@@ -99,8 +99,7 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
         auto& block_info = info[block->getId()];
 
         pairs::compute_boundary_weights(
-            ps,
-            aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
+            ps, aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
             &(block_info.computationalWeight), &(block_info.communicationWeight));
 
         for(uint_t branch = 0; branch < 8; ++branch) {
@@ -109,8 +108,7 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
             auto& b_info = info[b_id];
 
             pairs::compute_boundary_weights(
-                ps,
-                b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
+                ps, b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
                 &(b_info.computationalWeight), &(b_info.communicationWeight));
         }
     }
