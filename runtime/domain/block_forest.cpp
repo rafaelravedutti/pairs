@@ -12,6 +12,7 @@
 #include <pe/amr/weight_assignment/MetisAssignmentFunctor.h>
 #include <pe/amr/weight_assignment/WeightAssignmentFunctor.h>
 //---
+#include "../boundary_weights.hpp"
 #include "../pairs_common.hpp"
 #include "../devices/device.hpp"
 #include "regular_6d_stencil.hpp"
@@ -21,6 +22,9 @@ namespace pairs {
 
 void BlockForest::updateNeighborhood() {
     auto me = mpi::MPIManager::instance()->rank();
+    ranks.clear();
+    naabbs.clear();
+    aabbs.clear();
     this->nranks = 0;
     this->total_aabbs = 0;
 
@@ -50,23 +54,19 @@ void BlockForest::updateNeighborhood() {
         }
     }
 
-    vec_ranks.clear();
-    vec_naabbs.clear();
-    vec_aabbs.clear();
-
     for(auto& nbh: neighborhood) {
         auto rank = nbh.first;
         auto aabb_list = nbh.second;
-        vec_ranks.push_back((int) rank);
-        vec_naabbs.push_back((int) aabb_list.size());
+        ranks.push_back((int) rank);
+        naabbs.push_back((int) aabb_list.size());
 
         for(auto &aabb: aabb_list) {
-            vec_aabbs.push_back(aabb.xMin());
-            vec_aabbs.push_back(aabb.xMax());
-            vec_aabbs.push_back(aabb.yMin());
-            vec_aabbs.push_back(aabb.yMax());
-            vec_aabbs.push_back(aabb.zMin());
-            vec_aabbs.push_back(aabb.zMax());
+            aabbs.push_back(aabb.xMin());
+            aabbs.push_back(aabb.xMax());
+            aabbs.push_back(aabb.yMin());
+            aabbs.push_back(aabb.yMax());
+            aabbs.push_back(aabb.zMin());
+            aabbs.push_back(aabb.zMax());
             this->total_aabbs++;
         }
 
@@ -77,7 +77,7 @@ void BlockForest::updateNeighborhood() {
 
 
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
-    void *src = name.compare('ranks') ? vec_ranks.data() :
+    void *src = name.compare('ranks') ? ranks.data() :
                 name.compare('naabbs') ? vec_naabbs.data() :
                 name.compare('rank_offsets') ? offsets :
                 name.compare('pbc') ? vec_pbc.data() :
@@ -89,33 +89,7 @@ void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const in
     std::memcpy(dest, src, size * tsize);
 }
 
-/*
-  extern fn md_compute_boundary_weights(
-    xmin: real_t, xmax: real_t, ymin: real_t, ymax: real_t, zmin: real_t, zmax: real_t,
-    computational_weight: &mut u32, communication_weight: &mut u32) -> () {
-
-    let grid = grid_;
-    let particle = make_particle(grid, array_dev, ParticleDataLayout(), null_layout());
-    let sum = @|a: i32, b: i32| { a + b };
-    let aabb = AABB {
-        xmin: xmin,
-        xmax: xmax,
-        ymin: ymin,
-        ymax: ymax,
-        zmin: zmin,
-        zmax: zmax
-    };
-
-    *computational_weight = reduce_i32(grid.nparticles, 0, sum, |i| {
-        select(is_within_domain(particle.get_position(i), aabb), 1, 0)
-    }) as u32;
-
-    *communication_weight = reduce_i32(grid.nghost, 0, sum, |i| {
-        select(is_within_domain(particle.get_position(grid.nparticles + i), aabb), 1, 0)
- }) as u32;
- */
-
-void BlockForest::updateWeights(real_t *position, int nparticles) {
+void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
     mpi::BufferSystem bs(mpi::MPIManager::instance()->comm(), 756);
 
     info.clear();
@@ -124,7 +98,8 @@ void BlockForest::updateWeights(real_t *position, int nparticles) {
         auto aabb = block->getAABB();
         auto& block_info = info[block->getId()];
 
-        pairs->computeBoundaryWeights(
+        pairs::compute_boundary_weights(
+            ps,
             aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
             &(block_info.computationalWeight), &(block_info.communicationWeight));
 
@@ -133,7 +108,8 @@ void BlockForest::updateWeights(real_t *position, int nparticles) {
             const auto b_aabb = forest->getAABBFromBlockId(b_id);
             auto& b_info = info[b_id];
 
-            pairs->computeBoundaryWeights(
+            pairs::compute_boundary_weights(
+                ps,
                 b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
                 &(b_info.computationalWeight), &(b_info.communicationWeight));
         }
@@ -352,20 +328,19 @@ bool BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
     return false;
 }
 
-void BlockForest::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
-    if(prev[dim] != rank) {
-        MPI_Send(&send_sizes[dim * 2 + 0], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD);
-        MPI_Recv(&recv_sizes[dim * 2 + 0], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    } else {
-        recv_sizes[dim * 2 + 0] = send_sizes[dim * 2 + 0];
+void BlockForest::communicateSizes(int dim, const int *nsend, int *nrecv) {
+    std::vector<MPI_Request> send_requests(ranks.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> recv_requests(ranks.size(), MPI_REQUEST_NULL);
+    size_t nranks = 0;
+
+    for(auto neigh_rank: ranks) {
+        MPI_Irecv(&recv_sizes[i], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &nrecv[i], &recv_requests[i]);
+        MPI_Isend(&send_sizes[i], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &nsend[i], &send_requests[i]);
+        nranks++;
     }
 
-    if(next[dim] != rank) {
-        MPI_Send(&send_sizes[dim * 2 + 1], 1, MPI_INT, next[dim], 0, MPI_COMM_WORLD);
-        MPI_Recv(&recv_sizes[dim * 2 + 1], 1, MPI_INT, prev[dim], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    } else {
-        recv_sizes[dim * 2 + 1] = send_sizes[dim * 2 + 1];
-    }
+    MPI_Waitall(nranks, send_requests.data(), MPI_STATUSES_IGNORE);
+    MPI_Waitall(nranks, recv_requests.data(), MPI_STATUSES_IGNORE);
 }
 
 void BlockForest::communicateData(
@@ -373,53 +348,33 @@ void BlockForest::communicateData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    //MPI_Request recv_requests[2];
-    //MPI_Request send_requests[2];
-    const real_t *send_prev = &send_buf[send_offsets[dim * 2 + 0] * elem_size];
-    const real_t *send_next = &send_buf[send_offsets[dim * 2 + 1] * elem_size];
-    real_t *recv_prev = &recv_buf[recv_offsets[dim * 2 + 0] * elem_size];
-    real_t *recv_next = &recv_buf[recv_offsets[dim * 2 + 1] * elem_size];
+    std::vector<MPI_Request> send_requests(ranks.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> recv_requests(ranks.size(), MPI_REQUEST_NULL);
+    size_t nranks = 0;
 
-    if(prev[dim] != rank) {
-        MPI_Sendrecv(
-            send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
-            recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0,
-            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    for(auto neigh_rank: ranks) {
+        const real_t *send_ptr = &send_buf[send_offsets[nranks] * elem_size];
+        real_t *recv_ptr = &recv_buf[recv_offsets[nranks] * elem_size];
 
-        /*
-        MPI_Irecv(
-            recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
-            MPI_COMM_WORLD, &recv_requests[0]);
+        if(neigh_rank != rank) {
+            MPI_Irecv(
+                recv_ptr, nrecv[nranks] * elem_size, MPI_DOUBLE, neigh_rank, 0,
+                MPI_COMM_WORLD, &recv_requests[0]);
 
-        MPI_Isend(
-            send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
-            MPI_COMM_WORLD, &send_requests[0]);
-        */
-    } else {
-        pairs::copy_in_device(recv_prev, send_prev, nsend[dim * 2 + 0] * elem_size * sizeof(real_t));
+            MPI_Isend(
+                send_ptr, nsend[nranks] * elem_size, MPI_DOUBLE, neigh_rank, 0,
+                MPI_COMM_WORLD, &send_requests[0]);
+
+            nranks++;
+        } else {
+            pairs::copy_in_device(recv_ptr, send_ptr, nsend[nranks] * elem_size * sizeof(real_t));
+        }
+
+        nranks++;
     }
 
-    if(next[dim] != rank) {
-        MPI_Sendrecv(
-            send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
-            recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0,
-            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-        /*
-        MPI_Irecv(
-            recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
-            MPI_COMM_WORLD, &recv_requests[1]);
-
-        MPI_Isend(
-            send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
-            MPI_COMM_WORLD, &send_requests[1]);
-        */
-    } else {
-        pairs::copy_in_device(recv_next, send_next, nsend[dim * 2 + 1] * elem_size * sizeof(real_t));
-    }
-
-    //MPI_Waitall(2, recv_requests, MPI_STATUSES_IGNORE);
-    //MPI_Waitall(2, send_requests, MPI_STATUSES_IGNORE);
+    MPI_Waitall(nranks, send_requests.data(), MPI_STATUSES_IGNORE);
+    MPI_Waitall(nranks, recv_requests.data(), MPI_STATUSES_IGNORE);
 }
 
 void BlockForest::communicateAllData(
@@ -427,56 +382,7 @@ void BlockForest::communicateAllData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    //std::vector<MPI_Request> send_requests(ndims * 2, MPI_REQUEST_NULL);
-    //std::vector<MPI_Request> recv_requests(ndims * 2, MPI_REQUEST_NULL);
-
-    for (int d = 0; d < ndims; d++) {
-        const real_t *send_prev = &send_buf[send_offsets[d * 2 + 0] * elem_size];
-        const real_t *send_next = &send_buf[send_offsets[d * 2 + 1] * elem_size];
-        real_t *recv_prev = &recv_buf[recv_offsets[d * 2 + 0] * elem_size];
-        real_t *recv_next = &recv_buf[recv_offsets[d * 2 + 1] * elem_size];
-
-        if (prev[d] != rank) {
-            MPI_Sendrecv(
-                send_prev, nsend[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
-                recv_prev, nrecv[d * 2 + 0] * elem_size, MPI_DOUBLE, next[d], 0,
-                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-            /*
-            MPI_Isend(
-                send_prev, nsend[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
-                MPI_COMM_WORLD, &send_requests[d * 2 + 0]);
-
-            MPI_Irecv(
-                recv_prev, nrecv[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
-                MPI_COMM_WORLD, &recv_requests[d * 2 + 0]);
-            */
-        } else {
-            pairs::copy_in_device(recv_prev, send_prev, nsend[d * 2 + 0] * elem_size * sizeof(real_t));
-        }
-
-        if (next[d] != rank) {
-            MPI_Sendrecv(
-                send_next, nsend[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
-                recv_next, nrecv[d * 2 + 1] * elem_size, MPI_DOUBLE, prev[d], 0,
-                MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-            /*
-            MPI_Isend(
-                send_next, nsend[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
-                MPI_COMM_WORLD, &send_requests[d * 2 + 1]);
-
-            MPI_Irecv(
-                recv_next, nrecv[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
-                MPI_COMM_WORLD, &recv_requests[d * 2 + 1]);
-            */
-        } else {
-            pairs::copy_in_device(recv_next, send_next, nsend[d * 2 + 1] * elem_size * sizeof(real_t));
-        }
-    }
-
-    //MPI_Waitall(ndims * 2, send_requests.data(), MPI_STATUSES_IGNORE);
-    //MPI_Waitall(ndims * 2, recv_requests.data(), MPI_STATUSES_IGNORE);
+    this->communicateData(0, elem_size, send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 }
 
 }

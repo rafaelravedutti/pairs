@@ -36,13 +36,23 @@ private:
     std::vector<Array> arrays;
     DeviceFlags *prop_flags, *contact_prop_flags, *array_flags;
     Timers<double> *timers;
+    int *nlocal, *nghost;
 
 public:
-    PairsSimulation(int nprops_, int ncontactprops_, int narrays_, DomainPartitioners dom_part_type_) {
+    PairsSimulation(
+        int nprops_,
+        int ncontactprops_,
+        int narrays_,
+        int *nlocal_,
+        int *nghost_,
+        DomainPartitioners dom_part_type_) {
+
         dom_part_type = dom_part_type_;
         prop_flags = new DeviceFlags(nprops_);
         contact_prop_flags = new DeviceFlags(ncontactprops_);
         array_flags = new DeviceFlags(narrays_);
+        nlocal = nlocal_;
+        nghost = nghost_;
         timers = new Timers<double>(1e-6);
     }
 
@@ -59,6 +69,9 @@ public:
     RuntimeVar<T> addDeviceVariable(T *h_ptr) {
        return RuntimeVar<T>(h_ptr); 
     }
+
+    const int getNumberOfLocalParticles() { return *nlocal; }
+    const int getNumberOfGhostParticles() { return *nghost; }
 
     // Arrays
     Array &getArray(array_t id);
