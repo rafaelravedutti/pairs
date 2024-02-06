@@ -22,11 +22,12 @@ namespace pairs {
 
 void BlockForest::updateNeighborhood() {
     auto me = mpi::MPIManager::instance()->rank();
+    this->nranks = 0;
+    this->total_aabbs = 0;
+
     ranks.clear();
     naabbs.clear();
     aabbs.clear();
-    this->nranks = 0;
-    this->total_aabbs = 0;
 
     for(auto& iblock: *forest) {
         auto block = static_cast<blockforest::Block *>(&iblock);
@@ -80,7 +81,6 @@ void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const in
     void *src = name.compare('ranks') ? ranks.data() :
                 name.compare('naabbs') ? vec_naabbs.data() :
                 name.compare('rank_offsets') ? offsets :
-                name.compare('pbc') ? vec_pbc.data() :
                 name.compare('aabbs') ? vec_aabbs.data() :
                 name.compare('subdom') ? subdom;
 

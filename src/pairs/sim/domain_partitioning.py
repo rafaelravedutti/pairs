@@ -83,7 +83,6 @@ class BlockForest:
         self.ranks              = sim.add_static_array('ranks', [self.nranks_capacity], Types.Int32)
         self.naabbs             = sim.add_static_array('naabbs', [self.nranks_capacity], Types.Int32)
         self.offsets            = sim.add_static_array('rank_offsets', [self.nranks_capacity], Types.Int32)
-        self.pbc                = sim.add_static_array('pbc', [self.aabb_capacity, 3], Types.Int32)
         self.aabbs              = sim.add_static_array('aabbs', [self.aabb_capacity, 6], Types.Real)
         self.subdom             = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Real)
 
@@ -135,15 +134,20 @@ class BlockForest:
                 for r in For(self.sim, 0, self.nranks):
                     for aabb_id in For(self.sim, self.offsets[r], self.offsets[r] + self.naabbs[r]):
                         full_cond = None
+                        pbc_shifts = []
 
                         for d in range(self.sim.ndims()):
-                            d_cond = ScalarOp.and_op(
-                                position[i][d] > self.aabbs[aabb_id][d * 2 + 0] + offset,
-                                position[i][d] < self.aabbs[aabb_id][d * 2 + 1] - offset)
+                            cond_pbc_neg = position[i][d] - offset < self.sim.grid.min(d)
+                            cond_pbc_pos = position[i][d] + offset > self.sim.grid.max(d)
+                            d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
 
-                            full_cond = d_cond if full_cond is None else \
-                                        ScalarOp.and_op(full_cond, d_cond)
+                            adj_pos = position[i][d] + d_pbc * self.sim.grid.length(d)
+                            d_cond = ScalarOp.and_op(
+                                adj_pos > self.aabbs[aabb_id][d * 2 + 0] + offset,
+                                adj_pos < self.aabbs[aabb_id][d * 2 + 1] - offset)
+
+                            full_cond = d_cond if full_cond is None else ScalarOp.and_op(full_cond, d_cond)
+                            pbc_shifts.append(d_pbc)
 
                         for _ in Filter(self.sim, full_cond):
-                            pbc_shifts = [self.pbc[aabb_id][d] for d in range(self.sim.ndims())]
                             yield i, r, self.ranks[r], pbc_shifts
