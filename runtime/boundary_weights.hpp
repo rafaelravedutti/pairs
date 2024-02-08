@@ -5,7 +5,7 @@
 //---
 #include "pairs.hpp"
 #include "pairs_common.hpp"
-#include "gen/property_interface.hpp"
+#include "gen/interfaces.hpp"
 
 #pragma once
 
@@ -27,9 +27,9 @@ void compute_boundary_weights(
     *comm_weight = 0;
 
     for(int i = 0; i < nlocal; i++) {
-        real_t pos_x = pairs_interface::getPosition(position_ptr, i, 0, particle_capacity);
-        real_t pos_y = pairs_interface::getPosition(position_ptr, i, 1, particle_capacity);
-        real_t pos_z = pairs_interface::getPosition(position_ptr, i, 2, particle_capacity);
+        real_t pos_x = pairs_interface::get_position(position_ptr, i, 0, particle_capacity);
+        real_t pos_y = pairs_interface::get_position(position_ptr, i, 1, particle_capacity);
+        real_t pos_z = pairs_interface::get_position(position_ptr, i, 2, particle_capacity);
 
         if( pos_x > xmin && pos_x <= xmax &&
             pos_y > ymin && pos_y <= ymax &&
@@ -39,9 +39,9 @@ void compute_boundary_weights(
     }
 
     for(int i = nlocal; i < nlocal + nghost; i++) {
-        real_t pos_x = pairs_interface::getPosition(position_ptr, i, 0, particle_capacity);
-        real_t pos_y = pairs_interface::getPosition(position_ptr, i, 1, particle_capacity);
-        real_t pos_z = pairs_interface::getPosition(position_ptr, i, 2, particle_capacity);
+        real_t pos_x = pairs_interface::get_position(position_ptr, i, 0, particle_capacity);
+        real_t pos_y = pairs_interface::get_position(position_ptr, i, 1, particle_capacity);
+        real_t pos_z = pairs_interface::get_position(position_ptr, i, 2, particle_capacity);
 
         if( pos_x > xmin && pos_x <= xmax &&
             pos_y > ymin && pos_y <= ymax &&

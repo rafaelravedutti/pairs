@@ -1,13 +1,10 @@
-from pairs.ir.block import pairs_device_block, pairs_host_block
-from pairs.ir.branches import Branch, Filter
-from pairs.ir.functions import Call_Void
-from pairs.ir.loops import For, ParticleFor
-from pairs.ir.utils import Print
+from pairs.ir.assign import Assign
+from pairs.ir.branches import Filter
+from pairs.ir.functions import Call_Int, Call_Void
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.sim.flags import Flags
-from pairs.sim.lowerable import Lowerable
 
 
 class DimensionRanges:
@@ -49,8 +46,6 @@ class DimensionRanges:
                     for _ in Filter(self.sim, position[i][step] < self.subdom[j] + offset):
                         pbc_shifts = [0 if d != step else self.pbc[j] for d in range(self.sim.ndims())]
                         yield i, j, self.neighbor_ranks[j], pbc_shifts
-
-
 
         def prev_neighbor(self, j, step, position, offset, flags_to_exclude):
             particle_flags = self.sim.particle_flags
