@@ -453,3 +453,4 @@ class Simulation:
         # Generate program
         #ASTGraph(self.functions, "functions.dot").render()
         self.code_gen.generate_program(program)
+        self.code_gen.generate_interfaces()

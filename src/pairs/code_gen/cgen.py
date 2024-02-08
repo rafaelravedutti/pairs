@@ -54,10 +54,50 @@ class CGen:
     def real_type(self):
         return Types.c_keyword(self.sim, Types.Real)
 
+    def generate_interfaces(self):
+        self.print = Printer(f"runtime/interfaces/{self.ref}.hpp")
+        self.print.start()
+        self.print("#include \"../pairs.hpp\"")
+        self.generate_interface_namespace('pairs_host_interface')
+        self.generate_interface_namespace('pairs_cuda_interface', "__inline__ __device__")
+        self.print.end()
+
+    def generate_interface_namespace(self, namespace, prefix=None):
+        self.print("")
+        self.print(f"namespace {namespace} {{")
+        self.print("")
+
+        for prop in self.sim.properties.all():
+            prop_name = prop.name()
+            t = prop.type()
+            tkw = Types.c_keyword(self.sim, t)
+            func_decl = "" if prefix is None else f"{prefix} "
+            if Types.is_scalar(t):
+                func_decl += f"{tkw} get_{prop_name}({tkw} *{prop_name}, int i) {{ return {prop_name}[i]; }}"
+
+            else:
+                nelems = Types.number_of_elements(self.sim, t)
+                func_decl += f"{tkw} get_{prop_name}({tkw} *{prop_name}, int i, int j, int capacity) {{ return {prop_name}["
+
+                if prop.layout() == Layouts.AoS:
+                    func_decl += f"i * {nelems} + j"
+
+                else:
+                    func_decl += f"j * capacity + i"
+
+                func_decl += "]; }"
+
+            self.print(func_decl)
+
+        self.print("")
+        self.print("}")
+
+
     def generate_program(self, ast_node):
         ext = ".cu" if self.target.is_gpu() else ".cpp"
         self.print = Printer(self.ref + ext)
         self.print.start()
+        self.print("#define APPLICATION_REFERENCE \"{self.ref}\"")
 
         if self.target.is_gpu():
             self.print("#define PAIRS_TARGET_CUDA")

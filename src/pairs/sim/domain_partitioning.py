@@ -1,5 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.branches import Filter
+from pairs.ir.loops import For
 from pairs.ir.functions import Call_Int, Call_Void
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select

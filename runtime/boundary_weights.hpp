@@ -5,7 +5,13 @@
 //---
 #include "pairs.hpp"
 #include "pairs_common.hpp"
-#include "gen/interfaces.hpp"
+
+#define INTERFACE_DIR "interfaces/"
+#define INTERFACE_EXT ".hpp"
+#define INTERFACE_FILE(a, b, c) a ## b ## c
+#define INCLUDE_FILE(filename) #filename
+
+#include INCLUDE_FILE(INTERFACE_FILE(INTERFACE_DIR, APPLICATION_REFERENCE, INTERFACE_EXT))
 
 #pragma once
 
