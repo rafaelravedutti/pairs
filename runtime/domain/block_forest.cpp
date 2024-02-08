@@ -27,6 +27,7 @@ void BlockForest::updateNeighborhood() {
 
     ranks.clear();
     naabbs.clear();
+    aabb_offsets.clear();
     aabbs.clear();
 
     for(auto& iblock: *forest) {
@@ -59,6 +60,7 @@ void BlockForest::updateNeighborhood() {
         auto rank = nbh.first;
         auto aabb_list = nbh.second;
         ranks.push_back((int) rank);
+        aabb_offsets.push_back(this->total_aabbs);
         naabbs.push_back((int) aabb_list.size());
 
         for(auto &aabb: aabb_list) {
@@ -80,7 +82,7 @@ void BlockForest::updateNeighborhood() {
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     void *src = name.compare('ranks') ? ranks.data() :
                 name.compare('naabbs') ? vec_naabbs.data() :
-                name.compare('rank_offsets') ? offsets :
+                name.compare('aabb_offsets') ? aabb_offsets.data() :
                 name.compare('aabbs') ? vec_aabbs.data() :
                 name.compare('subdom') ? subdom;
 
@@ -102,7 +104,7 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
             ps, aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
             &(block_info.computationalWeight), &(block_info.communicationWeight));
 
-        for(uint_t branch = 0; branch < 8; ++branch) {
+        for(int branch = 0; branch < 8; ++branch) {
             const auto b_id = BlockID(block->getId(), branch);
             const auto b_aabb = forest->getAABBFromBlockId(b_id);
             auto& b_info = info[b_id];
@@ -117,16 +119,16 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
         auto block = static_cast<blockforest::Block *>(&iblock);
         auto& block_info = info[block->getId()];
 
-        for(uint_t neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
+        for(int neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
             bs.sendBuffer(block->getNeighborProcess(neigh)) <<
                 blockforest::InfoCollection::value_type(block->getId(), block_info);
         }
 
-        for(uint_t branch = 0; branch < 8; ++branch) {
+        for(int branch = 0; branch < 8; ++branch) {
             const auto b_id = BlockID(block->getId(), branch);
             auto& b_info = info[b_id];
 
-            for(uint_t neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
+            for(int neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
                 bs.sendBuffer(block->getNeighborProcess(neigh)) <<
                     blockforest::InfoCollection::value_type(b_id, b_info);
             }
@@ -145,27 +147,27 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
     }
 }
 
-Vector3<uint_t> BlockForest::getBlockConfig(uint_t num_processes, uint_t nx, uint_t ny, uint_t nz) {
-    const uint_t bx_factor = 1;
-    const uint_t by_factor = 1;
-    const uint_t bz_factor = 1;
-    const uint_t ax = nx * ny;
-    const uint_t ay = nx * nz;
-    const uint_t az = ny * nz;
+Vector3<int> BlockForest::getBlockConfig(int num_processes, int nx, int ny, int nz) {
+    const int bx_factor = 1;
+    const int by_factor = 1;
+    const int bz_factor = 1;
+    const int ax = nx * ny;
+    const int ay = nx * nz;
+    const int az = ny * nz;
 
-    uint_t bestsurf = 2 * (ax + ay + az);
-    uint_t x = 1;
-    uint_t y = 1;
-    uint_t z = 1;
+    int bestsurf = 2 * (ax + ay + az);
+    int x = 1;
+    int y = 1;
+    int z = 1;
 
-    for(uint_t i = 1; i < num_processes; ++i) {
+    for(int i = 1; i < num_processes; ++i) {
         if(num_processes % i == 0) {
-            const uint_t rem_yz = num_processes / i;
+            const int rem_yz = num_processes / i;
 
-            for(uint_t j = 1; j < rem_yz; ++j) {
+            for(int j = 1; j < rem_yz; ++j) {
                 if(rem_yz % j == 0) {
-                    const uint_t k = rem_yz / j;
-                    const uint_t surf = (ax / i / j) + (ay / i / k) + (az / j / k);
+                    const int k = rem_yz / j;
+                    const int surf = (ax / i / j) + (ay / i / k) + (az / j / k);
 
                     if(surf < bestsurf) {
                         x = i, y = j, z = k;
@@ -176,13 +178,13 @@ Vector3<uint_t> BlockForest::getBlockConfig(uint_t num_processes, uint_t nx, uin
         }
     }
 
-    return Vector3<uint_t>(x * bx_factor, y * by_factor, z * bz_factor);
+    return Vector3<int>(x * bx_factor, y * by_factor, z * bz_factor);
 }
 
-uint_t BlockForest::getInitialRefinementLevel(uint_t num_processes) {
-    uint_t splitFactor = 8;
-    uint_t blocks = splitFactor;
-    uint_t refinementLevel = 1;
+int BlockForest::getInitialRefinementLevel(int num_processes) {
+    int splitFactor = 8;
+    int blocks = splitFactor;
+    int refinementLevel = 1;
 
     while(blocks < num_processes) {
         refinementLevel++;
@@ -230,7 +232,7 @@ void BlockForest::initialize(int *argc, char ***argv) {
     math::AABB domain(xmin, ymin, zmin, xmax, ymax, zmax);
     int gridsize[3] = {32, 32, 32};
     auto procs = mpiManager->numProcesses();
-    auto block_config = use_load_balancing ? Vector3<uint_t>(1, 1, 1) : getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
+    auto block_config = use_load_balancing ? Vector3<int>(1, 1, 1) : getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
     auto ref_level = use_load_balancing ? getInitialRefinementLevel(procs) : 0;
 
     forest = blockforest::createBlockForest(

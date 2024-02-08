@@ -13,10 +13,11 @@ class BlockForest : public DomainPartitioner {
 private:
     std::shared_ptr<BlockForest> forest;
     blockforest::InfoCollection info;
-    std::map<uint_t, std::vector<math::AABB>> neighborhood;
-    std::map<uint_t, std::vector<BlockID>> blocks_pushed;
+    std::map<int, std::vector<math::AABB>> neighborhood;
+    std::map<int, std::vector<BlockID>> blocks_pushed;
     std::vector<int> ranks;
     std::vector<int> naabbs;
+    std::vector<int> aabb_offsetss;
     std::vector<double> aabbs;
     real_t *subdom;
     int world_size, rank, nranks, total_aabbs;
@@ -44,8 +45,8 @@ public:
     void initializeWorkloadBalancer();
     void updateNeighborhood();
     void updateWeights(real_t *position, int nparticles);
-    Vector3<uint_t> getBlockConfig(uint_t num_processes, uint_t nx, uint_t ny, uint_t nz);
-    uint_t getInitialRefinementLevel(uint_t num_processes);
+    Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);
+    int getInitialRefinementLevel(int num_processes);
     void setBoundingBox();
     void rebalance();
 

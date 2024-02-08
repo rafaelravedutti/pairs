@@ -78,7 +78,7 @@ class BlockForest:
         self.aabb_capacity      = sim.add_var('aabb_capacity', Types.Int32)
         self.ranks              = sim.add_static_array('ranks', [self.nranks_capacity], Types.Int32)
         self.naabbs             = sim.add_static_array('naabbs', [self.nranks_capacity], Types.Int32)
-        self.offsets            = sim.add_static_array('rank_offsets', [self.nranks_capacity], Types.Int32)
+        self.aabb_offsets       = sim.add_static_array('aabb_offsets', [self.nranks_capacity], Types.Int32)
         self.aabbs              = sim.add_static_array('aabbs', [self.aabb_capacity, 6], Types.Real)
         self.subdom             = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Real)
 
@@ -105,7 +105,7 @@ class BlockForest:
             Assign(self.sim, self.nranks_capacity, self.nranks + 10)
             self.ranks.realloc()
             self.naabbs.realloc()
-            self.offsets.realloc()
+            self.aabb_offsets.realloc()
 
         for _ in Filter(self.sim, self.aabb_capacity < self.naabbs):
             Assign(self.sim, self.aabb_capacity, self.naabbs + 20)
@@ -114,8 +114,7 @@ class BlockForest:
 
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['rank_offsets', self.rank_offsets, self.nranks])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, self.naabbs * 3])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabbs', self.aabbs, self.naabbs * 6])
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
@@ -123,12 +122,12 @@ class BlockForest:
         # Particles with one of the following flags are ignored
         flags_to_exclude = (Flags.Infinite | Flags.Global)
 
-        for i in For(self.sim, 0, self.sim.nlocal):
-            particle_flags = self.sim.particle_flags
+        for r in For(self.sim, 0, self.nranks):
+            for i in For(self.sim, 0, self.sim.nlocal):
+                particle_flags = self.sim.particle_flags
 
-            for _ in Filter(self.sim, ScalarOp.cmp(particle_flags[i] & flags_to_exclude, 0)):
-                for r in For(self.sim, 0, self.nranks):
-                    for aabb_id in For(self.sim, self.offsets[r], self.offsets[r] + self.naabbs[r]):
+                for _ in Filter(self.sim, ScalarOp.cmp(particle_flags[i] & flags_to_exclude, 0)):
+                    for aabb_id in For(self.sim, self.aabb_offsets[r], self.aabb_offsets[r] + self.naabbs[r]):
                         full_cond = None
                         pbc_shifts = []
 
