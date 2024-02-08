@@ -515,7 +515,7 @@ void PairsSimulation::communicateContactHistoryData(
     #endif
 }
 
-void PairsSimulation::copyRuntimeArray(const std::string& name, const void *dest, const int size) {
+void PairsSimulation::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     this->getDomainPartitioner()->copyRuntimeArray(name, dest, size);
 }
 

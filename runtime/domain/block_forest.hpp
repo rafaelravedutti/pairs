@@ -19,7 +19,7 @@ private:
     std::vector<int> naabbs;
     std::vector<double> aabbs;
     real_t *subdom;
-    int world_size, rank, nranks, naabbs;
+    int world_size, rank, nranks, total_aabbs;
     bool balance_workload;
 
 public:
@@ -34,13 +34,12 @@ public:
         delete[] subdom;
     }
 
-    void setBoundingBox();
     void initialize(int *argc, char ***argv);
     void finalize();
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }
     int getNumberOfNeighborRanks() { return this->nranks; }
-    int getNumberOfNeighborAABBs() { return this->naabbs; }
+    int getNumberOfNeighborAABBs() { return this->total_aabbs; }
 
     void initializeWorkloadBalancer();
     void updateNeighborhood();
