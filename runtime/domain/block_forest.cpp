@@ -77,8 +77,6 @@ void BlockForest::updateNeighborhood() {
     }
 }
 
-
-
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     void *src = name.compare('ranks') ? ranks.data() :
                 name.compare('naabbs') ? vec_naabbs.data() :
@@ -265,7 +263,8 @@ void BlockForest::initializeWorkloadBalancer() {
     forest->allowMultipleRefreshCycles(false);
     forest->checkForEarlyOutInRefresh(false);
     forest->checkForLateOutInRefresh(false);
-    forest->setRefreshMinTargetLevelDeterminationFunction(pe::amr::MinMaxLevelDetermination(info, regridMin, regridMax));
+    forest->setRefreshMinTargetLevelDeterminationFunction(
+        pe::amr::MinMaxLevelDetermination(info, regridMin, regridMax));
 
     for_each(algorithm.begin(), algorithm.end(), [](char& c) { c = (char) ::tolower(c); });
 

@@ -15,6 +15,12 @@
 
 #pragma once
 
+#ifdef PAIRS_TARGET_CUDA
+int cuda_compute_boundary_weights(
+    real_t *position, int start, int end, int particle_capacity,
+    real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
+#endif
+
 namespace pairs {
 
 void compute_boundary_weights(
@@ -27,15 +33,16 @@ void compute_boundary_weights(
     const int nghost = ps->getNumberOfGhostParticles();
     auto position_prop = ps->getPropertyByName("position");
 
-    //ps->copyPropertyToDevice(position_prop, Ignore);
+    #ifndef PAIRS_TARGET_CUDA
+    auto position_ptr = position_prop->getHostPointer();
 
     *comp_weight = 0;
     *comm_weight = 0;
 
     for(int i = 0; i < nlocal; i++) {
-        real_t pos_x = pairs_interface::get_position(position_ptr, i, 0, particle_capacity);
-        real_t pos_y = pairs_interface::get_position(position_ptr, i, 1, particle_capacity);
-        real_t pos_z = pairs_interface::get_position(position_ptr, i, 2, particle_capacity);
+        real_t pos_x = pairs_host_interface::get_position(position_ptr, i, 0, particle_capacity);
+        real_t pos_y = pairs_host_interface::get_position(position_ptr, i, 1, particle_capacity);
+        real_t pos_z = pairs_host_interface::get_position(position_ptr, i, 2, particle_capacity);
 
         if( pos_x > xmin && pos_x <= xmax &&
             pos_y > ymin && pos_y <= ymax &&
@@ -45,9 +52,9 @@ void compute_boundary_weights(
     }
 
     for(int i = nlocal; i < nlocal + nghost; i++) {
-        real_t pos_x = pairs_interface::get_position(position_ptr, i, 0, particle_capacity);
-        real_t pos_y = pairs_interface::get_position(position_ptr, i, 1, particle_capacity);
-        real_t pos_z = pairs_interface::get_position(position_ptr, i, 2, particle_capacity);
+        real_t pos_x = pairs_host_interface::get_position(position_ptr, i, 0, particle_capacity);
+        real_t pos_y = pairs_host_interface::get_position(position_ptr, i, 1, particle_capacity);
+        real_t pos_z = pairs_host_interface::get_position(position_ptr, i, 2, particle_capacity);
 
         if( pos_x > xmin && pos_x <= xmax &&
             pos_y > ymin && pos_y <= ymax &&
@@ -55,6 +62,17 @@ void compute_boundary_weights(
                 *comm_weight++;
         }
     }
+    #else
+    auto position_ptr = position_prop->getDevicePointer();
+
+    ps->copyPropertyToDevice(position_prop, ReadOnly);
+
+    *comp_weight = cuda_compute_boundary_weights(
+        position_ptr, 0, nlocal, particle_capacity, xmin, xmax, ymin, ymax, zmin, zmax);
+
+    *comm_weight = cuda_compute_boundary_weights(
+        position_ptr, nlocal, nlocal + nghost, particle_capacity, xmin, xmax, ymin, ymax, zmin, zmax);
+    #endif
 }
 
 }

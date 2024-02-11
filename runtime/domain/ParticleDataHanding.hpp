@@ -74,7 +74,6 @@ private:
     void serializeImpl(Block *const block, const BlockDataID&, mpi::SendBuffer& buffer, const uint_t child, bool check_child) {
         auto ptr = buffer.allocate<uint_t>();
         double aabb_check[6];
-        int nparticles;
 
         if(check_child) {
             const auto child_id = BlockID(block->getId(), child);
@@ -95,28 +94,130 @@ private:
             aabb_check[5] = aabb.zMax();
         }
 
-        nparticles = md_serialize_particles(aabb_check);
-
-        for(int i = 0; i < nparticles * 7; ++i) {
-            buffer << md_get_send_buffer_value(i);
+        for(auto& p: ps->getNonVolatileProperties()) {
+            ps->copyPropertyToHost(p, ReadOnly);
         }
 
-        *ptr = (uint_t) nparticles;
+        auto position = ps->getPropertyByName("position");
+        int nlocal = ps->getNumberOfLocalParticles();
+        int i = 0;
+        int nserialized = 0;
+
+        while(i < nlocal) {
+            const real_t pos_x = position(i, 0);
+            const real_t pos_y = position(i, 1);
+            const real_t pos_z = position(i, 2);
+
+            if( pos_x > aabb_check[0] && pos_x <= aabb_check[1] &&
+                pos_y > aabb_check[2] && pos_y <= aabb_check[3] &&
+                pos_z > aabb_check[4] && pos_z <= aabb_check[5]) {
+
+                nlocal--;
+
+                for(auto &p: ps->getNonVolatileProperties()) {
+                    auto prop = ps->getProperty(p_id);
+                    auto prop_type = prop.getType();
+
+                    if(prop_type == Prop_Vector) {
+                        auto vector_ptr = ps->getAsVectorProperty(prop);
+                        constexpr int nelems = 3;
+
+                        for(int e = 0; e < nelems; e++) {
+                            buffer << vector_ptr(i, e);
+                            vector_ptr(i, e) = vector_ptr(nlocal, e);
+                        }
+                    } else if(prop_type == Prop_Matrix) {
+                        auto matrix_ptr = ps->getAsMatrixProperty(prop);
+                        constexpr int nelems = 9;
+
+                        for(int e = 0; e < nelems; e++) {
+                            buffer << matrix_ptr(i, e);
+                            matrix_ptr(i, e) = matrix_ptr(nlocal, e);
+                        }
+                    } else if(prop_type == Prop_Quaternion) {
+                        auto quat_ptr = ps->getAsQuaternionProperty(prop);
+                        constexpr int nelems = 4;
+
+                        for(int e = 0; e < nelems; e++) {
+                            buffer << quat_ptr(i, e);
+                            quat_ptr(i, e) = quat_ptr(nlocal, e);
+                        }
+                    } else if(prop_type == Prop_Integer) {
+                        auto int_ptr = ps->getAsIntegerProperty(prop);
+                        buffer << int_ptr(i);
+                        int_ptr(i) = int_ptr(nlocal);
+                    } else if(prop_type == Prop_Real) {
+                        auto float_ptr = ps->getAsFloatProperty(prop);
+                        buffer << float_ptr(i);
+                        float_ptr(i) = float_ptr(nlocal);
+                    } else {
+                        std::cerr << "serializeImpl(): Invalid property type!" << std::endl;
+                        return 0;
+                    }
+                }
+
+                // TODO: serialize contact history data as well
+                nserialized++;
+            }
+        }
+
+        ps->setNumberOfLocalParticles(nlocal);
+        *ptr = (uint_t) nserialized;
     }
 
     void deserializeImpl(IBlock *const, const BlockDataID&, mpi::RecvBuffer& buffer) {
-        uint_t nparticles;
-        buffer >> nparticles;
+        int nlocal = ps->getNumberOfLocalParticles();
+        uint_t nrecv;
 
-        md_resize_recv_buffer_capacity((int) nparticles);
+        buffer >> nrecv;
 
-        for(int i = 0; i < (int) nparticles * 7; ++i) {
-            double v;
-            buffer >> v;
-            md_set_recv_buffer_value(i, v);
+        // TODO: Check if there is enough particle capacity for the new particles
+        // md_resize_recv_buffer_capacity((int) nparticles);
+
+        for(int i = 0; i < nrecv; ++i) {
+            for(auto &p: ps->getNonVolatileProperties()) {
+                auto prop = ps->getProperty(p_id);
+                auto prop_type = prop.getType();
+
+                if(prop_type == Prop_Vector) {
+                    auto vector_ptr = ps->getAsVectorProperty(prop);
+                    constexpr int nelems = 3;
+
+                    for(int e = 0; e < nelems; e++) {
+                        buffer >> vector_ptr(nlocal + i, e);
+                    }
+                } else if(prop_type == Prop_Matrix) {
+                    auto matrix_ptr = ps->getAsMatrixProperty(prop);
+                    constexpr int nelems = 9;
+
+                    for(int e = 0; e < nelems; e++) {
+                        buffer >> matrix_ptr(nlocal + i, e);
+                    }
+                } else if(prop_type == Prop_Quaternion) {
+                    auto quat_ptr = ps->getAsQuaternionProperty(prop);
+                    constexpr int nelems = 4;
+
+                    for(int e = 0; e < nelems; e++) {
+                        buffer >> quat_ptr(nlocal + i, e);
+                    }
+                 } else if(prop_type == Prop_Integer) {
+                    auto int_ptr = ps->getAsIntegerProperty(prop);
+                    buffer >> int_ptr(nlocal + i);
+                } else if(prop_type == Prop_Real) {
+                    auto float_ptr = ps->getAsFloatProperty(prop);
+                    buffer >> float_ptr(nlocal + i);
+                } else {
+                    std::cerr << "deserializeImpl(): Invalid property type!" << std::endl;
+                    return 0;
+                }
+            }
         }
 
-        md_deserialize_particles((int) nparticles);
+        for(auto& p: ps->getNonVolatileProperties()) {
+            ps->clearDeviceFlags(p);
+        }
+
+        ps->setNumberOfLocalParticles(nlocal + nrecv);
     }
 };
 
