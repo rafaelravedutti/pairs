@@ -1,5 +1,16 @@
 #include <map>
 //---
+#include <blockforest/BlockForest.h>
+#include <blockforest/Initialization.h>
+#include <blockforest/loadbalancing/DynamicCurve.h>
+#include <blockforest/loadbalancing/DynamicDiffusive.h>
+#include <blockforest/loadbalancing/DynamicParMetis.h>
+#include <blockforest/loadbalancing/InfoCollection.h>
+#include <blockforest/loadbalancing/PODPhantomData.h>
+#include <pe/amr/level_determination/MinMaxLevelDetermination.h>
+#include <pe/amr/weight_assignment/MetisAssignmentFunctor.h>
+#include <pe/amr/weight_assignment/WeightAssignmentFunctor.h>
+//---
 #include "../pairs_common.hpp"
 #include "domain_partitioning.hpp"
 

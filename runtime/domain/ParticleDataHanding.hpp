@@ -25,7 +25,7 @@ inline bool operator==(const ParticleDeleter& lhs, const ParticleDeleter& rhs) {
 class ParticleDataHandling : public blockforest::BlockDataHandling<internal::ParticleDeleter>{
 
 public:
-    ParticleDataHandling() {}
+    ParticleDataHandling(PairsSimulation *_ps) { ps = _ps; }
     virtual ~ParticleDataHandling() {}
 
     virtual internal::ParticleDeleter *initialize(IBlock *const block) WALBERLA_OVERRIDE {
@@ -71,6 +71,8 @@ public:
     }
 
 private:
+    PairsSimulation *ps;
+
     void serializeImpl(Block *const block, const BlockDataID&, mpi::SendBuffer& buffer, const uint_t child, bool check_child) {
         auto ptr = buffer.allocate<uint_t>();
         double aabb_check[6];
@@ -95,7 +97,7 @@ private:
         }
 
         for(auto& p: ps->getNonVolatileProperties()) {
-            ps->copyPropertyToHost(p, ReadOnly);
+            ps->copyPropertyToHost(p, WriteAfterRead);
         }
 
         auto position = ps->getPropertyByName("position");
@@ -167,6 +169,8 @@ private:
 
     void deserializeImpl(IBlock *const, const BlockDataID&, mpi::RecvBuffer& buffer) {
         int nlocal = ps->getNumberOfLocalParticles();
+        real_t real_tmp;
+        int int_tmp;
         uint_t nrecv;
 
         buffer >> nrecv;
@@ -184,37 +188,38 @@ private:
                     constexpr int nelems = 3;
 
                     for(int e = 0; e < nelems; e++) {
-                        buffer >> vector_ptr(nlocal + i, e);
+                        buffer >> real_tmp;
+                        vector_ptr(nlocal + i, e) = real_tmp;
                     }
                 } else if(prop_type == Prop_Matrix) {
                     auto matrix_ptr = ps->getAsMatrixProperty(prop);
                     constexpr int nelems = 9;
 
                     for(int e = 0; e < nelems; e++) {
-                        buffer >> matrix_ptr(nlocal + i, e);
+                        buffer >> real_tmp;
+                        matrix_ptr(nlocal + i, e) = real_tmp;
                     }
                 } else if(prop_type == Prop_Quaternion) {
                     auto quat_ptr = ps->getAsQuaternionProperty(prop);
                     constexpr int nelems = 4;
 
                     for(int e = 0; e < nelems; e++) {
-                        buffer >> quat_ptr(nlocal + i, e);
+                        buffer >> real_tmp;
+                        quat_ptr(nlocal + i, e) = real_tmp;
                     }
                  } else if(prop_type == Prop_Integer) {
                     auto int_ptr = ps->getAsIntegerProperty(prop);
-                    buffer >> int_ptr(nlocal + i);
+                    buffer >> int_tmp;
+                    int_ptr(nlocal + i) = int_tmp;
                 } else if(prop_type == Prop_Real) {
                     auto float_ptr = ps->getAsFloatProperty(prop);
-                    buffer >> float_ptr(nlocal + i);
+                    buffer >> real_tmp;
+                    float_ptr(nlocal + i) = real_tmp;
                 } else {
                     std::cerr << "deserializeImpl(): Invalid property type!" << std::endl;
                     return 0;
                 }
             }
-        }
-
-        for(auto& p: ps->getNonVolatileProperties()) {
-            ps->clearDeviceFlags(p);
         }
 
         ps->setNumberOfLocalParticles(nlocal + nrecv);

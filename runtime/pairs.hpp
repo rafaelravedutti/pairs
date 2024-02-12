@@ -70,7 +70,9 @@ public:
        return RuntimeVar<T>(h_ptr); 
     }
 
+    void setNumberOfLocalParticles(int n) { *nlocal = n; }
     const int getNumberOfLocalParticles() { return *nlocal; }
+    void setNumberOfGhostParticles(int n) { *nghost = n; }
     const int getNumberOfGhostParticles() { return *nghost; }
 
     // Arrays

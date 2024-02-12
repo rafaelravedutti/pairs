@@ -308,7 +308,7 @@ void BlockForest::initializeWorkloadBalancer() {
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
     }
 
-    forest->addBlockData(make_shared<ParticleDataHandling>(), "Interface");
+    forest->addBlockData(make_shared<ParticleDataHandling>(ps), "Interface");
 }
 
 void BlockForest::finalize() {

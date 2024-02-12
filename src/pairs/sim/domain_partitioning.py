@@ -75,12 +75,13 @@ class BlockForest:
         self.sim                = sim
         self.nranks             = sim.add_var('nranks', Types.Int32)
         self.nranks_capacity    = sim.add_var('nranks_capacity', Types.Int32)
+        self.ntotal_aabbs       = sim.add_var('ntotal_aabbs', Types.Int32)
         self.aabb_capacity      = sim.add_var('aabb_capacity', Types.Int32)
-        self.ranks              = sim.add_static_array('ranks', [self.nranks_capacity], Types.Int32)
-        self.naabbs             = sim.add_static_array('naabbs', [self.nranks_capacity], Types.Int32)
-        self.aabb_offsets       = sim.add_static_array('aabb_offsets', [self.nranks_capacity], Types.Int32)
-        self.aabbs              = sim.add_static_array('aabbs', [self.aabb_capacity, 6], Types.Real)
-        self.subdom             = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Real)
+        self.ranks              = sim.add_array('ranks', [self.nranks_capacity], Types.Int32)
+        self.naabbs             = sim.add_array('naabbs', [self.nranks_capacity], Types.Int32)
+        self.aabb_offsets       = sim.add_array('aabb_offsets', [self.nranks_capacity], Types.Int32)
+        self.aabbs              = sim.add_array('aabbs', [self.aabb_capacity, 6], Types.Real)
+        self.subdom             = sim.add_array('subdom', [sim.ndims() * 2], Types.Real)
 
     def min(self, dim):
         return self.subdom[dim * 2 + 0]
@@ -99,7 +100,7 @@ class BlockForest:
         Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
 
         Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs->getNumberOfNeighborRanks", []))
-        Assign(self.sim, self.naabbs, Call_Int(self.sim, "pairs->getNumberOfNeighborAABBs", []))
+        Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs->getNumberOfNeighborAABBs", []))
 
         for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
             Assign(self.sim, self.nranks_capacity, self.nranks + 10)
@@ -107,15 +108,14 @@ class BlockForest:
             self.naabbs.realloc()
             self.aabb_offsets.realloc()
 
-        for _ in Filter(self.sim, self.aabb_capacity < self.naabbs):
-            Assign(self.sim, self.aabb_capacity, self.naabbs + 20)
-            self.pbc.realloc()
+        for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
+            Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
             self.aabbs.realloc()
 
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabbs', self.aabbs, self.naabbs * 6])
+        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
