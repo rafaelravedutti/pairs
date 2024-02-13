@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.8.2 FATAL_ERROR)
 project(pairs CXX)
 #enable_testing()
 
+find_package(PythonInterp)
+find_package(Python)
+
 set(TESTCASE ${TESTCASE} CACHE STRING "Select the testcase from the following: md, dem")
 
 if(NOT TESTCASE)
@@ -42,8 +45,13 @@ else()
 endif()
 
 add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
-target_link_libraries(${CPU_BIN} PRIVATE runtime_cpu)
-add_custom_command(OUTPUT ${CPU_SRC} COMMAND python examples/${TESTCASE}.py cpu)
+target_link_libraries(${CPU_BIN} runtime_cpu)
+add_custom_target(gen_cpu ALL DEPENDS ${CPU_SRC})
+add_custom_command(
+    TARGET gen_cpu
+    PRE_BUILD # Call this command pre-build
+    COMMAND ${PYTHON_EXECUTABLE} examples/${TESTCASE}.py cpu
+    COMMENT "Generate CPU code")
 
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
@@ -66,9 +74,14 @@ if(COMPILE_CUDA)
     set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
     #set_property(TARGET ${GPU_BIN} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-    target_link_libraries(${GPU_BIN} PRIVATE runtime_gpu)
-    add_custom_command(OUTPUT ${GPU_SRC} COMMAND python examples/${TESTCASE}.py gpu)
+    target_link_libraries(${GPU_BIN} runtime_gpu)
 
+    add_custom_target(gen_gpu ALL DEPENDS ${GPU_SRC})
+    add_custom_command(
+        TARGET gen_gpu
+        PRE_BUILD # Call this command pre-build
+        COMMAND ${PYTHON_EXECUTABLE} examples/${TESTCASE}.py gpu
+        COMMENT "Generate GPU code")
 endif()
 
 target_link_libraries(${CPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
