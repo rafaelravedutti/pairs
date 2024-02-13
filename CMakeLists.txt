@@ -12,8 +12,10 @@ endif()
 string(TOLOWER "${TESTCASE}" TESTCASE)
 message(STATUS "Selected testcase: ${TESTCASE}")
 
-option(USE_WALBERLA "USE_WALBERLA" OFF)
-option(COMPILE_CUDA "COMPILE_CUDA" OFF)
+option(USE_WALBERLA "USE_WALBERLA" ON)
+option(USE_MPI "USE_MPI" ON)
+option(COMPILE_CUDA "COMPILE_CUDA" ON)
+option(ENABLE_GPU_DIRECT "ENABLE_GPU_DIRECT" ON)
 
 set(CPU_SRC "${TESTCASE}.cpp")
 set(GPU_SRC "${TESTCASE}.cu")
@@ -25,18 +27,6 @@ set(RUNTIME_COMMON_FILES
     runtime/domain/block_forest.cpp
     runtime/domain/regular_6d_stencil.cpp)
  
-if(USE_MPI)
-    find_package(MPI REQUIRED)
-    include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-    target_link_libraries(pairs ${MPI_LIBRARIES})
-endif()
-
-if(LIKWID_DIR)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLIKWID_PERFMON -llikwid -pthread ")
-    target_link_libraries(pairs -I${LIKWID_DIR}/include -L${LIKWID_DIR}/lib -llikwid)
-    include_directories(${LIKWID_DIR}/include)
-endif()
-
 if(USE_WALBERLA)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
     find_package(waLBerla REQUIRED)
@@ -53,21 +43,10 @@ endif()
 
 add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
 target_link_libraries(${CPU_BIN} PRIVATE runtime_cpu)
-
 add_custom_command(OUTPUT ${CPU_SRC} COMMAND python examples/${TESTCASE}.py cpu)
-target_link_libraries(${CPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
-set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
-set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD 14)
 
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
-
-    add_library(runtime_gpu STATIC runtime/devices/cuda.cu})
-    target_compile_features(runtime_gpu PUBLIC cxx_std_11)
-    set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-
-    #set_property(TARGET ${GPU_BIN} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-    target_link_libraries(${GPU_BIN} PRIVATE particles)
 
     if(USE_WALBERLA)
         waLBerla_add_executable(
@@ -78,5 +57,36 @@ if(COMPILE_CUDA)
         add_executable(${GPU_BIN} ${GPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_GPU_FILES})
     endif()
 
+    if(ENABLE_GPU_DIRECT)
+        target_link_libraries(${GPU_BIN} "-DENABLE_CUDA_AWARE_MPI ")
+    endif()
+
+    add_library(runtime_gpu STATIC runtime/devices/cuda.cu)
+    target_compile_features(runtime_gpu PUBLIC cxx_std_11)
+    set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+    #set_property(TARGET ${GPU_BIN} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+    target_link_libraries(${GPU_BIN} PRIVATE runtime_gpu)
     add_custom_command(OUTPUT ${GPU_SRC} COMMAND python examples/${TESTCASE}.py gpu)
+
+endif()
+
+target_link_libraries(${CPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
+set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
+set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD 14)
+
+target_link_libraries(${GPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
+set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
+set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD 14)
+
+if(USE_MPI)
+    find_package(MPI REQUIRED)
+    include_directories(SYSTEM ${MPI_INCLUDE_PATH})
+    target_link_libraries(${CPU_BIN} ${MPI_LIBRARIES})
+    target_link_libraries(${GPU_BIN} ${MPI_LIBRARIES})
+endif()
+
+if(LIKWID_DIR)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLIKWID_PERFMON -pthread -L${LIKWID_DIR}/lib -llikwid ")
+    include_directories(${LIKWID_DIR}/include)
 endif()
