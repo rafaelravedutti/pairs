@@ -29,7 +29,12 @@ set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
     runtime/domain/block_forest.cpp
     runtime/domain/regular_6d_stencil.cpp)
- 
+
+execute_process(
+    COMMAND ${PYTHON_EXECUTABLE} setup.py build && ${PYTHON_EXECUTABLE} setup.py install --user
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE CMD_RESULT)
+
 if(USE_WALBERLA)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
     find_package(waLBerla REQUIRED)
@@ -39,19 +44,22 @@ if(USE_WALBERLA)
     waLBerla_add_executable(
         NAME ${CPU_BIN}
         FILES ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES}
-        DEPENDS blockforest core pe)
+        DEPENDS blockforest core pe ${CPU_SRC} runtime_cpu)
 else()
     add_executable(${CPU_BIN} ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES})
 endif()
 
 add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
-target_link_libraries(${CPU_BIN} runtime_cpu)
-add_custom_target(gen_cpu ALL DEPENDS ${CPU_SRC})
+#target_link_libraries(${CPU_BIN} runtime_cpu)
+
 add_custom_command(
-    TARGET gen_cpu
-    PRE_BUILD # Call this command pre-build
-    COMMAND ${PYTHON_EXECUTABLE} examples/${TESTCASE}.py cpu
-    COMMENT "Generate CPU code")
+    OUTPUT ${CPU_SRC}
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py cpu
+    COMMENT "Generate CPU code"
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
+
+add_custom_target(gen_cpu DEPENDS ${CPU_SRC})
+add_dependencies(${CPU_BIN} gen_cpu)
 
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
@@ -60,13 +68,13 @@ if(COMPILE_CUDA)
         waLBerla_add_executable(
             NAME ${GPU_BIN}
             FILES ${GPU_SRC} ${RUNTIME_COMMON_FILES}
-            DEPENDS blockforest core pe)
+            DEPENDS blockforest core pe ${GPU_SRC} runtime_gpu)
     else()
         add_executable(${GPU_BIN} ${GPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_GPU_FILES})
     endif()
 
     if(ENABLE_GPU_DIRECT)
-        target_link_libraries(${GPU_BIN} "-DENABLE_CUDA_AWARE_MPI ")
+        target_compile_options(${GPU_BIN} PRIVATE -DENABLE_CUDA_AWARE_MPI)
     endif()
 
     add_library(runtime_gpu STATIC runtime/devices/cuda.cu)
@@ -74,14 +82,16 @@ if(COMPILE_CUDA)
     set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
     #set_property(TARGET ${GPU_BIN} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-    target_link_libraries(${GPU_BIN} runtime_gpu)
+    #target_link_libraries(${GPU_BIN} runtime_gpu)
 
-    add_custom_target(gen_gpu ALL DEPENDS ${GPU_SRC})
     add_custom_command(
-        TARGET gen_gpu
-        PRE_BUILD # Call this command pre-build
-        COMMAND ${PYTHON_EXECUTABLE} examples/${TESTCASE}.py gpu
-        COMMENT "Generate GPU code")
+        OUTPUT ${GPU_SRC}
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py gpu
+        COMMENT "Generate GPU code"
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
+
+    add_custom_target(gen_gpu DEPENDS ${GPU_SRC})
+    add_dependencies(${GPU_BIN} gen_gpu)
 endif()
 
 target_link_libraries(${CPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
