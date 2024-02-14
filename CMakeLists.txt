@@ -12,6 +12,12 @@ if(NOT TESTCASE)
     set(TESTCASE md CACHE STRING "Select the testcase from the following: md, dem" FORCE)
 endif()
 
+set(CUDA_ARCH ${CUDA_ARCH} CACHE STRING "CUDA_ARCH environment variable must be set.")
+
+if(NOT CUDA_ARCH)
+    set(CUDA_ARCH sm_80)
+endif()
+
 string(TOLOWER "${TESTCASE}" TESTCASE)
 message(STATUS "Selected testcase: ${TESTCASE}")
 
@@ -63,6 +69,7 @@ add_dependencies(${CPU_BIN} gen_cpu)
 
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
+    enable_language(CUDA)
 
     if(USE_WALBERLA)
         waLBerla_add_executable(
@@ -80,6 +87,14 @@ if(COMPILE_CUDA)
     add_library(runtime_gpu STATIC runtime/devices/cuda.cu)
     target_compile_features(runtime_gpu PUBLIC cxx_std_11)
     set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+    target_compile_options(${GPU_BIN} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=${CUDA_ARCH}>)
+    target_include_directories(${GPU_BIN} PRIVATE ${CUDA_INCLUDE_DIRS})
+    set_target_properties(${GPU_BIN} PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
+
+    target_compile_options(runtime_gpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=${CUDA_ARCH}>)
+    target_include_directories(runtime_gpu PRIVATE ${CUDA_INCLUDE_DIRS})
+    set_target_properties(runtime_gpu PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
 
     #set_property(TARGET ${GPU_BIN} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
     #target_link_libraries(${GPU_BIN} runtime_gpu)
