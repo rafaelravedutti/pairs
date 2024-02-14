@@ -3,8 +3,7 @@ cmake_minimum_required(VERSION 3.8.2 FATAL_ERROR)
 project(pairs CXX)
 #enable_testing()
 
-find_package(PythonInterp)
-find_package(Python)
+#find_package(Python COMPONENTS Interpreter Development)
 
 set(TESTCASE ${TESTCASE} CACHE STRING "Select the testcase from the following: md, dem")
 
@@ -36,10 +35,19 @@ set(RUNTIME_COMMON_FILES
     runtime/domain/block_forest.cpp
     runtime/domain/regular_6d_stencil.cpp)
 
+set(PYTHON_EXECUTABLE ${PYTHON_EXECUTABLE} CACHE STRING "Python executable not set.")
+
+if(NOT PYTHON_EXECUTABLE)
+    set(PYTHON_EXECUTABLE python3)
+endif()
+
 execute_process(
-    COMMAND ${PYTHON_EXECUTABLE} setup.py build && ${PYTHON_EXECUTABLE} setup.py install --user
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    RESULT_VARIABLE CMD_RESULT)
+    COMMAND ${PYTHON_EXECUTABLE} setup.py build
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+execute_process(
+    COMMAND ${PYTHON_EXECUTABLE} setup.py install --user
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(USE_WALBERLA)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
