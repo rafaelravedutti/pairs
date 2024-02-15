@@ -51,6 +51,8 @@ execute_process(
     COMMAND ${PYTHON_EXECUTABLE} setup.py install --user
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
+add_executable(${CPU_BIN} ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES})
+
 if(USE_WALBERLA)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
     find_package(waLBerla REQUIRED)
@@ -60,9 +62,7 @@ if(USE_WALBERLA)
     waLBerla_add_executable(
         NAME ${CPU_BIN}
         FILES ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES}
-        DEPENDS blockforest core pe ${CPU_SRC} runtime_cpu)
-else()
-    add_executable(${CPU_BIN} ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES})
+        DEPENDS blockforest core pe ${CPU_SRC})
 endif()
 
 add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
@@ -80,14 +80,13 @@ add_dependencies(${CPU_BIN} gen_cpu)
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
     enable_language(CUDA)
+    add_executable(${GPU_BIN} ${GPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_GPU_FILES})
 
     if(USE_WALBERLA)
         waLBerla_add_executable(
             NAME ${GPU_BIN}
             FILES ${GPU_SRC} ${RUNTIME_COMMON_FILES}
-            DEPENDS blockforest core pe ${GPU_SRC} runtime_gpu)
-    else()
-        add_executable(${GPU_BIN} ${GPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_GPU_FILES})
+            DEPENDS blockforest core pe ${GPU_SRC})
     endif()
 
     if(ENABLE_GPU_DIRECT)

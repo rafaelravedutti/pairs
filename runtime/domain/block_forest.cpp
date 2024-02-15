@@ -8,9 +8,9 @@
 #include <blockforest/loadbalancing/DynamicParMetis.h>
 #include <blockforest/loadbalancing/InfoCollection.h>
 #include <blockforest/loadbalancing/PODPhantomData.h>
-#include <pe/amr/level_determination/MinMaxLevelDetermination.h>
-#include <pe/amr/weight_assignment/MetisAssignmentFunctor.h>
-#include <pe/amr/weight_assignment/WeightAssignmentFunctor.h>
+#include <blockforest/loadbalancing/level_determination/MinMaxLevelDetermination.h>
+#include <blockforest/loadbalancing/weight_assignment/MetisAssignmentFunctor.h>
+#include <blockforest/loadbalancing/weight_assignment/WeightAssignmentFunctor.h>
 //---
 #include "../boundary_weights.hpp"
 #include "../pairs_common.hpp"
