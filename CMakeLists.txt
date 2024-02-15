@@ -41,6 +41,8 @@ if(NOT PYTHON_EXECUTABLE)
     set(PYTHON_EXECUTABLE python3)
 endif()
 
+file(COPY runtime DESTINATION ${CMAKE_BINARY_DIR})
+
 execute_process(
     COMMAND ${PYTHON_EXECUTABLE} setup.py build
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
