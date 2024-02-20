@@ -46,9 +46,9 @@ enum Timers {
 };
 
 enum DomainPartitioners {
-    Regular = 0,
-    RegularXY = 1,
-    BoxList = 2,
+    RegularPartitioning = 0,
+    RegularXYPartitioning = 1,
+    BlockForestPartitioning = 2
 };
 
 #ifdef DEBUG

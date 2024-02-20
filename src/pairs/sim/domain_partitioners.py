@@ -5,7 +5,7 @@ class DomainPartitioners:
     BlockForest = 2
 
     def c_keyword(layout):
-        return "Regular"        if layout == DomainPartitioners.Regular else \
-               "RegularXY"      if layout == DomainPartitioners.RegularXY else \
-               "BlockForest"    if layout == DomainPartitioners.BlockForest else \
+        return "RegularPartitioning"        if layout == DomainPartitioners.Regular else \
+               "RegularXYPartitioning"      if layout == DomainPartitioners.RegularXY else \
+               "BlockForestPartitioning"    if layout == DomainPartitioners.BlockForest else \
                "Invalid"
