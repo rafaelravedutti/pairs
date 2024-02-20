@@ -120,11 +120,11 @@ endif()
 
 target_link_libraries(${CPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
 set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
-set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD 14)
+set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD 17)
 
 target_link_libraries(${GPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
 set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
-set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD 14)
+set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD 17)
 
 if(USE_MPI)
     find_package(MPI REQUIRED)

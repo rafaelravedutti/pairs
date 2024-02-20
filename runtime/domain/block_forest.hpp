@@ -23,9 +23,9 @@ namespace pairs {
 class BlockForest : public DomainPartitioner {
 private:
     std::shared_ptr<BlockForest> forest;
-    blockforest::InfoCollection info;
-    std::map<int, std::vector<math::AABB>> neighborhood;
-    std::map<int, std::vector<BlockID>> blocks_pushed;
+    walberla::blockforest::InfoCollection info;
+    std::map<int, std::vector<walberla::math::AABB>> neighborhood;
+    std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
     std::vector<int> ranks;
     std::vector<int> naabbs;
     std::vector<int> aabb_offsetss;
@@ -56,7 +56,7 @@ public:
     void initializeWorkloadBalancer();
     void updateNeighborhood();
     void updateWeights(real_t *position, int nparticles);
-    Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);
+    walberla::Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);
     int getInitialRefinementLevel(int num_processes);
     void setBoundingBox();
     void rebalance();
