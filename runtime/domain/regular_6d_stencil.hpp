@@ -60,7 +60,6 @@ public:
 
     int isWithinSubdomain(real_t x, real_t y, real_t z);
     void copyRuntimeArray(const std::string& name, void *dest, const int size);
-    void fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom);
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
     void communicateData(
         int dim, int elem_size,

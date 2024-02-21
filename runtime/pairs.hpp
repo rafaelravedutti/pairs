@@ -12,6 +12,7 @@
 #include "property.hpp"
 #include "runtime_var.hpp"
 #include "timers.hpp"
+#include "tracked_variable.hpp"
 #include "devices/device.hpp"
 #include "domain/block_forest.hpp"
 #include "domain/regular_6d_stencil.hpp"
@@ -27,13 +28,14 @@ namespace pairs {
 
 class PairsSimulation {
 private:
-    Regular6DStencil *dom_part;
-    //DomainPartitioner *dom_part;
+    //Regular6DStencil *dom_part;
+    DomainPartitioner *dom_part;
     DomainPartitioners dom_part_type;
     std::vector<Property> properties;
     std::vector<ContactProperty> contact_properties;
     std::vector<FeatureProperty> feature_properties;
     std::vector<Array> arrays;
+    std::vector<TrackedVariable> tracked_variables;
     DeviceFlags *prop_flags, *contact_prop_flags, *array_flags;
     Timers<double> *timers;
     int *nlocal, *nghost;
@@ -43,16 +45,12 @@ public:
         int nprops_,
         int ncontactprops_,
         int narrays_,
-        int *nlocal_,
-        int *nghost_,
         DomainPartitioners dom_part_type_) {
 
         dom_part_type = dom_part_type_;
         prop_flags = new DeviceFlags(nprops_);
         contact_prop_flags = new DeviceFlags(ncontactprops_);
         array_flags = new DeviceFlags(narrays_);
-        nlocal = nlocal_;
-        nghost = nghost_;
         timers = new Timers<double>(1e-6);
     }
 
@@ -70,10 +68,35 @@ public:
        return RuntimeVar<T>(h_ptr); 
     }
 
-    void setNumberOfLocalParticles(int n) { *nlocal = n; }
-    const int getNumberOfLocalParticles() { return *nlocal; }
-    void setNumberOfGhostParticles(int n) { *nghost = n; }
-    const int getNumberOfGhostParticles() { return *nghost; }
+    void trackVariable(std::string variable_name, void *ptr) {
+        auto v = std::find_if(
+            tracked_variables.begin(),
+            tracked_variables.end(),
+            [variable_name](TrackedVariable _v) { return _v.getName() == variable_name; });
+
+        PAIRS_ASSERT(v == std::end(tracked_variables));
+        tracked_variables.push_back(TrackedVariable(variable_name, ptr)); 
+    }
+
+    TrackedVariable &getTrackedVariable(std::string variable_name) {
+        auto v = std::find_if(
+            tracked_variables.begin(),
+            tracked_variables.end(),
+            [variable_name](TrackedVariable _v) { return _v.getName() == variable_name; });
+
+        PAIRS_ASSERT(v == std::end(tracked_variables));
+        return *v;
+    }
+
+    void setTrackedVariableAsInteger(std::string variable_name, int value) {
+        auto& tv = getTrackedVariable(variable_name);
+        *(static_cast<int *>(tv.getPointer())) = value;
+    }
+
+    const int getTrackedVariableAsInteger(std::string variable_name) {
+        auto& tv = getTrackedVariable(variable_name);
+        return *(static_cast<int *>(tv.getPointer()));
+    }
 
     // Arrays
     Array &getArray(array_t id);
@@ -280,7 +303,7 @@ public:
         int *argc, char ***argv,
         real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
 
-    Regular6DStencil *getDomainPartitioner() { return dom_part; }
+    DomainPartitioner *getDomainPartitioner() { return dom_part; }
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
 
     void communicateData(

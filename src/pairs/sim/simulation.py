@@ -57,8 +57,8 @@ class Simulation:
         self.contact_properties = ContactProperties(self)
         self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
         self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, neighbor_capacity)
-        self.nlocal = self.add_var('nlocal', Types.Int32)
-        self.nghost = self.add_var('nghost', Types.Int32)
+        self.nlocal = self.add_var('nlocal', Types.Int32, runtime=True)
+        self.nghost = self.add_var('nghost', Types.Int32, runtime=True)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
         self.particle_uid = self.add_property('uid', Types.Int32, 0)
         self.particle_shape = self.add_property('shape', Types.Int32, 0)
@@ -215,7 +215,7 @@ class Simulation:
     def array(self, arr_name):
         return self.arrays.find(arr_name)
 
-    def add_var(self, var_name, var_type, init_value=0):
+    def add_var(self, var_name, var_type, init_value=0, runtime=False):
         assert self.var(var_name) is None, f"Variable already defined: {var_name}"
         return self.vars.add(var_name, var_type, init_value)
 

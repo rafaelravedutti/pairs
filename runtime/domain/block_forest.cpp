@@ -16,7 +16,7 @@
 #include "../pairs_common.hpp"
 #include "../devices/device.hpp"
 #include "regular_6d_stencil.hpp"
-#include "ParticleDataHandling.h"
+#include "ParticleDataHandling.hpp"
 
 namespace pairs {
 
@@ -78,13 +78,13 @@ void BlockForest::updateNeighborhood() {
 }
 
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
-    void *src = name.compare('ranks') ? ranks.data() :
-                name.compare('naabbs') ? vec_naabbs.data() :
-                name.compare('aabb_offsets') ? aabb_offsets.data() :
-                name.compare('aabbs') ? vec_aabbs.data() :
-                name.compare('subdom') ? subdom;
+    void *src = name.compare("ranks") ? ranks.data() :
+                name.compare("naabbs") ? vec_naabbs.data() :
+                name.compare("aabb_offsets") ? aabb_offsets.data() :
+                name.compare("aabbs") ? vec_aabbs.data() :
+                name.compare("subdom") ? subdom;
 
-    bool is_real = name.compare('aabbs') || name.compare('subdom');
+    bool is_real = name.compare("aabbs") || name.compare("subdom");
     int tsize = is_real ? sizeof(real_t) : sizeof(int);
     std::memcpy(dest, src, size * tsize);
 }
@@ -315,7 +315,7 @@ void BlockForest::finalize() {
     MPI_Finalize();
 }
 
-bool BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
+int BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
     for(auto& iblock: *forest) {
         auto block = static_cast<blockforest::Block *>(&iblock);
 

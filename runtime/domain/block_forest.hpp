@@ -22,7 +22,7 @@ namespace pairs {
 
 class BlockForest : public DomainPartitioner {
 private:
-    std::shared_ptr<BlockForest> forest;
+    std::shared_ptr<walberla::BlockForest> forest;
     walberla::blockforest::InfoCollection info;
     std::map<int, std::vector<walberla::math::AABB>> neighborhood;
     std::map<int, std::vector<walberla::BlockID>> blocks_pushed;

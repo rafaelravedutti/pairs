@@ -6,12 +6,16 @@
 #include "pairs.hpp"
 #include "pairs_common.hpp"
 
+/*
 #define INTERFACE_DIR "interfaces/"
 #define INTERFACE_EXT ".hpp"
 #define INTERFACE_FILE(a, b, c) a ## b ## c
 #define INCLUDE_FILE(filename) #filename
-
 #include INCLUDE_FILE(INTERFACE_FILE(INTERFACE_DIR, APPLICATION_REFERENCE, INTERFACE_EXT))
+*/
+
+// Always include last generated interfaces
+#include "interfaces/last_generated.hpp"
 
 #pragma once
 
@@ -29,8 +33,8 @@ void compute_boundary_weights(
     int *comp_weight, int *comm_weight) {
 
     const int particle_capacity = ps->getParticleCapacity();
-    const int nlocal = ps->getNumberOfLocalParticles();
-    const int nghost = ps->getNumberOfGhostParticles();
+    const int nlocal = ps->getTrackedVariableAsInteger("nlocal");
+    const int nghost = ps->getTrackedVariableAsInteger("nghost");
     auto position_prop = ps->getPropertyByName("position");
 
     #ifndef PAIRS_TARGET_CUDA

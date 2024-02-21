@@ -55,7 +55,8 @@ class CGen:
         return Types.c_keyword(self.sim, Types.Real)
 
     def generate_interfaces(self):
-        self.print = Printer(f"runtime/interfaces/{self.ref}.hpp")
+        #self.print = Printer(f"runtime/interfaces/{self.ref}.hpp")
+        self.print = Printer("runtime/interfaces/last_generated.hpp")
         self.print.start()
         self.print("#include \"../pairs.hpp\"")
         self.generate_interface_namespace('pairs_host_interface')
@@ -97,7 +98,7 @@ class CGen:
         ext = ".cu" if self.target.is_gpu() else ".cpp"
         self.print = Printer(self.ref + ext)
         self.print.start()
-        self.print("#define APPLICATION_REFERENCE \"{self.ref}\"")
+        self.print(f"#define APPLICATION_REFERENCE \"{self.ref}\"")
 
         if self.target.is_gpu():
             self.print("#define PAIRS_TARGET_CUDA")
@@ -771,6 +772,9 @@ class CGen:
                 var = self.generate_expression(ast_node.var)
                 init = self.generate_expression(ast_node.var.init_value())
                 self.print(f"{tkw} {var} = {init};")
+
+                if ast_node.var.runtime_track():
+                    self.print(f"pairs->trackVariable(\"{var}\", &{var});")
 
             else:
                 for i in range(Types.number_of_elements(self.sim, ast_node.var.type())):

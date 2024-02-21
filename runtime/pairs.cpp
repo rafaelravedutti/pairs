@@ -7,6 +7,7 @@
 #include "pairs.hpp"
 #include "pairs_common.hpp"
 #include "devices/device.hpp"
+#include "domain/block_forest.hpp"
 #include "domain/regular_6d_stencil.hpp"
 
 namespace pairs {
@@ -15,13 +16,13 @@ void PairsSimulation::initDomain(
     int *argc, char ***argv,
     real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
 
-    if(dom_part_type == Regular) {
+    if(dom_part_type == RegularPartitioning) {
         const int flags[] = {1, 1, 1};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
-    } else if(dom_part_type == RegularXY) {
+    } else if(dom_part_type == RegularXYPartitioning) {
         const int flags[] = {1, 1, 0};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
-    } else if(dom_part_type == BlockForest) {
+    } else if(dom_part_type == BlockForestPartitioning) {
         dom_part = new BlockForest(xmin, xmax, ymin, ymax, zmin, zmax);
     } else {
         PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");

@@ -101,7 +101,7 @@ private:
         }
 
         auto position = ps->getPropertyByName("position");
-        int nlocal = ps->getNumberOfLocalParticles();
+        int nlocal = ps->getTrackedVariableAsInteger("nlocal");
         int i = 0;
         int nserialized = 0;
 
@@ -163,12 +163,12 @@ private:
             }
         }
 
-        ps->setNumberOfLocalParticles(nlocal);
+        ps->setTrackedVariableAsInteger("nlocal", nlocal);
         *ptr = (uint_t) nserialized;
     }
 
     void deserializeImpl(IBlock *const, const BlockDataID&, mpi::RecvBuffer& buffer) {
-        int nlocal = ps->getNumberOfLocalParticles();
+        int nlocal = ps->getTrackedVariableAsInteger("nlocal");
         real_t real_tmp;
         int int_tmp;
         uint_t nrecv;
@@ -222,7 +222,7 @@ private:
             }
         }
 
-        ps->setNumberOfLocalParticles(nlocal + nrecv);
+        ps->setTrackedVariableAsInteger("nlocal", nlocal + nrecv);
     }
 };
 
