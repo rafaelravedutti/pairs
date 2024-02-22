@@ -23,9 +23,11 @@ inline bool operator==(const ParticleDeleter& lhs, const ParticleDeleter& rhs) {
 } // namespace internal
 
 class ParticleDataHandling : public blockforest::BlockDataHandling<internal::ParticleDeleter>{
+private:
+    pairs::PairsSimulation *ps;
 
 public:
-    ParticleDataHandling(PairsSimulation *_ps) { ps = _ps; }
+    ParticleDataHandling(pairs::PairsSimulation *_ps) { ps = _ps; }
     virtual ~ParticleDataHandling() {}
 
     virtual internal::ParticleDeleter *initialize(IBlock *const block) WALBERLA_OVERRIDE {
@@ -69,9 +71,6 @@ public:
         WALBERLA_OVERRIDE {
         deserializeImpl(block, id, buffer);
     }
-
-private:
-    PairsSimulation *ps;
 
     void serializeImpl(Block *const block, const BlockDataID&, mpi::SendBuffer& buffer, const uint_t child, bool check_child) {
         auto ptr = buffer.allocate<uint_t>();

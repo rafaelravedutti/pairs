@@ -30,15 +30,15 @@ namespace pairs {
 void compute_boundary_weights(
     PairsSimulation *ps,
     real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax,
-    int *comp_weight, int *comm_weight) {
+    walberla::uint_t *comp_weight, walberla::uint_t *comm_weight) {
 
-    const int particle_capacity = ps->getParticleCapacity();
+    const int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
     const int nlocal = ps->getTrackedVariableAsInteger("nlocal");
     const int nghost = ps->getTrackedVariableAsInteger("nghost");
     auto position_prop = ps->getPropertyByName("position");
 
     #ifndef PAIRS_TARGET_CUDA
-    auto position_ptr = position_prop->getHostPointer();
+    real_t *position_ptr = static_cast<real_t *>(position_prop.getHostPointer());
 
     *comp_weight = 0;
     *comm_weight = 0;
@@ -67,7 +67,7 @@ void compute_boundary_weights(
         }
     }
     #else
-    auto position_ptr = position_prop->getDevicePointer();
+    real_t *position_ptr = static_cast<real_t *>(position_prop.getDevicePointer());
 
     ps->copyPropertyToDevice(position_prop, ReadOnly);
 

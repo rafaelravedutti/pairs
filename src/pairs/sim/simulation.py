@@ -55,7 +55,8 @@ class Simulation:
         self.features = Features(self)
         self.feature_properties = FeatureProperties(self)
         self.contact_properties = ContactProperties(self)
-        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
+        self.particle_capacity = \
+            self.add_var('particle_capacity', Types.Int32, particle_capacity, runtime=True)
         self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, neighbor_capacity)
         self.nlocal = self.add_var('nlocal', Types.Int32, runtime=True)
         self.nghost = self.add_var('nghost', Types.Int32, runtime=True)

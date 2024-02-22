@@ -28,7 +28,7 @@ private:
     std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
     std::vector<int> ranks;
     std::vector<int> naabbs;
-    std::vector<int> aabb_offsetss;
+    std::vector<int> aabb_offsets;
     std::vector<double> aabbs;
     real_t *subdom;
     int world_size, rank, nranks, total_aabbs;

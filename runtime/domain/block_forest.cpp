@@ -21,7 +21,7 @@
 namespace pairs {
 
 void BlockForest::updateNeighborhood() {
-    auto me = mpi::MPIManager::instance()->rank();
+    auto me = walberla::mpi::MPIManager::instance()->rank();
     this->nranks = 0;
     this->total_aabbs = 0;
 
@@ -31,22 +31,23 @@ void BlockForest::updateNeighborhood() {
     aabbs.clear();
 
     for(auto& iblock: *forest) {
-        auto block = static_cast<blockforest::Block *>(&iblock);
+        auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         auto& block_info = info[block->getId()];
 
         if(block_info.computationalWeight > 0) {
             for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
-                auto neighbor_rank = int_c(block->getNeighborProcess(neigh));
+                auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
                 if(neighbor_rank != me) {
-                    const BlockID& neighbor_block = block->getNeighborId(neigh);
-                    math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
+                    const walberla::BlockID& neighbor_block = block->getNeighborId(neigh);
+                    walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
                     auto neighbor_info = info[neighbor_block];
                     auto begin = blocks_pushed[neighbor_rank].begin();
                     auto end = blocks_pushed[neighbor_rank].end();
 
                     if(neighbor_info.computationalWeight > 0 &&
-                       find_if(begin, end, [nb](const auto &nbh) { return nbh == nb; }) == end) {
+                       find_if(begin, end, [neighbor_block](const auto &nbh) {
+                            return nbh == nb; }) == end) {
 
                         neighborhood[neighbor_rank].push_back(neighbor_aabb);
                         blocks_pushed[neighbor_rank].push_back(neighbor_block);
@@ -79,22 +80,23 @@ void BlockForest::updateNeighborhood() {
 
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     void *src = name.compare("ranks") ? ranks.data() :
-                name.compare("naabbs") ? vec_naabbs.data() :
+                name.compare("naabbs") ? naabbs.data() :
                 name.compare("aabb_offsets") ? aabb_offsets.data() :
-                name.compare("aabbs") ? vec_aabbs.data() :
-                name.compare("subdom") ? subdom;
+                name.compare("aabbs") ? aabbs.data() :
+                name.compare("subdom") ? subdom : nullptr;
 
+    PAIRS_ASSERT(src != nullptr);
     bool is_real = name.compare("aabbs") || name.compare("subdom");
     int tsize = is_real ? sizeof(real_t) : sizeof(int);
     std::memcpy(dest, src, size * tsize);
 }
 
 void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
-    mpi::BufferSystem bs(mpi::MPIManager::instance()->comm(), 756);
+    walberla::mpi::BufferSystem bs(walberla::mpi::MPIManager::instance()->comm(), 756);
 
     info.clear();
     for(auto& iblock: *forest) {
-        auto block = static_cast<blockforest::Block *>(&iblock);
+        auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         auto aabb = block->getAABB();
         auto& block_info = info[block->getId()];
 
@@ -103,7 +105,7 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
             &(block_info.computationalWeight), &(block_info.communicationWeight));
 
         for(int branch = 0; branch < 8; ++branch) {
-            const auto b_id = BlockID(block->getId(), branch);
+            const auto b_id = walberla::BlockID(block->getId(), branch);
             const auto b_aabb = forest->getAABBFromBlockId(b_id);
             auto& b_info = info[b_id];
 
@@ -114,21 +116,21 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
     }
 
     for(auto& iblock: *forest) {
-        auto block = static_cast<blockforest::Block *>(&iblock);
+        auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         auto& block_info = info[block->getId()];
 
         for(int neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
             bs.sendBuffer(block->getNeighborProcess(neigh)) <<
-                blockforest::InfoCollection::value_type(block->getId(), block_info);
+                walberla::blockforest::InfoCollection::value_type(block->getId(), block_info);
         }
 
         for(int branch = 0; branch < 8; ++branch) {
-            const auto b_id = BlockID(block->getId(), branch);
+            const auto b_id = walberla::BlockID(block->getId(), branch);
             auto& b_info = info[b_id];
 
             for(int neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
                 bs.sendBuffer(block->getNeighborProcess(neigh)) <<
-                    blockforest::InfoCollection::value_type(b_id, b_info);
+                    walberla::blockforest::InfoCollection::value_type(b_id, b_info);
             }
         }
     }
@@ -138,14 +140,14 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
 
     for(auto recv = bs.begin(); recv != bs.end(); ++recv) {
         while(!recv.buffer().isEmpty()) {
-            blockforest::InfoCollectionPair val;
+            walberla::blockforest::InfoCollectionPair val;
             recv.buffer() >> val;
             info.insert(val);
         }
     }
 }
 
-Vector3<int> BlockForest::getBlockConfig(int num_processes, int nx, int ny, int nz) {
+walberla::Vector3<int> BlockForest::getBlockConfig(int num_processes, int nx, int ny, int nz) {
     const int bx_factor = 1;
     const int by_factor = 1;
     const int bz_factor = 1;
@@ -176,7 +178,7 @@ Vector3<int> BlockForest::getBlockConfig(int num_processes, int nx, int ny, int 
         }
     }
 
-    return Vector3<int>(x * bx_factor, y * by_factor, z * bz_factor);
+    return walberla::Vector3<int>(x * bx_factor, y * by_factor, z * bz_factor);
 }
 
 int BlockForest::getInitialRefinementLevel(int num_processes) {
@@ -195,7 +197,7 @@ int BlockForest::getInitialRefinementLevel(int num_processes) {
 void BlockForest::setBoundingBox() {
     auto aabb_union = forest->begin()->getAABB();
     for(auto& iblock: *forest) {
-        auto block = static_cast<blockforest::Block *>(&iblock);
+        auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         aabb_union.merge(block->getAABB());
     }
 
@@ -223,20 +225,23 @@ void BlockForest::initialize(int *argc, char ***argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    auto mpiManager = mpi::MPIManager::instance();
-    mpiManager->initializeMPI(&argc, &argv);
+    auto mpiManager = walberla::mpi::MPIManager::instance();
+    mpiManager->initializeMPI(argc, argv);
     mpiManager->useWorldComm();
 
-    math::AABB domain(xmin, ymin, zmin, xmax, ymax, zmax);
+    walberla::math::AABB domain(
+        grid_min[0], grid_min[1], grid_min[2], grid_max[0], grid_max[1], grid_max[2]);
+
     int gridsize[3] = {32, 32, 32};
     auto procs = mpiManager->numProcesses();
-    auto block_config = use_load_balancing ? Vector3<int>(1, 1, 1) : getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
-    auto ref_level = use_load_balancing ? getInitialRefinementLevel(procs) : 0;
+    auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) :
+                                           getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
+    auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
 
-    forest = blockforest::createBlockForest(
-        domain, block_config, Vector3<bool>(true, true, true), procs, ref_level);
+    forest = walberla::blockforest::createBlockForest(
+        domain, block_config, walberla::Vector3<bool>(true, true, true), procs, ref_level);
 
-    info = make_shared<blockforest::InfoCollection>();
+    this->info = make_shared<walberla::blockforest::InfoCollection>();
     this->setBoundingBox();
 
     if(balance_workload) {
@@ -264,51 +269,51 @@ void BlockForest::initializeWorkloadBalancer() {
     forest->checkForEarlyOutInRefresh(false);
     forest->checkForLateOutInRefresh(false);
     forest->setRefreshMinTargetLevelDeterminationFunction(
-        pe::amr::MinMaxLevelDetermination(info, regridMin, regridMax));
+        walberla::blockforest::MinMaxLevelDetermination(info, regridMin, regridMax));
 
     for_each(algorithm.begin(), algorithm.end(), [](char& c) { c = (char) ::tolower(c); });
 
     if(algorithm == "morton") {
-        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::WeightAssignmentFunctor(info, baseWeight));
-        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
-        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataAssignmentFunction(walberla::blockforest::WeightAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
 
-        auto prepFunc = blockforest::DynamicCurveBalance<pe::amr::WeightAssignmentFunctor::PhantomBlockWeight>(false, true, false);
+        auto prepFunc = walberla::blockforest::DynamicCurveBalance<walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeight>(false, true, false);
 
         prepFunc.setMaxBlocksPerProcess(maxBlocksPerProcess);
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
     } else if(algorithm == "hilbert") {
-        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::WeightAssignmentFunctor(info, baseWeight));
-        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
-        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataAssignmentFunction(walberla::blockforest::WeightAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
 
-        auto prepFunc = blockforest::DynamicCurveBalance<pe::amr::WeightAssignmentFunctor::PhantomBlockWeight>(true, true, false);
+        auto prepFunc = walberla::blockforest::DynamicCurveBalance<walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeight>(true, true, false);
 
         prepFunc.setMaxBlocksPerProcess(maxBlocksPerProcess);
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
     } else if(algorithm == "metis") {
-        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::MetisAssignmentFunctor(info, baseWeight));
-        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::MetisAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
-        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::MetisAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataAssignmentFunction(walberla::blockforest::MetisAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(walberla::blockforest::MetisAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(walberla::blockforest::MetisAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
 
-        auto alg = blockforest::DynamicParMetis::stringToAlgorithm(metisAlgorithm);
-        auto vWeight = blockforest::DynamicParMetis::stringToWeightsToUse(metisWeightsToUse);
-        auto eWeight = blockforest::DynamicParMetis::stringToEdgeSource(metisEdgeSource);
-        auto prepFunc = blockforest::DynamicParMetis(alg, vWeight, eWeight);
+        auto alg = walberla::blockforest::DynamicParMetis::stringToAlgorithm(metisAlgorithm);
+        auto vWeight = walberla::blockforest::DynamicParMetis::stringToWeightsToUse(metisWeightsToUse);
+        auto eWeight = walberla::blockforest::DynamicParMetis::stringToEdgeSource(metisEdgeSource);
+        auto prepFunc = walberla::blockforest::DynamicParMetis(alg, vWeight, eWeight);
 
         prepFunc.setipc2redist(metisipc2redist);
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
     } else if(algorithm == "diffusive") {
-        forest->setRefreshPhantomBlockDataAssignmentFunction(pe::amr::WeightAssignmentFunctor(info, baseWeight));
-        forest->setRefreshPhantomBlockDataPackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
-        forest->setRefreshPhantomBlockDataUnpackFunction(pe::amr::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataAssignmentFunction(walberla::blockforest::WeightAssignmentFunctor(info, baseWeight));
+        forest->setRefreshPhantomBlockDataPackFunction(walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
+        forest->setRefreshPhantomBlockDataUnpackFunction(walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeightPackUnpackFunctor());
 
-        auto prepFunc = blockforest::DynamicDiffusionBalance<pe::amr::WeightAssignmentFunctor::PhantomBlockWeight>(1, 1, false);
+        auto prepFunc = walberla::blockforest::DynamicDiffusionBalance<walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeight>(1, 1, false);
 
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
     }
 
-    forest->addBlockData(make_shared<ParticleDataHandling>(ps), "Interface");
+    forest->addBlockData(make_shared<walberla::ParticleDataHandling>(ps), "Interface");
 }
 
 void BlockForest::finalize() {
@@ -317,7 +322,7 @@ void BlockForest::finalize() {
 
 int BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
     for(auto& iblock: *forest) {
-        auto block = static_cast<blockforest::Block *>(&iblock);
+        auto block = static_cast<walberla::blockforest::Block *>(&iblock);
 
         if(block->getAABB().contains(x, y, z)) {
             return true;
@@ -333,8 +338,8 @@ void BlockForest::communicateSizes(int dim, const int *nsend, int *nrecv) {
     size_t nranks = 0;
 
     for(auto neigh_rank: ranks) {
-        MPI_Irecv(&recv_sizes[i], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &nrecv[i], &recv_requests[i]);
-        MPI_Isend(&send_sizes[i], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &nsend[i], &send_requests[i]);
+        MPI_Irecv(&nrecv[nranks], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &recv_requests[nranks]);
+        MPI_Isend(&nsend[nranks], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &send_requests[nranks]);
         nranks++;
     }
 
