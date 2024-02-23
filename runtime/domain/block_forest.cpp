@@ -47,7 +47,7 @@ void BlockForest::updateNeighborhood() {
 
                     if(neighbor_info.computationalWeight > 0 &&
                        find_if(begin, end, [neighbor_block](const auto &nbh) {
-                            return nbh == nb; }) == end) {
+                            return nbh == neighbor_block; }) == end) {
 
                         neighborhood[neighbor_rank].push_back(neighbor_aabb);
                         blocks_pushed[neighbor_rank].push_back(neighbor_block);
@@ -79,11 +79,11 @@ void BlockForest::updateNeighborhood() {
 }
 
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
-    void *src = name.compare("ranks") ? ranks.data() :
-                name.compare("naabbs") ? naabbs.data() :
-                name.compare("aabb_offsets") ? aabb_offsets.data() :
-                name.compare("aabbs") ? aabbs.data() :
-                name.compare("subdom") ? subdom : nullptr;
+    void *src = name.compare("ranks")           ? static_cast<void *>(ranks.data()) :
+                name.compare("naabbs")          ? static_cast<void *>(naabbs.data()) :
+                name.compare("aabb_offsets")    ? static_cast<void *>(aabb_offsets.data()) :
+                name.compare("aabbs")           ? static_cast<void *>(aabbs.data()) :
+                name.compare("subdom")          ? static_cast<void *>(subdom) : nullptr;
 
     PAIRS_ASSERT(src != nullptr);
     bool is_real = name.compare("aabbs") || name.compare("subdom");
@@ -91,7 +91,7 @@ void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const in
     std::memcpy(dest, src, size * tsize);
 }
 
-void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
+void BlockForest::updateWeights() {
     walberla::mpi::BufferSystem bs(walberla::mpi::MPIManager::instance()->comm(), 756);
 
     info.clear();
@@ -101,7 +101,8 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
         auto& block_info = info[block->getId()];
 
         pairs::compute_boundary_weights(
-            ps, aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
+            this->ps,
+            aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
             &(block_info.computationalWeight), &(block_info.communicationWeight));
 
         for(int branch = 0; branch < 8; ++branch) {
@@ -110,7 +111,8 @@ void BlockForest::updateWeights(PairsSimulation *ps, int nparticles) {
             auto& b_info = info[b_id];
 
             pairs::compute_boundary_weights(
-                ps, b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
+                this->ps,
+                b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
                 &(b_info.computationalWeight), &(b_info.communicationWeight));
         }
     }

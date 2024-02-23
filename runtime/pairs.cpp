@@ -23,7 +23,7 @@ void PairsSimulation::initDomain(
         const int flags[] = {1, 1, 0};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
     } else if(dom_part_type == BlockForestPartitioning) {
-        dom_part = new BlockForest(xmin, xmax, ymin, ymax, zmin, zmax);
+        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax);
     } else {
         PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");
     }

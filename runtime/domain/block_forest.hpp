@@ -20,8 +20,11 @@
 
 namespace pairs {
 
+class PairsSimulation;
+
 class BlockForest : public DomainPartitioner {
 private:
+    PairsSimulation *ps;
     std::shared_ptr<walberla::BlockForest> forest;
     walberla::blockforest::InfoCollection info;
     std::map<int, std::vector<walberla::math::AABB>> neighborhood;
@@ -36,7 +39,9 @@ private:
 
 public:
     BlockForest(
+        PairsSimulation *ps_,
         real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) :
+        ps(ps_),
         DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax) {
 
         subdom = new real_t[ndims * 2];
@@ -55,7 +60,7 @@ public:
 
     void initializeWorkloadBalancer();
     void updateNeighborhood();
-    void updateWeights(real_t *position, int nparticles);
+    void updateWeights();
     walberla::Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);
     int getInitialRefinementLevel(int num_processes);
     void setBoundingBox();

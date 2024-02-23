@@ -8,6 +8,7 @@ class Regular6DStencil;
 
 class DomainPartitioner {
     friend class Regular6DStencil;
+    friend class BlockForest;
 
 protected:
     real_t *grid_min;
