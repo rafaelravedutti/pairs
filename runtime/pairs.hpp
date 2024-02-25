@@ -28,7 +28,6 @@ namespace pairs {
 
 class PairsSimulation {
 private:
-    //Regular6DStencil *dom_part;
     DomainPartitioner *dom_part;
     DomainPartitioners dom_part_type;
     std::vector<Property> properties;
@@ -147,6 +146,7 @@ public:
     void copyArraySliceToHost(Array &array, action_t action, size_t offset, size_t size);
 
     // Properties
+    std::vector<Property> &getProperties() { return properties; };
     Property &getProperty(property_t id);
     Property &getPropertyByName(std::string name);
     void addProperty(Property prop);
@@ -154,11 +154,11 @@ public:
     template<typename T_ptr>
     void addProperty(
         property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t,
-        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
+        PropertyType type, layout_t layout, int vol, size_t sx, size_t sy = 1);
 
     template<typename T_ptr> void addProperty(
         property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr,
-        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
+        PropertyType type, layout_t layout, int vol, size_t sx, size_t sy = 1);
 
     template<typename T_ptr>
     void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx = 1, size_t sy = 1);
@@ -405,19 +405,21 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, siz
 
 template<typename T_ptr>
 void PairsSimulation::addProperty(
-    property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy) {
+    property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t,
+    PropertyType type, layout_t layout, int vol, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
 
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr);
-    addProperty(Property(id, name, *h_ptr, nullptr, type, layout, sx, sy));
+    addProperty(Property(id, name, *h_ptr, nullptr, type, layout, vol, sx, sy));
 }
 
 template<typename T_ptr>
 void PairsSimulation::addProperty(
-    property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, PropertyType type, layout_t layout, size_t sx, size_t sy) {
+    property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr,
+    PropertyType type, layout_t layout, int vol, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
@@ -425,7 +427,7 @@ void PairsSimulation::addProperty(
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
     *d_ptr = (T_ptr *) pairs::device_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr && *d_ptr != nullptr);
-    addProperty(Property(id, name, *h_ptr, *d_ptr, type, layout, sx, sy));
+    addProperty(Property(id, name, *h_ptr, *d_ptr, type, layout, vol, sx, sy));
 }
 
 template<typename T_ptr>

@@ -698,6 +698,7 @@ class CGen:
             assert ptype != "Prop_Invalid", "Invalid property type!"
 
             playout = Layouts.c_keyword(p.layout())
+            vol = 1 if p.is_volatile() else 0
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
 
             if self.target.is_gpu() and p.device_flag:
@@ -706,7 +707,7 @@ class CGen:
             else:
                 self.print(f"{tkw} *{ptr};")
 
-            self.print(f"pairs->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
+            self.print(f"pairs->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {vol}, {sizes});")
 
         if isinstance(ast_node, RegisterContactProperty):
             p = ast_node.property()

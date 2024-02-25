@@ -1,6 +1,12 @@
 #include <blockforest/BlockForest.h>
 #include <blockforest/BlockDataHandling.h>
 
+namespace pairs {
+
+class PairsSimulation;
+
+}
+
 namespace walberla {
 
 namespace internal {
@@ -22,53 +28,51 @@ inline bool operator==(const ParticleDeleter& lhs, const ParticleDeleter& rhs) {
 
 } // namespace internal
 
-class ParticleDataHandling : public blockforest::BlockDataHandling<internal::ParticleDeleter>{
+class ParticleDataHandling : public blockforest::BlockDataHandling<internal::ParticleDeleter> {
 private:
     pairs::PairsSimulation *ps;
 
 public:
-    ParticleDataHandling(pairs::PairsSimulation *_ps) { ps = _ps; }
-    virtual ~ParticleDataHandling() {}
+    ParticleDataHandling(pairs::PairsSimulation *ps_) : ps(ps_) {}
+    ~ParticleDataHandling() override = default;
 
-    virtual internal::ParticleDeleter *initialize(IBlock *const block) WALBERLA_OVERRIDE {
+    internal::ParticleDeleter *initialize(IBlock *const block) override {
         return new internal::ParticleDeleter(block->getAABB());
     }
 
-    virtual void serialize(IBlock *const block, const BlockDataID& id, mpi::SendBuffer& buffer) WALBERLA_OVERRIDE {
+    void serialize(IBlock *const block, const BlockDataID& id, mpi::SendBuffer& buffer) override {
         serializeImpl(static_cast<Block *const>(block), id, buffer, 0, false);
     }
 
-    virtual internal::ParticleDeleter* deserialize(IBlock *const block) WALBERLA_OVERRIDE {
+    internal::ParticleDeleter* deserialize(IBlock *const block) override {
         return initialize(block);
     }
 
-    virtual void deserialize(IBlock *const block, const BlockDataID& id, mpi::RecvBuffer& buffer) WALBERLA_OVERRIDE {
+    void deserialize(IBlock *const block, const BlockDataID& id, mpi::RecvBuffer& buffer) override {
         deserializeImpl(block, id, buffer);
     }
 
-    virtual void serializeCoarseToFine(Block *const block, const BlockDataID& id, mpi::SendBuffer& buffer, const uint_t child)
-        WALBERLA_OVERRIDE {
+    void serializeCoarseToFine(Block *const block, const BlockDataID& id, mpi::SendBuffer& buffer, const uint_t child) override {
         serializeImpl(block, id, buffer, child, true);
     }
 
-    virtual void serializeFineToCoarse(Block *const block, const BlockDataID& id, mpi::SendBuffer& buffer) WALBERLA_OVERRIDE {
+    void serializeFineToCoarse(Block *const block, const BlockDataID& id, mpi::SendBuffer& buffer) override {
         serializeImpl(block, id, buffer, 0, false);
     }
 
-    virtual internal::ParticleDeleter *deserializeCoarseToFine(Block *const block) WALBERLA_OVERRIDE {
+    internal::ParticleDeleter *deserializeCoarseToFine(Block *const block) override {
         return initialize(block);
     }
 
-    virtual internal::ParticleDeleter *deserializeFineToCoarse(Block *const block) WALBERLA_OVERRIDE {
+    internal::ParticleDeleter *deserializeFineToCoarse(Block *const block) override {
         return initialize(block);
     }
 
-    virtual void deserializeCoarseToFine(Block *const block, const BlockDataID& id, mpi::RecvBuffer& buffer) WALBERLA_OVERRIDE {
+    void deserializeCoarseToFine(Block *const block, const BlockDataID& id, mpi::RecvBuffer& buffer) override {
         deserializeImpl(block, id, buffer);
     }
 
-    virtual void deserializeFineToCoarse(Block *const block, const BlockDataID& id, mpi::RecvBuffer& buffer, const uint_t)
-        WALBERLA_OVERRIDE {
+    void deserializeFineToCoarse(Block *const block, const BlockDataID& id, mpi::RecvBuffer& buffer, const uint_t) override {
         deserializeImpl(block, id, buffer);
     }
 
@@ -95,11 +99,13 @@ public:
             aabb_check[5] = aabb.zMax();
         }
 
-        for(auto& p: ps->getNonVolatileProperties()) {
-            ps->copyPropertyToHost(p, WriteAfterRead);
+        for(auto& prop: ps->getProperties()) {
+            if(!prop.isVolatile()) {
+                ps->copyPropertyToHost(prop, WriteAfterRead);
+            }
         }
 
-        auto position = ps->getPropertyByName("position");
+        auto position = ps->getAsVectorProperty(ps->getPropertyByName("position"));
         int nlocal = ps->getTrackedVariableAsInteger("nlocal");
         int i = 0;
         int nserialized = 0;
@@ -115,51 +121,52 @@ public:
 
                 nlocal--;
 
-                for(auto &p: ps->getNonVolatileProperties()) {
-                    auto prop = ps->getProperty(p_id);
-                    auto prop_type = prop.getType();
+                for(auto &prop: ps->getProperties()) {
+                    if(!prop.isVolatile()) {
+                        auto prop_type = prop.getType();
 
-                    if(prop_type == Prop_Vector) {
-                        auto vector_ptr = ps->getAsVectorProperty(prop);
-                        constexpr int nelems = 3;
+                        if(prop_type == Prop_Vector) {
+                            auto vector_ptr = ps->getAsVectorProperty(prop);
+                            constexpr int nelems = 3;
 
-                        for(int e = 0; e < nelems; e++) {
-                            buffer << vector_ptr(i, e);
-                            vector_ptr(i, e) = vector_ptr(nlocal, e);
+                            for(int e = 0; e < nelems; e++) {
+                                buffer << vector_ptr(i, e);
+                                vector_ptr(i, e) = vector_ptr(nlocal, e);
+                            }
+                        } else if(prop_type == Prop_Matrix) {
+                            auto matrix_ptr = ps->getAsMatrixProperty(prop);
+                            constexpr int nelems = 9;
+
+                            for(int e = 0; e < nelems; e++) {
+                                buffer << matrix_ptr(i, e);
+                                matrix_ptr(i, e) = matrix_ptr(nlocal, e);
+                            }
+                        } else if(prop_type == Prop_Quaternion) {
+                            auto quat_ptr = ps->getAsQuaternionProperty(prop);
+                            constexpr int nelems = 4;
+
+                            for(int e = 0; e < nelems; e++) {
+                                buffer << quat_ptr(i, e);
+                                quat_ptr(i, e) = quat_ptr(nlocal, e);
+                            }
+                        } else if(prop_type == Prop_Integer) {
+                            auto int_ptr = ps->getAsIntegerProperty(prop);
+                            buffer << int_ptr(i);
+                            int_ptr(i) = int_ptr(nlocal);
+                        } else if(prop_type == Prop_Real) {
+                            auto float_ptr = ps->getAsFloatProperty(prop);
+                            buffer << float_ptr(i);
+                            float_ptr(i) = float_ptr(nlocal);
+                        } else {
+                            std::cerr << "serializeImpl(): Invalid property type!" << std::endl;
+                            return;
                         }
-                    } else if(prop_type == Prop_Matrix) {
-                        auto matrix_ptr = ps->getAsMatrixProperty(prop);
-                        constexpr int nelems = 9;
-
-                        for(int e = 0; e < nelems; e++) {
-                            buffer << matrix_ptr(i, e);
-                            matrix_ptr(i, e) = matrix_ptr(nlocal, e);
-                        }
-                    } else if(prop_type == Prop_Quaternion) {
-                        auto quat_ptr = ps->getAsQuaternionProperty(prop);
-                        constexpr int nelems = 4;
-
-                        for(int e = 0; e < nelems; e++) {
-                            buffer << quat_ptr(i, e);
-                            quat_ptr(i, e) = quat_ptr(nlocal, e);
-                        }
-                    } else if(prop_type == Prop_Integer) {
-                        auto int_ptr = ps->getAsIntegerProperty(prop);
-                        buffer << int_ptr(i);
-                        int_ptr(i) = int_ptr(nlocal);
-                    } else if(prop_type == Prop_Real) {
-                        auto float_ptr = ps->getAsFloatProperty(prop);
-                        buffer << float_ptr(i);
-                        float_ptr(i) = float_ptr(nlocal);
-                    } else {
-                        std::cerr << "serializeImpl(): Invalid property type!" << std::endl;
-                        return 0;
                     }
                 }
-
-                // TODO: serialize contact history data as well
-                nserialized++;
             }
+
+            // TODO: serialize contact history data as well
+            nserialized++;
         }
 
         ps->setTrackedVariableAsInteger("nlocal", nlocal);
@@ -178,45 +185,46 @@ public:
         // md_resize_recv_buffer_capacity((int) nparticles);
 
         for(int i = 0; i < nrecv; ++i) {
-            for(auto &p: ps->getNonVolatileProperties()) {
-                auto prop = ps->getProperty(p_id);
-                auto prop_type = prop.getType();
+            for(auto &prop: ps->getProperties()) {
+                if(!prop.isVolatile()) {
+                    auto prop_type = prop.getType();
 
-                if(prop_type == Prop_Vector) {
-                    auto vector_ptr = ps->getAsVectorProperty(prop);
-                    constexpr int nelems = 3;
+                    if(prop_type == Prop_Vector) {
+                        auto vector_ptr = ps->getAsVectorProperty(prop);
+                        constexpr int nelems = 3;
 
-                    for(int e = 0; e < nelems; e++) {
+                        for(int e = 0; e < nelems; e++) {
+                            buffer >> real_tmp;
+                            vector_ptr(nlocal + i, e) = real_tmp;
+                        }
+                    } else if(prop_type == Prop_Matrix) {
+                        auto matrix_ptr = ps->getAsMatrixProperty(prop);
+                        constexpr int nelems = 9;
+
+                        for(int e = 0; e < nelems; e++) {
+                            buffer >> real_tmp;
+                            matrix_ptr(nlocal + i, e) = real_tmp;
+                        }
+                    } else if(prop_type == Prop_Quaternion) {
+                        auto quat_ptr = ps->getAsQuaternionProperty(prop);
+                        constexpr int nelems = 4;
+
+                        for(int e = 0; e < nelems; e++) {
+                            buffer >> real_tmp;
+                            quat_ptr(nlocal + i, e) = real_tmp;
+                        }
+                     } else if(prop_type == Prop_Integer) {
+                        auto int_ptr = ps->getAsIntegerProperty(prop);
+                        buffer >> int_tmp;
+                        int_ptr(nlocal + i) = int_tmp;
+                    } else if(prop_type == Prop_Real) {
+                        auto float_ptr = ps->getAsFloatProperty(prop);
                         buffer >> real_tmp;
-                        vector_ptr(nlocal + i, e) = real_tmp;
+                        float_ptr(nlocal + i) = real_tmp;
+                    } else {
+                        std::cerr << "deserializeImpl(): Invalid property type!" << std::endl;
+                        return;
                     }
-                } else if(prop_type == Prop_Matrix) {
-                    auto matrix_ptr = ps->getAsMatrixProperty(prop);
-                    constexpr int nelems = 9;
-
-                    for(int e = 0; e < nelems; e++) {
-                        buffer >> real_tmp;
-                        matrix_ptr(nlocal + i, e) = real_tmp;
-                    }
-                } else if(prop_type == Prop_Quaternion) {
-                    auto quat_ptr = ps->getAsQuaternionProperty(prop);
-                    constexpr int nelems = 4;
-
-                    for(int e = 0; e < nelems; e++) {
-                        buffer >> real_tmp;
-                        quat_ptr(nlocal + i, e) = real_tmp;
-                    }
-                 } else if(prop_type == Prop_Integer) {
-                    auto int_ptr = ps->getAsIntegerProperty(prop);
-                    buffer >> int_tmp;
-                    int_ptr(nlocal + i) = int_tmp;
-                } else if(prop_type == Prop_Real) {
-                    auto float_ptr = ps->getAsFloatProperty(prop);
-                    buffer >> real_tmp;
-                    float_ptr(nlocal + i) = real_tmp;
-                } else {
-                    std::cerr << "deserializeImpl(): Invalid property type!" << std::endl;
-                    return 0;
                 }
             }
         }

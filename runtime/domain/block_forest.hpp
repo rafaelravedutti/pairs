@@ -26,7 +26,7 @@ class BlockForest : public DomainPartitioner {
 private:
     PairsSimulation *ps;
     std::shared_ptr<walberla::BlockForest> forest;
-    walberla::blockforest::InfoCollection info;
+    std::shared_ptr<walberla::blockforest::InfoCollection> info;
     std::map<int, std::vector<walberla::math::AABB>> neighborhood;
     std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
     std::vector<int> ranks;

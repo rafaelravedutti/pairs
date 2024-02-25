@@ -51,7 +51,7 @@ void compute_boundary_weights(
         if( pos_x > xmin && pos_x <= xmax &&
             pos_y > ymin && pos_y <= ymax &&
             pos_z > zmin && pos_z <= zmax) {
-                *comp_weight++;
+                (*comp_weight)++;
         }
     }
 
@@ -63,7 +63,7 @@ void compute_boundary_weights(
         if( pos_x > xmin && pos_x <= xmax &&
             pos_y > ymin && pos_y <= ymax &&
             pos_z > zmin && pos_z <= zmax) {
-                *comm_weight++;
+                (*comm_weight)++;
         }
     }
     #else

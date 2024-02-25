@@ -83,6 +83,9 @@ class Property(ASTNode):
     def default(self):
         return self.default_value
 
+    def is_volatile(self):
+        return self.volatile
+
     def ndims(self):
         return 1 if Types.is_scalar(self.prop_type) else 2
 
