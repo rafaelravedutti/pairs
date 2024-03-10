@@ -101,19 +101,19 @@ int Regular6DStencil::isWithinSubdomain(real_t x, real_t y, real_t z) {
 
 void Regular6DStencil::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     for(int d = 0; d < ndims; d++) {
-        if(name.compare('neighbor_ranks')) {
+        if(name.compare("neighbor_ranks")) {
             int *neighbor_ranks = static_cast<int *>(dest);
             neighbor_ranks[d * 2 + 0] = prev[d];
             neighbor_ranks[d * 2 + 1] = next[d];
         }
 
-        if(name.compare('pbc')) {
+        if(name.compare("pbc")) {
             int *pbc = static_cast<int *>(dest);
             pbc[d * 2 + 0] = pbc_prev[d];
             pbc[d * 2 + 1] = pbc_next[d];
         }
 
-        if(name.compare('subdom')) {
+        if(name.compare("subdom")) {
             real_t *subdom = static_cast<real_t *>(dest);
             subdom[d * 2 + 0] = subdom_min[d];
             subdom[d * 2 + 1] = subdom_max[d];

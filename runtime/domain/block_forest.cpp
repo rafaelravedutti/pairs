@@ -252,7 +252,7 @@ void BlockForest::initialize(int *argc, char ***argv) {
 }
 
 void BlockForest::initializeWorkloadBalancer() {
-    const std::string algorithm = "morton";
+    std::string algorithm = "morton";
     real_t baseWeight = 1.0;
     real_t metisipc2redist = 1.0;
     size_t regridMin = 10;
