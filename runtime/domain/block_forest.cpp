@@ -217,9 +217,9 @@ void BlockForest::rebalance() {
         forest->refresh();
     }
 
-    this->setBoundingBox();
     this->updateWeights();
     this->updateNeighborhood();
+    this->setBoundingBox();
 }
 
 void BlockForest::initialize(int *argc, char ***argv) {
@@ -244,11 +244,16 @@ void BlockForest::initialize(int *argc, char ***argv) {
         domain, block_config, walberla::Vector3<bool>(true, true, true), procs, ref_level);
 
     this->info = make_shared<walberla::blockforest::InfoCollection>();
-    this->setBoundingBox();
 
     if(balance_workload) {
         this->initializeWorkloadBalancer();
+        this->updateWeights();
+        forest->refresh();
     }
+
+    this->updateWeights();
+    this->updateNeighborhood();
+    this->setBoundingBox();
 }
 
 void BlockForest::initializeWorkloadBalancer() {
