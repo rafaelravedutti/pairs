@@ -35,6 +35,8 @@ from pairs.transformations import Transformations
 
 
 class Simulation:
+    """P4IRS Simulation class, this class is the center of kernel simulations which contains all
+       fundamental data structures to generate a P4IRS simulation code"""
     def __init__(
         self,
         code_gen,
@@ -46,8 +48,10 @@ class Simulation:
         particle_capacity=800000,
         neighbor_capacity=100):
 
+        # Code generator for the simulation
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
+        # Data structures to be generated
         self.position_prop = None
         self.properties = Properties(self)
         self.vars = Variables(self)
@@ -55,6 +59,8 @@ class Simulation:
         self.features = Features(self)
         self.feature_properties = FeatureProperties(self)
         self.contact_properties = ContactProperties(self)
+
+        # General capacities, sizes and particle properties
         self.particle_capacity = \
             self.add_var('particle_capacity', Types.Int32, particle_capacity, runtime=True)
         self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, neighbor_capacity)
@@ -64,45 +70,62 @@ class Simulation:
         self.particle_uid = self.add_property('uid', Types.Int32, 0)
         self.particle_shape = self.add_property('shape', Types.Int32, 0)
         self.particle_flags = self.add_property('flags', Types.Int32, 0)
+
+        # Grid for the simulation
         self.grid = None
+
+        # Acceleration structures
         self.cell_lists = None
         self._store_neighbors_per_cell = False
         self.neighbor_lists = None
+
+        # Context information used to partially build the program AST
         self.scope = []
         self.nested_count = 0
         self.nest = False
         self._capture_statements = True
         self._block = Block(self, [])
+
+        # Different segments of particle code/functions
         self.setups = Block(self, [])
         self.setup_functions = []
         self.pre_step_functions = []
         self.functions = []
         self.module_list = []
         self.kernel_list = []
+
+        # Structures to generated resize code for capacities
         self._check_properties_resize = False
         self._resizes_to_check = {}
-        self._module_name = None
-        self._double_prec = double_prec
-        self.dims = dims
-        self.ntimesteps = timesteps
-        self.expr_id = 0
-        self.iter_id = 0
-        self.reneighbor_frequency = 1
+
+        # VTK data
         self.vtk_file = None
         self.vtk_frequency = 0
+
+        # Domain partitioning
         self._dom_part = None
         self._partitioner = None
-        self._target = None
-        self._pbc = [True for _ in range(dims)]
+
+        # Contact history
         self._use_contact_history = use_contact_history
         self._contact_history = ContactHistory(self) if use_contact_history else None
-        self._shapes = shapes
-        self._compute_half = False
-        self._apply_list = None
-        self._enable_profiler = False
-        self._compute_thermo = 0
+
+
+        self._module_name = None                # Current module name
+        self._double_prec = double_prec         # Use double-precision FP arithmetic
+        self.dims = dims                        # Number of dimensions
+        self.ntimesteps = timesteps             # Number of time-steps
+        self.reneighbor_frequency = 1           # Re-neighbor frequency
+        self._target = None                     # Hardware target info
+        self._pbc = [True for _ in range(dims)] # PBC flags for each dimension
+        self._shapes = shapes                   # List of shapes used in the simulation
+        self._compute_half = False              # Compute half of interactions (Newton 3D Law)
+        self._apply_list = None                 # Context elements when using apply() directive
+        self._enable_profiler = False           # Enable/disable profiler
+        self._compute_thermo = 0                # Compute thermo information
 
     def set_domain_partitioner(self, partitioner):
+        """Selects domain-partitioner used and create its object for this simulation instance"""
         self._partitioner = partitioner
 
         if partitioner in (DomainPartitioners.Regular, DomainPartitioners.RegularXY):
@@ -138,6 +161,8 @@ class Simulation:
             self.module_list.append(module)
 
     def modules(self):
+        """List simulation modudles, with main always in the last position"""
+
         sorted_mods = []
         main_mod = None
         for m in self.module_list:
@@ -240,23 +265,29 @@ class Simulation:
         self.setups.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
 
     def read_particle_data(self, filename, prop_names, shape_id):
+        """Generate statement to read particle data from file"""
         props = [self.property(prop_name) for prop_name in prop_names]
         self.setups.add_statement(ReadParticleData(self, filename, props, shape_id))
 
     def copper_fcc_lattice(self, nx, ny, nz, rho, temperature, ntypes):
+        """Specific initialization for MD Copper FCC lattice case"""
         self.setups.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
 
     def dem_sc_grid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter, initial_velocity, particle_density, ntypes):
+        """Specific initialization for DEM grid"""
         self.setups.add_statement(
             DEMSCGrid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
                       initial_velocity, particle_density, ntypes))
 
     def build_cell_lists(self, spacing, store_neighbors_per_cell=False):
+        """Add routines to build the linked-cells acceleration structure"""
         self._store_neighbors_per_cell = store_neighbors_per_cell
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 
     def build_neighbor_lists(self, spacing):
+        """Add routines to build the Verlet Lists acceleration structure"""
+
         assert self._store_neighbors_per_cell is False, \
             "Using neighbor-lists with store_neighbors_per_cell option is invalid."
 
@@ -271,6 +302,7 @@ class Simulation:
         return setup(self, func, symbols)
 
     def init_block(self):
+        """Initialize new block in this simulation instance"""
         self._block = Block(self, [])
         self._check_properties_resize = False
         self._resizes_to_check = {}
@@ -280,15 +312,20 @@ class Simulation:
         self._module_name = name
 
     def check_properties_resize(self):
+        """Enable checking properties for resizing"""
         self._check_properties_resize = True
 
     def check_resize(self, capacity, size):
+        """Determine that capacity must always be checked with respect to size in a block/module"""
+
         if capacity not in self._resizes_to_check:
             self._resizes_to_check[capacity] = size
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
     def build_setup_module_with_statements(self):
+        """Build a Module in the setup part of the program using the last initialized block"""
+
         self.setup_functions.append(
             Module(self,
                 name=self._module_name,
@@ -298,6 +335,7 @@ class Simulation:
                 run_on_device=False))
 
     def build_pre_step_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
+        """Build a Module in the pre-step part of the program using the last initialized block"""
         module = Module(self, name=self._module_name,
                               block=Block(self, self._block),
                               resizes_to_check=self._resizes_to_check,
@@ -314,6 +352,7 @@ class Simulation:
             self.pre_step_functions.append(module)
 
     def build_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
+        """Build a Module in the compute part of the program using the last initialized block"""
         module = Module(self, name=self._module_name,
                               block=Block(self, self._block),
                               resizes_to_check=self._resizes_to_check,
@@ -329,9 +368,11 @@ class Simulation:
             self.functions.append(module)
 
     def capture_statements(self, capture=True):
+        """When toggled, all constructed statements are captured and automatically added to the last initialized block"""
         self._capture_statements = capture
 
     def add_statement(self, stmt):
+        """Add captured statements to the last block when _capture_statements is toggled"""
         if self._capture_statements:
             if not self.scope:
                 self._block.add_statement(stmt)
@@ -341,6 +382,7 @@ class Simulation:
         return stmt
 
     def nest_mode(self):
+        """When explicitly constructing loops in P4IRS, make them nested"""
         self.nested_count = 0
         self.nest = True
         yield
@@ -349,9 +391,11 @@ class Simulation:
             self.scope.pop()
 
     def enter(self, scope):
+        """Enter a new scope, used for tracking scopes when building P4IRS AST elements"""
         self.scope.append(scope)
 
     def leave(self):
+        """Leave last scope, used for tracking scopes when building P4IRS AST elements"""
         if not self.nest:
             self.scope.pop()
         else:
@@ -384,10 +428,16 @@ class Simulation:
         self._compute_thermo = every
 
     def generate(self):
+        """Generate the code for the simulation"""
+
         assert self._target is not None, "Target not specified!"
+
+        # Initialize communication instance with specified domain-partitioner
         comm = Comm(self, self._dom_part)
+        # Params that determine when a method must be called only when reneighboring
         every_reneighbor_params = {'every': self.reneighbor_frequency}
 
+        # First steps executed during each time-step in the simulation
         timestep_procedures = self.pre_step_functions + [
             (comm.exchange(), every_reneighbor_params),
             (comm.borders(), comm.synchronize(), every_reneighbor_params),
@@ -395,14 +445,17 @@ class Simulation:
             (PartitionCellLists(self, self.cell_lists), every_reneighbor_params)
         ]
 
+        # Add routine to build neighbor-lists per cell
         if self._store_neighbors_per_cell:
             timestep_procedures.append(
                 (BuildCellNeighborLists(self, self.cell_lists), every_reneighbor_params))
 
+        # Add routine to build neighbor-lists per particle (standard Verlet Lists)
         if self.neighbor_lists is not None:
             timestep_procedures.append(
                 (BuildNeighborLists(self, self.neighbor_lists), every_reneighbor_params))
 
+        # Add routines for contact history management
         if self._use_contact_history:
             if self.neighbor_lists is not None:
                 timestep_procedures.append(
@@ -411,23 +464,29 @@ class Simulation:
 
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
+        # Reset volatile properties and add computational kernels
         timestep_procedures += [ResetVolatileProperties(self)] + self.functions
 
+        # Clear unused contact history
         if self._use_contact_history:
             timestep_procedures.append(ClearUnusedContactHistory(self, self._contact_history))
 
+        # Add routine to calculate thermal data
         if self._compute_thermo != 0:
             timestep_procedures.append(
                 (ComputeThermo(self), {'every': self._compute_thermo}))
 
+        # Construct the time-step loop
         timestep = Timestep(self, self.ntimesteps, timestep_procedures)
         self.enter(timestep.block)
 
+        # Add routine to write VTK data when set
         if self.vtk_file is not None:
             timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep(), self.vtk_frequency))
 
         self.leave()
 
+        # Initialization and setup functions, together with time-step loop
         body = Block.from_list(self, [
             self.setups,
             self.setup_functions,
@@ -435,6 +494,7 @@ class Simulation:
             timestep.as_block()
         ])
 
+        # Data structures and timer/markers initialization
         inits = Block.from_list(self, [
             DeclareVariables(self),
             DeclareArrays(self),
@@ -445,6 +505,7 @@ class Simulation:
             RegisterMarkers(self)
         ])
 
+        # Combine everything into a whole program
         program = Module(self, name='main', block=Block.merge_blocks(inits, body))
 
         # Apply transformations
