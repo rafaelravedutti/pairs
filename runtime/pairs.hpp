@@ -303,6 +303,8 @@ public:
         int *argc, char ***argv,
         real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
 
+    void updateDomain() { dom_part->update(); }
+
     DomainPartitioner *getDomainPartitioner() { return dom_part; }
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
 

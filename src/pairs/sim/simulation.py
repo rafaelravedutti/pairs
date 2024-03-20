@@ -17,7 +17,7 @@ from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.dem_sc_grid import DEMSCGrid
-from pairs.sim.domain import InitializeDomain
+from pairs.sim.domain import InitializeDomain, UpdateDomain
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
@@ -243,7 +243,7 @@ class Simulation:
 
     def add_var(self, var_name, var_type, init_value=0, runtime=False):
         assert self.var(var_name) is None, f"Variable already defined: {var_name}"
-        return self.vars.add(var_name, var_type, init_value)
+        return self.vars.add(var_name, var_type, init_value, runtime)
 
     def add_temp_var(self, init_value):
         return self.vars.add_temp(init_value)
@@ -436,6 +436,8 @@ class Simulation:
         comm = Comm(self, self._dom_part)
         # Params that determine when a method must be called only when reneighboring
         every_reneighbor_params = {'every': self.reneighbor_frequency}
+        # Update domain is added at last on setups because particles must be already present in the simulation
+        self.setups.add_statement(UpdateDomain(self))
 
         # First steps executed during each time-step in the simulation
         timestep_procedures = self.pre_step_functions + [

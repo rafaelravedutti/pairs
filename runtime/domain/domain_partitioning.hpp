@@ -38,6 +38,7 @@ public:
     }
 
     virtual void initialize(int *argc, char ***argv) = 0;
+    virtual void update() = 0;
     virtual int getWorldSize() const = 0;
     virtual int getRank() const = 0;
     virtual int getNumberOfNeighborAABBs() = 0;

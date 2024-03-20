@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 3.8.2 FATAL_ERROR)
-
 project(pairs CXX)
-#enable_testing()
-
-#find_package(Python COMPONENTS Interpreter Development)
 
 set(TESTCASE ${TESTCASE} CACHE STRING "Select the testcase from the following: md, dem")
 
@@ -20,10 +16,22 @@ endif()
 string(TOLOWER "${TESTCASE}" TESTCASE)
 message(STATUS "Selected testcase: ${TESTCASE}")
 
+option(DEBUG "DEBUG" ON)
 option(USE_WALBERLA "USE_WALBERLA" ON)
 option(USE_MPI "USE_MPI" ON)
 option(COMPILE_CUDA "COMPILE_CUDA" ON)
 option(ENABLE_GPU_DIRECT "ENABLE_GPU_DIRECT" ON)
+
+if(DEBUG)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG ")
+endif()
+
+if(USE_WALBERLA)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
+    find_package(waLBerla REQUIRED)
+    add_subdirectory(${walberla_SOURCE_DIR} ${walberla_BINARY_DIR} EXCLUDE_FROM_ALL)
+    waLBerla_import()
+endif()
 
 set(CPU_SRC "${TESTCASE}.cpp")
 set(GPU_SRC "${TESTCASE}.cu")
@@ -51,42 +59,38 @@ execute_process(
     COMMAND ${PYTHON_EXECUTABLE} setup.py install --user
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(${CPU_BIN} ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES})
-
 if(USE_WALBERLA)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
-    find_package(waLBerla REQUIRED)
-    add_subdirectory(${walberla_SOURCE_DIR} ${walberla_BINARY_DIR} EXCLUDE_FROM_ALL)
-    waLBerla_import()
-
     waLBerla_add_executable(
         NAME ${CPU_BIN}
-        FILES ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES}
-        DEPENDS blockforest core pe ${CPU_SRC})
+        FILES ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES} ${CMAKE_BINARY_DIR}/${CPU_SRC}
+        DEPENDS blockforest core pe)
+else()
+    add_executable(${CPU_BIN} ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES})
 endif()
 
 add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
-#target_link_libraries(${CPU_BIN} runtime_cpu)
+target_link_libraries(${CPU_BIN} runtime_cpu)
 
 add_custom_command(
-    OUTPUT ${CPU_SRC}
+    OUTPUT ${CMAKE_BINARY_DIR}/${CPU_SRC}
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py cpu
     COMMENT "Generate CPU code"
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
 
-add_custom_target(gen_cpu DEPENDS ${CPU_SRC})
+add_custom_target(gen_cpu DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC})
 add_dependencies(${CPU_BIN} gen_cpu)
 
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
     enable_language(CUDA)
-    add_executable(${GPU_BIN} ${GPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_GPU_FILES})
 
     if(USE_WALBERLA)
         waLBerla_add_executable(
             NAME ${GPU_BIN}
-            FILES ${GPU_SRC} ${RUNTIME_COMMON_FILES}
-            DEPENDS blockforest core pe ${GPU_SRC})
+            FILES ${RUNTIME_COMMON_FILES}
+            DEPENDS blockforest core pe)
+    else()
+        add_executable(${GPU_BIN} ${GPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_GPU_FILES})
     endif()
 
     if(ENABLE_GPU_DIRECT)
@@ -97,6 +101,7 @@ if(COMPILE_CUDA)
     target_compile_features(runtime_gpu PUBLIC cxx_std_11)
     set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
+    target_link_libraries(${GPU_BIN} runtime_gpu)
     target_compile_options(${GPU_BIN} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=${CUDA_ARCH}>)
     target_include_directories(${GPU_BIN} PRIVATE ${CUDA_INCLUDE_DIRS})
     set_target_properties(${GPU_BIN} PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
@@ -104,9 +109,6 @@ if(COMPILE_CUDA)
     target_compile_options(runtime_gpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=${CUDA_ARCH}>)
     target_include_directories(runtime_gpu PRIVATE ${CUDA_INCLUDE_DIRS})
     set_target_properties(runtime_gpu PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
-
-    #set_property(TARGET ${GPU_BIN} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
-    #target_link_libraries(${GPU_BIN} runtime_gpu)
 
     add_custom_command(
         OUTPUT ${GPU_SRC}
@@ -122,15 +124,19 @@ target_link_libraries(${CPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
 set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
 set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD 17)
 
-target_link_libraries(${GPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
-set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
-set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD 17)
+if(COMPILE_CUDA)
+    target_link_libraries(${GPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
+    set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
+    set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD 17)
+endif()
 
 if(USE_MPI)
     find_package(MPI REQUIRED)
     include_directories(SYSTEM ${MPI_INCLUDE_PATH})
     target_link_libraries(${CPU_BIN} ${MPI_LIBRARIES})
-    target_link_libraries(${GPU_BIN} ${MPI_LIBRARIES})
+    if(COMPILE_CUDA)
+        target_link_libraries(${GPU_BIN} ${MPI_LIBRARIES})
+    endif()
 endif()
 
 if(LIKWID_DIR)

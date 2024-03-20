@@ -79,14 +79,14 @@ void BlockForest::updateNeighborhood() {
 }
 
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
-    void *src = name.compare("ranks")           ? static_cast<void *>(ranks.data()) :
-                name.compare("naabbs")          ? static_cast<void *>(naabbs.data()) :
-                name.compare("aabb_offsets")    ? static_cast<void *>(aabb_offsets.data()) :
-                name.compare("aabbs")           ? static_cast<void *>(aabbs.data()) :
-                name.compare("subdom")          ? static_cast<void *>(subdom) : nullptr;
+    void *src = name.compare("ranks") == 0          ? static_cast<void *>(ranks.data()) :
+                name.compare("naabbs") == 0         ? static_cast<void *>(naabbs.data()) :
+                name.compare("aabb_offsets") == 0   ? static_cast<void *>(aabb_offsets.data()) :
+                name.compare("aabbs") == 0          ? static_cast<void *>(aabbs.data()) :
+                name.compare("subdom") == 0         ? static_cast<void *>(subdom) : nullptr;
 
     PAIRS_ASSERT(src != nullptr);
-    bool is_real = name.compare("aabbs") || name.compare("subdom");
+    bool is_real = (name.compare("aabbs") == 0) || (name.compare("subdom") == 0);
     int tsize = is_real ? sizeof(real_t) : sizeof(int);
     std::memcpy(dest, src, size * tsize);
 }
@@ -247,6 +247,11 @@ void BlockForest::initialize(int *argc, char ***argv) {
 
     if(balance_workload) {
         this->initializeWorkloadBalancer();
+    }
+}
+
+void BlockForest::update() {
+    if(balance_workload) {
         this->updateWeights();
         forest->refresh();
     }

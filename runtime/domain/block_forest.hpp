@@ -52,6 +52,7 @@ public:
     }
 
     void initialize(int *argc, char ***argv);
+    void update();
     void finalize();
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }

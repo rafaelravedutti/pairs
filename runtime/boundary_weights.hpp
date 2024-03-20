@@ -66,6 +66,7 @@ void compute_boundary_weights(
                 (*comm_weight)++;
         }
     }
+    std::cout << "comp_weight = " << (*comp_weight) << ", comm_weight = " << (*comm_weight) << std::endl;
     #else
     real_t *position_ptr = static_cast<real_t *>(position_prop.getDevicePointer());
 

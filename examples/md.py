@@ -35,7 +35,7 @@ nz = 32
 rho = 0.8442
 temp = 1.44
 
-psim = pairs.simulation("md", [pairs.point_mass()], timesteps=200, double_prec=True)
+psim = pairs.simulation("md", [pairs.point_mass()], timesteps=200, double_prec=True, debug=True)
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())

@@ -36,6 +36,9 @@ class DimensionRanges:
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, self.sim.ndims() * 2])
         Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
+    def update(self):
+        Call_Void(self.sim, "pairs->updateDomain", [])
+
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored
         flags_to_exclude = (Flags.Infinite | Flags.Global)
@@ -99,6 +102,8 @@ class BlockForest:
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
         Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
 
+    def update(self):
+        Call_Void(self.sim, "pairs->updateDomain", [])
         Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs->getNumberOfNeighborRanks", []))
         Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs->getNumberOfNeighborAABBs", []))
 

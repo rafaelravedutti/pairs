@@ -6,6 +6,8 @@ from pairs.analysis.modules import FetchModulesReferences
 
 
 class Analysis:
+    """Compiler analysis performed on P4IRS"""
+
     def __init__(self, ast):
         self._ast = ast
 

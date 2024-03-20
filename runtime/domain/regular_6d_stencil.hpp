@@ -51,6 +51,7 @@ public:
     void setConfig();
     void setBoundingBox();
     void initialize(int *argc, char ***argv);
+    void update();
     void finalize();
 
     int getWorldSize() const { return world_size; }
