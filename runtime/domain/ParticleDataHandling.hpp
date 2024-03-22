@@ -175,14 +175,16 @@ public:
 
     void deserializeImpl(IBlock *const, const BlockDataID&, mpi::RecvBuffer& buffer) {
         int nlocal = ps->getTrackedVariableAsInteger("nlocal");
+        int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
         real_t real_tmp;
         int int_tmp;
         uint_t nrecv;
 
         buffer >> nrecv;
 
-        // TODO: Check if there is enough particle capacity for the new particles
-        // md_resize_recv_buffer_capacity((int) nparticles);
+        // TODO: Check if there is enough particle capacity for the new particles, when there is not,
+        // all properties and arrays which have particle_capacity as one of their dimensions must be reallocated
+        PAIRS_ASSERT(nlocal + nrecv < particle_capacity);
 
         for(int i = 0; i < nrecv; ++i) {
             for(auto &prop: ps->getProperties()) {
