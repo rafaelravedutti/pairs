@@ -368,8 +368,10 @@ void BlockForest::communicateSizes(int dim, const int *nsend, int *nrecv) {
         nranks++;
     }
 
-    MPI_Waitall(nranks, send_requests.data(), MPI_STATUSES_IGNORE);
-    MPI_Waitall(nranks, recv_requests.data(), MPI_STATUSES_IGNORE);
+    if(nranks > 0) {
+        MPI_Waitall(nranks, send_requests.data(), MPI_STATUSES_IGNORE);
+        MPI_Waitall(nranks, recv_requests.data(), MPI_STATUSES_IGNORE);
+    }
 }
 
 void BlockForest::communicateData(
@@ -377,8 +379,8 @@ void BlockForest::communicateData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    std::vector<MPI_Request> send_requests(ranks.size(), MPI_REQUEST_NULL);
-    std::vector<MPI_Request> recv_requests(ranks.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> send_requests;
+    std::vector<MPI_Request> recv_requests;
     size_t nranks = 0;
 
     for(auto neigh_rank: ranks) {
@@ -386,15 +388,13 @@ void BlockForest::communicateData(
         real_t *recv_ptr = &recv_buf[recv_offsets[nranks] * elem_size];
 
         if(neigh_rank != rank) {
-            MPI_Irecv(
-                recv_ptr, nrecv[nranks] * elem_size, MPI_DOUBLE, neigh_rank, 0,
-                MPI_COMM_WORLD, &recv_requests[0]);
+            MPI_Request send_req, recv_req;
 
-            MPI_Isend(
-                send_ptr, nsend[nranks] * elem_size, MPI_DOUBLE, neigh_rank, 0,
-                MPI_COMM_WORLD, &send_requests[0]);
+            MPI_Irecv(recv_ptr, nrecv[nranks] * elem_size, MPI_DOUBLE, neigh_rank, 0, MPI_COMM_WORLD, &recv_req);
+            MPI_Isend(send_ptr, nsend[nranks] * elem_size, MPI_DOUBLE, neigh_rank, 0, MPI_COMM_WORLD, &send_req);
 
-            nranks++;
+            send_requests.push_back(send_req);
+            recv_requests.push_back(recv_req);
         } else {
             pairs::copy_in_device(recv_ptr, send_ptr, nsend[nranks] * elem_size * sizeof(real_t));
         }
@@ -402,8 +402,13 @@ void BlockForest::communicateData(
         nranks++;
     }
 
-    MPI_Waitall(nranks, send_requests.data(), MPI_STATUSES_IGNORE);
-    MPI_Waitall(nranks, recv_requests.data(), MPI_STATUSES_IGNORE);
+    if(!send_requests.empty()) {
+        MPI_Waitall(send_requests.size(), send_requests.data(), MPI_STATUSES_IGNORE);
+    }
+
+    if(!recv_requests.empty()) {
+        MPI_Waitall(recv_requests.size(), recv_requests.data(), MPI_STATUSES_IGNORE);
+    }
 }
 
 void BlockForest::communicateAllData(
