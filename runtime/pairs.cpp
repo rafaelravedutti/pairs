@@ -12,7 +12,7 @@
 
 namespace pairs {
 
-void PairsSimulation::initDomain(
+void PairsRuntime::initDomain(
     int *argc, char ***argv,
     real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
 
@@ -31,7 +31,7 @@ void PairsSimulation::initDomain(
     dom_part->initialize(argc, argv);
 }
 
-void PairsSimulation::addArray(Array array) {
+void PairsRuntime::addArray(Array array) {
     int id = array.getId();
     auto a = std::find_if(
         arrays.begin(),
@@ -42,7 +42,7 @@ void PairsSimulation::addArray(Array array) {
     arrays.push_back(array);
 }
 
-Array &PairsSimulation::getArray(array_t id) {
+Array &PairsRuntime::getArray(array_t id) {
     auto a = std::find_if(
         arrays.begin(),
         arrays.end(),
@@ -52,7 +52,7 @@ Array &PairsSimulation::getArray(array_t id) {
     return *a;
 }
 
-Array &PairsSimulation::getArrayByName(std::string name) {
+Array &PairsRuntime::getArrayByName(std::string name) {
     auto a = std::find_if(
         arrays.begin(),
         arrays.end(),
@@ -62,7 +62,7 @@ Array &PairsSimulation::getArrayByName(std::string name) {
     return *a;
 }
 
-Array &PairsSimulation::getArrayByHostPointer(const void *h_ptr) {
+Array &PairsRuntime::getArrayByHostPointer(const void *h_ptr) {
     auto a = std::find_if(
         arrays.begin(),
         arrays.end(),
@@ -72,7 +72,7 @@ Array &PairsSimulation::getArrayByHostPointer(const void *h_ptr) {
     return *a;
 }
 
-void PairsSimulation::addProperty(Property prop) {
+void PairsRuntime::addProperty(Property prop) {
     int id = prop.getId();
     auto p = std::find_if(
         properties.begin(),
@@ -83,7 +83,7 @@ void PairsSimulation::addProperty(Property prop) {
     properties.push_back(prop);
 }
 
-Property &PairsSimulation::getProperty(property_t id) {
+Property &PairsRuntime::getProperty(property_t id) {
     auto p = std::find_if(
         properties.begin(),
         properties.end(),
@@ -93,7 +93,7 @@ Property &PairsSimulation::getProperty(property_t id) {
     return *p;
 }
 
-Property &PairsSimulation::getPropertyByName(std::string name) {
+Property &PairsRuntime::getPropertyByName(std::string name) {
     auto p = std::find_if(
         properties.begin(),
         properties.end(),
@@ -103,7 +103,7 @@ Property &PairsSimulation::getPropertyByName(std::string name) {
     return *p;
 }
 
-void PairsSimulation::addContactProperty(ContactProperty contact_prop) {
+void PairsRuntime::addContactProperty(ContactProperty contact_prop) {
     int id = contact_prop.getId();
     auto cp = std::find_if(
         contact_properties.begin(),
@@ -114,7 +114,7 @@ void PairsSimulation::addContactProperty(ContactProperty contact_prop) {
     contact_properties.push_back(contact_prop);
 }
 
-ContactProperty &PairsSimulation::getContactProperty(property_t id) {
+ContactProperty &PairsRuntime::getContactProperty(property_t id) {
     auto cp = std::find_if(
         contact_properties.begin(),
         contact_properties.end(),
@@ -124,7 +124,7 @@ ContactProperty &PairsSimulation::getContactProperty(property_t id) {
     return *cp;
 }
 
-ContactProperty &PairsSimulation::getContactPropertyByName(std::string name) {
+ContactProperty &PairsRuntime::getContactPropertyByName(std::string name) {
     auto cp = std::find_if(
         contact_properties.begin(),
         contact_properties.end(),
@@ -134,7 +134,7 @@ ContactProperty &PairsSimulation::getContactPropertyByName(std::string name) {
     return *cp;
 }
 
-void PairsSimulation::addFeatureProperty(FeatureProperty feature_prop) {
+void PairsRuntime::addFeatureProperty(FeatureProperty feature_prop) {
     int id = feature_prop.getId();
     auto fp = std::find_if(
         feature_properties.begin(),
@@ -145,7 +145,7 @@ void PairsSimulation::addFeatureProperty(FeatureProperty feature_prop) {
     feature_properties.push_back(feature_prop);
 }
 
-FeatureProperty &PairsSimulation::getFeatureProperty(property_t id) {
+FeatureProperty &PairsRuntime::getFeatureProperty(property_t id) {
     auto fp = std::find_if(feature_properties.begin(),
                            feature_properties.end(),
                            [id](FeatureProperty _fp) { return _fp.getId() == id; });
@@ -153,7 +153,7 @@ FeatureProperty &PairsSimulation::getFeatureProperty(property_t id) {
     return *fp;
 }
 
-FeatureProperty &PairsSimulation::getFeaturePropertyByName(std::string name) {
+FeatureProperty &PairsRuntime::getFeaturePropertyByName(std::string name) {
     auto fp = std::find_if(feature_properties.begin(),
                            feature_properties.end(),
                            [name](FeatureProperty _fp) { return _fp.getName() == name; });
@@ -161,7 +161,7 @@ FeatureProperty &PairsSimulation::getFeaturePropertyByName(std::string name) {
     return *fp;
 }
 
-void PairsSimulation::copyArraySliceToDevice(
+void PairsRuntime::copyArraySliceToDevice(
     Array &array, action_t action, size_t offset, size_t size) {
 
     int array_id = array.getId();
@@ -186,7 +186,7 @@ void PairsSimulation::copyArraySliceToDevice(
     array_flags->setDeviceFlag(array_id);
 }
 
-void PairsSimulation::copyArrayToDevice(Array &array, action_t action, size_t size) {
+void PairsRuntime::copyArrayToDevice(Array &array, action_t action, size_t size) {
     int array_id = array.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
@@ -208,7 +208,7 @@ void PairsSimulation::copyArrayToDevice(Array &array, action_t action, size_t si
     array_flags->setDeviceFlag(array_id);
 }
 
-void PairsSimulation::copyArraySliceToHost(Array &array, action_t action, size_t offset, size_t size) {
+void PairsRuntime::copyArraySliceToHost(Array &array, action_t action, size_t offset, size_t size) {
     int array_id = array.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
@@ -231,7 +231,7 @@ void PairsSimulation::copyArraySliceToHost(Array &array, action_t action, size_t
     array_flags->setHostFlag(array_id);
 }
 
-void PairsSimulation::copyArrayToHost(Array &array, action_t action, size_t size) {
+void PairsRuntime::copyArrayToHost(Array &array, action_t action, size_t size) {
     int array_id = array.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
@@ -253,7 +253,7 @@ void PairsSimulation::copyArrayToHost(Array &array, action_t action, size_t size
     array_flags->setHostFlag(array_id);
 }
 
-void PairsSimulation::copyPropertyToDevice(Property &prop, action_t action, size_t size) {
+void PairsRuntime::copyPropertyToDevice(Property &prop, action_t action, size_t size) {
     int prop_id = prop.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
@@ -270,7 +270,7 @@ void PairsSimulation::copyPropertyToDevice(Property &prop, action_t action, size
     prop_flags->setDeviceFlag(prop_id);
 }
 
-void PairsSimulation::copyPropertyToHost(Property &prop, action_t action, size_t size) {
+void PairsRuntime::copyPropertyToHost(Property &prop, action_t action, size_t size) {
     int prop_id = prop.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
@@ -287,7 +287,7 @@ void PairsSimulation::copyPropertyToHost(Property &prop, action_t action, size_t
     prop_flags->setHostFlag(prop_id);
 }
 
-void PairsSimulation::copyContactPropertyToDevice(
+void PairsRuntime::copyContactPropertyToDevice(
     ContactProperty &contact_prop, action_t action, size_t size) {
 
     int prop_id = contact_prop.getId();
@@ -305,7 +305,7 @@ void PairsSimulation::copyContactPropertyToDevice(
     }
 }
 
-void PairsSimulation::copyContactPropertyToHost(
+void PairsRuntime::copyContactPropertyToHost(
     ContactProperty &contact_prop, action_t action, size_t size) {
 
     int prop_id = contact_prop.getId();
@@ -323,13 +323,13 @@ void PairsSimulation::copyContactPropertyToHost(
     }
 }
 
-void PairsSimulation::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
+void PairsRuntime::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
     const size_t n = feature_prop.getArraySize();
     PAIRS_DEBUG("Copying feature property %s to device (n=%d)\n", feature_prop.getName().c_str(), n);
     pairs::copy_static_symbol_to_device(feature_prop.getHostPointer(), feature_prop.getDevicePointer(), n);
 }
 
-void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
+void PairsRuntime::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
     auto nsend_id = getArrayByHostPointer(send_sizes).getId();
     auto nrecv_id = getArrayByHostPointer(recv_sizes).getId();
 
@@ -344,7 +344,7 @@ void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv
     this->getTimers()->stop(Communication);
 }
 
-void PairsSimulation::communicateData(
+void PairsRuntime::communicateData(
     int dim, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
@@ -398,7 +398,7 @@ void PairsSimulation::communicateData(
     #endif
 }
 
-void PairsSimulation::communicateAllData(
+void PairsRuntime::communicateAllData(
     int ndims, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
@@ -452,7 +452,7 @@ void PairsSimulation::communicateAllData(
     #endif
 }
 
-void PairsSimulation::communicateContactHistoryData(
+void PairsRuntime::communicateContactHistoryData(
     int dim, int nelems_per_contact,
     const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
     real_t *recv_buf, int *contact_roffsets, int *nrecv_contact) {
@@ -518,7 +518,7 @@ void PairsSimulation::communicateContactHistoryData(
     #endif
 }
 
-void PairsSimulation::copyRuntimeArray(const std::string& name, void *dest, const int size) {
+void PairsRuntime::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     this->getDomainPartitioner()->copyRuntimeArray(name, dest, size);
 }
 

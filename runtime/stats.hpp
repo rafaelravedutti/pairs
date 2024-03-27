@@ -6,7 +6,7 @@ using namespace std;
 
 namespace pairs {
 
-void print_stats(PairsSimulation *ps, int nlocal, int nghost) {
+void print_stats(PairsRuntime *ps, int nlocal, int nghost) {
     int min_nlocal = nlocal;
     int max_nlocal = nlocal;
     int min_nghost = nghost;

@@ -166,7 +166,7 @@ class CGen:
             part = DomainPartitioners.c_keyword(module.sim.partitioner())
 
             self.print("int main(int argc, char **argv) {")
-            self.print(f"    PairsSimulation *pairs = new PairsSimulation({nprops}, {ncontactprops}, {narrays}, {part});")
+            self.print(f"    PairsRuntime *pairs = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
 
             if module.sim._enable_profiler:
                 self.print("    LIKWID_MARKER_INIT;")
@@ -183,7 +183,7 @@ class CGen:
             self.print("}")
 
         else:
-            module_params = "PairsSimulation *pairs"
+            module_params = "PairsRuntime *pairs"
             for var in module.read_only_variables():
                 type_kw = Types.c_keyword(self.sim, var.type())
                 decl = f"{type_kw} {var.name()}"

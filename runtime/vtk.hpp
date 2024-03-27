@@ -8,7 +8,7 @@
 
 namespace pairs {
 
-void vtk_write_data(PairsSimulation *ps, const char *filename, int start, int end, int timestep, int frequency) {
+void vtk_write_data(PairsRuntime *ps, const char *filename, int start, int end, int timestep, int frequency) {
     std::string output_filename(filename);
     auto masses = ps->getAsFloatProperty(ps->getPropertyByName("mass"));
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));

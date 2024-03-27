@@ -3,7 +3,7 @@
 
 namespace pairs {
 
-class PairsSimulation;
+class PairsRuntime;
 
 }
 
@@ -30,10 +30,10 @@ inline bool operator==(const ParticleDeleter& lhs, const ParticleDeleter& rhs) {
 
 class ParticleDataHandling : public blockforest::BlockDataHandling<internal::ParticleDeleter> {
 private:
-    pairs::PairsSimulation *ps;
+    pairs::PairsRuntime *ps;
 
 public:
-    ParticleDataHandling(pairs::PairsSimulation *ps_) : ps(ps_) {}
+    ParticleDataHandling(pairs::PairsRuntime *ps_) : ps(ps_) {}
     ~ParticleDataHandling() override = default;
 
     internal::ParticleDeleter *initialize(IBlock *const block) override {

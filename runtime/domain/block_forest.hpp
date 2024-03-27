@@ -18,11 +18,11 @@
 
 namespace pairs {
 
-class PairsSimulation;
+class PairsRuntime;
 
 class BlockForest : public DomainPartitioner {
 private:
-    PairsSimulation *ps;
+    PairsRuntime *ps;
     std::shared_ptr<walberla::BlockForest> forest;
     std::shared_ptr<walberla::blockforest::InfoCollection> info;
     std::vector<int> ranks;
@@ -35,7 +35,7 @@ private:
 
 public:
     BlockForest(
-        PairsSimulation *ps_,
+        PairsRuntime *ps_,
         real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) :
         ps(ps_),
         DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax) {

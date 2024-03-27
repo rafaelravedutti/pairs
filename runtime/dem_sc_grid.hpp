@@ -59,7 +59,7 @@ bool point_within_aabb(double point[], double aabb[]) {
            point[2] >= aabb[2] && point[2] < aabb[5];
 }
 
-int dem_sc_grid(PairsSimulation *ps, double xmax, double ymax, double zmax, double spacing, double diameter, double min_diameter, double max_diameter, double initial_velocity, double particle_density, int ntypes) {
+int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double spacing, double diameter, double min_diameter, double max_diameter, double initial_velocity, double particle_density, int ntypes) {
     auto uid = ps->getAsIntegerProperty(ps->getPropertyByName("uid"));
     auto shape = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
     auto types = ps->getAsIntegerProperty(ps->getPropertyByName("type"));

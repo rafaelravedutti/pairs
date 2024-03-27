@@ -26,7 +26,7 @@
 
 namespace pairs {
 
-class PairsSimulation {
+class PairsRuntime {
 private:
     DomainPartitioner *dom_part;
     DomainPartitioners dom_part_type;
@@ -40,7 +40,7 @@ private:
     int *nlocal, *nghost;
 
 public:
-    PairsSimulation(
+    PairsRuntime(
         int nprops_,
         int ncontactprops_,
         int narrays_,
@@ -53,7 +53,7 @@ public:
         timers = new Timers<double>(1e-6);
     }
 
-    ~PairsSimulation() {
+    ~PairsRuntime() {
         dom_part->finalize();
         delete prop_flags;
         delete contact_prop_flags;
@@ -340,7 +340,7 @@ public:
 };
 
 template<typename T_ptr>
-void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
+void PairsRuntime::addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
     PAIRS_ASSERT(size > 0);
 
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
@@ -349,7 +349,7 @@ void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, std:
 }
 
 template<typename T_ptr>
-void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
+void PairsRuntime::addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
     PAIRS_ASSERT(size > 0);
 
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
@@ -359,17 +359,17 @@ void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, T_pt
 }
 
 template<typename T_ptr>
-void PairsSimulation::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, size_t size) {
+void PairsRuntime::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, size_t size) {
     addArray(Array(id, name, h_ptr, nullptr, size, true));
 }
 
 template<typename T_ptr>
-void PairsSimulation::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, size_t size) {
+void PairsRuntime::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, size_t size) {
     addArray(Array(id, name, h_ptr, d_ptr, size, true));
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size) {
+void PairsRuntime::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size) {
     // This should be a pointer (and not a reference) in order to be modified
     auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
     PAIRS_ASSERT(a != std::end(arrays));
@@ -384,7 +384,7 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, si
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
+void PairsRuntime::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
     // This should be a pointer (and not a reference) in order to be modified
     auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
     PAIRS_ASSERT(a != std::end(arrays));
@@ -406,7 +406,7 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, siz
 }
 
 template<typename T_ptr>
-void PairsSimulation::addProperty(
+void PairsRuntime::addProperty(
     property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t,
     PropertyType type, layout_t layout, int vol, size_t sx, size_t sy) {
 
@@ -419,7 +419,7 @@ void PairsSimulation::addProperty(
 }
 
 template<typename T_ptr>
-void PairsSimulation::addProperty(
+void PairsRuntime::addProperty(
     property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr,
     PropertyType type, layout_t layout, int vol, size_t sx, size_t sy) {
 
@@ -433,7 +433,7 @@ void PairsSimulation::addProperty(
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
+void PairsRuntime::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto p = std::find_if(properties.begin(),
 		    	  properties.end(),
@@ -452,7 +452,7 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
+void PairsRuntime::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto p = std::find_if(properties.begin(),
 		    	  properties.end(),
@@ -478,7 +478,7 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_pt
 }
 
 template<typename T_ptr>
-void PairsSimulation::addContactProperty(
+void PairsRuntime::addContactProperty(
     property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
@@ -490,7 +490,7 @@ void PairsSimulation::addContactProperty(
 }
 
 template<typename T_ptr>
-void PairsSimulation::addContactProperty(
+void PairsRuntime::addContactProperty(
     property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, PropertyType type, layout_t layout, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
@@ -503,7 +503,7 @@ void PairsSimulation::addContactProperty(
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
+void PairsRuntime::reallocContactProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto cp = std::find_if(contact_properties.begin(),
 		    	   contact_properties.end(),
@@ -522,7 +522,7 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, std::
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
+void PairsRuntime::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto cp = std::find_if(contact_properties.begin(),
 		    	   contact_properties.end(),
@@ -548,14 +548,14 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr
 }
 
 template<typename T_ptr>
-void PairsSimulation::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, PropertyType type, int nkinds, int array_size) {
+void PairsRuntime::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, PropertyType type, int nkinds, int array_size) {
     PAIRS_ASSERT(nkinds > 0 && array_size > 0);
     PAIRS_ASSERT(h_ptr != nullptr);
     addFeatureProperty(FeatureProperty(id, name, h_ptr, nullptr, type, nkinds, array_size));
 }
 
 template<typename T_ptr>
-void PairsSimulation::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, PropertyType type, int nkinds, int array_size) {
+void PairsRuntime::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, PropertyType type, int nkinds, int array_size) {
     PAIRS_ASSERT(nkinds > 0 && array_size > 0);
     PAIRS_ASSERT(h_ptr != nullptr && d_ptr != nullptr);
     addFeatureProperty(FeatureProperty(id, name, h_ptr, d_ptr, type, nkinds, array_size));

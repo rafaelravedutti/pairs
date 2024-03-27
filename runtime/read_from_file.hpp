@@ -10,7 +10,7 @@
 
 namespace pairs {
 
-void read_grid_data(PairsSimulation *ps, const char *filename, real_t *grid_buffer) {
+void read_grid_data(PairsRuntime *ps, const char *filename, real_t *grid_buffer) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
 
@@ -30,7 +30,7 @@ void read_grid_data(PairsSimulation *ps, const char *filename, real_t *grid_buff
     }
 }
 
-size_t read_particle_data(PairsSimulation *ps, const char *filename, const property_t properties[], size_t nprops, int shape_id, int start) {
+size_t read_particle_data(PairsRuntime *ps, const char *filename, const property_t properties[], size_t nprops, int shape_id, int start) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
     auto shape_ptr = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
@@ -115,7 +115,7 @@ size_t read_particle_data(PairsSimulation *ps, const char *filename, const prope
 }
 
 /*
-size_t read_feature_data(PairsSimulation *ps, const char *filename, const int feature_id, const property_t properties[], size_t nprops) {
+size_t read_feature_data(PairsRuntime *ps, const char *filename, const int feature_id, const property_t properties[], size_t nprops) {
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
 

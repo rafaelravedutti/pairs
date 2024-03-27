@@ -61,7 +61,7 @@ void random_reset(int *seed, int ibase, double *coord) {
     //save = 0;
 }
 
-double copper_fcc_lattice(PairsSimulation *ps, int nx, int ny, int nz, double xprd, double yprd, double zprd, double rho, int ntypes) {
+double copper_fcc_lattice(PairsRuntime *ps, int nx, int ny, int nz, double xprd, double yprd, double zprd, double rho, int ntypes) {
     auto shape = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
     auto types = ps->getAsIntegerProperty(ps->getPropertyByName("type"));
     auto flags = ps->getAsIntegerProperty(ps->getPropertyByName("flags"));

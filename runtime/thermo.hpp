@@ -8,7 +8,7 @@
 
 namespace pairs {
 
-double compute_thermo(PairsSimulation *ps, int nlocal, double xprd, double yprd, double zprd, int print) {
+double compute_thermo(PairsRuntime *ps, int nlocal, double xprd, double yprd, double zprd, int print) {
     auto masses = ps->getAsFloatProperty(ps->getPropertyByName("mass"));
     auto velocities = ps->getAsVectorProperty(ps->getPropertyByName("linear_velocity"));
     int natoms = nlocal;
@@ -50,7 +50,7 @@ double compute_thermo(PairsSimulation *ps, int nlocal, double xprd, double yprd,
     return t;
 }
 
-void adjust_thermo(PairsSimulation *ps, int nlocal, double xprd, double yprd, double zprd, double temp) {
+void adjust_thermo(PairsRuntime *ps, int nlocal, double xprd, double yprd, double zprd, double temp) {
     auto velocities = ps->getAsVectorProperty(ps->getPropertyByName("linear_velocity"));
     double vxtot = 0.0;
     double vytot = 0.0;
