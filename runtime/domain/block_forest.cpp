@@ -1,3 +1,4 @@
+#include <map>
 #include <mpi.h>
 #include <vector>
 //---
@@ -21,6 +22,8 @@
 namespace pairs {
 
 void BlockForest::updateNeighborhood() {
+    std::map<int, std::vector<walberla::math::AABB>> neighborhood;
+    std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
     auto me = walberla::mpi::MPIManager::instance()->rank();
     this->nranks = 0;
     this->total_aabbs = 0;

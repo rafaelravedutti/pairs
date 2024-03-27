@@ -93,7 +93,7 @@ class Comm:
             CommunicateData(self, step, prop_list)
             UnpackGhostParticles(self, step, prop_list)
 
-            step_nrecv = sum([self.nrecv[j] for j in self.dom_part.step_indexes(step)])
+            step_nrecv = self.dom_part.reduce_sum_step_indexes(step, self.nrecv)
             Assign(self.sim, self.sim.nghost, self.sim.nghost + step_nrecv)
 
     @pairs_inline
@@ -306,9 +306,9 @@ class PackGhostParticles(Lowerable):
         send_mult = self.comm.send_mult
         self.sim.module_name(f"pack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        step_indexes = self.comm.dom_part.step_indexes(self.step)
-        start = self.comm.send_offsets[step_indexes[0]]
-        for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nsend[j] for j in step_indexes]))):
+        start = self.comm.send_offsets[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nsend))
+        for i in For(self.sim, start, end):
             p_offset = 0
             m = send_map[i]
             for p in self.prop_list:
@@ -347,9 +347,9 @@ class UnpackGhostParticles(Lowerable):
         recv_buffer.set_stride(1, self.get_elems_per_particle())
         self.sim.module_name(f"unpack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        step_indexes = self.comm.dom_part.step_indexes(self.step)
-        start = self.comm.recv_offsets[step_indexes[0]]
-        for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nrecv[j] for j in step_indexes]))):
+        start = self.comm.recv_offsets[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nrecv))
+        for i in For(self.sim, start, end):
             p_offset = 0
             for p in self.prop_list:
                 if not Types.is_scalar(p.type()):
@@ -422,9 +422,7 @@ class UnpackAllGhostParticles(Lowerable):
         recv_buffer.set_stride(1, self.get_elems_per_particle())
         self.sim.module_name(f"unpack_all_ghost_particles" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        nrecv_size = sum([len(dom_part.step_indexes(s)) for s in range(dom_part.number_of_steps())])
-        nrecv_all = sum([self.comm.nrecv[j] for j in range(nrecv_size)])
-
+        nrecv_all = self.comm.dom_part.reduce_sum_all_steps(self.comm.nrecv)
         for i in For(self.sim, 0, nrecv_all):
             p_offset = 0
             for p in self.prop_list:
@@ -516,7 +514,8 @@ class ChangeSizeAfterExchange(Lowerable):
     def lower(self):
         self.sim.module_name(f"change_size_after_exchange{self.step}")
         self.sim.check_resize(self.sim.particle_capacity, self.sim.nlocal)
-        Assign(self.sim, self.sim.nlocal, self.sim.nlocal + sum([self.comm.nrecv[j] for j in self.comm.dom_part.step_indexes(self.step)]))
+        nrecv = self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nrecv)
+        Assign(self.sim, self.sim.nlocal, self.sim.nlocal + nrecv)
 
 
 class PackContactHistoryData(Lowerable):
@@ -611,7 +610,6 @@ class UnpackContactHistoryData(Lowerable):
         contact_used = self.sim._contact_history.contact_used
         self.sim.module_name(f"unpack_contact_history{self.step}")
 
-        step_indexes = self.comm.dom_part.step_indexes(self.step)
         nelems_per_contact = sum([Types.number_of_elements(self.sim, cp.type()) \
                                   for cp in self.sim.contact_properties]) + 1
 

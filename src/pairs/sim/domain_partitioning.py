@@ -29,6 +29,16 @@ class DimensionRanges:
     def step_indexes(self, step):
         return [step * 2 + 0, step * 2 + 1]
 
+    def first_step_index(self, step):
+        return self.step_indexes(step)[0]
+
+    def reduce_sum_all_steps(self, array):
+        total_size = sum([len(self.step_indexes(s)) for s in range(self.number_of_steps())])
+        return sum([array[i] for i in range(total_size)])
+
+    def reduce_sum_step_indexes(self, step, array):
+       return sum([array[i] for i in self.step_indexes(step)])
+
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
         Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
@@ -96,7 +106,20 @@ class BlockForest:
         return 1
 
     def step_indexes(self, step):
-        return [step]
+        yield from For(self.sim, 0, self.nranks)
+
+    def first_step_index(self, step):
+        return 0
+
+    def reduce_sum_all_steps(self, array):
+        return self.reduce_sum_step_indexes(0, array)
+
+    def reduce_sum_step_indexes(self, step, array):
+        nsend_sum = self.sim.add_temp_var(0)
+        for i in For(self.sim, 0, self.nranks):
+            Assign(self.sim, nsend_sum, nsend_sum + array[i])
+
+        return nsend_sum
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]

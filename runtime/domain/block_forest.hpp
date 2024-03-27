@@ -1,5 +1,3 @@
-#include <map>
-//---
 #include <blockforest/BlockForest.h>
 #include <blockforest/Initialization.h>
 #include <blockforest/loadbalancing/DynamicCurve.h>
@@ -27,8 +25,6 @@ private:
     PairsSimulation *ps;
     std::shared_ptr<walberla::BlockForest> forest;
     std::shared_ptr<walberla::blockforest::InfoCollection> info;
-    std::map<int, std::vector<walberla::math::AABB>> neighborhood;
-    std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
     std::vector<int> ranks;
     std::vector<int> naabbs;
     std::vector<int> aabb_offsets;
