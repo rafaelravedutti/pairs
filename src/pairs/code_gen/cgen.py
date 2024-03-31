@@ -42,6 +42,7 @@ class CGen:
         self.target = None
         self.print = None
         self.kernel_context = False
+        self.generate_full_object_names = False
         self.ref = ref
         self.debug = debug
 
@@ -53,6 +54,13 @@ class CGen:
 
     def real_type(self):
         return Types.c_keyword(self.sim, Types.Real)
+
+    def generate_object_name(self, name):
+        if self.generate_full_object_names:
+            return f"pobj->{name}"
+
+        else:
+            return name
 
     def generate_interfaces(self):
         #self.print = Printer(f"runtime/interfaces/{self.ref}.hpp")
@@ -93,11 +101,7 @@ class CGen:
         self.print("")
         self.print("}")
 
-
-    def generate_program(self, ast_node):
-        ext = ".cu" if self.target.is_gpu() else ".cpp"
-        self.print = Printer(self.ref + ext)
-        self.print.start()
+    def generate_preamble(self):
         self.print(f"#define APPLICATION_REFERENCE \"{self.ref}\"")
 
         if self.target.is_gpu():
@@ -149,6 +153,81 @@ class CGen:
 
         self.print("")
 
+    def generate_module_headers(self):
+        self.print("")
+
+        self.print("// Module headers")
+        for module in self.sim.modules():
+            self.print(f"void {module.name}(struct pairs_objects *pobj);")
+
+        self.print("")
+
+    def generate_pairs_object_structure(self):
+        self.print("")
+        self.print("struct pairs_objects {")
+        self.print.add_indent(4)
+
+        self.print("// Arrays")
+        for a in self.sim.arrays.all():
+            ptr = a.name()
+            tkw = Types.c_keyword(self.sim, a.type())
+
+            if a.is_static():
+                size = self.generate_expression(ScalarOp.inline(a.alloc_size()))
+                self.print(f"{tkw} {ptr}[{size}];")
+
+            else:
+                self.print(f"{tkw} *{ptr};")
+
+            if self.target.is_gpu() and a.device_flag:
+                self.print(f"{tkw} *d_{ptr};")
+
+        self.print("// Properties")
+        for p in self.sim.properties:
+            ptr = p.name()
+            tkw = Types.c_keyword(self.sim, p.type())
+            self.print(f"{tkw} *{ptr};")
+
+            if self.target.is_gpu() and p.device_flag:
+                self.print(f"{tkw} *d_{ptr};")
+
+        self.print("// Contact properties")
+        for cp in self.sim.contact_properties:
+            ptr = cp.name()
+            tkw = Types.c_keyword(self.sim, cp.type())
+            self.print(f"{tkw} *{ptr};")
+
+            if self.target.is_gpu() and cp.device_flag:
+                self.print(f"{tkw} *d_{ptr};")
+
+        self.print("// Feature properties")
+        for fp in self.sim.feature_properties:
+            ptr = fp.name()
+            array_size = fp.array_size()
+            tkw = Types.c_keyword(self.sim, fp.type())
+            self.print(f"{tkw} {ptr}[{array_size}];")
+
+        self.print("// Variables")
+        for v in self.sim.vars.all():
+            vname = v.name()
+            tkw = Types.c_keyword(self.sim, v.type())
+            self.print(f"{tkw} {vname};")
+
+            if self.target.is_gpu() and v.device_flag:
+                self.print(f"RuntimeVar<{tkw}> rv_{vname()};")
+
+        self.print.add_indent(-4)
+        self.print("};")
+        self.print("")
+
+    def generate_program(self, ast_node):
+        ext = ".cu" if self.target.is_gpu() else ".cpp"
+        self.print = Printer(self.ref + ext)
+        self.print.start()
+        self.generate_preamble()
+
+        self.generate_pairs_object_structure()
+
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
 
@@ -156,6 +235,63 @@ class CGen:
             self.generate_module(module)
 
         self.print.end()
+
+    def generate_library(self, initialize_module, do_timestep_module):
+        # Generate CUDA/CPP file with modules
+        ext = ".cu" if self.target.is_gpu() else ".cpp"
+        self.print = Printer(self.ref + ext)
+        self.print.start()
+        self.generate_preamble()
+
+        for kernel in self.sim.kernels():
+            self.generate_kernel(kernel)
+
+        for module in self.sim.modules():
+            if module.name not in ['initialize', 'do_timestep']:
+                self.generate_module(module)
+
+        self.print.end()
+
+        # Generate library header
+        self.print = Printer(self.ref + ".hpp")
+        self.print.start()
+
+        self.generate_pairs_object_structure()
+        self.generate_module_headers()
+
+        ndims = module.sim.ndims()
+        nprops = module.sim.properties.nprops()
+        ncontactprops = module.sim.contact_properties.nprops()
+        narrays = module.sim.arrays.narrays()
+        part = DomainPartitioners.c_keyword(module.sim.partitioner())
+
+        self.generate_full_object_names = True
+        self.print("class PairsSimulation {")
+        self.print("private:")
+        self.print("    PairsRuntime *pairs_runtime;")
+        self.print("    struct pairs_objects *pobj;")
+        self.print("public:")
+        self.print("    void initialize() {")
+        self.print(f"        pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
+        self.print(f"        pobj = new pairs_objects();")
+        self.print.add_indent(4)
+        self.generate_statement(initialize_module.block)
+        self.print.add_indent(-4)
+        self.print("    }")
+        self.print("")
+        self.print("    void do_timestep() {")
+        self.print.add_indent(4)
+        self.generate_statement(do_timestep_module.block)
+        self.print.add_indent(-4)
+        self.print("    }")
+        self.print("")
+        self.print("    void end() {")
+        self.print("        pairs::print_timers(pairs_runtime);")
+        self.print("        pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
+        self.print("    }")
+        self.print("};")
+        self.print.end()
+        self.generate_full_object_names = False
 
     def generate_module(self, module):
         if module.name == 'main':
@@ -167,6 +303,7 @@ class CGen:
 
             self.print("int main(int argc, char **argv) {")
             self.print(f"    PairsRuntime *pairs = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
+            self.print(f"    struct pairs_object *pobj = new pairs_objects();")
 
             if module.sim._enable_profiler:
                 self.print("    LIKWID_MARKER_INIT;")
@@ -176,67 +313,55 @@ class CGen:
             if module.sim._enable_profiler:
                 self.print("    LIKWID_MARKER_CLOSE;")
 
-            self.print("    pairs::print_timers(pairs);")
-            self.print("    pairs::print_stats(pairs, nlocal, nghost);")
-            self.print("    delete pairs;")
+            self.print("    pairs::print_timers(pairs_runtime);")
+            self.print("    pairs::print_stats(pairs_runtime, nlocal, nghost);")
             self.print("    return 0;")
             self.print("}")
 
         else:
-            module_params = "PairsRuntime *pairs"
+            self.print(f"void {module.name}(struct pairs_objects *pobj) {{")
+            self.print.add_indent(4)
+
+            if self.debug:
+                self.print(f"PAIRS_DEBUG(\"{module.name}\\n\");")
+
             for var in module.read_only_variables():
                 type_kw = Types.c_keyword(self.sim, var.type())
-                decl = f"{type_kw} {var.name()}"
-                module_params += f", {decl}"
+                self.print(f"{type_kw} {var.name()} = pobj->{var.name()};")
 
             for var in module.write_variables():
                 type_kw = Types.c_keyword(self.sim, var.type())
-                decl = f"{type_kw} *{var.name()}"
-                module_params += f", {decl}"
+                self.print(f"{type_kw} *{var.name()} = &(pobj->{var.name()});")
 
             for array in module.arrays():
                 type_kw = Types.c_keyword(self.sim, array.type())
-                decl = f"{type_kw} *{array.name()}"
-                module_params += f", {decl}"
+                self.print(f"{type_kw} *{array.name()} = pobj->{array.name()};")
 
                 if array in module.host_references():
-                    decl = f"{type_kw} *h_{array.name()}"
-                    module_params += f", {decl}"
+                    self.print(f"{type_kw} *h_{array.name()} = pobj->{array.name()};")
 
             for prop in module.properties():
                 type_kw = Types.c_keyword(self.sim, prop.type())
-                decl = f"{type_kw} *{prop.name()}"
-                module_params += f", {decl}"
+                self.print(f"{type_kw} *{prop.name()} = pobj->{prop.name()};")
 
                 if prop in module.host_references():
-                    decl = f"{type_kw} *h_{prop.name()}"
-                    module_params += f", {decl}"
+                    self.print(f"{type_kw} *h_{prop.name()} = pobj->{prop.name()};")
 
             for contact_prop in module.contact_properties():
                 type_kw = Types.c_keyword(self.sim, contact_prop.type())
-                decl = f"{type_kw} *{contact_prop.name()}"
-                module_params += f", {decl}"
+                self.print(f"{type_kw} *{contact_prop.name()} = pobj->{contact_prop.name()};")
 
                 if contact_prop in module.host_references():
-                    decl = f"{type_kw} *h_{contact_prop.name()}"
-                    module_params += f", {decl}"
+                    self.print(f"{type_kw} *h_{contact_prop.name()} = pobj->{contact_prop.name()};")
 
             for feature_prop in module.feature_properties():
                 type_kw = Types.c_keyword(self.sim, feature_prop.type())
-                decl = f"{type_kw} *{feature_prop.name()}"
-                module_params += f", {decl}"
+                self.print(f"{type_kw} *{feature_prop.name()} = pobj->{feature_prop.name()};")
 
                 if feature_prop in module.host_references():
-                    decl = f"{type_kw} *h_{feature_prop.name()}"
-                    module_params += f", {decl}"
+                    self.print(f"{type_kw} *h_{feature_prop.name()} = pobj->{feature_prop.name()};")
 
-            self.print(f"void {module.name}({module_params}) {{")
-
-            if self.debug:
-                self.print.add_indent(4)
-                self.print(f"PAIRS_DEBUG(\"{module.name}\\n\");")
-                self.print.add_indent(-4)
-
+            self.print.add_indent(-4)
             self.generate_statement(module.block)
             self.print("}")
 
@@ -525,10 +650,10 @@ class CGen:
             size = self.generate_expression(ast_node.size())
 
             if size is not None:
-                self.print(f"pairs->copyArrayTo{ctx_suffix}({array_id}, {action}, {size}); // {array_name}")
+                self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}, {size}); // {array_name}")
 
             else:
-                self.print(f"pairs->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
+                self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
 
         if isinstance(ast_node, CopyContactProperty):
             prop_id = ast_node.contact_prop().id()
@@ -536,7 +661,7 @@ class CGen:
             action = Actions.c_keyword(ast_node.action())
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
             size = self.generate_expression(ast_node.contact_prop().copy_size())
-            self.print(f"pairs->copyContactPropertyTo{ctx_suffix}({prop_id}, {action}, {size}); // {prop_name}")
+            self.print(f"pairs_runtime->copyContactPropertyTo{ctx_suffix}({prop_id}, {action}, {size}); // {prop_name}")
 
         if isinstance(ast_node, CopyProperty):
             prop_id = ast_node.prop().id()
@@ -544,7 +669,7 @@ class CGen:
             action = Actions.c_keyword(ast_node.action())
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
             size = self.generate_expression(ast_node.prop().copy_size())
-            self.print(f"pairs->copyPropertyTo{ctx_suffix}({prop_id}, {action}, {size}); // {prop_name}")
+            self.print(f"pairs_runtime->copyPropertyTo{ctx_suffix}({prop_id}, {action}, {size}); // {prop_name}")
 
         if isinstance(ast_node, CopyVar):
             var_name = ast_node.variable().name()
@@ -612,52 +737,51 @@ class CGen:
             self.print(f"if({nblocks} > 0 && {threads_per_block} > 0) {{")
             self.print.add_indent(4)
             self.print(f"{kernel.name}<<<{nblocks}, {threads_per_block}>>>({kernel_params});")
-            self.print("pairs->sync();")
+            self.print("pairs_runtime->sync();")
             self.print.add_indent(-4)
             self.print("}")
 
         if isinstance(ast_node, ModuleCall):
             module = ast_node.module
-            module_params = "pairs"
-            device_cond = module.run_on_device and self.target.is_gpu()
+            #device_cond = module.run_on_device and self.target.is_gpu()
 
-            for var in module.read_only_variables():
-                decl = var.name()
-                module_params += f", {decl}"
+            #for var in module.read_only_variables():
+            #    decl = var.name()
+            #    module_params += f", {decl}"
 
-            for var in module.write_variables():
-                decl = f"rv_{var.name()}.getDevicePointer()" if device_cond and var.device_flag else f"&{var.name()}"
-                module_params += f", {decl}"
+            #for var in module.write_variables():
+            #    decl = f"rv_{var.name()}.getDevicePointer()" if device_cond and var.device_flag else f"&{var.name()}"
+            #    module_params += f", {decl}"
 
-            for array in module.arrays():
-                decl = f"d_{array.name()}" if device_cond else array.name()
-                module_params += decl if len(module_params) <= 0 else f", {decl}"
-                if array in module.host_references():
-                    decl = array.name()
-                    module_params += f", {decl}"
+            #for array in module.arrays():
+            #    decl = f"d_{array.name()}" if device_cond else array.name()
+            #    module_params += decl if len(module_params) <= 0 else f", {decl}"
+            #    if array in module.host_references():
+            #        decl = array.name()
+            #        module_params += f", {decl}"
 
-            for prop in module.properties():
-                decl = f"d_{prop.name()}" if device_cond else prop.name()
-                module_params += f", {decl}"
-                if prop in module.host_references():
-                    decl = prop.name()
-                    module_params += f", {decl}"
+            #for prop in module.properties():
+            #    decl = f"d_{prop.name()}" if device_cond else prop.name()
+            #    module_params += f", {decl}"
+            #    if prop in module.host_references():
+            #        decl = prop.name()
+            #        module_params += f", {decl}"
 
-            for contact_prop in module.contact_properties():
-                decl = f"d_{contact_prop.name()}" if device_cond else contact_prop.name()
-                module_params += f", {decl}"
-                if contact_prop in module.host_references():
-                    decl = contact_prop.name()
-                    module_params += f", {decl}"
+            #for contact_prop in module.contact_properties():
+            #    decl = f"d_{contact_prop.name()}" if device_cond else contact_prop.name()
+            #    module_params += f", {decl}"
+            #    if contact_prop in module.host_references():
+            #        decl = contact_prop.name()
+            #        module_params += f", {decl}"
 
-            for feature_prop in module.feature_properties():
-                decl = f"d_{feature_prop.name()}" if device_cond else feature_prop.name()
-                module_params += f", {decl}"
-                if feature_prop in module.host_references():
-                    decl = feature_prop.name()
-                    module_params += f", {decl}"
+            #for feature_prop in module.feature_properties():
+            #    decl = f"d_{feature_prop.name()}" if device_cond else feature_prop.name()
+            #    module_params += f", {decl}"
+            #    if feature_prop in module.host_references():
+            #        decl = feature_prop.name()
+            #        module_params += f", {decl}"
 
-            self.print(f"{module.name}({module_params});")
+            self.print(f"{module.name}(pobj);")
 
         if isinstance(ast_node, Print):
             self.print(f"PAIRS_DEBUG(\"{ast_node.string}\\n\");")
@@ -673,26 +797,20 @@ class CGen:
         if isinstance(ast_node, RegisterArray):
             a = ast_node.array()
             ptr = a.name()
-            d_ptr = f"d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
+            d_ptr = f"&(d_{ptr})" if self.target.is_gpu() and a.device_flag else "nullptr"
             tkw = Types.c_keyword(self.sim, a.type())
             size = self.generate_expression(ast_node.size())
 
             if a.is_static():
-                self.print(f"pairs->addStaticArray({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size});") 
+                self.print(f"pairs_runtime->addStaticArray({a.id()}, \"{a.name()}\", {ptr}, {d_ptr}, {size});") 
 
             else:
-                if self.target.is_gpu() and a.device_flag:
-                    self.print(f"{tkw} *{ptr}, *{d_ptr};")
-                    d_ptr = f"&{d_ptr}"
-                else:
-                    self.print(f"{tkw} *{ptr};")
-
-                self.print(f"pairs->addArray({a.id()}, \"{a.name()}\", &{ptr}, {d_ptr}, {size});")
+                self.print(f"pairs_runtime->addArray({a.id()}, \"{a.name()}\", &{ptr}, {d_ptr}, {size});")
 
         if isinstance(ast_node, RegisterProperty):
             p = ast_node.property()
             ptr = p.name()
-            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            d_ptr = f"&(d_{ptr})" if self.target.is_gpu() and p.device_flag else "nullptr"
             tkw = Types.c_keyword(self.sim, p.type())
             ptype = Types.c_property_keyword(p.type())
             assert ptype != "Prop_Invalid", "Invalid property type!"
@@ -700,19 +818,12 @@ class CGen:
             playout = Layouts.c_keyword(p.layout())
             vol = 1 if p.is_volatile() else 0
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
-
-            if self.target.is_gpu() and p.device_flag:
-                self.print(f"{tkw} *{ptr}, *{d_ptr};")
-                d_ptr = f"&{d_ptr}"
-            else:
-                self.print(f"{tkw} *{ptr};")
-
-            self.print(f"pairs->addProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {vol}, {sizes});")
+            self.print(f"pairs_runtime->addProperty({p.id()}, \"{p.name()}\", &({ptr}), {d_ptr}, {ptype}, {playout}, {vol}, {sizes});")
 
         if isinstance(ast_node, RegisterContactProperty):
             p = ast_node.property()
             ptr = p.name()
-            d_ptr = f"d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            d_ptr = f"&(d_{ptr})" if self.target.is_gpu() and p.device_flag else "nullptr"
             tkw = Types.c_keyword(self.sim, p.type())
             ptype = Types.c_property_keyword(p.type())
             assert ptype != "Prop_Invalid", "Invalid property type!"
@@ -720,73 +831,65 @@ class CGen:
             playout = Layouts.c_keyword(p.layout())
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
 
-            if self.target.is_gpu() and p.device_flag:
-                self.print(f"{tkw} *{ptr}, *{d_ptr};")
-                d_ptr = f"&{d_ptr}"
-            else:
-                self.print(f"{tkw} *{ptr};")
-
-            self.print(f"pairs->addContactProperty({p.id()}, \"{p.name()}\", &{ptr}, {d_ptr}, {ptype}, {playout}, {sizes});")
+            self.print(f"pairs_runtime->addContactProperty({p.id()}, \"{p.name()}\", &({ptr}), &({d_ptr}), {ptype}, {playout}, {sizes});")
 
         if isinstance(ast_node, RegisterFeatureProperty):
             fp = ast_node.feature_property()
             ptr = fp.name()
-            d_ptr = f"&d_{ptr}" if self.target.is_gpu() and fp.device_flag else "nullptr"
+            d_ptr = f"&(d_{ptr})" if self.target.is_gpu() and fp.device_flag else "nullptr"
             array_size = fp.array_size()
             nkinds = fp.feature().nkinds()
             tkw = Types.c_keyword(self.sim, fp.type())
             fptype = Types.c_property_keyword(fp.type())
             assert fptype != "Prop_Invalid", "Invalid feature property type!"
 
-            self.print(f"{tkw} {ptr}[{array_size}];")
-            self.print(f"pairs->addFeatureProperty({fp.id()}, \"{fp.name()}\", &{ptr}, {d_ptr}, {fptype}, {nkinds}, {array_size} * sizeof({tkw}));")
+            self.print(f"pairs_runtime->addFeatureProperty({fp.id()}, \"{fp.name()}\", &({d_ptr}), {d_ptr}, {fptype}, {nkinds}, {array_size} * sizeof({tkw}));")
 
             for i in range(array_size):
                 self.print(f"{ptr}[{i}] = {fp.data()[i]};")
 
             if self.target.is_gpu() and fp.device_flag:
-                self.print(f"pairs->copyFeaturePropertyToDevice({fp.id()}); // {fp.name()}")
+                self.print(f"pairs_runtime->copyFeaturePropertyToDevice({fp.id()}); // {fp.name()}")
 
         if isinstance(ast_node, Timestep):
             self.generate_statement(ast_node.block)
 
         if isinstance(ast_node, ReallocProperty):
             p = ast_node.property()
-            ptr = p.name()
-            d_ptr_addr = f"&d_{ptr}" if self.target.is_gpu() and p.device_flag else "nullptr"
+            ptr = self.generate_object_name(p.name())
+            d_ptr = self.generate_object_name(f"d_{p.name()}")
+            d_ptr_addr = f"&({d_ptr})" if self.target.is_gpu() and p.device_flag else "nullptr"
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
-            self.print(f"pairs->reallocProperty({p.id()}, &{ptr}, {d_ptr_addr}, {sizes});")
-            #self.print(f"pairs->reallocProperty({p.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {sizes});")
+            self.print(f"pairs_runtime->reallocProperty({p.id()}, &({ptr}), {d_ptr_addr}, {sizes});")
 
         if isinstance(ast_node, ReallocArray):
             a = ast_node.array()
             size = self.generate_expression(ast_node.size())
-            ptr = a.name()
-            d_ptr_addr = f"&d_{ptr}" if self.target.is_gpu() and a.device_flag else "nullptr"
-            self.print(f"pairs->reallocArray({a.id()}, &{ptr}, {d_ptr_addr}, {size});")
-            #self.print(f"pairs->reallocArray({a.id()}, (void **) &{ptr}, (void **) &d_{ptr}, {size});")
+            ptr = self.generate_object_name(a.name())
+            d_ptr = self.generate_object_name(f"d_{a.name()}")
+            d_ptr_addr = f"&({d_ptr})" if self.target.is_gpu() and p.device_flag else "nullptr"
+            self.print(f"pairs_runtime->reallocArray({a.id()}, &({ptr}), {d_ptr_addr}, {size});")
 
         if isinstance(ast_node, DeclareVariable):
             tkw = Types.c_keyword(self.sim, ast_node.var.type())
+            prefix_decl = "{tkw} " if ast_node.var.temporary() else ""
 
             if ast_node.var.is_scalar():
                 var = self.generate_expression(ast_node.var)
                 init = self.generate_expression(ast_node.var.init_value())
-                self.print(f"{tkw} {var} = {init};")
+                self.print(f"{prefix_decl}{var} = {init};")
 
                 if ast_node.var.runtime_track():
-                    self.print(f"pairs->trackVariable(\"{var}\", &{var});")
+                    self.print(f"pairs_runtime->trackVariable(\"{var}\", &({var}));")
 
             else:
                 for i in range(Types.number_of_elements(self.sim, ast_node.var.type())):
                     var = self.generate_expression(ast_node.var, index=i)
                     init = self.generate_expression(ast_node.var.init_value(), index=i)
-                    self.print(f"{tkw} {var} = {init};")
-
+                    self.print(f"{prefix_decl}{var} = {init};")
 
             if not self.kernel_context and self.target.is_gpu() and ast_node.var.device_flag:
-                self.print(f"RuntimeVar<{tkw}> rv_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
-                #self.print(f"{tkw} *d_{ast_node.var.name()} = pairs->addDeviceVariable(&({ast_node.var.name()}));")
+                self.print(f"rv_{ast_node.var.name()} = pairs_runtime->addDeviceVariable(&({ast_node.var.name()}));")
 
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)
@@ -796,7 +899,7 @@ class CGen:
 
     def generate_expression(self, ast_node, mem=False, index=None):
         if isinstance(ast_node, Array):
-            return ast_node.name()
+            return self.generate_object_name(ast_node.name())
 
         if isinstance(ast_node, ArrayAccess):
             if mem or ast_node.inlined is True:
@@ -823,9 +926,9 @@ class CGen:
             extra_params = []
 
             if ast_node.name().startswith("pairs::"):
-                extra_params += ["pairs"]
+                extra_params += ["pairs_runtime"]
 
-            if ast_node.name() == "pairs->initDomain":
+            if ast_node.name() == "pairs_runtime->initDomain":
                 extra_params += ["&argc", "&argv"]
 
             params = ", ".join(extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
@@ -837,7 +940,7 @@ class CGen:
             return f"({tkw})({expr})"
 
         if isinstance(ast_node, ContactProperty):
-            return ast_node.name()
+            return self.generate_object_name(ast_node.name())
 
         if isinstance(ast_node, Deref):
             var = self.generate_expression(ast_node.var)
@@ -848,7 +951,7 @@ class CGen:
             return f"d_{elem}"
 
         if isinstance(ast_node, FeatureProperty):
-            return ast_node.name()
+            return self.generate_object_name(ast_node.name())
 
         if isinstance(ast_node, HostRef):
             elem = self.generate_expression(ast_node.elem)
@@ -882,7 +985,7 @@ class CGen:
             return f"{ast_node.name()}"
 
         if isinstance(ast_node, Property):
-            return ast_node.name()
+            return self.generate_object_name(ast_node.name())
 
         if isinstance(ast_node, PropertyAccess):
             assert ast_node.is_scalar() or index is not None, \
@@ -956,7 +1059,8 @@ class CGen:
             return f"{ast_node.name()}"
 
         if isinstance(ast_node, Var):
-            return ast_node.name() if ast_node.is_scalar() else f"{ast_node.name()}_{index}"
+            return self.generate_object_name(
+                ast_node.name() if ast_node.is_scalar() else f"{ast_node.name()}_{index}")
 
         if isinstance(ast_node, VectorAccess):
             return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))

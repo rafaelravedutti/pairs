@@ -15,11 +15,12 @@ def simulation(
     use_contact_history=False,
     particle_capacity=800000,
     neighbor_capacity=100,
-    debug=False):
+    debug=False,
+    generate_whole_program=False):
 
     return Simulation(
         CGen(ref, debug), shapes, dims, timesteps, double_prec, use_contact_history,
-        particle_capacity, neighbor_capacity)
+        particle_capacity, neighbor_capacity, generate_whole_program)
 
 def target_cpu(parallel=False):
     if parallel:

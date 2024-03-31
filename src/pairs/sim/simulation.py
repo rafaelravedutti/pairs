@@ -46,11 +46,14 @@ class Simulation:
         double_prec=False,
         use_contact_history=False,
         particle_capacity=800000,
-        neighbor_capacity=100):
+        neighbor_capacity=100,
+        generate_whole_program=False):
 
         # Code generator for the simulation
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
+        self._generate_whole_program = generate_whole_program
+
         # Data structures to be generated
         self.position_prop = None
         self.properties = Properties(self)
@@ -171,7 +174,10 @@ class Simulation:
             else:
                 main_mod = m
 
-        return sorted_mods + [main_mod]
+        if main_mod is not None:
+            sorted_mods += [main_mod]
+
+        return sorted_mods
 
     def add_kernel(self, kernel):
         assert isinstance(kernel, Kernel), "add_kernel(): Given parameter is not of type Kernel!"
@@ -478,23 +484,6 @@ class Simulation:
             timestep_procedures.append(
                 (ComputeThermo(self), {'every': self._compute_thermo}))
 
-        # Construct the time-step loop
-        timestep = Timestep(self, self.ntimesteps, timestep_procedures)
-        self.enter(timestep.block)
-
-        # Add routine to write VTK data when set
-        if self.vtk_file is not None:
-            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep(), self.vtk_frequency))
-
-        self.leave()
-
-        # Initialization and setup functions, together with time-step loop
-        body = Block.from_list(self, [
-            self.setups,
-            self.setup_functions,
-            BuildCellListsStencil(self, self.cell_lists),
-            timestep.as_block()
-        ])
 
         # Data structures and timer/markers initialization
         inits = Block.from_list(self, [
@@ -507,14 +496,54 @@ class Simulation:
             RegisterMarkers(self)
         ])
 
+        # Construct the time-step loop
+        timestep = Timestep(self, self.ntimesteps, timestep_procedures)
+        self.enter(timestep.block)
+
+        # Add routine to write VTK data when set
+        if self.vtk_file is not None:
+            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep(), self.vtk_frequency))
+
+        self.leave()
+
         # Combine everything into a whole program
-        program = Module(self, name='main', block=Block.merge_blocks(inits, body))
+        if self._generate_whole_program:
+            # Initialization and setup functions, together with time-step loop
+            body = Block.from_list(self, [
+                self.setups,
+                self.setup_functions,
+                BuildCellListsStencil(self, self.cell_lists),
+                timestep.as_block()
+            ])
 
-        # Apply transformations
-        transformations = Transformations(program, self._target)
-        transformations.apply_all()
+            program = Module(self, name='main', block=Block.merge_blocks(inits, body))
 
-        # Generate program
-        #ASTGraph(self.functions, "functions.dot").render()
-        self.code_gen.generate_program(program)
+            # Apply transformations
+            transformations = Transformations(program, self._target)
+            transformations.apply_all()
+
+            # Generate program
+            self.code_gen.generate_program(program)
+
+        # Generate a small library to be called
+        else:
+            all_setups = Block.merge_blocks(
+                inits,
+                Block.from_list(self, [
+                    self.setups,
+                    self.setup_functions,
+                    BuildCellListsStencil(self, self.cell_lists),
+                ]))
+
+            initialize_module = Module(self, name='initialize', block=all_setups)
+            initialize_transformations = Transformations(initialize_module, self._target)
+            initialize_transformations.apply_all()
+
+            do_timestep_module = Module(self, name='do_timestep', block=timestep.as_block())
+            do_timestep_transformations = Transformations(do_timestep_module, self._target)
+            do_timestep_transformations.apply_all()
+
+            # Generate library
+            self.code_gen.generate_library(initialize_module, do_timestep_module)
+
         self.code_gen.generate_interfaces()
