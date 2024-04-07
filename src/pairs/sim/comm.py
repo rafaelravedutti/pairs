@@ -159,7 +159,7 @@ class CommunicateSizes(Lowerable):
 
     @pairs_inline
     def lower(self):
-        Call_Void(self.sim, "pairs->communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
+        Call_Void(self.sim, "pairs_runtime->communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
 
 
 class CommunicateData(Lowerable):
@@ -175,7 +175,7 @@ class CommunicateData(Lowerable):
         elem_size = sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
 
         Call_Void(self.sim,
-                  "pairs->communicateData",
+                  "pairs_runtime->communicateData",
                   [self.step, elem_size,
                    self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
                    self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
@@ -194,7 +194,7 @@ class CommunicateContactHistoryData(Lowerable):
                                   for cp in self.sim.contact_properties]) + 1
 
         Call_Void(self.sim,
-                  "pairs->communicateContactHistoryData",
+                  "pairs_runtime->communicateContactHistoryData",
                   [self.step, nelems_per_contact,
                    self.comm.send_buffer, self.comm.contact_soffsets, self.comm.nsend_contact,
                    self.comm.recv_buffer, self.comm.contact_roffsets, self.comm.nrecv_contact])
@@ -213,7 +213,7 @@ class CommunicateAllData(Lowerable):
 
         Call_Void(
             self.sim,
-            "pairs->communicateAllData",
+            "pairs_runtime->communicateAllData",
             [self.comm.dom_part.number_of_steps(), elem_size,
              self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
              self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])

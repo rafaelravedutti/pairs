@@ -41,13 +41,13 @@ class DimensionRanges:
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['neighbor_ranks', self.neighbor_ranks, self.sim.ndims() * 2])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['pbc', self.pbc, self.sim.ndims() * 2])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->initDomain", [param for delim in grid_array for param in delim])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['neighbor_ranks', self.neighbor_ranks, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['pbc', self.pbc, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def update(self):
-        Call_Void(self.sim, "pairs->updateDomain", [])
+        Call_Void(self.sim, "pairs_runtime->updateDomain", [])
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored
@@ -123,12 +123,12 @@ class BlockForest:
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs->initDomain", [param for delim in grid_array for param in delim])
+        Call_Void(self.sim, "pairs_runtime->initDomain", [param for delim in grid_array for param in delim])
 
     def update(self):
-        Call_Void(self.sim, "pairs->updateDomain", [])
-        Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs->getNumberOfNeighborRanks", []))
-        Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs->getNumberOfNeighborAABBs", []))
+        Call_Void(self.sim, "pairs_runtime->updateDomain", [])
+        Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborRanks", []))
+        Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
 
         for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
             Assign(self.sim, self.nranks_capacity, self.nranks + 10)
@@ -140,11 +140,11 @@ class BlockForest:
             Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
             self.aabbs.realloc()
 
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
-        Call_Void(self.sim, "pairs->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored
