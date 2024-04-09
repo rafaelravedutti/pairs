@@ -237,7 +237,6 @@ class CGen:
         self.print = Printer(self.ref + ext)
         self.print.start()
         self.generate_preamble()
-
         self.generate_pairs_object_structure()
 
         for kernel in self.sim.kernels():
@@ -269,6 +268,7 @@ class CGen:
         self.print = Printer(self.ref + ".hpp")
         self.print.start()
 
+        self.generate_preamble()
         self.generate_pairs_object_structure()
         self.generate_module_headers()
 
@@ -755,46 +755,7 @@ class CGen:
             self.print("}")
 
         if isinstance(ast_node, ModuleCall):
-            module = ast_node.module
-            #device_cond = module.run_on_device and self.target.is_gpu()
-
-            #for var in module.read_only_variables():
-            #    decl = var.name()
-            #    module_params += f", {decl}"
-
-            #for var in module.write_variables():
-            #    decl = f"rv_{var.name()}.getDevicePointer()" if device_cond and var.device_flag else f"&{var.name()}"
-            #    module_params += f", {decl}"
-
-            #for array in module.arrays():
-            #    decl = f"d_{array.name()}" if device_cond else array.name()
-            #    module_params += decl if len(module_params) <= 0 else f", {decl}"
-            #    if array in module.host_references():
-            #        decl = array.name()
-            #        module_params += f", {decl}"
-
-            #for prop in module.properties():
-            #    decl = f"d_{prop.name()}" if device_cond else prop.name()
-            #    module_params += f", {decl}"
-            #    if prop in module.host_references():
-            #        decl = prop.name()
-            #        module_params += f", {decl}"
-
-            #for contact_prop in module.contact_properties():
-            #    decl = f"d_{contact_prop.name()}" if device_cond else contact_prop.name()
-            #    module_params += f", {decl}"
-            #    if contact_prop in module.host_references():
-            #        decl = contact_prop.name()
-            #        module_params += f", {decl}"
-
-            #for feature_prop in module.feature_properties():
-            #    decl = f"d_{feature_prop.name()}" if device_cond else feature_prop.name()
-            #    module_params += f", {decl}"
-            #    if feature_prop in module.host_references():
-            #        decl = feature_prop.name()
-            #        module_params += f", {decl}"
-
-            self.print(f"{module.name}(pobj);")
+            self.print(f"{ast_node.module.name}(pobj);")
 
         if isinstance(ast_node, Print):
             self.print(f"PAIRS_DEBUG(\"{ast_node.string}\\n\");")
@@ -961,7 +922,9 @@ class CGen:
 
         if isinstance(ast_node, Deref):
             var = self.generate_expression(ast_node.var)
-            return f"(*{var})"
+            # Dereferences are ignored for write variables when full objects
+            # are generated since they can be directly written into
+            return var if self.generate_full_object_names else f"(*{var})"
 
         if isinstance(ast_node, DeviceStaticRef):
             elem = self.generate_expression(ast_node.elem)

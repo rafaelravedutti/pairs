@@ -21,6 +21,7 @@ option(USE_WALBERLA "USE_WALBERLA" ON)
 option(USE_MPI "USE_MPI" ON)
 option(COMPILE_CUDA "COMPILE_CUDA" ON)
 option(ENABLE_GPU_DIRECT "ENABLE_GPU_DIRECT" ON)
+option(GENERATE_WHOLE_PROGRAM "GENERATE_WHOLE_PROGRAM" OFF)
 
 if(DEBUG)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG ")
@@ -45,6 +46,16 @@ set(RUNTIME_COMMON_FILES
 
 set(PYTHON_EXECUTABLE ${PYTHON_EXECUTABLE} CACHE STRING "Python executable not set.")
 
+if(NOT GENERATE_WHOLE_PROGRAM)
+    file(
+        COPY ${CMAKE_CURRENT_SOURCE_DIR}/examples/main.cpp
+        DESTINATION ${CMAKE_BINARY_DIR})
+
+    set(EXEC_FILES ${CMAKE_BINARY_DIR}/main.cpp ${RUNTIME_COMMON_FILES})
+else()
+    set(EXEC_FILES ${RUNTIME_COMMON_FILES})
+endif()
+
 if(NOT PYTHON_EXECUTABLE)
     set(PYTHON_EXECUTABLE python3)
 endif()
@@ -62,10 +73,10 @@ execute_process(
 if(USE_WALBERLA)
     waLBerla_add_executable(
         NAME ${CPU_BIN}
-        FILES ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES} ${CMAKE_BINARY_DIR}/${CPU_SRC}
+        FILES ${EXEC_FILES} ${RUNTIME_CPU_FILES} ${CMAKE_BINARY_DIR}/${CPU_SRC}
         DEPENDS blockforest core pe)
 else()
-    add_executable(${CPU_BIN} ${CPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_CPU_FILES})
+    add_executable(${CPU_BIN} ${CPU_SRC} ${EXEC_FILES} ${RUNTIME_CPU_FILES})
 endif()
 
 add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
@@ -80,6 +91,7 @@ add_custom_command(
 add_custom_target(gen_cpu DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC})
 add_dependencies(${CPU_BIN} gen_cpu)
 
+
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
     enable_language(CUDA)
@@ -87,10 +99,10 @@ if(COMPILE_CUDA)
     if(USE_WALBERLA)
         waLBerla_add_executable(
             NAME ${GPU_BIN}
-            FILES ${RUNTIME_COMMON_FILES}
+            FILES ${EXEC_FILES}
             DEPENDS blockforest core pe)
     else()
-        add_executable(${GPU_BIN} ${GPU_SRC} ${RUNTIME_COMMON_FILES} ${RUNTIME_GPU_FILES})
+        add_executable(${GPU_BIN} ${GPU_SRC} ${EXEC_FILES} ${RUNTIME_GPU_FILES})
     endif()
 
     if(ENABLE_GPU_DIRECT)
