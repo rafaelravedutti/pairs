@@ -41,6 +41,13 @@ set(GPU_BIN "${TESTCASE}_gpu")
 
 set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
+    runtime/boundary_weights.cpp
+    runtime/copper_fcc_lattice.cpp
+    runtime/dem_sc_grid.cpp
+    runtime/read_from_file.cpp
+    runtime/stats.cpp
+    runtime/thermo.cpp
+    runtime/timing.cpp
     runtime/domain/block_forest.cpp
     runtime/domain/regular_6d_stencil.cpp)
 

@@ -32,13 +32,11 @@ void PairsRuntime::initDomain(
 }
 
 void PairsRuntime::addArray(Array array) {
-    int id = array.getId();
-    auto a = std::find_if(
-        arrays.begin(),
-        arrays.end(),
-        [id](Array _a) { return _a.getId() == id; });
+    PAIRS_ASSERT(
+        std::find_if(arrays.begin(), arrays.end(), [array](Array _a) {
+            return _a.getId() == array.getId();
+        }) == std::end(arrays));
 
-    PAIRS_ASSERT(a == std::end(arrays));
     arrays.push_back(array);
 }
 
@@ -73,13 +71,11 @@ Array &PairsRuntime::getArrayByHostPointer(const void *h_ptr) {
 }
 
 void PairsRuntime::addProperty(Property prop) {
-    int id = prop.getId();
-    auto p = std::find_if(
-        properties.begin(),
-        properties.end(),
-        [id](Property _p) { return _p.getId() == id; });
+    PAIRS_ASSERT(
+        std::find_if(properties.begin(), properties.end(), [prop](Property _p) {
+            return _p.getId() == prop.getId();
+        }) == std::end(properties));
 
-    PAIRS_ASSERT(p == std::end(properties));
     properties.push_back(prop);
 }
 
@@ -104,13 +100,14 @@ Property &PairsRuntime::getPropertyByName(std::string name) {
 }
 
 void PairsRuntime::addContactProperty(ContactProperty contact_prop) {
-    int id = contact_prop.getId();
-    auto cp = std::find_if(
-        contact_properties.begin(),
-        contact_properties.end(),
-        [id](ContactProperty _cp) { return _cp.getId() == id; });
+    PAIRS_ASSERT(
+        std::find_if(
+            contact_properties.begin(),
+            contact_properties.end(),
+            [contact_prop](ContactProperty _cp) {
+                return _cp.getId() == contact_prop.getId();
+            }) == std::end(contact_properties));
 
-    PAIRS_ASSERT(cp == std::end(contact_properties));
     contact_properties.push_back(contact_prop);
 }
 
@@ -135,13 +132,14 @@ ContactProperty &PairsRuntime::getContactPropertyByName(std::string name) {
 }
 
 void PairsRuntime::addFeatureProperty(FeatureProperty feature_prop) {
-    int id = feature_prop.getId();
-    auto fp = std::find_if(
-        feature_properties.begin(),
-        feature_properties.end(),
-        [id](FeatureProperty _fp) { return _fp.getId() == id; });
+    PAIRS_ASSERT(
+        std::find_if(
+            feature_properties.begin(),
+            feature_properties.end(),
+            [feature_prop](FeatureProperty _fp) {
+                return _fp.getId() == feature_prop.getId();
+            }) == std::end(feature_properties));
 
-    PAIRS_ASSERT(fp == std::end(feature_properties));
     feature_properties.push_back(feature_prop);
 }
 
@@ -170,7 +168,7 @@ void PairsRuntime::copyArraySliceToDevice(
         if(action == Ignore || !array_flags->isDeviceFlagSet(array_id)) {
             if(!array.isStatic()) {
                 PAIRS_DEBUG(
-                    "Copying array %s to device (offset=%d, n=%d)\n",
+                    "Copying array %s to device (offset=%lu, n=%lu)\n",
                     array.getName().c_str(), offset, size);
 
                 pairs::copy_slice_to_device(
@@ -192,10 +190,17 @@ void PairsRuntime::copyArrayToDevice(Array &array, action_t action, size_t size)
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isDeviceFlagSet(array_id)) {
             if(array.isStatic()) {
-                PAIRS_DEBUG("Copying static array %s to device (n=%d)\n", array.getName().c_str(), size);
-                pairs::copy_static_symbol_to_device(array.getHostPointer(), array.getDevicePointer(), size);
+                PAIRS_DEBUG(
+                    "Copying static array %s to device (n=%lu)\n",
+                    array.getName().c_str(), size);
+
+                pairs::copy_static_symbol_to_device(
+                    array.getHostPointer(), array.getDevicePointer(), size);
             } else {
-                PAIRS_DEBUG("Copying array %s to device (n=%d)\n", array.getName().c_str(), size);
+                PAIRS_DEBUG(
+                    "Copying array %s to device (n=%lu)\n",
+                    array.getName().c_str(), size);
+
                 pairs::copy_to_device(array.getHostPointer(), array.getDevicePointer(), size);
             }
         }
@@ -215,7 +220,7 @@ void PairsRuntime::copyArraySliceToHost(Array &array, action_t action, size_t of
         if(action == Ignore || !array_flags->isHostFlagSet(array_id)) {
             if(!array.isStatic()) {
                 PAIRS_DEBUG(
-                    "Copying array %s to host (offset=%d, n=%d)\n",
+                    "Copying array %s to host (offset=%lu, n=%lu)\n",
                     array.getName().c_str(), offset, size);
 
                 pairs::copy_slice_to_host(
@@ -237,10 +242,13 @@ void PairsRuntime::copyArrayToHost(Array &array, action_t action, size_t size) {
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isHostFlagSet(array_id)) {
             if(array.isStatic()) {
-                PAIRS_DEBUG("Copying static array %s to host (n=%d)\n", array.getName().c_str(), size);
-                pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getHostPointer(), size);
+                PAIRS_DEBUG(
+                    "Copying static array %s to host (n=%lu)\n", array.getName().c_str(), size);
+
+                pairs::copy_static_symbol_to_host(
+                    array.getDevicePointer(), array.getHostPointer(), size);
             } else {
-                PAIRS_DEBUG("Copying array %s to host (n=%d)\n", array.getName().c_str(), size);
+                PAIRS_DEBUG("Copying array %s to host (n=%lu)\n", array.getName().c_str(), size);
                 pairs::copy_to_host(array.getDevicePointer(), array.getHostPointer(), size);
             }
         }
@@ -258,7 +266,7 @@ void PairsRuntime::copyPropertyToDevice(Property &prop, action_t action, size_t 
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to device (n=%d)\n", prop.getName().c_str(), size);
+            PAIRS_DEBUG("Copying property %s to device (n=%lu)\n", prop.getName().c_str(), size);
             pairs::copy_to_device(prop.getHostPointer(), prop.getDevicePointer(), size);
         }
     }
@@ -275,7 +283,7 @@ void PairsRuntime::copyPropertyToHost(Property &prop, action_t action, size_t si
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isHostFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to host (n=%d)\n", prop.getName().c_str(), size);
+            PAIRS_DEBUG("Copying property %s to host (n=%lu)\n", prop.getName().c_str(), size);
             pairs::copy_to_host(prop.getDevicePointer(), prop.getHostPointer(), size);
         }
     }
@@ -294,8 +302,12 @@ void PairsRuntime::copyContactPropertyToDevice(
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !contact_prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying contact property %s to device (n=%d)\n", contact_prop.getName().c_str(), size);
-            pairs::copy_to_device(contact_prop.getHostPointer(), contact_prop.getDevicePointer(), size);
+            PAIRS_DEBUG("Copying contact property %s to device (n=%lu)\n",
+                contact_prop.getName().c_str(), size);
+
+            pairs::copy_to_device(
+                contact_prop.getHostPointer(), contact_prop.getDevicePointer(), size);
+
             contact_prop_flags->setDeviceFlag(prop_id);
         }
     }
@@ -312,8 +324,12 @@ void PairsRuntime::copyContactPropertyToHost(
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(!contact_prop_flags->isHostFlagSet(contact_prop.getId())) {
-            PAIRS_DEBUG("Copying contact property %s to host (n=%d)\n", contact_prop.getName().c_str(), size);
-            pairs::copy_to_host(contact_prop.getDevicePointer(), contact_prop.getHostPointer(), size);
+            PAIRS_DEBUG("Copying contact property %s to host (n=%lu)\n",
+                contact_prop.getName().c_str(), size);
+
+            pairs::copy_to_host(
+                contact_prop.getDevicePointer(), contact_prop.getHostPointer(), size);
+
             contact_prop_flags->setHostFlag(prop_id);
         }
     }
@@ -325,8 +341,12 @@ void PairsRuntime::copyContactPropertyToHost(
 
 void PairsRuntime::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
     const size_t n = feature_prop.getArraySize();
-    PAIRS_DEBUG("Copying feature property %s to device (n=%d)\n", feature_prop.getName().c_str(), n);
-    pairs::copy_static_symbol_to_device(feature_prop.getHostPointer(), feature_prop.getDevicePointer(), n);
+
+    PAIRS_DEBUG("Copying feature property %s to device (n=%lu)\n",
+        feature_prop.getName().c_str(), n);
+
+    pairs::copy_static_symbol_to_device(
+        feature_prop.getHostPointer(), feature_prop.getDevicePointer(), n);
 }
 
 void PairsRuntime::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {

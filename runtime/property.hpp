@@ -11,8 +11,8 @@ protected:
     void *h_ptr, *d_ptr;
     PropertyType type;
     layout_t layout;
-    size_t sx, sy;
     int vol;
+    size_t sx, sy;
 
 public:
     Property(

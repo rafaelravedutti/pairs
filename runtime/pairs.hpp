@@ -68,12 +68,12 @@ public:
     }
 
     void trackVariable(std::string variable_name, void *ptr) {
-        auto v = std::find_if(
-            tracked_variables.begin(),
-            tracked_variables.end(),
-            [variable_name](TrackedVariable _v) { return _v.getName() == variable_name; });
+        PAIRS_ASSERT(
+            std::find_if(tracked_variables.begin(), tracked_variables.end(),
+            [variable_name](TrackedVariable _v) {
+                return _v.getName() == variable_name;
+            }) == std::end(tracked_variables));
 
-        PAIRS_ASSERT(v == std::end(tracked_variables));
         tracked_variables.push_back(TrackedVariable(variable_name, ptr)); 
     }
 
@@ -83,7 +83,7 @@ public:
             tracked_variables.end(),
             [variable_name](TrackedVariable _v) { return _v.getName() == variable_name; });
 
-        PAIRS_ASSERT(v == std::end(tracked_variables));
+        PAIRS_ASSERT(v != std::end(tracked_variables));
         return *v;
     }
 
@@ -92,7 +92,7 @@ public:
         *(static_cast<int *>(tv.getPointer())) = value;
     }
 
-    const int getTrackedVariableAsInteger(std::string variable_name) {
+    int getTrackedVariableAsInteger(std::string variable_name) {
         auto& tv = getTrackedVariable(variable_name);
         return *(static_cast<int *>(tv.getPointer()));
     }
@@ -371,7 +371,7 @@ void PairsRuntime::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_
 template<typename T_ptr>
 void PairsRuntime::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size) {
     // This should be a pointer (and not a reference) in order to be modified
-    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array _a) { return _a.getId() == id; });
     PAIRS_ASSERT(a != std::end(arrays));
     PAIRS_ASSERT(size > 0);
 
@@ -386,7 +386,7 @@ void PairsRuntime::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_
 template<typename T_ptr>
 void PairsRuntime::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
     // This should be a pointer (and not a reference) in order to be modified
-    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array _a) { return _a.getId() == id; });
     PAIRS_ASSERT(a != std::end(arrays));
     PAIRS_ASSERT(size > 0);
 

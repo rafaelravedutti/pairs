@@ -103,7 +103,7 @@ __device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capa
 }
 #else
 inline int atomic_add(int *addr, int val) { return host_atomic_add(addr, val); }
-inline int atomic_add(real_t *addr, real_t val) { return host_atomic_add(addr, val); }
+inline real_t atomic_add(real_t *addr, real_t val) { return host_atomic_add(addr, val); }
 inline int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
     return host_atomic_add_resize_check(addr, val, resize, capacity);
 }

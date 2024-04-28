@@ -14,7 +14,7 @@ private:
     static const int narrays_per_flag = 64;
 public:
     DeviceFlags(int narrays_) : narrays(narrays_) {
-        nflags = std::ceil((double) narrays_ / (double) narrays_per_flag);
+        nflags = static_cast<int>(std::ceil((double) narrays_ / (double) narrays_per_flag));
         hflags = new unsigned long long int[nflags];
         dflags = new unsigned long long int[nflags];
 
