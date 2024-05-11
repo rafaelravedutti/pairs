@@ -107,18 +107,17 @@ void Regular6DStencil::copyRuntimeArray(const std::string& name, void *dest, con
             int *neighbor_ranks = static_cast<int *>(dest);
             neighbor_ranks[d * 2 + 0] = prev[d];
             neighbor_ranks[d * 2 + 1] = next[d];
-        }
-
-        if(name.compare("pbc") == 0) {
+        } else if(name.compare("pbc") == 0) {
             int *pbc = static_cast<int *>(dest);
             pbc[d * 2 + 0] = pbc_prev[d];
             pbc[d * 2 + 1] = pbc_next[d];
-        }
-
-        if(name.compare("subdom") == 0) {
+        } else if(name.compare("subdom") == 0) {
             real_t *subdom = static_cast<real_t *>(dest);
             subdom[d * 2 + 0] = subdom_min[d];
             subdom[d * 2 + 1] = subdom_max[d];
+        } else {
+            std::cerr << "copyRuntimeArray(): Array \"" << name << "\" is invalid." << std::endl;
+            exit(-1);
         }
     }
 }

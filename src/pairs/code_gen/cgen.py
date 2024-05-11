@@ -314,9 +314,10 @@ class CGen:
             narrays = module.sim.arrays.narrays()
             part = DomainPartitioners.c_keyword(module.sim.partitioner())
 
+            self.generate_full_object_names = True
             self.print("int main(int argc, char **argv) {")
-            self.print(f"    PairsRuntime *pairs = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-            self.print(f"    struct pairs_object *pobj = new pairs_objects();")
+            self.print(f"    PairsRuntime *pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
+            self.print(f"    struct pairs_objects *pobj = new pairs_objects();")
 
             if module.sim._enable_profiler:
                 self.print("    LIKWID_MARKER_INIT;")
@@ -327,9 +328,10 @@ class CGen:
                 self.print("    LIKWID_MARKER_CLOSE;")
 
             self.print("    pairs::print_timers(pairs_runtime);")
-            self.print("    pairs::print_stats(pairs_runtime, nlocal, nghost);")
+            self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
             self.print("    return 0;")
             self.print("}")
+            self.generate_full_object_names = False
 
         else:
             self.print(f"void {module.name}(struct pairs_objects *pobj) {{")
@@ -434,6 +436,7 @@ class CGen:
             t = ast_node.array.type()
             tkw = Types.c_keyword(self.sim, t)
             size = self.generate_expression(ScalarOp.inline(ast_node.array.alloc_size()))
+
             if ast_node.array.init_value is not None:
                 v_str = str(ast_node.array.init_value)
                 if t == Types.Int64:
@@ -441,10 +444,8 @@ class CGen:
                 if t == Types.UInt64:
                     v_str += "ULL"
 
-                init_string = v_str + (f", {v_str}" * (size - 1))
-                self.print(f"{tkw} {ast_node.array.name()}[{size}] = {{{init_string}}};")
-            else:
-                self.print(f"{tkw} {ast_node.array.name()}[{size}];")
+                for i in range(size):
+                    self.print(f"{ast_node.array.name()}[{i}] = {v_str};")
 
         if isinstance(ast_node, Assign):
             if not Types.is_scalar(ast_node._dest.type()):
@@ -773,15 +774,17 @@ class CGen:
 
         if isinstance(ast_node, RegisterArray):
             a = ast_node.array()
-            ptr_addr = self.generate_object_address(a)
-            d_ptr_addr = self.generate_object_address(a, device=True)
             tkw = Types.c_keyword(self.sim, a.type())
             size = self.generate_expression(ast_node.size())
 
             if a.is_static():
-                self.print(f"pairs_runtime->addStaticArray({a.id()}, \"{a.name()}\", {ptr_addr}, {d_ptr_addr}, {size});") 
+                ptr_ref = self.generate_object_reference(a)
+                d_ptr_ref = self.generate_object_reference(a, device=True)
+                self.print(f"pairs_runtime->addStaticArray({a.id()}, \"{a.name()}\", {ptr_ref}, {d_ptr_ref}, {size});")
 
             else:
+                ptr_addr = self.generate_object_address(a)
+                d_ptr_addr = self.generate_object_address(a, device=True)
                 self.print(f"pairs_runtime->addArray({a.id()}, \"{a.name()}\", {ptr_addr}, {d_ptr_addr}, {size});")
 
         if isinstance(ast_node, RegisterProperty):
