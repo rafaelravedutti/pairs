@@ -9,13 +9,16 @@ class Analysis:
     """Compiler analysis performed on P4IRS"""
 
     def __init__(self, ast):
-        self._ast = ast
+        self._ast_list = ast if isinstance(ast, list) else [ast]
 
     def apply(self, analysis):
         print(f"Performing analysis: {type(analysis).__name__}... ", end="")
         start = time.time()
-        analysis.set_ast(self._ast)
-        analysis.visit()
+
+        for ast in self._ast_list:
+            analysis.set_ast(ast)
+            analysis.visit()
+
         elapsed = time.time() - start
         print(f"{elapsed:.2f}s elapsed.")
 

@@ -4,7 +4,7 @@ from pairs.ir.branches import Filter
 from pairs.ir.features import Features, FeatureProperties
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
-from pairs.ir.module import Module
+from pairs.ir.module import Module, ModuleCall
 from pairs.ir.properties import Properties, ContactProperties
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
@@ -164,7 +164,7 @@ class Simulation:
             self.module_list.append(module)
 
     def modules(self):
-        """List simulation modudles, with main always in the last position"""
+        """List simulation modules, with main always in the last position"""
 
         sorted_mods = []
         main_mod = None
@@ -536,12 +536,10 @@ class Simulation:
                 ]))
 
             initialize_module = Module(self, name='initialize', block=all_setups)
-            initialize_transformations = Transformations(initialize_module, self._target)
-            initialize_transformations.apply_all()
-
             do_timestep_module = Module(self, name='do_timestep', block=timestep.as_block())
-            do_timestep_transformations = Transformations(do_timestep_module, self._target)
-            do_timestep_transformations.apply_all()
+
+            transformations = Transformations([initialize_module, do_timestep_module], self._target)
+            transformations.apply_all()
 
             # Generate library
             self.code_gen.generate_library(initialize_module, do_timestep_module)

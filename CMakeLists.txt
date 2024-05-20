@@ -48,6 +48,7 @@ set(RUNTIME_COMMON_FILES
     runtime/stats.cpp
     runtime/thermo.cpp
     runtime/timing.cpp
+    runtime/vtk.cpp
     runtime/domain/block_forest.cpp
     runtime/domain/regular_6d_stencil.cpp)
 
