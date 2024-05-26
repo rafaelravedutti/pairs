@@ -12,20 +12,23 @@ void read_grid_data(PairsRuntime *ps, const char *filename, real_t *grid_buffer)
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
 
-    if(in_file.is_open()) {
-        std::getline(in_file, line);
-        std::stringstream line_stream(line);
-        std::string in0;
-        int i = 0;
-
-        while(std::getline(line_stream, in0, ',')) {
-            //PAIRS_ASSERT(i < ndims * 2);
-            grid_buffer[i] = std::stod(in0);
-            i++;
-        }
-
-        in_file.close();
+    if(!in_file.is_open()) {
+        std::cerr << "Error: Could not open file \"" << filename << "\"" << std::endl;
+        exit(-1);
     }
+
+    std::getline(in_file, line);
+    std::stringstream line_stream(line);
+    std::string in0;
+    int i = 0;
+
+    while(std::getline(line_stream, in0, ',')) {
+        //PAIRS_ASSERT(i < ndims * 2);
+        grid_buffer[i] = std::stod(in0);
+        i++;
+    }
+
+    in_file.close();
 }
 
 size_t read_particle_data(
@@ -37,79 +40,79 @@ size_t read_particle_data(
     auto shape_ptr = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
     int n = start;
 
-    if(in_file.is_open()) {
-        //std::getline(in_file, line);
-        while(std::getline(in_file, line)) {
-            std::stringstream line_stream(line);
-            std::string in0;
-            int within_domain = 1;
-            int i = 0;
-            int flags = 0;
+    if(!in_file.is_open()) {
+        std::cerr << "Error: Could not open file \"" << filename << "\"" << std::endl;
+        exit(-1);
+    }
 
-            while(std::getline(line_stream, in0, ',')) {
-                property_t p_id = properties[i];
-                auto prop = ps->getProperty(p_id);
-                auto prop_type = prop.getType();
+    while(std::getline(in_file, line)) {
+        std::stringstream line_stream(line);
+        std::string in0;
+        int within_domain = 1;
+        int i = 0;
+        int flags = 0;
 
-                if(prop_type == Prop_Vector) {
-                    auto vector_ptr = ps->getAsVectorProperty(prop);
-                    std::string in1, in2;
-                    std::getline(line_stream, in1, ',');
-                    std::getline(line_stream, in2, ',');
-                    real_t x = std::stod(in0);
-                    real_t y = std::stod(in1);
-                    real_t z = std::stod(in2);
-                    vector_ptr(n, 0) = x;
-                    vector_ptr(n, 1) = y;
-                    vector_ptr(n, 2) = z;
+        while(std::getline(line_stream, in0, ',')) {
+            property_t p_id = properties[i];
+            auto prop = ps->getProperty(p_id);
+            auto prop_type = prop.getType();
 
-                    if(prop.getName() == "position") {
-                        within_domain = ps->getDomainPartitioner()->isWithinSubdomain(x, y, z);
-                    }
-                } else if(prop_type == Prop_Matrix) {
-                    auto matrix_ptr = ps->getAsMatrixProperty(prop);
-                    constexpr int nelems = 9;
-                    std::string in_buf;
+            if(prop_type == Prop_Vector) {
+                auto vector_ptr = ps->getAsVectorProperty(prop);
+                std::string in1, in2;
+                std::getline(line_stream, in1, ',');
+                std::getline(line_stream, in2, ',');
+                real_t x = std::stod(in0);
+                real_t y = std::stod(in1);
+                real_t z = std::stod(in2);
+                vector_ptr(n, 0) = x;
+                vector_ptr(n, 1) = y;
+                vector_ptr(n, 2) = z;
 
-                    matrix_ptr(n, 0) = std::stod(in0);
-                    for(int e = 1; e < nelems; e++) {
-                        std::getline(line_stream, in_buf, ',');
-                        matrix_ptr(n, e) = std::stod(in_buf);
-                    }
-                } else if(prop_type == Prop_Quaternion) {
-                    auto quat_ptr = ps->getAsQuaternionProperty(prop);
-                    constexpr int nelems = 4;
-                    std::string in_buf;
-
-                    quat_ptr(n, 0) = std::stod(in0);
-                    for(int e = 1; e < nelems; e++) {
-                        std::getline(line_stream, in_buf, ',');
-                        quat_ptr(n, e) = std::stod(in_buf);
-                    }
-                } else if(prop_type == Prop_Integer) {
-                    auto int_ptr = ps->getAsIntegerProperty(prop);
-                    int_ptr(n) = std::stoi(in0);
-
-                    if(prop.getName() == "flags") {
-                        flags = int_ptr(n);
-                    }
-                } else if(prop_type == Prop_Real) {
-                    auto float_ptr = ps->getAsFloatProperty(prop);
-                    float_ptr(n) = std::stod(in0);
-                } else {
-                    std::cerr << "read_particle_data(): Invalid property type!" << std::endl;
-                    return 0;
+                if(prop.getName() == "position") {
+                    within_domain = ps->getDomainPartitioner()->isWithinSubdomain(x, y, z);
                 }
+            } else if(prop_type == Prop_Matrix) {
+                auto matrix_ptr = ps->getAsMatrixProperty(prop);
+                constexpr int nelems = 9;
+                std::string in_buf;
 
-                i++;
+                matrix_ptr(n, 0) = std::stod(in0);
+                for(int e = 1; e < nelems; e++) {
+                    std::getline(line_stream, in_buf, ',');
+                    matrix_ptr(n, e) = std::stod(in_buf);
+                }
+            } else if(prop_type == Prop_Quaternion) {
+                auto quat_ptr = ps->getAsQuaternionProperty(prop);
+                constexpr int nelems = 4;
+                std::string in_buf;
+
+                quat_ptr(n, 0) = std::stod(in0);
+                for(int e = 1; e < nelems; e++) {
+                    std::getline(line_stream, in_buf, ',');
+                    quat_ptr(n, e) = std::stod(in_buf);
+                }
+            } else if(prop_type == Prop_Integer) {
+                auto int_ptr = ps->getAsIntegerProperty(prop);
+                int_ptr(n) = std::stoi(in0);
+
+                if(prop.getName() == "flags") {
+                    flags = int_ptr(n);
+                }
+            } else if(prop_type == Prop_Real) {
+                auto float_ptr = ps->getAsFloatProperty(prop);
+                float_ptr(n) = std::stod(in0);
+            } else {
+                std::cerr << "read_particle_data(): Invalid property type!" << std::endl;
+                return 0;
             }
 
-            if(within_domain || flags & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL)) {
-                shape_ptr(n++) = shape_id;
-            }
+            i++;
         }
 
-        in_file.close();
+        if(within_domain || flags & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL)) {
+            shape_ptr(n++) = shape_id;
+        }
     }
 
     return n;

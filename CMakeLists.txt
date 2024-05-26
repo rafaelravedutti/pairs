@@ -69,6 +69,7 @@ if(NOT PYTHON_EXECUTABLE)
 endif()
 
 file(COPY runtime DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY data DESTINATION ${CMAKE_BINARY_DIR})
 
 execute_process(
     COMMAND ${PYTHON_EXECUTABLE} setup.py build
@@ -98,7 +99,6 @@ add_custom_command(
 
 add_custom_target(gen_cpu DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC})
 add_dependencies(${CPU_BIN} gen_cpu)
-
 
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
