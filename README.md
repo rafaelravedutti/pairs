@@ -37,6 +37,19 @@ def final_integrate(i):
 After defining the methods, it is necessary to setup the P4IRS simulations:
 
 ```python
+dt = 0.005
+cutoff_radius = 2.5
+skin = 0.3
+ntypes = 4
+sigma = 1.0
+epsilon = 1.0
+sigma6 = sigma ** 6
+nx = 32
+ny = 32
+nz = 32
+rho = 0.8442
+temp = 1.44
+
 # Simulation setup
 psim = pairs.simulation(
   "md", # Simulation identifier
@@ -52,20 +65,16 @@ psim.add_property('force', pairs.vector(), volatile=True)
 
 # Features and their properties
 psim.add_feature('type', ntypes)
-psim.add_feature_property('type', 'epsilon', pairs.real(), [...])
-psim.add_feature_property('type', 'sigma6', pairs.real(), [...])
+psim.add_feature_property('type', 'epsilon', pairs.real(), [epsilon for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'sigma6', pairs.real(), [sigma6 for i in range(ntypes * ntypes)])
 
-# Simulation domain
-psim.set_domain([xmin, ymin, zmin, xmax, ymax, zmax])
-
-# Initial state
-psim.read_particle_data(
-  "data/copper_fcc_lattice.input",
-  ['type', 'mass', 'position', 'velocity'],
-  pairs.point_mass())
+# Simulation domain and initial state
+psim.copper_fcc_lattice(nx, ny, nz, rho, temp, ntypes)
+psim.set_domain_partitioner(pairs.regular_domain_partitioner())
+psim.compute_thermo(100)
 ```
 
-Then the optimization strategies and visualization settings to use:
+Then, define the optimization strategies and visualization settings to use:
 
 ```python
 # Optimization settings
