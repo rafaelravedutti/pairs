@@ -6,17 +6,17 @@ It is released as a Python package and allows users to define kernels, integrato
 ## Build instructions
 
 There is a Makefile which contains configurable environment variables such as `TESTCASE` compiler parameters evaluate P4IRS performance on different scenarios.
-`TESTCASE` refers to any of the files within the example directory, such as `md` and `dem`.
+`TESTCASE` refers to any of the files within the `examples` directory, such as `md` and `dem`.
 
 ## Usage
 
-To load P4IRS, it is necessary to install it as a Python package and import it with:
+To use P4IRS, it is necessary to install it as a Python package and import it with:
 
 ```python
 import pairs
 ```
 
-Particle interactions and specific routines to update each particle individually through the usage of Python methods, and these can make use of defined properties, given parameters and intrinsic methods from P4IRS:
+Particle interactions and specific routines to update each particle individually are defined through Python methods. These can make use of defined properties in the simulation, parameters passed in the `compute` method and intrinsic methods from P4IRS:
 
 ```python
 def lennard_jones(i, j):
@@ -85,7 +85,7 @@ psim.compute(euler, symbols={'dt': dt})
 
 And finally, it is necessary to define the target and trigger the code generator:
 
-```
+```python
 # Target hardware
 if target == 'gpu':
   psim.target(pairs.target_gpu())
