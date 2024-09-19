@@ -301,7 +301,8 @@ public:
     // Communication
     void initDomain(
         int *argc, char ***argv,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax,
+        bool pbcx = 0, bool pbcy = 0, bool pbcz = 0);
 
     void updateDomain() { dom_part->update(); }
 

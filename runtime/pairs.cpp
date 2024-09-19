@@ -14,7 +14,7 @@ namespace pairs {
 
 void PairsRuntime::initDomain(
     int *argc, char ***argv,
-    real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
+    real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz) {
 
     if(dom_part_type == RegularPartitioning) {
         const int flags[] = {1, 1, 1};
@@ -23,7 +23,7 @@ void PairsRuntime::initDomain(
         const int flags[] = {1, 1, 0};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
     } else if(dom_part_type == BlockForestPartitioning) {
-        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax);
+        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, pbcx, pbcy, pbcz);
     } else {
         PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");
     }
@@ -392,11 +392,20 @@ void PairsRuntime::communicateData(
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
-    for(int d = 0; d <= dim; d++) {
-        nsend_all += nsend[d * 2 + 0];
-        nsend_all += nsend[d * 2 + 1];
-        nrecv_all += nrecv[d * 2 + 0];
-        nrecv_all += nrecv[d * 2 + 1];
+    if(this->dom_part_type == RegularPartitioning || this->dom_part_type == RegularXYPartitioning){
+        for(int d = 0; d <= dim; d++) {
+            nsend_all += nsend[d * 2 + 0];
+            nsend_all += nsend[d * 2 + 1];
+            nrecv_all += nrecv[d * 2 + 0];
+            nrecv_all += nrecv[d * 2 + 1];
+        }
+    }
+    else if (this->dom_part_type == BlockForestPartitioning){
+        int nranks = this->getDomainPartitioner()->getNumberOfNeighborRanks();
+        for (int n=0; n<nranks; ++n){
+            nsend_all += nsend[n];
+            nrecv_all += nrecv[n];
+        }
     }
 
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
@@ -446,11 +455,20 @@ void PairsRuntime::communicateAllData(
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
-    for(int d = 0; d <= ndims; d++) {
-        nsend_all += nsend[d * 2 + 0];
-        nsend_all += nsend[d * 2 + 1];
-        nrecv_all += nrecv[d * 2 + 0];
-        nrecv_all += nrecv[d * 2 + 1];
+    if(this->dom_part_type == RegularPartitioning || this->dom_part_type == RegularXYPartitioning){
+        for(int d = 0; d <= ndims; d++) {
+            nsend_all += nsend[d * 2 + 0];
+            nsend_all += nsend[d * 2 + 1];
+            nrecv_all += nrecv[d * 2 + 0];
+            nrecv_all += nrecv[d * 2 + 1];
+        }
+    }
+    else if (this->dom_part_type == BlockForestPartitioning){
+        int nranks = this->getDomainPartitioner()->getNumberOfNeighborRanks();
+        for (int n=0; n<nranks; ++n){
+            nsend_all += nsend[n];
+            nrecv_all += nrecv[n];
+        }
     }
 
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));

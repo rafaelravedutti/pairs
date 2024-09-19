@@ -26,7 +26,7 @@ from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, Real
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
-from pairs.ir.utils import Print
+from pairs.ir.print import Print, PrintCode
 from pairs.ir.variables import Var, DeclareVariable, Deref
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.sim.domain_partitioners import DomainPartitioners
@@ -301,6 +301,8 @@ class CGen:
         self.print("    void end() {")
         self.print("        pairs::print_timers(pairs_runtime);")
         self.print("        pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
+        self.print("        delete pobj;")
+        self.print("        delete pairs_runtime;")
         self.print("    }")
         self.print("};")
         self.print.end()
@@ -759,7 +761,24 @@ class CGen:
             self.print(f"{ast_node.module.name}(pobj);")
 
         if isinstance(ast_node, Print):
-            self.print(f"PAIRS_DEBUG(\"{ast_node.string}\\n\");")
+            args = ast_node.args
+            exprs = [self.generate_expression(arg) for arg in args]
+            toPrint = "PAIRS_DEBUG(\""
+            for arg in args:
+                if Types.is_real(arg.type()):
+                    format = "%f "
+                elif Types.is_integer(arg.type()):
+                    format = "%d "
+                else:
+                    format = "%s "
+                toPrint += format
+
+            toPrint = toPrint + "\\n\", " + ", ".join(map(str, exprs)) + ");"
+            self.print(toPrint)
+
+        if isinstance(ast_node, PrintCode):
+            toPrint = self.generate_expression(ast_node.arg)
+            self.print(toPrint[1:-1])
 
         if isinstance(ast_node, Realloc):
             tkw = Types.c_keyword(self.sim, ast_node.array.type())
@@ -948,6 +967,12 @@ class CGen:
             assert mem is False, "Literal is not lvalue!"
             if ast_node.type() == Types.String:
                 return f"\"{ast_node.value}\""
+            
+            if ast_node.type() == Types.Boolean:
+                if ast_node.value == True:
+                    return "true"
+                if ast_node.value == False:
+                    return "false"
 
             if not ast_node.is_scalar():
                 assert index is not None, "Index must be set for non-scalar literals."

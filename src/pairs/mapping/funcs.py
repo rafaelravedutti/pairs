@@ -178,7 +178,7 @@ class BuildParticleIR(ast.NodeVisitor):
 
     def visit_If(self, node):
         condition = self.visit(node.test)
-        one_way = node.orelse is None
+        one_way = node.orelse is None or len(node.orelse) == 0
 
         if one_way:
             for _ in Filter(self.sim, condition):

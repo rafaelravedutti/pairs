@@ -5,6 +5,51 @@ from pairs.ir.operators import Operators
 from pairs.ir.types import Types
 
 
+class ConstantPropagation(Mutator):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+
+    def mutate_ScalarOp(self, ast_node):
+        sim = ast_node.lhs.sim
+        ast_node.lhs = self.mutate(ast_node.lhs)
+        if not ast_node.operator().is_unary():
+            ast_node.rhs = self.mutate(ast_node.rhs)
+
+        if (not ast_node.operator().is_unary() and
+            isinstance(ast_node.lhs, Lit) and isinstance(ast_node.rhs, Lit)):
+
+            if ast_node.op == Operators.Add:
+                return Lit(sim, ast_node.lhs.value + ast_node.rhs.value)
+
+            if ast_node.op == Operators.Sub:
+                return Lit(sim, ast_node.lhs.value - ast_node.rhs.value)
+
+            if ast_node.op == Operators.Mul:
+                return Lit(sim, ast_node.lhs.value * ast_node.rhs.value)
+
+            if ast_node.op == Operators.Div:
+                return Lit(sim, ast_node.lhs.value / ast_node.rhs.value)
+            
+            if ast_node.op == Operators.Gt:
+                return Lit(sim, 1) if Lit(sim, ast_node.lhs.value > ast_node.rhs.value) else Lit(sim, 0)
+            
+            if ast_node.op == Operators.Lt:
+                return Lit(sim, 1) if Lit(sim, ast_node.lhs.value < ast_node.rhs.value) else Lit(sim, 0)
+            
+            if ast_node.op == Operators.Geq:
+                return Lit(sim, 1) if Lit(sim, ast_node.lhs.value >= ast_node.rhs.value) else Lit(sim, 0)
+            
+            if ast_node.op == Operators.Leq:
+                return Lit(sim, 1) if Lit(sim, ast_node.lhs.value <= ast_node.rhs.value) else Lit(sim, 0)
+            
+            if ast_node.op == Operators.Eq:
+                return Lit(sim, 1) if Lit(sim, ast_node.lhs.value == ast_node.rhs.value) else Lit(sim, 0)
+            
+            if ast_node.op == Operators.Neq:
+                return Lit(sim, 1) if Lit(sim, ast_node.lhs.value != ast_node.rhs.value) else Lit(sim, 0)
+            
+        return ast_node
+    
 class ReplaceSymbols(Mutator):
     def __init__(self, ast=None):
         super().__init__(ast)

@@ -9,7 +9,7 @@ from pairs.ir.module import Module, ModuleCall
 from pairs.ir.mutator import Mutator
 from pairs.ir.properties import ReallocProperty
 from pairs.ir.types import Types
-from pairs.ir.utils import Print
+from pairs.ir.print import Print
 from pairs.ir.variables import Var, Deref
 from functools import reduce
 import operator

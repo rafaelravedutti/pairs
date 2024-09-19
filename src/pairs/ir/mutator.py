@@ -55,6 +55,14 @@ class Mutator:
 
         return ast_node
 
+    def mutate_Print(self, ast_node):
+        ast_node.args = [self.mutate(arg) for arg in ast_node.args]
+        return ast_node
+
+    def mutate_PrintCode(self, ast_node):
+        ast_node.arg = self.mutate(ast_node.arg)
+        return ast_node
+
     def mutate_ArrayAccess(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)
         ast_node.partial_indexes = [self.mutate(i) for i in ast_node.partial_indexes]

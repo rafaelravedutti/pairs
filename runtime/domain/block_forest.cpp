@@ -24,7 +24,7 @@ namespace pairs {
 void BlockForest::updateNeighborhood() {
     std::map<int, std::vector<walberla::math::AABB>> neighborhood;
     std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
-    auto me = walberla::mpi::MPIManager::instance()->rank();
+    auto me = mpiManager->rank();
     this->nranks = 0;
     this->total_aabbs = 0;
 
@@ -41,7 +41,7 @@ void BlockForest::updateNeighborhood() {
             for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
                 auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
-                if(neighbor_rank != me) {
+                // if(neighbor_rank != me) {
                     const walberla::BlockID& neighbor_block = block->getNeighborId(neigh);
                     walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
                     auto neighbor_info = (*info)[neighbor_block];
@@ -55,7 +55,7 @@ void BlockForest::updateNeighborhood() {
                         neighborhood[neighbor_rank].push_back(neighbor_aabb);
                         blocks_pushed[neighbor_rank].push_back(neighbor_block);
                     }
-                }
+                // }
             }
         }
     }
@@ -95,7 +95,7 @@ void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const in
 }
 
 void BlockForest::updateWeights() {
-    walberla::mpi::BufferSystem bs(walberla::mpi::MPIManager::instance()->comm(), 756);
+    walberla::mpi::BufferSystem bs(mpiManager->comm(), 756);
 
     info->clear();
     for(auto& iblock: *forest) {
@@ -226,13 +226,11 @@ void BlockForest::rebalance() {
 }
 
 void BlockForest::initialize(int *argc, char ***argv) {
-    MPI_Init(argc, argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    auto mpiManager = walberla::mpi::MPIManager::instance();
+    mpiManager = walberla::mpi::MPIManager::instance();
     mpiManager->initializeMPI(argc, argv);
     mpiManager->useWorldComm();
+    world_size = mpiManager->numProcesses();
+    rank = mpiManager->rank();
 
     walberla::math::AABB domain(
         grid_min[0], grid_min[1], grid_min[2], grid_max[0], grid_max[1], grid_max[2]);
@@ -244,7 +242,7 @@ void BlockForest::initialize(int *argc, char ***argv) {
     auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
 
     forest = walberla::blockforest::createBlockForest(
-        domain, block_config, walberla::Vector3<bool>(true, true, true), procs, ref_level);
+        domain, block_config, walberla::Vector3<bool>(globalPBC[0], globalPBC[1], globalPBC[2]), procs, ref_level);
 
     this->info = make_shared<walberla::blockforest::InfoCollection>();
 
@@ -345,7 +343,7 @@ void BlockForest::initializeWorkloadBalancer() {
 }
 
 void BlockForest::finalize() {
-    MPI_Finalize();
+    mpiManager->finalizeMPI();
 }
 
 int BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
@@ -361,19 +359,28 @@ int BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
 }
 
 void BlockForest::communicateSizes(int dim, const int *nsend, int *nrecv) {
-    std::vector<MPI_Request> send_requests(ranks.size(), MPI_REQUEST_NULL);
-    std::vector<MPI_Request> recv_requests(ranks.size(), MPI_REQUEST_NULL);
+    std::vector<MPI_Request> send_requests;
+    std::vector<MPI_Request> recv_requests;
     size_t nranks = 0;
 
     for(auto neigh_rank: ranks) {
-        MPI_Irecv(&nrecv[nranks], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &recv_requests[nranks]);
-        MPI_Isend(&nsend[nranks], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &send_requests[nranks]);
+        if(neigh_rank != rank) {
+            MPI_Request send_req, recv_req;
+            MPI_Irecv(&nrecv[nranks], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &recv_req);
+            MPI_Isend(&nsend[nranks], 1, MPI_INT, neigh_rank, 0, MPI_COMM_WORLD, &send_req);
+            send_requests.push_back(send_req);
+            recv_requests.push_back(recv_req);
+        } else {
+            nrecv[nranks] = nsend[nranks];
+        }
         nranks++;
     }
 
-    if(nranks > 0) {
-        MPI_Waitall(nranks, send_requests.data(), MPI_STATUSES_IGNORE);
-        MPI_Waitall(nranks, recv_requests.data(), MPI_STATUSES_IGNORE);
+    if(!send_requests.empty()) {
+        MPI_Waitall(send_requests.size(), send_requests.data(), MPI_STATUSES_IGNORE);
+    }
+    if(!recv_requests.empty()) {
+        MPI_Waitall(recv_requests.size(), recv_requests.data(), MPI_STATUSES_IGNORE);
     }
 }
 

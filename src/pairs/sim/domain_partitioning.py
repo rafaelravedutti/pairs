@@ -6,6 +6,7 @@ from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.sim.flags import Flags
+from pairs.ir.lit import Lit
 
 
 class DimensionRanges:
@@ -86,10 +87,11 @@ class DimensionRanges:
 class BlockForest:
     def __init__(self, sim):
         self.sim                = sim
+        self.rank               = sim.add_var('rank', Types.Int32)
         self.nranks             = sim.add_var('nranks', Types.Int32)
-        self.nranks_capacity    = sim.add_var('nranks_capacity', Types.Int32)
+        self.nranks_capacity    = sim.add_var('nranks_capacity', Types.Int32, init_value=27)
         self.ntotal_aabbs       = sim.add_var('ntotal_aabbs', Types.Int32)
-        self.aabb_capacity      = sim.add_var('aabb_capacity', Types.Int32)
+        self.aabb_capacity      = sim.add_var('aabb_capacity', Types.Int32, init_value=27)
         self.ranks              = sim.add_array('ranks', [self.nranks_capacity], Types.Int32)
         self.naabbs             = sim.add_array('naabbs', [self.nranks_capacity], Types.Int32)
         self.aabb_offsets       = sim.add_array('aabb_offsets', [self.nranks_capacity], Types.Int32)
@@ -123,10 +125,11 @@ class BlockForest:
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs_runtime->initDomain", [param for delim in grid_array for param in delim])
+        Call_Void(self.sim, "pairs_runtime->initDomain", [param for delim in grid_array for param in delim] + self.sim._pbc)
 
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
+        Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
         Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborRanks", []))
         Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
 
@@ -147,33 +150,65 @@ class BlockForest:
         Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
+        ''' TODO :  If we have pbc, a sinlge particle can be a ghost particle multiple times (at different locations) for the same neighbor block,
+                    so this function should have the capability to yield more than one particle for every neighbor.
+                    But currently it doesn't have that capability, so we need at least 2 blocks in the dimensions that we have pbc.
+                    (eg: a particle in a 1x1x1 block config with pbc <ture, true, true> can be ghost at 7 other locations)
+        '''
         # Particles with one of the following flags are ignored
         flags_to_exclude = (Flags.Infinite | Flags.Global)
 
-        for r in For(self.sim, 0, self.nranks):
-            for i in For(self.sim, 0, self.sim.nlocal):
+        for r in For(self.sim, 0, self.nranks):     # for every neighbor rank
+            for i in For(self.sim, 0, self.sim.nlocal):     # for every local particle in this rank
                 particle_flags = self.sim.particle_flags
 
                 for _ in Filter(self.sim, ScalarOp.cmp(particle_flags[i] & flags_to_exclude, 0)):
-                    for aabb_id in For(self.sim, self.aabb_offsets[r], self.aabb_offsets[r] + self.naabbs[r]):
-                        full_cond = None
-                        pbc_shifts = []
+                    for aabb_id in For(self.sim, self.aabb_offsets[r], self.aabb_offsets[r] + self.naabbs[r]): # for every aabb of this neighbor
+                        for _ in Filter(self.sim, ScalarOp.neq(self.ranks[r] , self.rank)):     # if my neighobr is not my own rank
+                            full_cond = None
+                            pbc_shifts = []
 
-                        for d in range(self.sim.ndims()):
-                            aabb_min = self.aabbs[aabb_id][d * 2 + 0]
-                            aabb_max = self.aabbs[aabb_id][d * 2 + 1]
-                            center = aabb_min + (aabb_max - aabb_min) * 0.5
-                            dist = position[i][d] - center
-                            d_length = self.sim.grid.length(d)
+                            for d in range(self.sim.ndims()):
+                                aabb_min = self.aabbs[aabb_id][d * 2 + 0]
+                                aabb_max = self.aabbs[aabb_id][d * 2 + 1]
+                                d_pbc = 0
+                                d_length = self.sim.grid.length(d)
 
-                            cond_pbc_neg = dist >  (d_length * 0.5)
-                            cond_pbc_pos = dist < -(d_length * 0.5)
-                            d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
+                                if self.sim._pbc[d]:
+                                    center = aabb_min + (aabb_max - aabb_min) * 0.5     # center of neighbor block
+                                    dist = position[i][d] - center                      # distance of our particle from center of neighbor
+                                    cond_pbc_neg = dist >  (d_length * 0.5)
+                                    cond_pbc_pos = dist < -(d_length * 0.5)
 
-                            adj_pos = position[i][d] + d_pbc * d_length
-                            d_cond = ScalarOp.and_op(adj_pos > aabb_min - offset, adj_pos < aabb_max + offset)
-                            full_cond = d_cond if full_cond is None else ScalarOp.and_op(full_cond, d_cond)
-                            pbc_shifts.append(d_pbc)
+                                    d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
 
-                        for _ in Filter(self.sim, full_cond):
-                            yield i, r, self.ranks[r], pbc_shifts
+                                adj_pos = position[i][d] + d_pbc * d_length 
+                                d_cond = ScalarOp.and_op(adj_pos > aabb_min - offset, adj_pos < aabb_max + offset)
+                                full_cond = d_cond if full_cond is None else ScalarOp.and_op(full_cond, d_cond)
+                                pbc_shifts.append(d_pbc)
+
+                            for _ in Filter(self.sim, full_cond):
+                                yield i, r, self.ranks[r], pbc_shifts
+
+                        for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me (cuz I'm the only rank in a dimension that has pbc)
+                            pbc_shifts = []
+                            isghost = Lit(self.sim, 0)
+
+                            for d in range(self.sim.ndims()):
+                                aabb_min = self.aabbs[aabb_id][d * 2 + 0]
+                                aabb_max = self.aabbs[aabb_id][d * 2 + 1]
+                                center = aabb_min + (aabb_max - aabb_min) * 0.5     # center of neighbor block
+                                dist = position[i][d] - center                      # distance of our particle from center of neighbor
+                                d_pbc = 0
+                                d_length = self.sim.grid.length(d)
+
+                                if self.sim._pbc[d]:
+                                    cond_pbc_neg = dist >  (d_length*0.5 - offset)
+                                    cond_pbc_pos = dist < -(d_length*0.5 - offset)
+                                    d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
+                                    isghost = ScalarOp.or_op(isghost, d_pbc)
+
+                                pbc_shifts.append(d_pbc)
+                            
+                            for _ in Filter(self.sim, isghost):
+                                yield i, r, self.ranks[r], pbc_shifts

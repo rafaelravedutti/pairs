@@ -11,7 +11,7 @@ from pairs.ir.math import Ceil
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.types import Types
-from pairs.ir.utils import Print
+from pairs.ir.print import Print
 from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
 

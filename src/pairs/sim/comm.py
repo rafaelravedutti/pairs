@@ -9,7 +9,7 @@ from pairs.ir.contexts import Contexts
 from pairs.ir.device import CopyArray
 from pairs.ir.functions import Call_Void
 from pairs.ir.loops import For, ParticleFor, While
-from pairs.ir.utils import Print
+from pairs.ir.print import Print
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
@@ -273,18 +273,18 @@ class SetCommunicationOffsets(Lowerable):
         recv_offsets = self.comm.recv_offsets
         self.sim.module_name(f"set_communication_offsets{self.step}")
 
-        isend = 0
-        irecv = 0
+        isend = self.sim.add_temp_var(0)
+        irecv = self.sim.add_temp_var(0)
         for i in range(self.step):
             for j in self.comm.dom_part.step_indexes(i):
-                isend += nsend[j]
-                irecv += nrecv[j]
+                Assign(self.sim, isend, isend + nsend[j])
+                Assign(self.sim, irecv, irecv + nrecv[j])
 
         for j in self.comm.dom_part.step_indexes(self.step):
             Assign(self.sim, send_offsets[j], isend)
             Assign(self.sim, recv_offsets[j], irecv)
-            isend += nsend[j]
-            irecv += nrecv[j]
+            Assign(self.sim, isend, isend + nsend[j])
+            Assign(self.sim, irecv, irecv + nrecv[j])
 
 
 class PackGhostParticles(Lowerable):

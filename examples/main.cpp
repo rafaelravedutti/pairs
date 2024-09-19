@@ -1,6 +1,6 @@
 #include <iostream>
 //---
-#include "md.hpp"
+#include "dem_sd.hpp"
 
 int main(int argc, char **argv) {
     PairsSimulation *ps = new PairsSimulation();

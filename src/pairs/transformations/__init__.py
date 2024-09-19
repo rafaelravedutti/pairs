@@ -2,7 +2,7 @@ import time
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftDeclarations, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
-from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PruneUnusedVectorIndexes, AddExpressionDeclarations
+from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, ConstantPropagation, SimplifyExpressions, PruneUnusedVectorIndexes, AddExpressionDeclarations
 from pairs.transformations.instrumentation import AddModulesInstrumentation
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
@@ -47,6 +47,7 @@ class Transformations:
         self.apply(PruneUnusedVectorIndexes())
         self.apply(LowerNeighborIndexes())
         self.apply(ReplaceSymbols())
+        self.apply(ConstantPropagation())
         self.apply(SimplifyExpressions())
 
     def lift_declarations_to_owner_blocks(self):

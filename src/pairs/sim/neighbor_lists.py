@@ -4,7 +4,7 @@ from pairs.ir.branches import Branch, Filter
 from pairs.ir.layouts import Layouts
 from pairs.ir.loops import ParticleFor
 from pairs.ir.types import Types
-from pairs.ir.utils import Print
+from pairs.ir.print import Print
 from pairs.sim.interaction import ParticleInteraction
 from pairs.sim.lowerable import Lowerable
 

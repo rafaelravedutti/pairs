@@ -22,6 +22,7 @@ class PairsRuntime;
 
 class BlockForest : public DomainPartitioner {
 private:
+    std::shared_ptr<walberla::mpi::MPIManager> mpiManager;
     std::shared_ptr<walberla::BlockForest> forest;
     std::shared_ptr<walberla::blockforest::InfoCollection> info;
     std::vector<int> ranks;
@@ -30,14 +31,15 @@ private:
     std::vector<double> aabbs;
     PairsRuntime *ps;
     real_t *subdom;
+    const bool globalPBC[3];
     int world_size, rank, nranks, total_aabbs;
     bool balance_workload;
 
 public:
     BlockForest(
         PairsRuntime *ps_,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) :
-        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_) {
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz) :
+        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), globalPBC{pbcx, pbcy, pbcz} {
 
         subdom = new real_t[ndims * 2];
     }
