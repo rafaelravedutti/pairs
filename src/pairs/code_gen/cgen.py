@@ -170,13 +170,13 @@ class CGen:
 
         self.print("// Module headers")
         for module in self.sim.modules():
-            self.print(f"void {module.name}(struct pairs_objects *pobj);")
+            self.print(f"void {module.name}(struct PairsObjects *pobj);")
 
         self.print("")
 
     def generate_pairs_object_structure(self):
         self.print("")
-        self.print("struct pairs_objects {")
+        self.print("struct PairsObjects {")
         self.print.add_indent(4)
 
         self.print("// Arrays")
@@ -247,7 +247,7 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, initialize_module, do_timestep_module):
+    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module):
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
         self.print = Printer(self.ref + ext)
@@ -259,7 +259,7 @@ class CGen:
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            if module.name not in ['initialize', 'do_timestep']:
+            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep']:
                 self.generate_module(module)
 
         self.print.end()
@@ -282,22 +282,46 @@ class CGen:
         self.print("class PairsSimulation {")
         self.print("private:")
         self.print("    PairsRuntime *pairs_runtime;")
-        self.print("    struct pairs_objects *pobj;")
+        self.print("    struct PairsObjects *pobj;")
         self.print("public:")
-        self.print("    void initialize(int argc, char **argv) {")
+
+        self.print("    void initialize() {")
         self.print(f"        pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-        self.print(f"        pobj = new pairs_objects();")
+        self.print(f"        pobj = new PairsObjects();")
         self.print.add_indent(4)
         self.generate_statement(initialize_module.block)
         self.print.add_indent(-4)
         self.print("    }")
         self.print("")
-        self.print("    void do_timestep() {")
+
+        self.print("    void create_domain(int argc, char **argv) {")
+        self.print.add_indent(4)
+        self.generate_statement(create_domain_module.block)
+        self.print.add_indent(-4)
+        self.print("    }")
+        self.print("")
+
+        self.print("    template<typename Domain_T>")
+        self.print("    void use_domain(std::shared_ptr<Domain_T> domain_ptr) {")
+        self.print("        pairs_runtime->useDomain(domain_ptr);")
+        self.print("    }")
+        self.print("")
+
+        self.print("    void setup_sim() {")
+        self.print.add_indent(4)
+        self.generate_statement(setup_sim_module.block)
+        self.print.add_indent(-4)
+        self.print("    }")
+        self.print("")
+
+        self.print("    void do_timestep(int timestep) {")
+        self.print("        pobj->sim_timestep = timestep;")
         self.print.add_indent(4)
         self.generate_statement(do_timestep_module.block)
         self.print.add_indent(-4)
         self.print("    }")
         self.print("")
+
         self.print("    void end() {")
         self.print("        pairs::print_timers(pairs_runtime);")
         self.print("        pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
@@ -305,6 +329,7 @@ class CGen:
         self.print("        delete pairs_runtime;")
         self.print("    }")
         self.print("};")
+        
         self.print.end()
         self.generate_full_object_names = False
 
@@ -319,7 +344,7 @@ class CGen:
             self.generate_full_object_names = True
             self.print("int main(int argc, char **argv) {")
             self.print(f"    PairsRuntime *pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-            self.print(f"    struct pairs_objects *pobj = new pairs_objects();")
+            self.print(f"    struct PairsObjects *pobj = new PairsObjects();")
 
             if module.sim._enable_profiler:
                 self.print("    LIKWID_MARKER_INIT;")
@@ -331,12 +356,14 @@ class CGen:
 
             self.print("    pairs::print_timers(pairs_runtime);")
             self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
+            self.print("    delete pobj;")
+            self.print("    delete pairs_runtime;")
             self.print("    return 0;")
             self.print("}")
             self.generate_full_object_names = False
 
         else:
-            self.print(f"void {module.name}(struct pairs_objects *pobj) {{")
+            self.print(f"void {module.name}(struct PairsObjects *pobj) {{")
             self.print.add_indent(4)
 
             if self.debug:

@@ -64,6 +64,7 @@ class Simulation:
         self.contact_properties = ContactProperties(self)
 
         # General capacities, sizes and particle properties
+        self.sim_timestep = self.add_var('sim_timestep', Types.Int32, runtime=True)
         self.particle_capacity = \
             self.add_var('particle_capacity', Types.Int32, particle_capacity, runtime=True)
         self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, neighbor_capacity)
@@ -90,7 +91,8 @@ class Simulation:
         self._block = Block(self, [])
 
         # Different segments of particle code/functions
-        self.setups = Block(self, [])
+        self.create_domain = Block(self, [])
+        self.setup_particles = Block(self, [])
         self.setup_functions = []
         self.pre_step_functions = []
         self.functions = []
@@ -262,26 +264,26 @@ class Simulation:
 
     def set_domain(self, grid):
         self.grid = Grid3D(self, grid[0], grid[1], grid[2], grid[3], grid[4], grid[5])
-        self.setups.add_statement(InitializeDomain(self))
+        self.create_domain.add_statement(InitializeDomain(self))
 
     def reneighbor_every(self, frequency):
         self.reneighbor_frequency = frequency
 
     def create_particle_lattice(self, grid, spacing, props={}):
-        self.setups.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
+        self.setup_particles.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
 
     def read_particle_data(self, filename, prop_names, shape_id):
         """Generate statement to read particle data from file"""
         props = [self.property(prop_name) for prop_name in prop_names]
-        self.setups.add_statement(ReadParticleData(self, filename, props, shape_id))
+        self.setup_particles.add_statement(ReadParticleData(self, filename, props, shape_id))
 
     def copper_fcc_lattice(self, nx, ny, nz, rho, temperature, ntypes):
         """Specific initialization for MD Copper FCC lattice case"""
-        self.setups.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
+        self.setup_particles.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
 
     def dem_sc_grid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter, initial_velocity, particle_density, ntypes):
         """Specific initialization for DEM grid"""
-        self.setups.add_statement(
+        self.setup_particles.add_statement(
             DEMSCGrid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
                       initial_velocity, particle_density, ntypes))
 
@@ -442,8 +444,6 @@ class Simulation:
         comm = Comm(self, self._dom_part)
         # Params that determine when a method must be called only when reneighboring
         every_reneighbor_params = {'every': self.reneighbor_frequency}
-        # Update domain is added at last on setups because particles must be already present in the simulation
-        self.setups.add_statement(UpdateDomain(self))
 
         # First steps executed during each time-step in the simulation
         timestep_procedures = self.pre_step_functions + [
@@ -509,8 +509,11 @@ class Simulation:
         # Combine everything into a whole program
         if self._generate_whole_program:
             # Initialization and setup functions, together with time-step loop
+            # UpdateDomain is added after setup_particles because particles must be already present in the simulation
             body = Block.from_list(self, [
-                self.setups,
+                self.create_domain,
+                self.setup_particles,
+                UpdateDomain(self),        
                 self.setup_functions,
                 BuildCellListsStencil(self, self.cell_lists),
                 timestep.as_block()
@@ -527,21 +530,25 @@ class Simulation:
 
         # Generate a small library to be called
         else:
-            all_setups = Block.merge_blocks(
-                inits,
-                Block.from_list(self, [
-                    self.setups,
+            initialize_module = Module(self, name='initialize', block=inits)
+            create_domain_module = Module(self, name='create_domain', block=self.create_domain)
+
+            setup_sim = Block.from_list(self, [
+                    self.setup_particles,
+                    UpdateDomain(self),
                     self.setup_functions,
                     BuildCellListsStencil(self, self.cell_lists),
-                ]))
+                ])
 
-            initialize_module = Module(self, name='initialize', block=all_setups)
+            setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
             do_timestep_module = Module(self, name='do_timestep', block=timestep.as_block())
 
-            transformations = Transformations([initialize_module, do_timestep_module], self._target)
+            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module]
+
+            transformations = Transformations(modules_list, self._target)
             transformations.apply_all()
 
             # Generate library
-            self.code_gen.generate_library(initialize_module, do_timestep_module)
+            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module)
 
         self.code_gen.generate_interfaces()

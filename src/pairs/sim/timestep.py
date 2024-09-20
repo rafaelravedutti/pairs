@@ -10,7 +10,7 @@ class Timestep:
     def __init__(self, sim, nsteps, item_list=None):
         self.sim = sim
         self.block = Block(sim, [])
-        self.timestep_loop = For(sim, 0, nsteps + 1, self.block)
+        self.timestep_loop = For(sim, 0, nsteps + 1, self.block) if self.sim._generate_whole_program else None
 
         if item_list is not None:
             for item in item_list:
@@ -31,13 +31,13 @@ class Timestep:
                     self.add(item)
 
     def timestep(self):
-        return self.timestep_loop.iter()
+        return self.timestep_loop.iter() if self.sim._generate_whole_program else self.sim.sim_timestep
 
     def add(self, item, exec_every=0, item_else=None, skip_first=False):
         assert exec_every >= 0, "exec_every parameter must be higher or equal than zero!"
         stmts = item if not isinstance(item, Block) else item.statements()
         stmts_else = None
-        ts = self.timestep_loop.iter()
+        ts = self.timestep() 
         self.sim.enter(self.block)
 
         if item_else is not None:
@@ -65,7 +65,7 @@ class Timestep:
         self.sim.capture_statements(False)
 
         block = Block(self.sim, [Call_Void(self.sim, "pairs::start_timer", [Timers.All]),
-                                 self.timestep_loop,
+                                 self.timestep_loop if self.sim._generate_whole_program else self.block,
                                  Call_Void(self.sim, "pairs::stop_timer", [Timers.All])])
 
         self.sim.capture_statements(_capture)

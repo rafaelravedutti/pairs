@@ -16,6 +16,18 @@ void PairsRuntime::initDomain(
     int *argc, char ***argv,
     real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz) {
 
+    int mpi_initialized=0;
+    MPI_Initialized(&mpi_initialized);
+    
+    if(mpi_initialized){ 
+        PAIRS_ERROR("MPI is already initialized!\n"); 
+        exit(-1);
+    }
+    if(dom_part){ 
+        PAIRS_ERROR("DomainPartitioner already exists!\n"); 
+        exit(-1);
+    }
+
     if(dom_part_type == RegularPartitioning) {
         const int flags[] = {1, 1, 1};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
@@ -25,7 +37,8 @@ void PairsRuntime::initDomain(
     } else if(dom_part_type == BlockForestPartitioning) {
         dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, pbcx, pbcy, pbcz);
     } else {
-        PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");
+        PAIRS_ERROR("Domain partitioning type not implemented!\n");
+        exit(-1);
     }
 
     dom_part->initialize(argc, argv);

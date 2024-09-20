@@ -46,6 +46,7 @@ public:
         int narrays_,
         DomainPartitioners dom_part_type_) {
 
+        dom_part = nullptr;
         dom_part_type = dom_part_type_;
         prop_flags = new DeviceFlags(nprops_);
         contact_prop_flags = new DeviceFlags(ncontactprops_);
@@ -304,6 +305,9 @@ public:
         real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax,
         bool pbcx = 0, bool pbcy = 0, bool pbcz = 0);
 
+    template<typename Domain_T>
+    void useDomain(std::shared_ptr<Domain_T> domain_ptr);
+
     void updateDomain() { dom_part->update(); }
 
     DomainPartitioner *getDomainPartitioner() { return dom_part; }
@@ -339,6 +343,31 @@ public:
         }
     }
 };
+
+template<typename Domain_T>
+void PairsRuntime::useDomain(std::shared_ptr<Domain_T> domain_ptr){
+    
+    if(dom_part){ 
+        PAIRS_ERROR("DomainPartitioner already exists!\n"); 
+        exit(-1);
+    }
+
+    if(dom_part_type == RegularPartitioning) {
+        PAIRS_ERROR("useDomain not implemented for Regular6DStencil!\n");
+        exit(-1);
+
+    } else if(dom_part_type == RegularXYPartitioning) {        
+        PAIRS_ERROR("useDomain not implemented for Regular6DStencil!\n");
+        exit(-1);
+
+    } else if(dom_part_type == BlockForestPartitioning) {
+        dom_part = new BlockForest(this, domain_ptr);
+
+    } else {
+        PAIRS_ERROR("Domain partitioning type not implemented!\n");
+        exit(-1);
+    }
+}
 
 template<typename T_ptr>
 void PairsRuntime::addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
