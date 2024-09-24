@@ -84,7 +84,7 @@ class CGen:
         #self.print = Printer(f"runtime/interfaces/{self.ref}.hpp")
         self.print = Printer("runtime/interfaces/last_generated.hpp")
         self.print.start()
-        self.print("#include \"../pairs.hpp\"")
+        self.print("#pragma once")
         self.generate_interface_namespace('pairs_host_interface')
         self.generate_interface_namespace('pairs_cuda_interface', "__inline__ __device__")
         self.print.end()
@@ -226,13 +226,14 @@ class CGen:
             self.print(f"{tkw} {vname};")
 
             if self.target.is_gpu() and v.device_flag:
-                self.print(f"RuntimeVar<{tkw}> rv_{vname()};")
+                self.print(f"RuntimeVar<{tkw}> rv_{vname};")
 
         self.print.add_indent(-4)
         self.print("};")
         self.print("")
 
     def generate_program(self, ast_node):
+        self.generate_interfaces()
         ext = ".cu" if self.target.is_gpu() else ".cpp"
         self.print = Printer(self.ref + ext)
         self.print.start()
@@ -248,6 +249,7 @@ class CGen:
         self.print.end()
 
     def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module):
+        self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
         self.print = Printer(self.ref + ext)

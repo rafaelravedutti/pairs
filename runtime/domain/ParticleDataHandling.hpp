@@ -1,6 +1,8 @@
 #include <blockforest/BlockForest.h>
 #include <blockforest/BlockDataHandling.h>
 
+#pragma once
+
 namespace pairs {
 
 class PairsRuntime;

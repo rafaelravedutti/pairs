@@ -8,7 +8,7 @@
 #include "pairs_common.hpp"
 
 // Always include last generated interfaces
-#include "interfaces/last_generated.hpp"
+#include "last_generated.hpp"
 
 #ifdef PAIRS_TARGET_CUDA
 int cuda_compute_boundary_weights(

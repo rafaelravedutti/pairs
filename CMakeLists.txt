@@ -9,9 +9,11 @@ endif()
 
 set(CUDA_ARCH ${CUDA_ARCH} CACHE STRING "CUDA_ARCH environment variable must be set.")
 
-if(NOT CUDA_ARCH)
-    set(CUDA_ARCH sm_80)
-endif()
+set(CMAKE_CUDA_ARCHITECTURES 80)
+set(CUDA_ARCH 80)
+# if(NOT CUDA_ARCH)
+#     set(CUDA_ARCH 80)
+# endif()
 
 string(TOLOWER "${TESTCASE}" TESTCASE)
 message(STATUS "Selected testcase: ${TESTCASE}")
@@ -38,6 +40,8 @@ set(CPU_SRC "${TESTCASE}.cpp")
 set(GPU_SRC "${TESTCASE}.cu")
 set(CPU_BIN "${TESTCASE}_cpu")
 set(GPU_BIN "${TESTCASE}_gpu")
+set(GEN_HEADER ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces/last_generated.hpp)
+set(GEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces)
 
 set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
@@ -98,12 +102,13 @@ add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
 target_link_libraries(${CPU_BIN} runtime_cpu)
 
 add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/${CPU_SRC}
+    OUTPUT ${CMAKE_BINARY_DIR}/${CPU_SRC} ${GEN_HEADER}
     COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py cpu
     COMMENT "Generate CPU code"
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
-
-add_custom_target(gen_cpu DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC})
+    
+target_include_directories(${CPU_BIN} PRIVATE ${GEN_HEADER_DIR})
+add_custom_target(gen_cpu DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC} ${GEN_HEADER})
 add_dependencies(${CPU_BIN} gen_cpu)
 
 if(COMPILE_CUDA)
@@ -128,21 +133,23 @@ if(COMPILE_CUDA)
     set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
     target_link_libraries(${GPU_BIN} runtime_gpu)
-    target_compile_options(${GPU_BIN} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=${CUDA_ARCH}>)
-    target_include_directories(${GPU_BIN} PRIVATE ${CUDA_INCLUDE_DIRS})
+    target_compile_options(${GPU_BIN} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
+    target_include_directories(${GPU_BIN} PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
     set_target_properties(${GPU_BIN} PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
+    target_compile_definitions(${GPU_BIN} PRIVATE PAIRS_TARGET_CUDA)
 
-    target_compile_options(runtime_gpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=${CUDA_ARCH}>)
-    target_include_directories(runtime_gpu PRIVATE ${CUDA_INCLUDE_DIRS})
+    target_compile_options(runtime_gpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
+    target_include_directories(runtime_gpu PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
     set_target_properties(runtime_gpu PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
+    target_compile_definitions(runtime_gpu PRIVATE PAIRS_TARGET_CUDA)
 
     add_custom_command(
-        OUTPUT ${GPU_SRC}
+        OUTPUT ${GPU_SRC} ${GEN_HEADER}
         COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py gpu
         COMMENT "Generate GPU code"
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
 
-    add_custom_target(gen_gpu DEPENDS ${GPU_SRC})
+    add_custom_target(gen_gpu DEPENDS ${GPU_SRC} ${GEN_HEADER})
     add_dependencies(${GPU_BIN} gen_gpu)
 endif()
 

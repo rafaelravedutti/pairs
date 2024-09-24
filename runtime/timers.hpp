@@ -3,6 +3,8 @@
 #include <iostream>
 #include <unordered_map>
 
+#pragma once
+
 using namespace std;
 
 namespace pairs {
