@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.8.2 FATAL_ERROR)
+# cmake_policy(SET CMP0074 NEW)
 project(pairs CXX)
 
 set(TESTCASE ${TESTCASE} CACHE STRING "Select the testcase from the following: md, dem")
@@ -30,6 +31,7 @@ if(DEBUG)
 endif()
 
 if(USE_WALBERLA)
+    # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING -DWALBERLA_BUILD_WITH_CUDA ")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
     find_package(waLBerla REQUIRED)
     add_subdirectory(${walberla_SOURCE_DIR} ${walberla_BINARY_DIR} EXCLUDE_FROM_ALL)
@@ -47,6 +49,7 @@ set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
     runtime/boundary_weights.cpp
     runtime/copper_fcc_lattice.cpp
+    runtime/create_shape.cpp
     runtime/dem_sc_grid.cpp
     runtime/read_from_file.cpp
     runtime/stats.cpp
@@ -116,10 +119,12 @@ if(COMPILE_CUDA)
     enable_language(CUDA)
 
     if(USE_WALBERLA)
+        # set(WALBERLA_BUILD_WITH_CUDA ON CACHE BOOL "Enable CUDA in waLBerla")
         waLBerla_add_executable(
             NAME ${GPU_BIN}
             FILES ${EXEC_FILES}
             DEPENDS blockforest core pe)
+            # DEPENDS blockforest core pe gpu)
     else()
         add_executable(${GPU_BIN} ${GPU_SRC} ${EXEC_FILES} ${RUNTIME_GPU_FILES})
     endif()

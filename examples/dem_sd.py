@@ -4,7 +4,7 @@ import sys
 
 def update_mass_and_inertia(i):
     rotation_matrix[i] = diagonal_matrix(1.0)
-    rotation_quat[i] = default_quaternion()
+    rotation[i] = default_quaternion()
 
     if is_sphere(i):
         inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
@@ -48,8 +48,8 @@ def euler(i):
     linear_velocity[i] += inv_mass * force[i] * dt
     wdot = rotation_matrix[i] * (inv_inertia[i] * torque[i]) * transposed(rotation_matrix[i])
     phi = angular_velocity[i] * dt + 0.5 * wdot * dt * dt
-    rotation_quat[i] = quaternion(phi, length(phi)) * rotation_quat[i]
-    rotation_matrix[i] = quaternion_to_rotation_matrix(rotation_quat[i])
+    rotation[i] = quaternion(phi, length(phi)) * rotation[i]
+    rotation_matrix[i] = quaternion_to_rotation_matrix(rotation[i])
     angular_velocity[i] += wdot * dt
 
 
@@ -119,7 +119,7 @@ psim.add_property('radius', pairs.real(), 1.0)
 psim.add_property('normal', pairs.vector())
 psim.add_property('inv_inertia', pairs.matrix())
 psim.add_property('rotation_matrix', pairs.matrix())
-psim.add_property('rotation_quat', pairs.quaternion())
+psim.add_property('rotation', pairs.quaternion())
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'friction_static', pairs.real(), [frictionStatic for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'friction_dynamic', pairs.real(), [frictionDynamic for i in range(ntypes * ntypes)])
@@ -128,9 +128,9 @@ psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_S
 # psim.set_domain_partitioner(pairs.block_forest(), initDomainFromWalberla=True)
 psim.set_domain_partitioner(pairs.block_forest())
 # psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
-psim.pbc([True, True, False])
+psim.pbc([False, False, False])
 psim.dem_sc_grid(
-    domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
+    domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]/2, generationSpacing_SI,
     diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
 
 #psim.read_particle_data(
@@ -146,10 +146,10 @@ psim.dem_sc_grid(
 #    ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
 #    pairs.sphere())
 
-psim.read_particle_data(
-    "data/planes.input",
-    ['uid', 'type', 'mass', 'position', 'normal', 'flags'],
-    pairs.halfspace())
+# psim.read_particle_data(
+#     "data/planes.input",
+#     ['uid', 'type', 'mass', 'position', 'normal', 'flags'],
+#     pairs.halfspace())
 
 psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
                                      'pi': math.pi,

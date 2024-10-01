@@ -126,7 +126,7 @@ void compute_boundary_weights(
     #else
     real_t *position_ptr = static_cast<real_t *>(position_prop.getDevicePointer());
 
-    ps->copyPropertyToDevice(position_prop, ReadOnly);
+    ps->copyPropertyToDevice(position_prop.getId(), ReadOnly);
 
     *comp_weight = cuda_compute_boundary_weights(
         position_ptr, 0, nlocal, particle_capacity, xmin, xmax, ymin, ymax, zmin, zmax);

@@ -56,10 +56,8 @@ void vtk_write_data(
 
         out_file << "\n\n";
         out_file << "CELLS " << n << " " << (n * 2) << "\n";
-        for(int i = start; i < end; i++) {
-            if(!(flags(i) & FLAGS_INFINITE)) {
-                out_file << "1 " << (i - start) << "\n";
-            }
+        for(int i = 0; i < n; i++) {
+            out_file << "1 " << i << "\n";
         }
 
         out_file << "\n\n";

@@ -44,7 +44,7 @@ public:
         subdom = new real_t[ndims * 2];
     }
 
-    BlockForest(PairsRuntime *ps_, std::shared_ptr<walberla::BlockForest> bf) :
+    BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::BlockForest> &bf) :
         forest(bf),
         DomainPartitioner(bf->getDomain().xMin(), bf->getDomain().xMax(),
                         bf->getDomain().yMin(), bf->getDomain().yMax(),

@@ -35,7 +35,7 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));
     auto velocities = ps->getAsVectorProperty(ps->getPropertyByName("linear_velocity"));
     int last_uid = 1;
-    int nparticles = 0;
+    int nparticles = ps->getTrackedVariableAsInteger("nlocal");
 
     const double xmin = 0.0;
     const double ymin = 0.0;

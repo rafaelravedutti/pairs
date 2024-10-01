@@ -306,7 +306,7 @@ public:
         bool pbcx = 0, bool pbcy = 0, bool pbcz = 0);
 
     template<typename Domain_T>
-    void useDomain(std::shared_ptr<Domain_T> domain_ptr);
+    void useDomain(const std::shared_ptr<Domain_T> &domain_ptr);
 
     void updateDomain() { dom_part->update(); }
 
@@ -345,7 +345,7 @@ public:
 };
 
 template<typename Domain_T>
-void PairsRuntime::useDomain(std::shared_ptr<Domain_T> domain_ptr){
+void PairsRuntime::useDomain(const std::shared_ptr<Domain_T> &domain_ptr){
     
     if(dom_part){ 
         PAIRS_ERROR("DomainPartitioner already exists!\n"); 

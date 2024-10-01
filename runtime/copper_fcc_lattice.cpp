@@ -64,7 +64,7 @@ double copper_fcc_lattice(
     double xlo = 0.0, xhi = xprd;
     double ylo = 0.0, yhi = yprd;
     double zlo = 0.0, zhi = zprd;
-    int natoms = 0;
+    int natoms = ps->getTrackedVariableAsInteger("nlocal");
     //int natoms_expected = 4 * nx * ny * nz;
 
     double alat = pow((4.0 / rho), (1.0 / 3.0));

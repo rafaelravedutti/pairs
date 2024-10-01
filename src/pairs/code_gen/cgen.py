@@ -59,19 +59,29 @@ class CGen:
         if device and (not self.target.is_gpu() or not obj.device_flag):
             # Ideally this should never be called
             return "nullptr"
-
+        
         name = obj.name() if not device else f"d_{obj.name()}"
         t = obj.type()
-        is_temp_var = isinstance(obj, Var) and obj.temporary()
-
         if not Types.is_scalar(t) and index is not None:
             name += f"_{index}"
 
-        if self.generate_full_object_names and not is_temp_var:
-            return f"pobj->{name}"
+        if isinstance(obj, Var):
+            if self.generate_full_object_names:
+                if not obj.temporary():
+                    if obj.device_flag and self.target.is_gpu() and device:
+                        return f"pobj->rv_{obj.name()}"
+                    else:
+                        return f"pobj->{name}"
+            return name
 
+        if isinstance(obj, FeatureProperty) and device and obj.device_flag:
+            return name
+
+        if self.generate_full_object_names:
+            return f"pobj->{name}"
         else:
             return name
+        
 
     def generate_object_address(self, obj, device=False, index=None):
         if device and (not self.target.is_gpu() or not obj.device_flag):
@@ -137,6 +147,7 @@ class CGen:
         self.print("//---")
         self.print("#include \"runtime/likwid-marker.h\"")
         self.print("#include \"runtime/copper_fcc_lattice.hpp\"")
+        self.print("#include \"runtime/create_shape.hpp\"")
         self.print("#include \"runtime/dem_sc_grid.hpp\"")
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
@@ -172,6 +183,63 @@ class CGen:
         for module in self.sim.modules():
             self.print(f"void {module.name}(struct PairsObjects *pobj);")
 
+        self.print("")
+
+    def generate_host_pairs_accessor_class(self):
+        self.print("#include <core/math/Vector3.h>")
+        self.print("#include <core/math/Quaternion.h>")
+        self.print("#include <core/math/Matrix3.h>")
+        self.print("")
+        self.print("class PairsAccessor {")
+        self.print("private:")
+        self.print("    std::shared_ptr<PairsSimulation> ps;")
+        self.print("public:")
+        self.print.add_indent(4)
+        self.print("PairsAccessor(const std::shared_ptr<PairsSimulation> &ps_): ps(ps_){}")
+        self.print("")
+        self.print("int size() const { return ps->pobj->nlocal; }")
+        self.print("")
+
+        for p in self.sim.properties:
+            ptr = p.name()
+
+            tkw = Types.walberla_keyword(self.sim, p.type())
+
+            splitname = ptr.split('_')
+            funcname = ''.join(word.capitalize() for word in splitname)
+            v = f"ps->pobj->{ptr}"
+            getSignature = f"{tkw} get{funcname}(const size_t i) const"
+            setSignature = f"void set{funcname}(const size_t i, {tkw} const &value)"
+
+            if Types.is_scalar(p.type()):
+                self.print(f"{getSignature} {{return {v}[i];}}")
+                self.print(f"{setSignature} {{{v}[i] = value;}}")
+                self.print("")
+
+            elif p.type()==Types.Vector:
+                self.print(f"{getSignature} {{return {tkw}({v}[i*3 + 0], {v}[i*3 + 1], {v}[i*3 + 2]);}}")
+                self.print(f"{setSignature} {{{v}[i*3 + 0] = value[0]; {v}[i*3 + 1] = value[1]; {v}[i*3 + 2] = value[2];}}")
+                self.print("")
+
+            elif p.type()==Types.Quaternion:
+                self.print(f"{getSignature} {{return {tkw}({v}[i*4 + 0], {v}[i*4 + 1], {v}[i*4 + 2], {v}[i*4 + 3]);}}")
+                self.print(f"{setSignature} {{{v}[i*4 + 0] = value[0]; {v}[i*4 + 1] = value[1]; {v}[i*4 + 2] = value[2]; {v}[i*4 + 3] = value[3];}}")
+                self.print("")
+
+            elif p.type()==Types.Matrix:
+                self.print(f"{getSignature} {{" \
+                           f"return {tkw}({v}[i*9 + 0], {v}[i*9 + 1], {v}[i*9 + 2], "\
+                                        f"{v}[i*9 + 3], {v}[i*9 + 4], {v}[i*9 + 5], "\
+                                        f"{v}[i*9 + 6], {v}[i*9 + 7], {v}[i*9 + 8]);}}")
+                self.print(f"{setSignature} {{" \
+                           f"{v}[i*9 + 0] = value[0]; {v}[i*9 + 1] = value[1]; {v}[i*9 + 2] = value[2]; "\
+                            f"{v}[i*9 + 3] = value[3]; {v}[i*9 + 4] = value[4]; {v}[i*9 + 5] = value[5]; "\
+                            f"{v}[i*9 + 6] = value[6]; {v}[i*9 + 7] = value[7]; {v}[i*9 + 8] = value[8];}}")
+                self.print("")
+            
+            
+        self.print.add_indent(-4)
+        self.print("};")
         self.print("")
 
     def generate_pairs_object_structure(self):
@@ -285,52 +353,69 @@ class CGen:
         self.print("private:")
         self.print("    PairsRuntime *pairs_runtime;")
         self.print("    struct PairsObjects *pobj;")
+        self.print("    friend class PairsAccessor;")
         self.print("public:")
 
-        self.print("    void initialize() {")
-        self.print(f"        pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-        self.print(f"        pobj = new PairsObjects();")
+        self.print.add_indent(4)
+
+        self.print("void initialize() {")
+        self.print(f"    pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
+        self.print(f"    pobj = new PairsObjects();")
         self.print.add_indent(4)
         self.generate_statement(initialize_module.block)
         self.print.add_indent(-4)
-        self.print("    }")
+        self.print("}")
         self.print("")
 
-        self.print("    void create_domain(int argc, char **argv) {")
+        self.print("void create_domain(int argc, char **argv) {")
         self.print.add_indent(4)
         self.generate_statement(create_domain_module.block)
         self.print.add_indent(-4)
-        self.print("    }")
+        self.print("}")
         self.print("")
 
-        self.print("    template<typename Domain_T>")
-        self.print("    void use_domain(std::shared_ptr<Domain_T> domain_ptr) {")
-        self.print("        pairs_runtime->useDomain(domain_ptr);")
-        self.print("    }")
+        self.print("template<typename Domain_T>")
+        self.print("void use_domain(const std::shared_ptr<Domain_T> &domain_ptr) {")
+        self.print("    pairs_runtime->useDomain(domain_ptr);")
+        self.print("}")
         self.print("")
 
-        self.print("    void setup_sim() {")
+        self.print("void create_halfspace(double x, double y, double z, double nx, double ny, double nz, int type, int flag){")
+        self.print("    pairs::create_halfspace(pairs_runtime, x, y, z, nx, ny, nz, type, flag);")
+        self.print("}")
+        self.print("")
+
+        self.print("void create_particle(double x, double y, double z, double vx, double vy, double vz, double density, double radius, int type, int flag){")
+        self.print("    pairs::create_particle(pairs_runtime, x, y, z, vx, vy, vz, density, radius, type, flag);")
+        self.print("}")
+        self.print("")
+
+        self.print("void setup_sim() {")
         self.print.add_indent(4)
         self.generate_statement(setup_sim_module.block)
         self.print.add_indent(-4)
-        self.print("    }")
+        self.print("}")
         self.print("")
 
-        self.print("    void do_timestep(int timestep) {")
-        self.print("        pobj->sim_timestep = timestep;")
+        self.print("void do_timestep(int timestep) {")
+        self.print("    pobj->sim_timestep = timestep;")
         self.print.add_indent(4)
         self.generate_statement(do_timestep_module.block)
         self.print.add_indent(-4)
-        self.print("    }")
+        self.print("}")
         self.print("")
 
-        self.print("    void end() {")
-        self.print("        pairs::print_timers(pairs_runtime);")
-        self.print("        pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
-        self.print("        delete pobj;")
-        self.print("        delete pairs_runtime;")
-        self.print("    }")
+        self.print("void end() {")
+        self.print("    pairs::print_timers(pairs_runtime);")
+        self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
+        self.print("    delete pobj;")
+        self.print("    delete pairs_runtime;")
+        self.print("}")
+
+        self.print.add_indent(-4)
         self.print("};")
+
+        self.generate_host_pairs_accessor_class()
         
         self.print.end()
         self.generate_full_object_names = False
@@ -367,6 +452,7 @@ class CGen:
         else:
             self.print(f"void {module.name}(struct PairsObjects *pobj) {{")
             self.print.add_indent(4)
+            device_cond = module.run_on_device and self.target.is_gpu()
 
             if self.debug:
                 self.print(f"PAIRS_DEBUG(\"{module.name}\\n\");")
@@ -377,32 +463,37 @@ class CGen:
 
             for var in module.write_variables():
                 type_kw = Types.c_keyword(self.sim, var.type())
-                self.print(f"{type_kw} *{var.name()} = &(pobj->{var.name()});")
+                name = f"rv_{var.name()}.getDevicePointer()" if device_cond and var.device_flag else var.name()
+                self.print(f"{type_kw} *{var.name()} = &(pobj->{name});")
 
             for array in module.arrays():
                 type_kw = Types.c_keyword(self.sim, array.type())
-                self.print(f"{type_kw} *{array.name()} = pobj->{array.name()};")
+                name = array.name() if not device_cond else f"d_{array.name()}"
+                self.print(f"{type_kw} *{array.name()} = pobj->{name};")
 
                 if array in module.host_references():
                     self.print(f"{type_kw} *h_{array.name()} = pobj->{array.name()};")
 
             for prop in module.properties():
                 type_kw = Types.c_keyword(self.sim, prop.type())
-                self.print(f"{type_kw} *{prop.name()} = pobj->{prop.name()};")
+                name = prop.name() if not device_cond else f"d_{prop.name()}"
+                self.print(f"{type_kw} *{prop.name()} = pobj->{name};")
 
                 if prop in module.host_references():
                     self.print(f"{type_kw} *h_{prop.name()} = pobj->{prop.name()};")
 
             for contact_prop in module.contact_properties():
                 type_kw = Types.c_keyword(self.sim, contact_prop.type())
-                self.print(f"{type_kw} *{contact_prop.name()} = pobj->{contact_prop.name()};")
+                name = contact_prop.name() if not device_cond else f"d_{contact_prop.name()}"
+                self.print(f"{type_kw} *{contact_prop.name()} = pobj->{name};")
 
                 if contact_prop in module.host_references():
                     self.print(f"{type_kw} *h_{contact_prop.name()} = pobj->{contact_prop.name()};")
 
             for feature_prop in module.feature_properties():
                 type_kw = Types.c_keyword(self.sim, feature_prop.type())
-                self.print(f"{type_kw} *{feature_prop.name()} = pobj->{feature_prop.name()};")
+                name = feature_prop.name() if not device_cond else f"d_{feature_prop.name()}"
+                self.print(f"{type_kw} *{feature_prop.name()} = pobj->{name};")
 
                 if feature_prop in module.host_references():
                     self.print(f"{type_kw} *h_{feature_prop.name()} = pobj->{feature_prop.name()};")
@@ -719,7 +810,8 @@ class CGen:
         if isinstance(ast_node, CopyVar):
             var_name = ast_node.variable().name()
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
-            self.print(f"rv_{var_name}.copyTo{ctx_suffix}();")
+            ref = self.generate_object_reference(ast_node.variable(), device=True)
+            self.print(f"{ref}.copyTo{ctx_suffix}();")
 
         if isinstance(ast_node, For):
             iterator = self.generate_expression(ast_node.iterator)
@@ -918,7 +1010,8 @@ class CGen:
 
             if not self.kernel_context and self.target.is_gpu() and ast_node.var.device_flag:
                 addr = self.generate_object_address(ast_node.var)
-                self.print(f"rv_{var_name} = pairs_runtime->addDeviceVariable({addr});")
+                ref = self.generate_object_reference(ast_node.var, device=True)
+                self.print(f"{prefix_decl}{ref} = pairs_runtime->addDeviceVariable({addr});")
 
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)
