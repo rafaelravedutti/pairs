@@ -44,6 +44,7 @@ class Types:
 
     def c_property_keyword(t):
         return "Prop_Integer"      if t == Types.Int32 else \
+               "Prop_UInt64"       if t == Types.UInt64 else \
                "Prop_Real"         if t == Types.Real else \
                "Prop_Vector"       if t == Types.Vector else \
                "Prop_Matrix"       if t == Types.Matrix else \

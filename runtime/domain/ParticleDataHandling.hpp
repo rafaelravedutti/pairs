@@ -103,7 +103,7 @@ public:
 
         for(auto& prop: ps->getProperties()) {
             if(!prop.isVolatile()) {
-                ps->copyPropertyToHost(prop, WriteAfterRead);
+                ps->copyPropertyToHost(prop, pairs::WriteAfterRead);
             }
         }
 
@@ -127,7 +127,7 @@ public:
                     if(!prop.isVolatile()) {
                         auto prop_type = prop.getType();
 
-                        if(prop_type == Prop_Vector) {
+                        if(prop_type == pairs::Prop_Vector) {
                             auto vector_ptr = ps->getAsVectorProperty(prop);
                             constexpr int nelems = 3;
 
@@ -135,7 +135,7 @@ public:
                                 buffer << vector_ptr(i, e);
                                 vector_ptr(i, e) = vector_ptr(nlocal, e);
                             }
-                        } else if(prop_type == Prop_Matrix) {
+                        } else if(prop_type == pairs::Prop_Matrix) {
                             auto matrix_ptr = ps->getAsMatrixProperty(prop);
                             constexpr int nelems = 9;
 
@@ -143,7 +143,7 @@ public:
                                 buffer << matrix_ptr(i, e);
                                 matrix_ptr(i, e) = matrix_ptr(nlocal, e);
                             }
-                        } else if(prop_type == Prop_Quaternion) {
+                        } else if(prop_type == pairs::Prop_Quaternion) {
                             auto quat_ptr = ps->getAsQuaternionProperty(prop);
                             constexpr int nelems = 4;
 
@@ -151,11 +151,15 @@ public:
                                 buffer << quat_ptr(i, e);
                                 quat_ptr(i, e) = quat_ptr(nlocal, e);
                             }
-                        } else if(prop_type == Prop_Integer) {
+                        } else if(prop_type == pairs::Prop_Integer) {
                             auto int_ptr = ps->getAsIntegerProperty(prop);
                             buffer << int_ptr(i);
                             int_ptr(i) = int_ptr(nlocal);
-                        } else if(prop_type == Prop_Real) {
+                        } else if(prop_type == pairs::Prop_UInt64) {
+                            auto uint64_ptr = ps->getAsUInt64Property(prop);
+                            buffer << uint64_ptr(i);
+                            uint64_ptr(i) = uint64_ptr(nlocal);
+                        } else if(prop_type == pairs::Prop_Real) {
                             auto float_ptr = ps->getAsFloatProperty(prop);
                             buffer << float_ptr(i);
                             float_ptr(i) = float_ptr(nlocal);
@@ -181,6 +185,7 @@ public:
         real_t real_tmp;
         int int_tmp;
         uint_t nrecv;
+        unsigned long long int uint64_tmp;
 
         buffer >> nrecv;
 
@@ -193,7 +198,7 @@ public:
                 if(!prop.isVolatile()) {
                     auto prop_type = prop.getType();
 
-                    if(prop_type == Prop_Vector) {
+                    if(prop_type == pairs::Prop_Vector) {
                         auto vector_ptr = ps->getAsVectorProperty(prop);
                         constexpr int nelems = 3;
 
@@ -201,7 +206,7 @@ public:
                             buffer >> real_tmp;
                             vector_ptr(nlocal + i, e) = real_tmp;
                         }
-                    } else if(prop_type == Prop_Matrix) {
+                    } else if(prop_type == pairs::Prop_Matrix) {
                         auto matrix_ptr = ps->getAsMatrixProperty(prop);
                         constexpr int nelems = 9;
 
@@ -209,7 +214,7 @@ public:
                             buffer >> real_tmp;
                             matrix_ptr(nlocal + i, e) = real_tmp;
                         }
-                    } else if(prop_type == Prop_Quaternion) {
+                    } else if(prop_type == pairs::Prop_Quaternion) {
                         auto quat_ptr = ps->getAsQuaternionProperty(prop);
                         constexpr int nelems = 4;
 
@@ -217,11 +222,15 @@ public:
                             buffer >> real_tmp;
                             quat_ptr(nlocal + i, e) = real_tmp;
                         }
-                     } else if(prop_type == Prop_Integer) {
+                     } else if(prop_type == pairs::Prop_Integer) {
                         auto int_ptr = ps->getAsIntegerProperty(prop);
                         buffer >> int_tmp;
                         int_ptr(nlocal + i) = int_tmp;
-                    } else if(prop_type == Prop_Real) {
+                    } else if(prop_type == pairs::Prop_UInt64) {
+                        auto uint64_ptr = ps->getAsUInt64Property(prop);
+                        buffer >> uint64_tmp;
+                        uint64_ptr(nlocal + i) = uint64_tmp;
+                    } else if(prop_type == pairs::Prop_Real) {
                         auto float_ptr = ps->getAsFloatProperty(prop);
                         buffer >> real_tmp;
                         float_ptr(nlocal + i) = real_tmp;

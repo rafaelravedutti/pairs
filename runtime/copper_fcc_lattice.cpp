@@ -55,7 +55,8 @@ double copper_fcc_lattice(
     PairsRuntime *ps, int nx, int ny, int nz, double xprd, double yprd, double zprd,
     double rho, int ntypes) {
 
-    auto shape = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
+    auto uids = ps->getAsUInt64Property(ps->getPropertyByName("uid"));
+    auto shapes = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
     auto types = ps->getAsIntegerProperty(ps->getPropertyByName("type"));
     auto flags = ps->getAsIntegerProperty(ps->getPropertyByName("flags"));
     auto masses = ps->getAsFloatProperty(ps->getPropertyByName("mass"));
@@ -111,6 +112,7 @@ double copper_fcc_lattice(
                 for(m = 0; m < 5; m++) { myrandom(&n); }
                 vztmp = myrandom(&n);
 
+                uids(natoms) = UniqueID::create(ps);
                 masses(natoms) = 1.0;
                 positions(natoms, 0) = xtmp;
                 positions(natoms, 1) = ytmp;
@@ -120,7 +122,7 @@ double copper_fcc_lattice(
                 velocities(natoms, 2) = vztmp;
                 types(natoms) = rand() % ntypes;
                 flags(natoms) = 0;
-                shape(natoms) = 2; // point mass
+                shapes(natoms) = 2; // point mass
                 natoms++;
             }
         }

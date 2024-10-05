@@ -1,5 +1,11 @@
+#include <iostream>
+#include <string.h>
+#include <fstream>
+#include <sstream>
+//---
 #include "pairs.hpp"
 #include "pairs_common.hpp"
+#include "unique_id.hpp"
 
 #pragma once
 

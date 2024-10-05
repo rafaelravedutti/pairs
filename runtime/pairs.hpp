@@ -19,10 +19,6 @@
 
 #pragma once
 
-#define FLAGS_INFINITE  (1 << 0)
-#define FLAGS_GHOST     (1 << 1)
-#define FLAGS_FIXED     (1 << 2)
-#define FLAGS_GLOBAL    (1 << 3)
 
 namespace pairs {
 
@@ -171,6 +167,10 @@ public:
         return static_cast<IntProperty&>(prop);
     }
 
+    inline UInt64Property &getAsUInt64Property(Property &prop) {
+        return static_cast<UInt64Property&>(prop);
+    }
+
     inline FloatProperty &getAsFloatProperty(Property &prop) {
         return static_cast<FloatProperty&>(prop);
     }
@@ -189,6 +189,10 @@ public:
 
     inline IntProperty &getIntegerProperty(property_t property) {
         return static_cast<IntProperty&>(getProperty(property));
+    }
+
+    inline UInt64Property &getUInt64Property(property_t property) {
+        return static_cast<UInt64Property&>(getProperty(property));
     }
 
     inline FloatProperty &getFloatProperty(property_t property) {

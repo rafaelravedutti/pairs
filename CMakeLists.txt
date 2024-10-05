@@ -49,7 +49,7 @@ set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
     runtime/boundary_weights.cpp
     runtime/copper_fcc_lattice.cpp
-    runtime/create_shape.cpp
+    runtime/create_body.cpp
     runtime/dem_sc_grid.cpp
     runtime/read_from_file.cpp
     runtime/stats.cpp

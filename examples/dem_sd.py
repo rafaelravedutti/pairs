@@ -115,6 +115,10 @@ psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('angular_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_property('torque', pairs.vector(), volatile=True)
+psim.add_property('hydrodynamic_force', pairs.vector())
+psim.add_property('hydrodynamic_torque', pairs.vector())
+psim.add_property('old_hydrodynamic_force', pairs.vector())
+psim.add_property('old_hydrodynamic_torque', pairs.vector())
 psim.add_property('radius', pairs.real(), 1.0)
 psim.add_property('normal', pairs.vector())
 psim.add_property('inv_inertia', pairs.matrix())
@@ -148,7 +152,7 @@ psim.dem_sc_grid(
 
 # psim.read_particle_data(
 #     "data/planes.input",
-#     ['uid', 'type', 'mass', 'position', 'normal', 'flags'],
+#     ['type', 'mass', 'position', 'normal', 'flags'],
 #     pairs.halfspace())
 
 psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,

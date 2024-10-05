@@ -1,15 +1,16 @@
-#include "create_shape.hpp"
+#include "create_body.hpp"
 
 namespace pairs {
 
-void create_halfspace(PairsRuntime *pr, 
+// returns the uid of the body created, or 0 if the body is not created
+id_t create_halfspace(PairsRuntime *pr, 
                     double x, double y, double z, 
                     double nx, double ny, double nz, 
                     int type, int flag){
-    // TODO: ensure unique id in all functions that create particle or read particle from file
     // TODO: increase capacity if exceeded
-    // auto uids = pr->getAsIntegerProperty(pr->getPropertyByName("uid"));   
-    auto shape = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
+    id_t uid = 0;
+    auto uids = pr->getAsUInt64Property(pr->getPropertyByName("uid"));   
+    auto shapes = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
     auto types = pr->getAsIntegerProperty(pr->getPropertyByName("type"));
     auto flags = pr->getAsIntegerProperty(pr->getPropertyByName("flags"));
     auto positions = pr->getAsVectorProperty(pr->getPropertyByName("position"));
@@ -17,7 +18,8 @@ void create_halfspace(PairsRuntime *pr,
 
     if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z) || flag & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL) ){
         int n = pr->getTrackedVariableAsInteger("nlocal");
-        // uids(n) = ;
+        uid = (flag & FLAGS_GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uids(n) = uid;
         positions(n, 0) = x;
         positions(n, 1) = y;
         positions(n, 2) = z;
@@ -26,19 +28,22 @@ void create_halfspace(PairsRuntime *pr,
         normals(n, 2) = nz;
         types(n) = type;
         flags(n) = flag;
-        shape(n) = 1;   // halfspace
+        shapes(n) = 1;   // halfspace
         pr->setTrackedVariableAsInteger("nlocal", n + 1);
     }
+
+    return uid;
 }
 
-void create_particle(PairsRuntime *pr, 
+// returns the uid of the body created, or 0 if the body is not created
+id_t create_sphere(PairsRuntime *pr, 
                     double x, double y, double z, 
                     double vx, double vy, double vz, 
                     double density, double radius, int type, int flag){
-    // TODO: ensure unique id in all functions that create particle or read particle from file
     // TODO: increase capacity if exceeded
-    // auto uids = pr->getAsIntegerProperty(pr->getPropertyByName("uid"));   
-    auto shape = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
+    id_t uid = 0;
+    auto uids = pr->getAsUInt64Property(pr->getPropertyByName("uid"));   
+    auto shapes = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
     auto types = pr->getAsIntegerProperty(pr->getPropertyByName("type"));
     auto flags = pr->getAsIntegerProperty(pr->getPropertyByName("flags"));
     auto masses = pr->getAsFloatProperty(pr->getPropertyByName("mass"));
@@ -48,7 +53,8 @@ void create_particle(PairsRuntime *pr,
 
     if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z)) {
         int n = pr->getTrackedVariableAsInteger("nlocal");
-        // uids(n) = ;
+        uid = (flag & FLAGS_GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uids(n) = uid;
         radii(n) = radius;
         masses(n) = ((4.0 / 3.0) * M_PI) * radius * radius * radius * density;
         positions(n, 0) = x;
@@ -59,9 +65,11 @@ void create_particle(PairsRuntime *pr,
         velocities(n, 2) = vz;
         types(n) = type;
         flags(n) = flag;
-        shape(n) = 0;   // sphere
+        shapes(n) = 0;   // sphere
         pr->setTrackedVariableAsInteger("nlocal", n + 1);
     }
+    
+    return uid;
 }
 
 }

@@ -147,7 +147,7 @@ class CGen:
         self.print("//---")
         self.print("#include \"runtime/likwid-marker.h\"")
         self.print("#include \"runtime/copper_fcc_lattice.hpp\"")
-        self.print("#include \"runtime/create_shape.hpp\"")
+        self.print("#include \"runtime/create_body.hpp\"")
         self.print("#include \"runtime/dem_sc_grid.hpp\"")
         self.print("#include \"runtime/pairs.hpp\"")
         self.print("#include \"runtime/read_from_file.hpp\"")
@@ -198,6 +198,24 @@ class CGen:
         self.print("PairsAccessor(const std::shared_ptr<PairsSimulation> &ps_): ps(ps_){}")
         self.print("")
         self.print("int size() const { return ps->pobj->nlocal; }")
+        self.print("")
+
+        self.print("int getInvalidIdx(){return -1;}")
+        self.print("")
+
+        self.print("pairs::id_t getInvalidUid(){return 0;}")
+        self.print("")
+
+        self.print('''int uidToIdx(pairs::id_t uid){
+        int idx = getInvalidIdx();
+        for(int i=0; i<ps->pobj->nlocal; ++i){
+            if (getUid(i) == uid){
+                idx = i;
+                break;
+            }
+        }
+        return idx;''')
+        self.print("}")
         self.print("")
 
         for p in self.sim.properties:
@@ -380,13 +398,13 @@ class CGen:
         self.print("}")
         self.print("")
 
-        self.print("void create_halfspace(double x, double y, double z, double nx, double ny, double nz, int type, int flag){")
-        self.print("    pairs::create_halfspace(pairs_runtime, x, y, z, nx, ny, nz, type, flag);")
+        self.print("pairs::id_t create_halfspace(double x, double y, double z, double nx, double ny, double nz, int type, int flag){")
+        self.print("    return pairs::create_halfspace(pairs_runtime, x, y, z, nx, ny, nz, type, flag);")
         self.print("}")
         self.print("")
 
-        self.print("void create_particle(double x, double y, double z, double vx, double vy, double vz, double density, double radius, int type, int flag){")
-        self.print("    pairs::create_particle(pairs_runtime, x, y, z, vx, vy, vz, density, radius, type, flag);")
+        self.print("pairs::id_t create_sphere(double x, double y, double z, double vx, double vy, double vz, double density, double radius, int type, int flag){")
+        self.print("    return pairs::create_sphere(pairs_runtime, x, y, z, vx, vy, vz, density, radius, type, flag);")
         self.print("}")
         self.print("")
 

@@ -1,10 +1,5 @@
-#include <iostream>
-#include <string.h>
-#include <fstream>
-#include <sstream>
-//---
-#include "pairs.hpp"
-#include "pairs_common.hpp"
+#include "read_from_file.hpp"
+
 
 namespace pairs {
 
@@ -38,6 +33,7 @@ size_t read_particle_data(
     std::ifstream in_file(filename, std::ifstream::in);
     std::string line;
     auto shape_ptr = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
+    auto uid_ptr = ps->getAsUInt64Property(ps->getPropertyByName("uid"));
     int n = start;
 
     if(!in_file.is_open()) {
@@ -99,6 +95,14 @@ size_t read_particle_data(
                 if(prop.getName() == "flags") {
                     flags = int_ptr(n);
                 }
+            } else if(prop_type == Prop_UInt64) {
+                auto uint64_ptr = ps->getAsUInt64Property(prop);
+                uint64_ptr(n) = std::stoi(in0);
+
+                if(prop.getName() == "uid") {
+                    std::cerr << "Can't read uid from file." << std::endl;
+                    exit(-1);
+                }
             } else if(prop_type == Prop_Real) {
                 auto float_ptr = ps->getAsFloatProperty(prop);
                 float_ptr(n) = std::stod(in0);
@@ -111,6 +115,7 @@ size_t read_particle_data(
         }
 
         if(within_domain || flags & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL)) {
+            uid_ptr(n) = (flags & FLAGS_GLOBAL) ? UniqueID::createGlobal(ps) : UniqueID::create(ps);
             shape_ptr(n++) = shape_id;
         }
     }

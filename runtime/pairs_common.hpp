@@ -3,12 +3,20 @@
 
 #pragma once
 
+namespace pairs {
+
+constexpr int FLAGS_INFINITE = 1 << 0 ;
+constexpr int FLAGS_GHOST    = 1 << 1 ;
+constexpr int FLAGS_FIXED    = 1 << 2 ;
+constexpr int FLAGS_GLOBAL   = 1 << 3 ;
+
 //#ifdef USE_DOUBLE_PRECISION
 typedef double real_t;
 //#else
 //typedef float real_t;
 //#endif
 
+typedef unsigned long long int id_t;
 typedef int array_t;
 typedef int property_t;
 typedef int layout_t;
@@ -17,6 +25,7 @@ typedef int action_t;
 enum PropertyType {
     Prop_Invalid = -1,
     Prop_Integer = 0,
+    Prop_UInt64,
     Prop_Real,
     Prop_Vector,
     Prop_Matrix,
@@ -38,7 +47,7 @@ enum Actions {
     Ignore = 5
 };
 
-enum Timers {
+enum TimerMarkers {
     All = 0,
     Communication = 1,
     DeviceTransfers = 2,
@@ -78,3 +87,5 @@ enum DomainPartitioners {
 #define PAIRS_ERROR(...)        fprintf(stderr, __VA_ARGS__)
 #define MIN(a,b)                ((a) < (b) ? (a) : (b))
 #define MAX(a,b)                ((a) > (b) ? (a) : (b))
+
+}
