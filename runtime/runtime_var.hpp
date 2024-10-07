@@ -5,7 +5,7 @@
 namespace pairs {
 
 template<typename T>
-class RuntimeVar{
+class RuntimeVar {
 protected:
     T *h_ptr, *d_ptr;
 

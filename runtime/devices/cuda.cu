@@ -72,5 +72,36 @@ __host__ void copy_static_symbol_to_host(void *d_ptr, const void *h_ptr, size_t 
     //CUDA_ASSERT(cudaMemcpyFromSymbol(h_ptr, d_ptr, count));
 }
 
+#if __CUDA_ARCH__ < 600
+//#error "CUDA architecture is less than 600"
+__device__ double atomicAdd_double(double* address, double val) {
+    unsigned long long int * ull_addr = (unsigned long long int*) address;
+    unsigned long long int old = *ull_addr, assumed;
+
+    do {
+        assumed = old;
+        old = atomicCAS(ull_addr, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+        // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+
+    return __longlong_as_double(old);
+}
+#else
+__device__ double atomicAdd_double(double* address, double val) {
+    return atomicAdd(address, val);
+}
+#endif
+
+__device__ int atomic_add(int *addr, int val) { return atomicAdd(addr, val); }
+__device__ real_t atomic_add(real_t *addr, real_t val) { return atomicAdd_double(addr, val); }
+__device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
+    const int add_res = *addr + val;
+    if(add_res >= capacity) {
+        *resize = add_res;
+        return *addr;
+    }
+
+    return atomic_add(addr, val);
+}
 
 }

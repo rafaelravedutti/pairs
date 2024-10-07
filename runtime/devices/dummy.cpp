@@ -19,4 +19,16 @@ void copy_in_device(void *d_ptr1, const void *d_ptr2, size_t count) {
     std::memcpy(d_ptr1, d_ptr2, count);
 }
 
+int atomic_add(int *addr, int val) {
+    return host_atomic_add(addr, val);
+}
+
+real_t atomic_add(real_t *addr, real_t val) {
+    return host_atomic_add(addr, val);
+}
+
+int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
+    return host_atomic_add_resize_check(addr, val, resize, capacity);
+}
+
 }

@@ -8,27 +8,24 @@ if(NOT TESTCASE)
     set(TESTCASE md CACHE STRING "Select the testcase from the following: md, dem" FORCE)
 endif()
 
-set(CUDA_ARCH ${CUDA_ARCH} CACHE STRING "CUDA_ARCH environment variable must be set.")
+set(TARGET_BIN ${TESTCASE})
 
-set(CMAKE_CUDA_ARCHITECTURES 80)
-set(CUDA_ARCH 80)
-# if(NOT CUDA_ARCH)
-#     set(CUDA_ARCH 80)
-# endif()
+# Set default build type if none is specified
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug, Release, etc.)" FORCE)
+endif()
+
+set(CMAKE_CXX_FLAGS_RELEASE "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-O3 -DDEBUG")
 
 string(TOLOWER "${TESTCASE}" TESTCASE)
 message(STATUS "Selected testcase: ${TESTCASE}")
 
-option(DEBUG "DEBUG" ON)
 option(USE_WALBERLA "USE_WALBERLA" ON)
 option(USE_MPI "USE_MPI" ON)
 option(COMPILE_CUDA "COMPILE_CUDA" ON)
 option(ENABLE_GPU_DIRECT "ENABLE_GPU_DIRECT" ON)
 option(GENERATE_WHOLE_PROGRAM "GENERATE_WHOLE_PROGRAM" OFF)
-
-if(DEBUG)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DDEBUG ")
-endif()
 
 if(USE_WALBERLA)
     # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING -DWALBERLA_BUILD_WITH_CUDA ")
@@ -38,10 +35,6 @@ if(USE_WALBERLA)
     waLBerla_import()
 endif()
 
-set(CPU_SRC "${TESTCASE}.cpp")
-set(GPU_SRC "${TESTCASE}.cu")
-set(CPU_BIN "${TESTCASE}_cpu")
-set(GPU_BIN "${TESTCASE}_gpu")
 set(GEN_HEADER ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces/last_generated.hpp)
 set(GEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces)
 
@@ -82,6 +75,7 @@ set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/output)
 if(EXISTS ${OUTPUT_DIR})
     file(REMOVE_RECURSE ${OUTPUT_DIR})
 endif()
+
 file(MAKE_DIRECTORY ${OUTPUT_DIR})
 
 execute_process(
@@ -92,89 +86,87 @@ execute_process(
     COMMAND ${PYTHON_EXECUTABLE} setup.py install --user
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-if(USE_WALBERLA)
-    waLBerla_add_executable(
-        NAME ${CPU_BIN}
-        FILES ${EXEC_FILES} ${RUNTIME_CPU_FILES} ${CMAKE_BINARY_DIR}/${CPU_SRC}
-        DEPENDS blockforest core pe)
-else()
-    add_executable(${CPU_BIN} ${CPU_SRC} ${EXEC_FILES} ${RUNTIME_CPU_FILES})
-endif()
-
-add_library(runtime_cpu STATIC runtime/devices/dummy.cpp)
-target_link_libraries(${CPU_BIN} runtime_cpu)
-
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/${CPU_SRC} ${GEN_HEADER}
-    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py cpu
-    COMMENT "Generate CPU code"
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
-    
-target_include_directories(${CPU_BIN} PRIVATE ${GEN_HEADER_DIR})
-add_custom_target(gen_cpu DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC} ${GEN_HEADER})
-add_dependencies(${CPU_BIN} gen_cpu)
-
+# CUDA compilation
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
     enable_language(CUDA)
+    set(GEN_SOURCES "${CMAKE_BINARY_DIR}/${TESTCASE}.cu")
+    set(CUDA_ARCH ${CUDA_ARCH} CACHE STRING "CUDA_ARCH environment variable must be set.")
+    set(TARGET_ARG "gpu")
+
+    # Default arch is 80
+    if(NOT CUDA_ARCH)
+        set(CUDA_ARCH 80)
+    endif()
+
+    set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH})
 
     if(USE_WALBERLA)
-        # set(WALBERLA_BUILD_WITH_CUDA ON CACHE BOOL "Enable CUDA in waLBerla")
+        set(WALBERLA_BUILD_WITH_CUDA ON)
+        set(WALBERLA_BUILD_WITH_GPU_SUPPORT ON)
+
         waLBerla_add_executable(
-            NAME ${GPU_BIN}
-            FILES ${EXEC_FILES}
-            DEPENDS blockforest core pe)
-            # DEPENDS blockforest core pe gpu)
+            NAME ${TARGET_BIN}
+            FILES ${EXEC_FILES} ${GEN_SOURCES}
+            DEPENDS blockforest core pe gpu)
     else()
-        add_executable(${GPU_BIN} ${GPU_SRC} ${EXEC_FILES} ${RUNTIME_GPU_FILES})
+        cuda_add_executable(${TARGET_BIN} ${GEN_SOURCES} ${EXEC_FILES})
     endif()
 
     if(ENABLE_GPU_DIRECT)
-        target_compile_options(${GPU_BIN} PRIVATE -DENABLE_CUDA_AWARE_MPI)
+        target_compile_options(${TARGET_BIN} PRIVATE -DENABLE_CUDA_AWARE_MPI)
     endif()
 
-    add_library(runtime_gpu STATIC runtime/devices/cuda.cu)
-    target_compile_features(runtime_gpu PUBLIC cxx_std_11)
-    set_target_properties(runtime_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    cuda_add_library(runtime STATIC runtime/devices/cuda.cu)
+    target_compile_features(runtime PUBLIC cxx_std_11)
+    set_target_properties(runtime PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    set_target_properties(runtime PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
+    target_compile_options(runtime PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
+    target_compile_definitions(runtime PRIVATE PAIRS_TARGET_CUDA)
+    target_include_directories(runtime PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
 
-    target_link_libraries(${GPU_BIN} runtime_gpu)
-    target_compile_options(${GPU_BIN} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
-    target_include_directories(${GPU_BIN} PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
-    set_target_properties(${GPU_BIN} PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
-    target_compile_definitions(${GPU_BIN} PRIVATE PAIRS_TARGET_CUDA)
+    set_target_properties(${TARGET_BIN} PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
+    target_compile_options(${TARGET_BIN} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
+    target_compile_definitions(${TARGET_BIN} PRIVATE PAIRS_TARGET_CUDA)
+    target_include_directories(${TARGET_BIN} PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
 
-    target_compile_options(runtime_gpu PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
-    target_include_directories(runtime_gpu PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
-    set_target_properties(runtime_gpu PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
-    target_compile_definitions(runtime_gpu PRIVATE PAIRS_TARGET_CUDA)
+# CPU compilation
+else()
+    set(GEN_SOURCES "${CMAKE_BINARY_DIR}/${TESTCASE}.cpp")
+    set(TARGET_ARG "cpu")
 
-    add_custom_command(
-        OUTPUT ${GPU_SRC} ${GEN_HEADER}
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py gpu
-        COMMENT "Generate GPU code"
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
+    if(USE_WALBERLA)
+        waLBerla_add_executable(
+            NAME ${TARGET_BIN}
+            FILES ${EXEC_FILES} ${GEN_SOURCES}
+            DEPENDS blockforest core pe)
+    else()
+        add_executable(${TARGET_BIN} ${GEN_SOURCES} ${EXEC_FILES})
+    endif()
 
-    add_custom_target(gen_gpu DEPENDS ${GPU_SRC} ${GEN_HEADER})
-    add_dependencies(${GPU_BIN} gen_gpu)
+    add_library(runtime STATIC runtime/devices/dummy.cpp)
 endif()
 
-target_link_libraries(${CPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
-set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
-set_target_properties(${CPU_BIN} PROPERTIES CXX_STANDARD 17)
+target_link_libraries(${TARGET_BIN} runtime)
 
-if(COMPILE_CUDA)
-    target_link_libraries(${GPU_BIN} ${CMAKE_EXE_LINKER_FLAGS})
-    set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
-    set_target_properties(${GPU_BIN} PROPERTIES CXX_STANDARD 17)
-endif()
+add_custom_command(
+    OUTPUT ${GEN_SOURCES} ${GEN_HEADER}
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py ${TARGET_ARG}
+    COMMENT "Generating code with P4IRS"
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
+
+target_include_directories(${TARGET_BIN} PRIVATE ${GEN_HEADER_DIR})
+add_custom_target(generated_code DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC} ${GEN_HEADER})
+add_dependencies(${TARGET_BIN} generated_code)
+
+target_link_libraries(${TARGET_BIN} ${CMAKE_EXE_LINKER_FLAGS})
+set_target_properties(${TARGET_BIN} PROPERTIES CXX_STANDARD_REQUIRED ON)
+set_target_properties(${TARGET_BIN} PROPERTIES CXX_STANDARD 17)
 
 if(USE_MPI)
     find_package(MPI REQUIRED)
     include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-    target_link_libraries(${CPU_BIN} ${MPI_LIBRARIES})
-    if(COMPILE_CUDA)
-        target_link_libraries(${GPU_BIN} ${MPI_LIBRARIES})
-    endif()
+    target_link_libraries(${TARGET_BIN} ${MPI_LIBRARIES})
 endif()
 
 if(LIKWID_DIR)
