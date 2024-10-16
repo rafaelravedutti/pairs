@@ -130,8 +130,8 @@ psim.add_feature_property('type', 'friction_dynamic', pairs.real(), [frictionDyn
 
 psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
 # psim.set_domain_partitioner(pairs.block_forest(), initDomainFromWalberla=True)
-psim.set_domain_partitioner(pairs.block_forest())
-# psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
+# psim.set_domain_partitioner(pairs.block_forest())
+psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
 psim.pbc([False, False, False])
 psim.dem_sc_grid(
     domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]/2, generationSpacing_SI,

@@ -1,14 +1,6 @@
-#include <blockforest/BlockForest.h>
-#include <blockforest/Initialization.h>
-#include <blockforest/loadbalancing/DynamicCurve.h>
-#include <blockforest/loadbalancing/DynamicDiffusive.h>
-#include <blockforest/loadbalancing/DynamicParMetis.h>
-#include <blockforest/loadbalancing/InfoCollection.h>
-#include <blockforest/loadbalancing/PODPhantomData.h>
-#include <blockforest/loadbalancing/level_determination/MinMaxLevelDetermination.h>
-#include <blockforest/loadbalancing/weight_assignment/MetisAssignmentFunctor.h>
-#include <blockforest/loadbalancing/weight_assignment/WeightAssignmentFunctor.h>
-//---
+#include <memory>
+#include <map>
+
 #include "../pairs_common.hpp"
 #include "domain_partitioning.hpp"
 
@@ -16,6 +8,23 @@
 
 #define SMALL 0.00001
 
+namespace walberla {
+    namespace blockforest{
+        class BlockForest;
+        class BlockID;
+        class BlockInfo;
+        using InfoCollection = std::map<BlockID, BlockInfo>;
+    }
+
+    namespace mpi {
+        class MPIManager;
+    }
+
+    namespace math{
+        template<typename T> 
+        class Vector3;
+    }
+}
 namespace pairs {
 
 class PairsRuntime;
@@ -23,7 +32,7 @@ class PairsRuntime;
 class BlockForest : public DomainPartitioner {
 private:
     std::shared_ptr<walberla::mpi::MPIManager> mpiManager;
-    std::shared_ptr<walberla::BlockForest> forest;
+    std::shared_ptr<walberla::blockforest::BlockForest> forest;
     std::shared_ptr<walberla::blockforest::InfoCollection> info;
     std::vector<int> ranks;
     std::vector<int> naabbs;
@@ -38,33 +47,9 @@ private:
 public:
     BlockForest(
         PairsRuntime *ps_,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz) :
-        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), globalPBC{pbcx, pbcy, pbcz} {
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz);
 
-        subdom = new real_t[ndims * 2];
-    }
-
-    BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::BlockForest> &bf) :
-        forest(bf),
-        DomainPartitioner(bf->getDomain().xMin(), bf->getDomain().xMax(),
-                        bf->getDomain().yMin(), bf->getDomain().yMax(),
-                        bf->getDomain().zMin(), bf->getDomain().zMax()), 
-        ps(ps_), 
-        globalPBC{bf->isXPeriodic(), bf->isYPeriodic(), bf->isZPeriodic()} 
-        {
-            subdom = new real_t[ndims * 2];
-            balance_workload = 0;
-
-            mpiManager = walberla::mpi::MPIManager::instance();
-            world_size = mpiManager->numProcesses();
-            rank = mpiManager->rank();
-            this->info = make_shared<walberla::blockforest::InfoCollection>();
-
-            if(balance_workload) {
-                this->initializeWorkloadBalancer();
-            }
-
-        }
+    BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::blockforest::BlockForest> &bf);
 
     ~BlockForest() {
         delete[] subdom;
@@ -81,7 +66,7 @@ public:
     void initializeWorkloadBalancer();
     void updateNeighborhood();
     void updateWeights();
-    walberla::Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);
+    walberla::math::Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);
     int getInitialRefinementLevel(int num_processes);
     void setBoundingBox();
     void rebalance();

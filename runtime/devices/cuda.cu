@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include "../pairs_common.hpp"
+// #include "device.hpp"
 
 #define CUDA_ASSERT(a) { pairs::cuda_assert((a), __FILE__, __LINE__); }
 
@@ -73,7 +74,6 @@ __host__ void copy_static_symbol_to_host(void *d_ptr, const void *h_ptr, size_t 
 }
 
 #if __CUDA_ARCH__ < 600
-//#error "CUDA architecture is less than 600"
 __device__ double atomicAdd_double(double* address, double val) {
     unsigned long long int * ull_addr = (unsigned long long int*) address;
     unsigned long long int old = *ull_addr, assumed;

@@ -15,6 +15,9 @@ namespace pairs {
 void compute_boundary_weights(
     PairsRuntime *ps,
     real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax,
-    long unsigned int *comp_weight, long unsigned int *comm_weight);
+    long unsigned int *comp_weight, long unsigned int *comm_weight){
+        std::cerr<< "TODO: boundary weights should be generated" << std::endl;
+        exit(-1);
+    };
 
 }

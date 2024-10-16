@@ -76,6 +76,11 @@ class CGen:
 
         if isinstance(obj, FeatureProperty) and device and obj.device_flag:
             return name
+        
+        if isinstance(obj, Array) and device and obj.device_flag:
+            if obj.is_static():
+                return name
+        
 
         if self.generate_full_object_names:
             return f"pobj->{name}"
@@ -96,7 +101,10 @@ class CGen:
         self.print.start()
         self.print("#pragma once")
         self.generate_interface_namespace('pairs_host_interface')
-        self.generate_interface_namespace('pairs_cuda_interface', "__inline__ __device__")
+
+        if self.target.is_gpu():
+            self.generate_interface_namespace('pairs_cuda_interface', "__inline__ __device__")
+            
         self.print.end()
 
     def generate_interface_namespace(self, namespace, prefix=None):
@@ -159,29 +167,12 @@ class CGen:
         self.print("using namespace pairs;")
         self.print("")
 
-        if self.target.is_gpu():
-            for array in self.sim.arrays.statics():
-                if array.device_flag:
-                    t = array.type()
-                    tkw = Types.c_keyword(self.sim, t)
-                    size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
-                    self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
-
-            for feature_prop in self.sim.feature_properties:
-                if feature_prop.device_flag:
-                    t = feature_prop.type()
-                    tkw = Types.c_keyword(self.sim, t)
-                    size = feature_prop.array_size()
-                    self.print(f"__constant__ {tkw} d_{feature_prop.name()}[{size}];")
-
-        self.print("")
-
     def generate_module_headers(self):
         self.print("")
 
         self.print("// Module headers")
         for module in self.sim.modules():
-            self.print(f"void {module.name}(struct PairsObjects *pobj);")
+            self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj);")
 
         self.print("")
 
@@ -261,6 +252,24 @@ class CGen:
         self.print("")
 
     def generate_pairs_object_structure(self):
+
+        self.print("")
+
+        if self.target.is_gpu():
+            for array in self.sim.arrays.statics():
+                if array.device_flag:
+                    t = array.type()
+                    tkw = Types.c_keyword(self.sim, t)
+                    size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
+                    self.print(f"extern __constant__ {tkw} d_{array.name()}[{size}];")
+
+            for feature_prop in self.sim.feature_properties:
+                if feature_prop.device_flag:
+                    t = feature_prop.type()
+                    tkw = Types.c_keyword(self.sim, t)
+                    size = feature_prop.array_size()
+                    self.print(f"extern __constant__ {tkw} d_{feature_prop.name()}[{size}];")
+
         self.print("")
         self.print("struct PairsObjects {")
         self.print.add_indent(4)
@@ -278,7 +287,10 @@ class CGen:
                 self.print(f"{tkw} *{ptr};")
 
             if self.target.is_gpu() and a.device_flag:
-                self.print(f"{tkw} *d_{ptr};")
+                if a.is_static():
+                    continue
+                else:
+                    self.print(f"{tkw} *d_{ptr};")
 
         self.print("// Properties")
         for p in self.sim.properties:
@@ -343,6 +355,21 @@ class CGen:
         self.generate_preamble()
         self.print(f"#include \"{self.ref}.hpp\"")
 
+        if self.target.is_gpu():
+            for array in self.sim.arrays.statics():
+                if array.device_flag:
+                    t = array.type()
+                    tkw = Types.c_keyword(self.sim, t)
+                    size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
+                    self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
+
+            for feature_prop in self.sim.feature_properties:
+                if feature_prop.device_flag:
+                    t = feature_prop.type()
+                    tkw = Types.c_keyword(self.sim, t)
+                    size = feature_prop.array_size()
+                    self.print(f"__constant__ {tkw} d_{feature_prop.name()}[{size}];")
+                    
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
 
@@ -355,6 +382,7 @@ class CGen:
         # Generate library header
         self.print = Printer(self.ref + ".hpp")
         self.print.start()
+        self.print("#pragma once")
 
         self.generate_preamble()
         self.generate_pairs_object_structure()
@@ -433,7 +461,7 @@ class CGen:
         self.print.add_indent(-4)
         self.print("};")
 
-        self.generate_host_pairs_accessor_class()
+        # self.generate_host_pairs_accessor_class()
         
         self.print.end()
         self.generate_full_object_names = False
@@ -468,7 +496,7 @@ class CGen:
             self.generate_full_object_names = False
 
         else:
-            self.print(f"void {module.name}(struct PairsObjects *pobj) {{")
+            self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj) {{")
             self.print.add_indent(4)
             device_cond = module.run_on_device and self.target.is_gpu()
 
@@ -481,16 +509,24 @@ class CGen:
 
             for var in module.write_variables():
                 type_kw = Types.c_keyword(self.sim, var.type())
-                name = f"rv_{var.name()}.getDevicePointer()" if device_cond and var.device_flag else var.name()
-                self.print(f"{type_kw} *{var.name()} = &(pobj->{name});")
+
+                if device_cond and var.device_flag:
+                    self.print(f"{type_kw} *{var.name()} = pobj->rv_{var.name()}.getDevicePointer();")
+                else:
+                    self.print(f"{type_kw} *{var.name()} = &(pobj->{var.name()});")
 
             for array in module.arrays():
                 type_kw = Types.c_keyword(self.sim, array.type())
                 name = array.name() if not device_cond else f"d_{array.name()}"
-                self.print(f"{type_kw} *{array.name()} = pobj->{name};")
+                # self.generate_full_object_names = True
+                if not array.is_static() or (array.is_static() and not module.run_on_device):
+                    self.print(f"{type_kw} *{array.name()} = pobj->{name};")
+                    # self.print(f"{type_kw} *{array.name()} = {self.generate_object_reference(array, device=device_cond)};")
+                # self.generate_full_object_names = False
 
                 if array in module.host_references():
                     self.print(f"{type_kw} *h_{array.name()} = pobj->{array.name()};")
+
 
             for prop in module.properties():
                 type_kw = Types.c_keyword(self.sim, prop.type())
@@ -511,7 +547,12 @@ class CGen:
             for feature_prop in module.feature_properties():
                 type_kw = Types.c_keyword(self.sim, feature_prop.type())
                 name = feature_prop.name() if not device_cond else f"d_{feature_prop.name()}"
-                self.print(f"{type_kw} *{feature_prop.name()} = pobj->{name};")
+
+                if feature_prop.device_flag and device_cond:
+                    # self.print(f"{type_kw} *{feature_prop.name()} = {self.generate_object_reference(feature_prop, device=device_cond)};")
+                    continue
+                else:
+                    self.print(f"{type_kw} *{feature_prop.name()} = pobj->{name};")
 
                 if feature_prop in module.host_references():
                     self.print(f"{type_kw} *h_{feature_prop.name()} = pobj->{feature_prop.name()};")
@@ -533,6 +574,8 @@ class CGen:
             kernel_params += f", {decl}"
 
         for array in kernel.arrays():
+            if array.is_static():
+                continue
             type_kw = Types.c_keyword(self.sim, array.type())
             decl = f"{type_kw} *{array.name()}"
             kernel_params += f", {decl}"
@@ -548,6 +591,8 @@ class CGen:
             kernel_params += f", {decl}"
 
         for feature_prop in kernel.feature_properties():
+            if feature_prop.device_flag:
+                continue
             type_kw = Types.c_keyword(self.sim, feature_prop.type())
             decl = f"{type_kw} *{feature_prop.name()}"
             kernel_params += f", {decl}"
@@ -870,6 +915,8 @@ class CGen:
                 kernel_params += f", {var.name()}"
 
             for array in kernel.arrays():
+                if array.is_static():
+                    continue
                 kernel_params += f", {array.name()}"
 
             for prop in kernel.properties():
@@ -879,6 +926,8 @@ class CGen:
                 kernel_params += f", {contact_prop.name()}"
 
             for feature_prop in kernel.feature_properties():
+                if feature_prop.device_flag:
+                    continue     
                 kernel_params += f", {feature_prop.name()}"
 
             for array_access in kernel.array_accesses():
@@ -897,7 +946,7 @@ class CGen:
             self.print("}")
 
         if isinstance(ast_node, ModuleCall):
-            self.print(f"{ast_node.module.name}(pobj);")
+            self.print(f"{ast_node.module.name}(pairs_runtime, pobj);")
 
         if isinstance(ast_node, Print):
             args = ast_node.args

@@ -364,10 +364,15 @@ void PairsRuntime::useDomain(const std::shared_ptr<Domain_T> &domain_ptr){
         PAIRS_ERROR("useDomain not implemented for Regular6DStencil!\n");
         exit(-1);
 
-    } else if(dom_part_type == BlockForestPartitioning) {
+    } 
+    
+#ifdef USE_WALBERLA
+    else if(dom_part_type == BlockForestPartitioning) {
         dom_part = new BlockForest(this, domain_ptr);
+    } 
+#endif
 
-    } else {
+    else {
         PAIRS_ERROR("Domain partitioning type not implemented!\n");
         exit(-1);
     }

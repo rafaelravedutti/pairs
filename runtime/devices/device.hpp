@@ -72,7 +72,7 @@ inline __host__ int host_atomic_add_resize_check(int *addr, int val, int *resize
     return host_atomic_add(addr, val);
 }
 
-#if defined(PAIRS_TARGET_CUDA) && defined(__CUDA_ARCH__)
+#ifdef PAIRS_TARGET_CUDA
 __device__ double atomicAdd_double(double* address, double val);
 __device__ int atomic_add(int *addr, int val);
 __device__ real_t atomic_add(real_t *addr, real_t val);

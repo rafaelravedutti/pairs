@@ -34,9 +34,15 @@ void PairsRuntime::initDomain(
     } else if(dom_part_type == RegularXYPartitioning) {
         const int flags[] = {1, 1, 0};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
-    } else if(dom_part_type == BlockForestPartitioning) {
+    } 
+    
+#ifdef USE_WALBERLA
+    else if(dom_part_type == BlockForestPartitioning) {
         dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, pbcx, pbcy, pbcz);
-    } else {
+    } 
+#endif
+
+    else {
         PAIRS_ERROR("Domain partitioning type not implemented!\n");
         exit(-1);
     }

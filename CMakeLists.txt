@@ -15,8 +15,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug, Release, etc.)" FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-g -O0")
-set(CMAKE_CXX_FLAGS_DEBUG "-O3 -DDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
 string(TOLOWER "${TESTCASE}" TESTCASE)
 message(STATUS "Selected testcase: ${TESTCASE}")
@@ -28,7 +28,6 @@ option(ENABLE_GPU_DIRECT "ENABLE_GPU_DIRECT" ON)
 option(GENERATE_WHOLE_PROGRAM "GENERATE_WHOLE_PROGRAM" OFF)
 
 if(USE_WALBERLA)
-    # SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING -DWALBERLA_BUILD_WITH_CUDA ")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
     find_package(waLBerla REQUIRED)
     add_subdirectory(${walberla_SOURCE_DIR} ${walberla_BINARY_DIR} EXCLUDE_FROM_ALL)
@@ -40,7 +39,7 @@ set(GEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces)
 
 set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
-    runtime/boundary_weights.cpp
+    # runtime/boundary_weights.cpp  # avoid compiling this for now. TODO: generate the host and device functions
     runtime/copper_fcc_lattice.cpp
     runtime/create_body.cpp
     runtime/dem_sc_grid.cpp
@@ -49,8 +48,10 @@ set(RUNTIME_COMMON_FILES
     runtime/thermo.cpp
     runtime/timing.cpp
     runtime/vtk.cpp
-    runtime/domain/block_forest.cpp
     runtime/domain/regular_6d_stencil.cpp)
+
+set(RUNTIME_WALBERLA_FILES
+    runtime/domain/block_forest.cpp)
 
 set(PYTHON_EXECUTABLE ${PYTHON_EXECUTABLE} CACHE STRING "Python executable not set.")
 
@@ -62,6 +63,10 @@ if(NOT GENERATE_WHOLE_PROGRAM)
     set(EXEC_FILES ${CMAKE_BINARY_DIR}/main.cpp ${RUNTIME_COMMON_FILES})
 else()
     set(EXEC_FILES ${RUNTIME_COMMON_FILES})
+endif()
+
+if(USE_WALBERLA)
+    set(EXEC_FILES ${EXEC_FILES} ${RUNTIME_WALBERLA_FILES})
 endif()
 
 if(NOT PYTHON_EXECUTABLE)
@@ -88,6 +93,7 @@ execute_process(
 
 # CUDA compilation
 if(COMPILE_CUDA)
+    cmake_policy(SET CMP0074 NEW)
     find_package(CUDA REQUIRED)
     enable_language(CUDA)
     set(GEN_SOURCES "${CMAKE_BINARY_DIR}/${TESTCASE}.cu")
@@ -100,33 +106,29 @@ if(COMPILE_CUDA)
     endif()
 
     set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH})
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -rdc=true")
 
     if(USE_WALBERLA)
-        set(WALBERLA_BUILD_WITH_CUDA ON)
-        set(WALBERLA_BUILD_WITH_GPU_SUPPORT ON)
-
         waLBerla_add_executable(
             NAME ${TARGET_BIN}
             FILES ${EXEC_FILES} ${GEN_SOURCES}
-            DEPENDS blockforest core pe gpu)
+            DEPENDS blockforest core pe)
     else()
-        cuda_add_executable(${TARGET_BIN} ${GEN_SOURCES} ${EXEC_FILES})
+        add_executable(${TARGET_BIN} ${GEN_SOURCES} ${EXEC_FILES})
     endif()
 
     if(ENABLE_GPU_DIRECT)
-        target_compile_options(${TARGET_BIN} PRIVATE -DENABLE_CUDA_AWARE_MPI)
+        target_compile_definitions(${TARGET_BIN} PRIVATE ENABLE_CUDA_AWARE_MPI)
     endif()
 
-    cuda_add_library(runtime STATIC runtime/devices/cuda.cu)
+    add_library(runtime STATIC runtime/devices/cuda.cu)
     target_compile_features(runtime PUBLIC cxx_std_11)
     set_target_properties(runtime PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     set_target_properties(runtime PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
-    target_compile_options(runtime PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
     target_compile_definitions(runtime PRIVATE PAIRS_TARGET_CUDA)
-    target_include_directories(runtime PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
+    target_include_directories(runtime PRIVATE ${CUDA_INCLUDE_DIRS})
 
     set_target_properties(${TARGET_BIN} PROPERTIES CUDA_ARCHITECTURES ${CUDA_ARCH})
-    target_compile_options(${TARGET_BIN} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-arch=sm_${CUDA_ARCH}>)
     target_compile_definitions(${TARGET_BIN} PRIVATE PAIRS_TARGET_CUDA)
     target_include_directories(${TARGET_BIN} PRIVATE ${CUDA_INCLUDE_DIRS} ${GEN_HEADER_DIR})
 
@@ -145,6 +147,7 @@ else()
     endif()
 
     add_library(runtime STATIC runtime/devices/dummy.cpp)
+    target_include_directories(${TARGET_BIN} PRIVATE ${GEN_HEADER_DIR})
 endif()
 
 target_link_libraries(${TARGET_BIN} runtime)
@@ -155,8 +158,7 @@ add_custom_command(
     COMMENT "Generating code with P4IRS"
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/examples/${TESTCASE}.py)
 
-target_include_directories(${TARGET_BIN} PRIVATE ${GEN_HEADER_DIR})
-add_custom_target(generated_code DEPENDS ${CMAKE_BINARY_DIR}/${CPU_SRC} ${GEN_HEADER})
+add_custom_target(generated_code DEPENDS ${GEN_SOURCES} ${GEN_HEADER})
 add_dependencies(${TARGET_BIN} generated_code)
 
 target_link_libraries(${TARGET_BIN} ${CMAKE_EXE_LINKER_FLAGS})

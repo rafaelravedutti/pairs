@@ -21,6 +21,37 @@
 
 namespace pairs {
 
+BlockForest::BlockForest(
+        PairsRuntime *ps_,
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz) :
+        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), globalPBC{pbcx, pbcy, pbcz} {
+
+        subdom = new real_t[ndims * 2];
+    }
+
+BlockForest::BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::blockforest::BlockForest> &bf) :
+        forest(bf),
+        DomainPartitioner(bf->getDomain().xMin(), bf->getDomain().xMax(),
+                        bf->getDomain().yMin(), bf->getDomain().yMax(),
+                        bf->getDomain().zMin(), bf->getDomain().zMax()), 
+        ps(ps_), 
+        globalPBC{bf->isXPeriodic(), bf->isYPeriodic(), bf->isZPeriodic()} 
+        {
+            subdom = new real_t[ndims * 2];
+            balance_workload = 0;
+
+            mpiManager = walberla::mpi::MPIManager::instance();
+            world_size = mpiManager->numProcesses();
+            rank = mpiManager->rank();
+            this->info = make_shared<walberla::blockforest::InfoCollection>();
+
+            if(balance_workload) {
+                this->initializeWorkloadBalancer();
+            }
+
+        }
+
+
 void BlockForest::updateNeighborhood() {
     std::map<int, std::vector<walberla::math::AABB>> neighborhood;
     std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
