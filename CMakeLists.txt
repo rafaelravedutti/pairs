@@ -108,6 +108,12 @@ if(COMPILE_CUDA)
     set(CMAKE_CUDA_ARCHITECTURES ${CUDA_ARCH})
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -rdc=true")
 
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G -O0 -DDEBUG")
+    else()
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
+    endif()
+
     if(USE_WALBERLA)
         waLBerla_add_executable(
             NAME ${TARGET_BIN}

@@ -78,7 +78,7 @@ frictionCoefficient = 0.5
 restitutionCoefficient = 0.1
 collisionTime_SI = 5e-4
 poissonsRatio = 0.22
-timeSteps = 10000
+timeSteps = 1
 visSpacing = 200
 denseBottomLayer = False
 bottomLayerOffsetFactor = 1.0
@@ -101,7 +101,7 @@ psim = pairs.simulation(
     use_contact_history=False,
     particle_capacity=1000000,
     neighbor_capacity=20,
-    debug=True, generate_whole_program=False)
+    debug=True, generate_whole_program=True)
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())
@@ -115,10 +115,10 @@ psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('angular_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_property('torque', pairs.vector(), volatile=True)
-psim.add_property('hydrodynamic_force', pairs.vector())
-psim.add_property('hydrodynamic_torque', pairs.vector())
-psim.add_property('old_hydrodynamic_force', pairs.vector())
-psim.add_property('old_hydrodynamic_torque', pairs.vector())
+# psim.add_property('hydrodynamic_force', pairs.vector())
+# psim.add_property('hydrodynamic_torque', pairs.vector())
+# psim.add_property('old_hydrodynamic_force', pairs.vector())
+# psim.add_property('old_hydrodynamic_torque', pairs.vector())
 psim.add_property('radius', pairs.real(), 1.0)
 psim.add_property('normal', pairs.vector())
 psim.add_property('inv_inertia', pairs.matrix())
@@ -134,7 +134,7 @@ psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_S
 psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
 psim.pbc([False, False, False])
 psim.dem_sc_grid(
-    domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]/2, generationSpacing_SI,
+    domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
     diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
 
 #psim.read_particle_data(

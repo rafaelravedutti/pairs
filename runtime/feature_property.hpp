@@ -22,13 +22,13 @@ public:
         nkinds(nkinds_),
         array_size(array_size_) {}
 
-    property_t getId() { return id; }
-    std::string getName() { return name; }
-    void *getHostPointer() { return h_ptr; }
-    void *getDevicePointer() { return d_ptr; }
-    PropertyType getType() { return type; }
-    size_t getNumberOfKinds() { return nkinds; }
-    size_t getArraySize() { return array_size; }
+    property_t getId() const { return id; }
+    std::string getName() const { return name; }
+    void *getHostPointer() const { return h_ptr; }
+    void *getDevicePointer() const { return d_ptr; }
+    PropertyType getType() const { return type; }
+    size_t getNumberOfKinds() const { return nkinds; }
+    size_t getArraySize() const { return array_size; }
 };
 
 }

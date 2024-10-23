@@ -254,21 +254,21 @@ class CGen:
     def generate_pairs_object_structure(self):
 
         self.print("")
-
+        externkw = "" if self.sim._generate_whole_program else "extern "
         if self.target.is_gpu():
             for array in self.sim.arrays.statics():
                 if array.device_flag:
                     t = array.type()
                     tkw = Types.c_keyword(self.sim, t)
                     size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
-                    self.print(f"extern __constant__ {tkw} d_{array.name()}[{size}];")
+                    self.print(f"{externkw}__constant__ {tkw} d_{array.name()}[{size}];")
 
             for feature_prop in self.sim.feature_properties:
                 if feature_prop.device_flag:
                     t = feature_prop.type()
                     tkw = Types.c_keyword(self.sim, t)
                     size = feature_prop.array_size()
-                    self.print(f"extern __constant__ {tkw} d_{feature_prop.name()}[{size}];")
+                    self.print(f"{externkw}__constant__ {tkw} d_{feature_prop.name()}[{size}];")
 
         self.print("")
         self.print("struct PairsObjects {")
@@ -501,7 +501,7 @@ class CGen:
             device_cond = module.run_on_device and self.target.is_gpu()
 
             if self.debug:
-                self.print(f"PAIRS_DEBUG(\"{module.name}\\n\");")
+                self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
 
             for var in module.read_only_variables():
                 type_kw = Types.c_keyword(self.sim, var.type())
@@ -519,7 +519,7 @@ class CGen:
                 type_kw = Types.c_keyword(self.sim, array.type())
                 name = array.name() if not device_cond else f"d_{array.name()}"
                 # self.generate_full_object_names = True
-                if not array.is_static() or (array.is_static() and not module.run_on_device):
+                if not array.is_static() or (array.is_static() and not device_cond):
                     self.print(f"{type_kw} *{array.name()} = pobj->{name};")
                     # self.print(f"{type_kw} *{array.name()} = {self.generate_object_reference(array, device=device_cond)};")
                 # self.generate_full_object_names = False
@@ -563,6 +563,7 @@ class CGen:
 
     def generate_kernel(self, kernel):
         kernel_params = "int range_start"
+        has_resizes = False
         for var in kernel.read_only_variables():
             type_kw = Types.c_keyword(self.sim, var.type())
             decl = f"{type_kw} {var.name()}"
@@ -579,6 +580,8 @@ class CGen:
             type_kw = Types.c_keyword(self.sim, array.type())
             decl = f"{type_kw} *{array.name()}"
             kernel_params += f", {decl}"
+            if array.name() == "resizes":
+                has_resizes = True
 
         for prop in kernel.properties():
             type_kw = Types.c_keyword(self.sim, prop.type())
@@ -611,7 +614,15 @@ class CGen:
         self.print(f"    const int {kernel.iterator.name()} = blockIdx.x * blockDim.x + threadIdx.x + range_start;")
         self.print.add_indent(4)
         self.kernel_context = True
+
+        if has_resizes:
+            self.print(f"printf(\"{kernel.name} @@@@@@@@ before kernel: resizes[0] = %d\\n\", resizes[0]);")
+
         self.generate_statement(kernel.block)
+
+        if has_resizes:
+            self.print(f"printf(\"{kernel.name} @@@@@@@@ after kernel: resizes[0] = %d\\n\", resizes[0]);")
+
         self.kernel_context = False
         self.print.add_indent(-4)
         self.print("}")
@@ -652,7 +663,10 @@ class CGen:
             if ast_node.check_for_resize():
                 resize = self.generate_expression(ast_node.resize)
                 capacity = self.generate_expression(ast_node.capacity)
+                self.print(f"printf (\" %d -- before AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
                 self.print(f"pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
+                self.print(f"printf (\" %d -- after AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
+
             else:
                 self.print(f"pairs::{prefix}atomic_add(&({elem}), {value});")
 
@@ -852,7 +866,9 @@ class CGen:
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}, {size}); // {array_name}")
 
             else:
+                self.print(f"std::cout<< \"{Printer.line_id} -- before {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
+                self.print(f"std::cout<< \"{Printer.line_id} -- after {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
 
         if isinstance(ast_node, CopyContactProperty):
             prop_id = ast_node.contact_prop().id()

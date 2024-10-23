@@ -24,14 +24,14 @@ public:
         PAIRS_ASSERT(size_ > 0);
     }
 
-    array_t getId() { return id; }
-    std::string getName() { return name; }
-    void *getHostPointer() { return h_ptr; }
-    void *getDevicePointer() { return d_ptr; }
+    array_t getId() const { return id; }
+    std::string getName() const { return name; }
+    void *getHostPointer() const { return h_ptr; }
+    void *getDevicePointer() const { return d_ptr; }
     void setPointers(void *h_ptr_, void *d_ptr_) { h_ptr = h_ptr_, d_ptr = d_ptr_; }
-    void setSize(size_t size_) { size = size_; }
-    size_t getSize() { return size; };
-    bool isStatic() { return is_static; }
+    void setSize(size_t size_) { size = size_;}
+    size_t getSize() const { return size; }
+    bool isStatic() const { return is_static; }
 };
 
 }
