@@ -115,8 +115,8 @@ psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('angular_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_property('torque', pairs.vector(), volatile=True)
-# psim.add_property('hydrodynamic_force', pairs.vector())
-# psim.add_property('hydrodynamic_torque', pairs.vector())
+psim.add_property('hydrodynamic_force', pairs.vector(), reduce=True)
+psim.add_property('hydrodynamic_torque', pairs.vector(), reduce=True)
 # psim.add_property('old_hydrodynamic_force', pairs.vector())
 # psim.add_property('old_hydrodynamic_torque', pairs.vector())
 psim.add_property('radius', pairs.real(), 1.0)
@@ -130,12 +130,12 @@ psim.add_feature_property('type', 'friction_dynamic', pairs.real(), [frictionDyn
 
 psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
 # psim.set_domain_partitioner(pairs.block_forest(), initDomainFromWalberla=True)
-# psim.set_domain_partitioner(pairs.block_forest())
-psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
+psim.set_domain_partitioner(pairs.block_forest())
+# psim.set_domain_partitioner(pairs.regular_domain_partitioner())
 psim.pbc([False, False, False])
-psim.dem_sc_grid(
-    domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
-    diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
+# psim.dem_sc_grid(
+#     domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
+#     diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
 
 #psim.read_particle_data(
 #    "data/spheres.input",

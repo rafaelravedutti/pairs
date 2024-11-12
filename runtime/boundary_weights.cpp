@@ -8,13 +8,13 @@
 #include "pairs_common.hpp"
 
 // Always include last generated interfaces
-#include "last_generated.hpp"
+#include "interfaces/last_generated.hpp"
 
 #ifdef PAIRS_TARGET_CUDA
 
 #define REDUCE_BLOCK_SIZE   64
 
-void __global__ reduceBoundaryWeights(
+__global__ void reduceBoundaryWeights(
     real_t *position, int start, int end, int particle_capacity,
     real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, int *d_weights) {
 

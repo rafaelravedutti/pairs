@@ -27,7 +27,7 @@ class MarkCandidateLoops(Visitor):
                             if isinstance(branch_stmt, For):
                                 possible_candidates.append(branch_stmt)
 
-                if isinstance(stmt, For):
+                if isinstance(stmt, For) and not stmt.not_kernel:
                     possible_candidates.append(stmt)
 
         for stmt in possible_candidates:

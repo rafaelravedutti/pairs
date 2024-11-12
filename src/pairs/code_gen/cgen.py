@@ -172,7 +172,8 @@ class CGen:
 
         self.print("// Module headers")
         for module in self.sim.modules():
-            self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj);")
+            if module.name != "main":
+                self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj);")
 
         self.print("")
 
@@ -188,7 +189,13 @@ class CGen:
         self.print.add_indent(4)
         self.print("PairsAccessor(const std::shared_ptr<PairsSimulation> &ps_): ps(ps_){}")
         self.print("")
-        self.print("int size() const { return ps->pobj->nlocal; }")
+        self.print("int size() const { return ps->pobj->nlocal + ps->pobj->nghost; }")
+        self.print("")
+
+        self.print("int nlocal() const { return ps->pobj->nlocal; }")
+        self.print("")
+
+        self.print("int nghost() const { return ps->pobj->nghost; }")
         self.print("")
 
         self.print("int getInvalidIdx(){return -1;}")
@@ -199,7 +206,19 @@ class CGen:
 
         self.print('''int uidToIdx(pairs::id_t uid){
         int idx = getInvalidIdx();
-        for(int i=0; i<ps->pobj->nlocal; ++i){
+        for(int i=0; i<this->nlocal(); ++i){
+            if (getUid(i) == uid){
+                idx = i;
+                break;
+            }
+        }
+        return idx;''')
+        self.print("}")
+        self.print("")
+
+        self.print('''int uidToIdxGhost(pairs::id_t uid){
+        int idx = getInvalidIdx();
+        for(int i=this->nlocal(); i<this->size(); ++i){
             if (getUid(i) == uid){
                 idx = i;
                 break;
@@ -337,6 +356,7 @@ class CGen:
         self.print.start()
         self.generate_preamble()
         self.generate_pairs_object_structure()
+        self.generate_module_headers()
 
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
@@ -346,7 +366,7 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module):
+    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module):
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
@@ -374,7 +394,7 @@ class CGen:
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep']:
+            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm']:
                 self.generate_module(module)
 
         self.print.end()
@@ -436,6 +456,11 @@ class CGen:
         self.print("}")
         self.print("")
 
+        self.print("int rank(){")
+        self.print("    return pairs_runtime->getDomainPartitioner()->getRank();")
+        self.print("}")
+        self.print("")
+
         self.print("void setup_sim() {")
         self.print.add_indent(4)
         self.generate_statement(setup_sim_module.block)
@@ -451,6 +476,13 @@ class CGen:
         self.print("}")
         self.print("")
 
+        self.print("void reverse_comm() {")
+        self.print.add_indent(4)
+        self.generate_statement(reverse_comm_module.block)
+        self.print.add_indent(-4)
+        self.print("}")
+        self.print("")
+
         self.print("void end() {")
         self.print("    pairs::print_timers(pairs_runtime);")
         self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
@@ -461,7 +493,7 @@ class CGen:
         self.print.add_indent(-4)
         self.print("};")
 
-        # self.generate_host_pairs_accessor_class()
+        self.generate_host_pairs_accessor_class()
         
         self.print.end()
         self.generate_full_object_names = False
@@ -512,17 +544,16 @@ class CGen:
 
                 if device_cond and var.device_flag:
                     self.print(f"{type_kw} *{var.name()} = pobj->rv_{var.name()}.getDevicePointer();")
+                elif var.force_read:
+                    self.print(f"{type_kw} {var.name()} = pobj->{var.name()};")
                 else:
                     self.print(f"{type_kw} *{var.name()} = &(pobj->{var.name()});")
 
             for array in module.arrays():
                 type_kw = Types.c_keyword(self.sim, array.type())
                 name = array.name() if not device_cond else f"d_{array.name()}"
-                # self.generate_full_object_names = True
                 if not array.is_static() or (array.is_static() and not device_cond):
                     self.print(f"{type_kw} *{array.name()} = pobj->{name};")
-                    # self.print(f"{type_kw} *{array.name()} = {self.generate_object_reference(array, device=device_cond)};")
-                # self.generate_full_object_names = False
 
                 if array in module.host_references():
                     self.print(f"{type_kw} *h_{array.name()} = pobj->{array.name()};")
@@ -615,13 +646,13 @@ class CGen:
         self.print.add_indent(4)
         self.kernel_context = True
 
-        if has_resizes:
-            self.print(f"printf(\"{kernel.name} @@@@@@@@ before kernel: resizes[0] = %d\\n\", resizes[0]);")
+        # if has_resizes:
+            # self.print(f"printf(\"{kernel.name} @@@@@@@@ before kernel: resizes[0] = %d\\n\", resizes[0]);")
 
         self.generate_statement(kernel.block)
 
-        if has_resizes:
-            self.print(f"printf(\"{kernel.name} @@@@@@@@ after kernel: resizes[0] = %d\\n\", resizes[0]);")
+        # if has_resizes:
+            # self.print(f"printf(\"{kernel.name} @@@@@@@@ after kernel: resizes[0] = %d\\n\", resizes[0]);")
 
         self.kernel_context = False
         self.print.add_indent(-4)
@@ -663,9 +694,9 @@ class CGen:
             if ast_node.check_for_resize():
                 resize = self.generate_expression(ast_node.resize)
                 capacity = self.generate_expression(ast_node.capacity)
-                self.print(f"printf (\" %d -- before AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
+                # self.print(f"printf (\" %d -- before AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
                 self.print(f"pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
-                self.print(f"printf (\" %d -- after AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
+                # self.print(f"printf (\" %d -- after AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
 
             else:
                 self.print(f"pairs::{prefix}atomic_add(&({elem}), {value});")
@@ -866,9 +897,9 @@ class CGen:
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}, {size}); // {array_name}")
 
             else:
-                self.print(f"std::cout<< \"{Printer.line_id} -- before {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
+                # self.print(f"std::cout<< \"{Printer.line_id} -- before {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
-                self.print(f"std::cout<< \"{Printer.line_id} -- after {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
+                # self.print(f"std::cout<< \"{Printer.line_id} -- after {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
 
         if isinstance(ast_node, CopyContactProperty):
             prop_id = ast_node.contact_prop().id()
@@ -1151,7 +1182,7 @@ class CGen:
             var = self.generate_expression(ast_node.var)
             # Dereferences are ignored for write variables when full objects
             # are generated since they can be directly written into
-            return var if self.generate_full_object_names else f"(*{var})"
+            return var if (self.generate_full_object_names or ast_node.var.force_read) else f"(*{var})"
 
         if isinstance(ast_node, DeviceStaticRef):
             elem = self.generate_expression(ast_node.elem)

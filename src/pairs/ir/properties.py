@@ -16,8 +16,8 @@ class Properties:
         self.props = []
         self.defs = {}
 
-    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS):
-        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout)
+    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS, p_reduce=False):
+        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout, p_reduce)
         self.props.append(p)
         self.defs[p_name] = p_value
         return p
@@ -27,6 +27,9 @@ class Properties:
 
     def all(self):
         return self.props
+    
+    def reduction_props(self):
+        return [p for p in self.props if p.reduce is True]
 
     def volatiles(self):
         return [p for p in self.props if p.volatile is True]
@@ -51,7 +54,7 @@ class Properties:
 class Property(ASTNode):
     last_prop_id = 0
 
-    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS):
+    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS, reduce=False):
         super().__init__(sim)
         self.prop_id = Property.last_prop_id
         self.prop_name = name
@@ -59,6 +62,7 @@ class Property(ASTNode):
         self.prop_layout = layout
         self.default_value = default
         self.volatile = volatile
+        self.reduce = reduce
         self.device_flag = False
         Property.last_prop_id += 1
 

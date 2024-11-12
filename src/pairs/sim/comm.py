@@ -23,7 +23,7 @@ class Comm:
         self.nsend_all        = sim.add_var('nsend_all', Types.Int32)
         self.send_capacity    = sim.add_var('send_capacity', Types.Int32, 200000)
         self.recv_capacity    = sim.add_var('recv_capacity', Types.Int32, 200000)
-        self.elem_capacity    = sim.add_var('elem_capacity', Types.Int32, 40)
+        self.elem_capacity    = sim.add_var('elem_capacity', Types.Int32, 100)
         self.nsend            = sim.add_array('nsend', [dom_part.nranks_capacity], Types.Int32)
         self.send_offsets     = sim.add_array('send_offsets', [dom_part.nranks_capacity], Types.Int32)
         self.send_buffer      = sim.add_array('send_buffer', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
@@ -41,6 +41,13 @@ class Comm:
         self.contact_soffsets = sim.add_array('contact_soffsets', [dom_part.nranks_capacity], Types.Int32)
         self.contact_roffsets = sim.add_array('contact_roffsets', [dom_part.nranks_capacity], Types.Int32)
 
+        self.nsend_reverse            = sim.add_array('nsend_reverse', [dom_part.nranks_capacity], Types.Int32)
+        self.send_offsets_reverse     = sim.add_array('send_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
+        self.send_buffer_reverse      = sim.add_array('send_buffer_reverse', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+        self.nrecv_reverse            = sim.add_array('nrecv_reverse', [dom_part.nranks_capacity], Types.Int32)
+        self.recv_offsets_reverse     = sim.add_array('recv_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
+        self.recv_buffer_reverse      = sim.add_array('recv_buffer_reverse', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+
     @pairs_inline
     def synchronize(self):
         # Every property that is not constant across timesteps and have neighbor accesses during any
@@ -51,6 +58,33 @@ class Comm:
         PackAllGhostParticles(self, prop_list)
         CommunicateAllData(self, prop_list)
         UnpackAllGhostParticles(self, prop_list)
+        
+    @pairs_host_block
+    def reverse_comm(self, reduce=False):
+        self.sim.module_name(f"reverse_comm")
+        self.prop_list = self.sim.properties.reduction_props()
+
+        for step in range(self.dom_part.number_of_steps() - 1, -1, -1):
+            if self.sim._target.is_gpu():
+                CopyArray(self.sim, self.nsend, Contexts.Host, Actions.ReadOnly)
+                CopyArray(self.sim, self.nrecv, Contexts.Host, Actions.ReadOnly)
+                CopyArray(self.sim, self.send_offsets, Contexts.Host, Actions.ReadOnly)
+                CopyArray(self.sim, self.recv_offsets, Contexts.Host, Actions.ReadOnly)
+
+                # CopyArray(self.sim, self.nsend_reverse, Contexts.Host, Actions.WriteOnly)
+                # CopyArray(self.sim, self.nrecv_reverse, Contexts.Host, Actions.WriteOnly)
+                # CopyArray(self.sim, self.send_offsets_reverse, Contexts.Host, Actions.WriteOnly)
+                # CopyArray(self.sim, self.recv_offsets_reverse, Contexts.Host, Actions.WriteOnly)
+            
+            for j in self.dom_part.step_indexes(step):
+                Assign(self.sim, self.nsend_reverse[j], self.nrecv[j])
+                Assign(self.sim, self.nrecv_reverse[j], self.nsend[j])
+                Assign(self.sim, self.send_offsets_reverse[j], self.recv_offsets[j])
+                Assign(self.sim, self.recv_offsets_reverse[j], self.send_offsets[j])
+
+            PackGhostParticlesReverse(self, step, self.prop_list)
+            CommunicateDataReverse(self, step, self.prop_list)
+            UnpackGhostParticlesReverse(self, step, self.prop_list, reduce)
 
     @pairs_inline
     def borders(self):
@@ -180,7 +214,24 @@ class CommunicateData(Lowerable):
                    self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
                    self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
 
+class CommunicateDataReverse(Lowerable):
+    def __init__(self, comm, step, prop_list):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.prop_list = prop_list
+        self.sim.add_statement(self)
 
+    @pairs_inline
+    def lower(self):
+        elem_size = sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+        Call_Void(self.sim,
+                  "pairs_runtime->communicateDataReverse",
+                  [self.step, elem_size,
+                   self.comm.send_buffer_reverse, self.comm.send_offsets_reverse, self.comm.nsend_reverse,
+                   self.comm.recv_buffer_reverse, self.comm.recv_offsets_reverse, self.comm.nrecv_reverse])
+        
 class CommunicateContactHistoryData(Lowerable):
     def __init__(self, comm, step):
         super().__init__(comm.sim)
@@ -329,6 +380,45 @@ class PackGhostParticles(Lowerable):
                     Assign(self.sim, send_buffer[i][p_offset], cast_fn(p[m]))
                     p_offset += 1
 
+class PackGhostParticlesReverse(Lowerable):
+    def __init__(self, comm, step, prop_list):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.prop_list = prop_list
+        self.sim.add_statement(self)
+
+    def get_elems_per_particle(self):
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+    @pairs_device_block
+    def lower(self):
+        nlocal = self.sim.nlocal
+        nghost = self.sim.nghost
+        send_buffer_reverse = self.comm.send_buffer_reverse
+        send_buffer_reverse.set_stride(1, self.get_elems_per_particle())
+
+        self.sim.module_name(f"pack_ghost_particles_reverse{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
+
+        start = self.comm.send_offsets_reverse[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nsend_reverse))
+        for i in For(self.sim, start, end):
+            p_offset = 0
+            m = nlocal + i
+            for p in self.prop_list:
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        src = p[m][e]
+                        Assign(self.sim, send_buffer_reverse[i][p_offset + e], src)
+
+                    p_offset += nelems
+
+                else:
+                    cast_fn = lambda x: Cast(self.sim, x, Types.Real) if p.type() != Types.Real else x
+                    Assign(self.sim, send_buffer_reverse[i][p_offset], cast_fn(p[m]))
+                    p_offset += 1
+
             
 class UnpackGhostParticles(Lowerable):
     def __init__(self, comm, step, prop_list):
@@ -365,6 +455,49 @@ class UnpackGhostParticles(Lowerable):
                     Assign(self.sim, p[nlocal + i], cast_fn(recv_buffer[i][p_offset]))
                     p_offset += 1
 
+class UnpackGhostParticlesReverse(Lowerable):
+    def __init__(self, comm, step, prop_list, reduce=False):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.prop_list = prop_list
+        self.reduce = reduce
+        self.sim.add_statement(self)
+        
+
+    def get_elems_per_particle(self):
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+    @pairs_device_block
+    def lower(self):
+        send_map = self.comm.send_map
+        recv_buffer_reverse = self.comm.recv_buffer_reverse
+        recv_buffer_reverse.set_stride(1, self.get_elems_per_particle())
+        self.sim.module_name(f"unpack_ghost_particles_reverse{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
+
+        start = self.comm.recv_offsets_reverse[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nrecv_reverse))
+        for i in For(self.sim, start, end):
+            p_offset = 0
+            m = send_map[i]
+            for p in self.prop_list:
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        if self.reduce:
+                            Assign(self.sim, p[m][e], p[m][e] + recv_buffer_reverse[i][p_offset + e])
+                        else:
+                            Assign(self.sim, p[m][e], recv_buffer_reverse[i][p_offset + e])
+
+                    p_offset += nelems
+
+                else:
+                    cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Real else x
+                    if self.reduce:
+                        Assign(self.sim, p[m], p[m] + cast_fn(recv_buffer_reverse[i][p_offset]))
+                    else:
+                        Assign(self.sim, p[m], cast_fn(recv_buffer_reverse[i][p_offset]))
+                    p_offset += 1
 
 class PackAllGhostParticles(Lowerable):
     def __init__(self, comm, prop_list):

@@ -200,9 +200,9 @@ class Simulation:
         assert len(pbc_config) == self.dims, "PBC must be specified for each dimension."
         self._pbc = pbc_config
 
-    def add_property(self, prop_name, prop_type, value=0.0, volatile=False):
+    def add_property(self, prop_name, prop_type, value=0.0, volatile=False, reduce=False):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, prop_type, value, volatile)
+        return self.properties.add(prop_name, prop_type, value, volatile, p_reduce=reduce)
 
     def add_position(self, prop_name, value=[0.0, 0.0, 0.0], volatile=False, layout=Layouts.AoS):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
@@ -442,6 +442,8 @@ class Simulation:
 
         # Initialize communication instance with specified domain-partitioner
         comm = Comm(self, self._dom_part)
+        reverse_comm_module = comm.reverse_comm(reduce=True)
+
         # Params that determine when a method must be called only when reneighboring
         every_reneighbor_params = {'every': self.reneighbor_frequency}
 
@@ -473,7 +475,14 @@ class Simulation:
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
         # Reset volatile properties and add computational kernels
-        timestep_procedures += [ResetVolatileProperties(self)] + self.functions
+        timestep_procedures += [ResetVolatileProperties(self)]
+
+        # add computational kernels
+        timestep_procedures += self.functions
+
+        # For whole-program-generation, add reverse_comm wherever needed in the timestep loop (eg: after computational kernels) like this:
+        if self._generate_whole_program:
+            timestep_procedures += [reverse_comm_module]
 
         # Clear unused contact history
         if self._use_contact_history:
@@ -543,12 +552,12 @@ class Simulation:
             setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
             do_timestep_module = Module(self, name='do_timestep', block=timestep.as_block())
 
-            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module]
+            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module]
 
             transformations = Transformations(modules_list, self._target)
             transformations.apply_all()
 
             # Generate library
-            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module)
+            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module)
 
         self.code_gen.generate_interfaces()

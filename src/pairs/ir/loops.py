@@ -39,7 +39,7 @@ class Iter(ASTTerm):
 
 
 class For(ASTNode):
-    def __init__(self, sim, range_min, range_max, block=None):
+    def __init__(self, sim, range_min, range_max, block=None, not_kernel=False):
         super().__init__(sim)
         self.iterator = Iter(sim, self)
         self.min = Lit.cvt(sim, range_min)
@@ -47,6 +47,7 @@ class For(ASTNode):
         self.block = Block(sim, []) if block is None else block
         self.kernel = None
         self._kernel_candidate = False
+        self.not_kernel = not_kernel
 
     def __str__(self):
         return f"For<{self.iterator}, {self.min} ... {self.max}>"

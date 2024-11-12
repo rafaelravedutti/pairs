@@ -68,7 +68,8 @@ void BlockForest::updateNeighborhood() {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         auto& block_info = (*info)[block->getId()];
 
-        if(block_info.computationalWeight > 0) {
+        // don't check computationalWeight for now (TODO: compute_boundary_weights)
+        // if(block_info.computationalWeight > 0) {
             for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
                 auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
@@ -79,8 +80,8 @@ void BlockForest::updateNeighborhood() {
                     auto begin = blocks_pushed[neighbor_rank].begin();
                     auto end = blocks_pushed[neighbor_rank].end();
 
-                    if(neighbor_info.computationalWeight > 0 &&
-                       find_if(begin, end, [neighbor_block](const auto &nbh) {
+                    // if(neighbor_info.computationalWeight > 0 &&
+                    if(   find_if(begin, end, [neighbor_block](const auto &nbh) {
                             return nbh == neighbor_block; }) == end) {
 
                         neighborhood[neighbor_rank].push_back(neighbor_aabb);
@@ -88,7 +89,7 @@ void BlockForest::updateNeighborhood() {
                     }
                 // }
             }
-        }
+        // }
     }
 
     for(auto& nbh: neighborhood) {
@@ -133,21 +134,21 @@ void BlockForest::updateWeights() {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         auto aabb = block->getAABB();
         auto& block_info = (*info)[block->getId()];
-
-        pairs::compute_boundary_weights(
-            this->ps,
-            aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
-            &(block_info.computationalWeight), &(block_info.communicationWeight));
+        // TODO: Generate boundary weights
+        // pairs::compute_boundary_weights(
+        //     this->ps,
+        //     aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
+        //     &(block_info.computationalWeight), &(block_info.communicationWeight));
 
         for(int branch = 0; branch < 8; ++branch) {
             const auto b_id = walberla::BlockID(block->getId(), branch);
             const auto b_aabb = forest->getAABBFromBlockId(b_id);
             auto& b_info = (*info)[b_id];
 
-            pairs::compute_boundary_weights(
-                this->ps,
-                b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
-                &(b_info.computationalWeight), &(b_info.communicationWeight));
+            // pairs::compute_boundary_weights(
+            //     this->ps,
+            //     b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
+            //     &(b_info.computationalWeight), &(b_info.communicationWeight));
         }
     }
 
@@ -270,6 +271,9 @@ void BlockForest::initialize(int *argc, char ***argv) {
     auto procs = mpiManager->numProcesses();
     auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) :
                                            getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
+
+    if(rank==0) std::cout << "block_config = " << block_config << std::endl;
+
     auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
 
     forest = walberla::blockforest::createBlockForest(
@@ -450,6 +454,14 @@ void BlockForest::communicateData(
     if(!recv_requests.empty()) {
         MPI_Waitall(recv_requests.size(), recv_requests.data(), MPI_STATUSES_IGNORE);
     }
+}
+
+void BlockForest::communicateDataReverse(
+    int dim, int elem_size,
+    const real_t *send_buf, const int *send_offsets, const int *nsend,
+    real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
+
+        this->communicateData(dim, elem_size,send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 }
 
 void BlockForest::communicateAllData(

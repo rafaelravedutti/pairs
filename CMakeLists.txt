@@ -28,7 +28,7 @@ option(ENABLE_GPU_DIRECT "ENABLE_GPU_DIRECT" ON)
 option(GENERATE_WHOLE_PROGRAM "GENERATE_WHOLE_PROGRAM" OFF)
 
 if(USE_WALBERLA)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING ")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_WALBERLA_LOAD_BALANCING -DUSE_WALBERLA")
     find_package(waLBerla REQUIRED)
     add_subdirectory(${walberla_SOURCE_DIR} ${walberla_BINARY_DIR} EXCLUDE_FROM_ALL)
     waLBerla_import()
@@ -39,7 +39,6 @@ set(GEN_HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces)
 
 set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
-    # runtime/boundary_weights.cpp  # avoid compiling this for now. TODO: generate the host and device functions
     runtime/copper_fcc_lattice.cpp
     runtime/create_body.cpp
     runtime/dem_sc_grid.cpp
@@ -49,8 +48,9 @@ set(RUNTIME_COMMON_FILES
     runtime/timing.cpp
     runtime/vtk.cpp
     runtime/domain/regular_6d_stencil.cpp)
-
+    
 set(RUNTIME_WALBERLA_FILES
+    # runtime/boundary_weights.cpp  # avoid compiling this for now. TODO: generate the host and device functions
     runtime/domain/block_forest.cpp)
 
 set(PYTHON_EXECUTABLE ${PYTHON_EXECUTABLE} CACHE STRING "Python executable not set.")

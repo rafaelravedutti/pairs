@@ -49,6 +49,7 @@ class Var(ASTTerm):
         self.mutable = True
         self.var_bonded_arrays = []
         self.device_flag = False
+        self.force_read = False
 
         if temp:
             DeclareVariable(sim, self)
@@ -103,6 +104,10 @@ class Deref(ASTTerm):
     @property
     def var(self):
         return self._var
+
+    def copy(self, deep=False):
+        # Terminal copies are just themselves
+        return self
 
     def type(self):
         return self._var.type()

@@ -50,10 +50,17 @@ public:
         int dim, int elem_size,
         const real_t *send_buf, const int *send_offsets, const int *nsend,
         real_t *recv_buf, const int *recv_offsets, const int *nrecv) = 0;
+
+    virtual void communicateDataReverse(
+        int dim, int elem_size,
+        const real_t *send_buf, const int *send_offsets, const int *nsend,
+        real_t *recv_buf, const int *recv_offsets, const int *nrecv) = 0;
+
     virtual void communicateAllData(
         int ndims, int elem_size,
         const real_t *send_buf, const int *send_offsets, const int *nsend,
         real_t *recv_buf, const int *recv_offsets, const int *nrecv) = 0;
+        
     virtual void finalize() = 0;
 };
 

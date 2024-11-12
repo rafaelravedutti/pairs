@@ -87,6 +87,8 @@ class DimensionRanges:
 class BlockForest:
     def __init__(self, sim):
         self.sim                = sim
+        self.reduce_step        = sim.add_var('reduce_step', Types.Int32)   # this var is treated as a tmp (workaround for gpu)
+        self.reduce_step.force_read = True
         self.rank               = sim.add_var('rank', Types.Int32)
         self.nranks             = sim.add_var('nranks', Types.Int32)
         self.nranks_capacity    = sim.add_var('nranks_capacity', Types.Int32, init_value=27)
@@ -108,7 +110,7 @@ class BlockForest:
         return 1
 
     def step_indexes(self, step):
-        yield from For(self.sim, 0, self.nranks)
+        yield from For(self.sim, 0, self.nranks, not_kernel=True)
 
     def first_step_index(self, step):
         return 0
@@ -117,11 +119,11 @@ class BlockForest:
         return self.reduce_sum_step_indexes(0, array)
 
     def reduce_sum_step_indexes(self, step, array):
-        nsend_sum = self.sim.add_temp_var(0)
-        for i in For(self.sim, 0, self.nranks):
-            Assign(self.sim, nsend_sum, nsend_sum + array[i])
-
-        return nsend_sum
+        Assign(self.sim, self.reduce_step, 0)
+        for i in For(self.sim, 0, self.nranks, not_kernel=True):
+            Assign(self.sim, self.reduce_step, ScalarOp.inline( self.reduce_step + array[i]))
+            
+        return self.reduce_step
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
@@ -131,23 +133,25 @@ class BlockForest:
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
         Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
         Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborRanks", []))
-        Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
 
-        for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
-            Assign(self.sim, self.nranks_capacity, self.nranks + 10)
-            self.ranks.realloc()
-            self.naabbs.realloc()
-            self.aabb_offsets.realloc()
+        for _ in Filter(self.sim, ScalarOp.neq(self.nranks, 0)):
+            Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
 
-        for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
-            Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
-            self.aabbs.realloc()
+            for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
+                Assign(self.sim, self.nranks_capacity, self.nranks + 10)
+                self.ranks.realloc()
+                self.naabbs.realloc()
+                self.aabb_offsets.realloc()
 
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
+            for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
+                Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
+                self.aabbs.realloc()
+
+            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
+            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
+            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
+            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
+            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def ghost_particles(self, step, position, offset=0.0):
         ''' TODO :  If we have pbc, a sinlge particle can be a ghost particle multiple times (at different locations) for the same neighbor block,
