@@ -72,7 +72,7 @@ class CopyProperty(ASTNode):
         return self._action
 
     def children(self):
-        return [self._prop]
+        return [self._prop, self.sim.nghost, self.sim.nlocal]
 
 
 class CopyContactProperty(ASTNode):

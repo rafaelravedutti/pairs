@@ -73,6 +73,7 @@ class Transformations:
     def add_device_copies(self):
         if self._target.is_gpu():
             self.apply(AddDeviceCopies(), [self._module_resizes])
+            self.analysis().fetch_modules_references()
 
     def add_device_kernels(self):
         if self._target.is_gpu():

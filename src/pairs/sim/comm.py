@@ -394,7 +394,6 @@ class PackGhostParticlesReverse(Lowerable):
     @pairs_device_block
     def lower(self):
         nlocal = self.sim.nlocal
-        nghost = self.sim.nghost
         send_buffer_reverse = self.comm.send_buffer_reverse
         send_buffer_reverse.set_stride(1, self.get_elems_per_particle())
 

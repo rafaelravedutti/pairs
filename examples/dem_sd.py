@@ -101,7 +101,7 @@ psim = pairs.simulation(
     use_contact_history=False,
     particle_capacity=1000000,
     neighbor_capacity=20,
-    debug=True, generate_whole_program=True)
+    debug=True, generate_whole_program=False)
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())
