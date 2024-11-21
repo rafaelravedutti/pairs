@@ -191,7 +191,7 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
 
 #psim.compute_half()
 psim.build_cell_lists(linkedCellWidth)
-psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
+#psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
 psim.compute(gravity,
              symbols={'densityParticle_SI': densityParticle_SI,
