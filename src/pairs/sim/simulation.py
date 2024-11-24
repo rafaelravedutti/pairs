@@ -448,9 +448,17 @@ class Simulation:
         every_reneighbor_params = {'every': self.reneighbor_frequency}
 
         # First steps executed during each time-step in the simulation
-        timestep_procedures = self.pre_step_functions + [
+        timestep_procedures = self.pre_step_functions 
+
+        comm_routine = [
             (comm.exchange(), every_reneighbor_params),
-            (comm.borders(), comm.synchronize(), every_reneighbor_params),
+            (comm.borders(), comm.synchronize(), every_reneighbor_params)
+            ]
+        
+        if self._generate_whole_program:
+            timestep_procedures += comm_routine
+
+        timestep_procedures +=    [
             (BuildCellLists(self, self.cell_lists), every_reneighbor_params),
             (PartitionCellLists(self, self.cell_lists), every_reneighbor_params)
         ]
@@ -551,13 +559,14 @@ class Simulation:
 
             setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
             do_timestep_module = Module(self, name='do_timestep', block=timestep.as_block())
+            communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).as_block())
 
-            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module]
+            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module]
 
             transformations = Transformations(modules_list, self._target)
             transformations.apply_all()
 
             # Generate library
-            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module)
+            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module)
 
         self.code_gen.generate_interfaces()

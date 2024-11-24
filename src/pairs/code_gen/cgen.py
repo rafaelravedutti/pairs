@@ -366,7 +366,7 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module):
+    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module, communicate_module):
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
@@ -394,7 +394,7 @@ class CGen:
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm']:
+            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm', 'communicate']:
                 self.generate_module(module)
 
         self.print.end()
@@ -479,6 +479,14 @@ class CGen:
         self.print("void reverse_comm() {")
         self.print.add_indent(4)
         self.generate_statement(reverse_comm_module.block)
+        self.print.add_indent(-4)
+        self.print("}")
+        self.print("")
+
+        self.print("void communicate(int timestep) {")
+        self.print("    pobj->sim_timestep = timestep;")
+        self.print.add_indent(4)
+        self.generate_statement(communicate_module.block)
         self.print.add_indent(-4)
         self.print("}")
         self.print("")

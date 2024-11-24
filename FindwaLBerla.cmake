@@ -3,7 +3,7 @@ set( WALBERLA_DIR    WALBERLA_DIR-NOTFOUND   CACHE  PATH  "waLBerla path"  )
 if ( WALBERLA_DIR )
     # WALBERLA_DIR has to point to the waLBerla source directory
     # this command builds waLBerla (again) in the current build directory in the subfolder "walberla" (second argument)
-    add_subdirectory( ${WALBERLA_DIR} walberla  )
+    add_subdirectory( ${WALBERLA_DIR} walberla EXCLUDE_FROM_ALL)
     
     waLBerla_import()
     # Adds the 'src' and 'tests' directory of current app

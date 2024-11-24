@@ -79,6 +79,8 @@ int main(int argc, char **argv) {
         //     int idx = pairs_acc->uidToIdx(pUid);
         //     std::cout<< "Tracked particle is now in rank " << rank << " --- " << pairs_acc->getPosition(idx)<< std::endl;
         // }
+
+        pairs_sim->communicate(t);
         
         if (pIsLocalInMyRank(pUid)){
             int idx = pairs_acc->uidToIdx(pUid);
