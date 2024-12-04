@@ -140,6 +140,10 @@ class CGen:
     def generate_preamble(self):
         self.print(f"#define APPLICATION_REFERENCE \"{self.ref}\"")
 
+        # TODO: Either do this, or add USE_WALBERLA to you compile definitions
+        if self.sim.partitioner()==DomainPartitioners.BlockForest:
+            self.print("#define USE_WALBERLA")
+
         if self.target.is_gpu():
             self.print("#define PAIRS_TARGET_CUDA")
 
@@ -501,7 +505,8 @@ class CGen:
         self.print.add_indent(-4)
         self.print("};")
 
-        self.generate_host_pairs_accessor_class()
+        if self.sim.partitioner()==DomainPartitioners.BlockForest:
+            self.generate_host_pairs_accessor_class()
         
         self.print.end()
         self.generate_full_object_names = False

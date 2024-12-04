@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstring>
 #include "../pairs_common.hpp"
-// #include "device.hpp"
+#include "device.hpp"
 
 #define CUDA_ASSERT(a) { pairs::cuda_assert((a), __FILE__, __LINE__); }
 

@@ -1,6 +1,7 @@
 import math
 import pairs
 import sys
+import os
 
 def update_mass_and_inertia(i):
     rotation_matrix[i] = diagonal_matrix(1.0)
@@ -93,8 +94,11 @@ lnDryResCoeff = math.log(restitutionCoefficient)
 frictionStatic = 0.0
 frictionDynamic = frictionCoefficient
 
+file_name = os.path.basename(__file__)
+file_name_without_extension = os.path.splitext(file_name)[0]
+
 psim = pairs.simulation(
-    "dem_sd",
+    file_name_without_extension,
     [pairs.sphere(), pairs.halfspace()],
     timesteps=timeSteps,
     double_prec=True,
