@@ -190,7 +190,7 @@ class KernelLaunch(ASTNode):
         self._iterator = iterator
         self._range_min = range_min
         self._range_max = range_max
-        self._threads_per_block = Lit.cvt(sim, 1)
+        self._threads_per_block = Lit.cvt(sim, 32)
         self._nelems = (range_max - range_min) 
         self._nblocks = (self._nelems + self._threads_per_block - 1) / self._threads_per_block
 

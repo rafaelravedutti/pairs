@@ -137,9 +137,9 @@ psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_S
 psim.set_domain_partitioner(pairs.block_forest())
 # psim.set_domain_partitioner(pairs.regular_domain_partitioner())
 psim.pbc([False, False, False])
-# psim.dem_sc_grid(
-#     domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
-#     diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
+psim.dem_sc_grid(
+    domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
+    diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
 
 #psim.read_particle_data(
 #    "data/spheres.input",
@@ -165,7 +165,7 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
 
 #psim.compute_half()
 psim.build_cell_lists(linkedCellWidth)
-psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
+# psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
 psim.compute(gravity,
              symbols={'densityParticle_SI': densityParticle_SI,

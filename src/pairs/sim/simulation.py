@@ -482,11 +482,11 @@ class Simulation:
 
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
-        # Reset volatile properties and add computational kernels
-        timestep_procedures += [ResetVolatileProperties(self)]
-
         # add computational kernels
         timestep_procedures += self.functions
+
+        # Reset volatile properties
+        timestep_procedures += [ResetVolatileProperties(self)]
 
         # For whole-program-generation, add reverse_comm wherever needed in the timestep loop (eg: after computational kernels) like this:
         if self._generate_whole_program:

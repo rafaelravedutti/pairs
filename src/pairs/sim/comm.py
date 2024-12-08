@@ -291,7 +291,7 @@ class DetermineGhostParticles(Lowerable):
         self.sim.check_resize(self.comm.send_capacity, nsend)
         #self.sim.check_resize(self.comm.send_capacity, nsend_all)
 
-        PrintCode(self.sim, f"std::cout << \"resizes[0] {self.sim._module_name} ========== \" << pobj->resizes[0] << std::endl;")
+        # PrintCode(self.sim, f"std::cout << \"resizes[0] {self.sim._module_name} ========== \" << pobj->resizes[0] << std::endl;")
         if is_exchange:
             for i in ParticleFor(self.sim):
                 Assign(self.sim, exchg_flag[i], 0)

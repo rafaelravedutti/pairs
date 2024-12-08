@@ -97,7 +97,7 @@ __device__ real_t atomic_add(real_t *addr, real_t val) { return atomicAdd_double
 __device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
     const int add_res = *addr + val;
     
-    printf("atomic_add_resize_check::: add_res %d --- val %d --- capacity %d --- resize %d\n", add_res, val, capacity, *resize);
+    // printf("atomic_add_resize_check::: add_res %d --- val %d --- capacity %d --- resize %d\n", add_res, val, capacity, *resize);
     
     if(add_res >= capacity) {
         *resize = add_res;

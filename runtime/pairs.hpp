@@ -60,8 +60,10 @@ public:
 
     // Variables
     template<typename T>
-    RuntimeVar<T> addDeviceVariable(T *h_ptr) {
-       return RuntimeVar<T>(h_ptr); 
+    RuntimeVar<T> &addDeviceVariable(T *h_ptr) {
+        // TODO: Proper memory mangement for RuntimeVar variables
+        RuntimeVar<T> *ret = new RuntimeVar<T>(h_ptr);
+        return *ret; 
     }
 
     void trackVariable(std::string variable_name, void *ptr) {
