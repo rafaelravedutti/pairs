@@ -2,7 +2,7 @@
 functions.dot
 functions.pdf
 **/*.vtk
-build
+build*
 dist
 pairs.egg-info
 output*

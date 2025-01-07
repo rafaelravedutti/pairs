@@ -370,7 +370,7 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module, communicate_module):
+    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module):
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
@@ -398,7 +398,7 @@ class CGen:
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm', 'communicate']:
+            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm', 'communicate', 'reset_volatiles']:
                 self.generate_module(module)
 
         self.print.end()
@@ -495,6 +495,13 @@ class CGen:
         self.print("}")
         self.print("")
 
+        self.print("void reset_volatiles() {")
+        self.print.add_indent(4)
+        self.generate_statement(reset_volatiles_module.block)
+        self.print.add_indent(-4)
+        self.print("}")
+        self.print("")
+
         self.print("void end() {")
         self.print("    pairs::print_timers(pairs_runtime);")
         self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
@@ -507,6 +514,7 @@ class CGen:
 
         if self.sim.partitioner()==DomainPartitioners.BlockForest:
             self.generate_host_pairs_accessor_class()
+        # self.generate_host_pairs_accessor_class()
         
         self.print.end()
         self.generate_full_object_names = False

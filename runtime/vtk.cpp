@@ -81,6 +81,10 @@ void vtk_write_data(
         out_file << "\n\n";
         out_file.close();
     }
+    else {
+        std::cerr << "vtk_write_data: Failed to open " << filename_oss.str() << std::endl;
+        exit(-1);
+    }
 }
 
 }

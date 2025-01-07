@@ -12,28 +12,18 @@ from pairs.ir.vectors import VectorOp
 class MarkCandidateLoops(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
+        self.device_module = False
+
+    def visit_For(self, ast_node):
+        if self.device_module:
+            if ast_node.not_kernel:
+                self.visit(ast_node.block)
+            else:
+                if not isinstance(ast_node.min, Lit) or not isinstance(ast_node.max, Lit):
+                    ast_node.mark_as_kernel_candidate()
 
     def visit_Module(self, ast_node):
-        possible_candidates = []
-        for stmt in ast_node._block.stmts:
-            if stmt is not None:
-                if isinstance(stmt, Branch):
-                    for branch_stmt in stmt.block_if.stmts:
-                        if isinstance(branch_stmt, For):
-                            possible_candidates.append(branch_stmt)
-
-                    if stmt.block_else is not None:
-                        for branch_stmt in stmt.block_else.stmts:
-                            if isinstance(branch_stmt, For):
-                                possible_candidates.append(branch_stmt)
-
-                if isinstance(stmt, For) and not stmt.not_kernel:
-                    possible_candidates.append(stmt)
-
-        for stmt in possible_candidates:
-            if not isinstance(stmt.min, Lit) or not isinstance(stmt.max, Lit):
-                stmt.mark_as_kernel_candidate()
-
+        self.device_module = ast_node.run_on_device
         self.visit_children(ast_node)
 
 

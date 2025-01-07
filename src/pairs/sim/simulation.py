@@ -482,11 +482,12 @@ class Simulation:
 
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
+        # Reset volatile properties
+        if self._generate_whole_program:
+            timestep_procedures += [ResetVolatileProperties(self)]
+
         # add computational kernels
         timestep_procedures += self.functions
-
-        # Reset volatile properties
-        timestep_procedures += [ResetVolatileProperties(self)]
 
         # For whole-program-generation, add reverse_comm wherever needed in the timestep loop (eg: after computational kernels) like this:
         if self._generate_whole_program:
@@ -560,13 +561,14 @@ class Simulation:
             setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
             do_timestep_module = Module(self, name='do_timestep', block=timestep.as_block())
             communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).as_block())
+            reset_volatiles_module = Module(self, name='reset_volatiles', block=Block(self, ResetVolatileProperties(self)))
 
-            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module]
+            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module]
 
             transformations = Transformations(modules_list, self._target)
             transformations.apply_all()
 
             # Generate library
-            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module)
+            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module)
 
         self.code_gen.generate_interfaces()

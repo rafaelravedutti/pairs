@@ -17,6 +17,7 @@ class DimensionRanges:
         self.neighbor_ranks     = sim.add_static_array('neighbor_ranks', [sim.ndims() * 2], Types.Int32)
         self.pbc                = sim.add_static_array('pbc', [sim.ndims() * 2], Types.Int32)
         self.subdom             = sim.add_static_array('subdom', [sim.ndims() * 2], Types.Real)
+        self.rank               = sim.add_var('rank', Types.Int32)
 
     def min(self, dim):
         return self.subdom[dim * 2 + 0]
@@ -49,6 +50,8 @@ class DimensionRanges:
 
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
+        Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
+
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored
@@ -162,7 +165,7 @@ class BlockForest:
         # Particles with one of the following flags are ignored
         flags_to_exclude = (Flags.Infinite | Flags.Global)
 
-        for r in For(self.sim, 0, self.nranks):     # for every neighbor rank
+        for r in self.step_indexes(0):     # for every neighbor rank
             for i in For(self.sim, 0, self.sim.nlocal):     # for every local particle in this rank
                 particle_flags = self.sim.particle_flags
 
