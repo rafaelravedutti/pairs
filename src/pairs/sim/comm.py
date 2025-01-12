@@ -40,13 +40,14 @@ class Comm:
         self.nrecv_contact    = sim.add_array('nrecv_contact', [dom_part.nranks_capacity], Types.Int32)
         self.contact_soffsets = sim.add_array('contact_soffsets', [dom_part.nranks_capacity], Types.Int32)
         self.contact_roffsets = sim.add_array('contact_roffsets', [dom_part.nranks_capacity], Types.Int32)
-
-        self.nsend_reverse            = sim.add_array('nsend_reverse', [dom_part.nranks_capacity], Types.Int32)
-        self.send_offsets_reverse     = sim.add_array('send_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
-        self.send_buffer_reverse      = sim.add_array('send_buffer_reverse', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
-        self.nrecv_reverse            = sim.add_array('nrecv_reverse', [dom_part.nranks_capacity], Types.Int32)
-        self.recv_offsets_reverse     = sim.add_array('recv_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
-        self.recv_buffer_reverse      = sim.add_array('recv_buffer_reverse', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+        
+        if self.sim.properties.reduction_props():
+            self.nsend_reverse            = sim.add_array('nsend_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.send_offsets_reverse     = sim.add_array('send_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.send_buffer_reverse      = sim.add_array('send_buffer_reverse', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+            self.nrecv_reverse            = sim.add_array('nrecv_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.recv_offsets_reverse     = sim.add_array('recv_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.recv_buffer_reverse      = sim.add_array('recv_buffer_reverse', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
 
     @pairs_inline
     def synchronize(self):
@@ -64,27 +65,28 @@ class Comm:
         self.sim.module_name(f"reverse_comm")
         self.prop_list = self.sim.properties.reduction_props()
 
-        for step in range(self.dom_part.number_of_steps() - 1, -1, -1):
-            if self.sim._target.is_gpu():
-                CopyArray(self.sim, self.nsend, Contexts.Host, Actions.ReadOnly)
-                CopyArray(self.sim, self.nrecv, Contexts.Host, Actions.ReadOnly)
-                CopyArray(self.sim, self.send_offsets, Contexts.Host, Actions.ReadOnly)
-                CopyArray(self.sim, self.recv_offsets, Contexts.Host, Actions.ReadOnly)
+        if self.prop_list :
+            for step in range(self.dom_part.number_of_steps() - 1, -1, -1):
+                if self.sim._target.is_gpu():
+                    CopyArray(self.sim, self.nsend, Contexts.Host, Actions.ReadOnly)
+                    CopyArray(self.sim, self.nrecv, Contexts.Host, Actions.ReadOnly)
+                    CopyArray(self.sim, self.send_offsets, Contexts.Host, Actions.ReadOnly)
+                    CopyArray(self.sim, self.recv_offsets, Contexts.Host, Actions.ReadOnly)
 
-                # CopyArray(self.sim, self.nsend_reverse, Contexts.Host, Actions.WriteOnly)
-                # CopyArray(self.sim, self.nrecv_reverse, Contexts.Host, Actions.WriteOnly)
-                # CopyArray(self.sim, self.send_offsets_reverse, Contexts.Host, Actions.WriteOnly)
-                # CopyArray(self.sim, self.recv_offsets_reverse, Contexts.Host, Actions.WriteOnly)
-            
-            for j in self.dom_part.step_indexes(step):
-                Assign(self.sim, self.nsend_reverse[j], self.nrecv[j])
-                Assign(self.sim, self.nrecv_reverse[j], self.nsend[j])
-                Assign(self.sim, self.send_offsets_reverse[j], self.recv_offsets[j])
-                Assign(self.sim, self.recv_offsets_reverse[j], self.send_offsets[j])
+                    CopyArray(self.sim, self.nsend_reverse, Contexts.Host, Actions.WriteOnly)
+                    CopyArray(self.sim, self.nrecv_reverse, Contexts.Host, Actions.WriteOnly)
+                    CopyArray(self.sim, self.send_offsets_reverse, Contexts.Host, Actions.WriteOnly)
+                    CopyArray(self.sim, self.recv_offsets_reverse, Contexts.Host, Actions.WriteOnly)
+                
+                for j in self.dom_part.step_indexes(step):
+                    Assign(self.sim, self.nsend_reverse[j], self.nrecv[j])
+                    Assign(self.sim, self.nrecv_reverse[j], self.nsend[j])
+                    Assign(self.sim, self.send_offsets_reverse[j], self.recv_offsets[j])
+                    Assign(self.sim, self.recv_offsets_reverse[j], self.send_offsets[j])
 
-            PackGhostParticlesReverse(self, step, self.prop_list)
-            CommunicateDataReverse(self, step, self.prop_list)
-            UnpackGhostParticlesReverse(self, step, self.prop_list, reduce)
+                PackGhostParticlesReverse(self, step, self.prop_list)
+                CommunicateDataReverse(self, step, self.prop_list)
+                UnpackGhostParticlesReverse(self, step, self.prop_list, reduce)
 
     @pairs_inline
     def borders(self):
@@ -329,14 +331,14 @@ class SetCommunicationOffsets(Lowerable):
         irecv = self.sim.add_temp_var(0)
         for i in range(self.step):
             for j in self.comm.dom_part.step_indexes(i):
-                Assign(self.sim, isend, isend + nsend[j])
-                Assign(self.sim, irecv, irecv + nrecv[j])
+                Assign(self.sim, isend, ScalarOp.inline(isend + nsend[j]))
+                Assign(self.sim, irecv, ScalarOp.inline(irecv + nrecv[j]))
 
         for j in self.comm.dom_part.step_indexes(self.step):
             Assign(self.sim, send_offsets[j], isend)
             Assign(self.sim, recv_offsets[j], irecv)
-            Assign(self.sim, isend, isend + nsend[j])
-            Assign(self.sim, irecv, irecv + nrecv[j])
+            Assign(self.sim, isend, ScalarOp.inline(isend + nsend[j]))
+            Assign(self.sim, irecv, ScalarOp.inline(irecv + nrecv[j]))
 
 
 class PackGhostParticles(Lowerable):
