@@ -42,7 +42,7 @@ private:
     real_t *subdom;
     const bool globalPBC[3];
     int world_size, rank, nranks, total_aabbs;
-    bool balance_workload;
+    bool balance_workload = false;
 
 public:
     BlockForest(

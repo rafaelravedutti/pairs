@@ -626,6 +626,11 @@ class CGen:
             decl = f"{type_kw} *{var.name()}"
             kernel_params += f", {decl}"
 
+        for it in kernel.iters():
+            type_kw = Types.c_keyword(self.sim, it.type())
+            decl = f"{type_kw} {it.name()}"
+            kernel_params += f", {decl}"
+
         for array in kernel.arrays():
             if array.is_static():
                 continue
@@ -981,6 +986,9 @@ class CGen:
 
             for var in kernel.write_variables():
                 kernel_params += f", {var.name()}"
+
+            for it in kernel.iters():
+                kernel_params += f", {it.name()}"
 
             for array in kernel.arrays():
                 if array.is_static():

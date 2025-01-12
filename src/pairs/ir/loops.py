@@ -18,6 +18,7 @@ class Iter(ASTTerm):
         super().__init__(sim, ScalarOp)
         self.loop = loop
         self.iter_id = Iter.new_id()
+        self._ref_candidate = False
 
     def id(self):
         return self.iter_id
@@ -27,7 +28,16 @@ class Iter(ASTTerm):
 
     def type(self):
         return Types.Int32
+    
+    def mark_as_ref_candidate(self):
+        self._ref_candidate = True
 
+    def is_ref_candidate(self):
+        return self._ref_candidate
+    
+    def __hash__(self):
+        return hash(self.iter_id)
+    
     def __eq__(self, other):
         return isinstance(other, Iter) and self.iter_id == other.iter_id
 
@@ -63,6 +73,9 @@ class For(ASTNode):
 
     def mark_as_kernel_candidate(self):
         self._kernel_candidate = True
+
+    def mark_iter_as_ref_candidate(self):
+        self.iterator.mark_as_ref_candidate()
 
     def is_kernel_candidate(self):
         return self._kernel_candidate

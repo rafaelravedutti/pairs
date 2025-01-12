@@ -18,6 +18,7 @@ class MarkCandidateLoops(Visitor):
         if self.device_module:
             if ast_node.not_kernel:
                 self.visit(ast_node.block)
+                ast_node.mark_iter_as_ref_candidate()
             else:
                 if not isinstance(ast_node.min, Lit) or not isinstance(ast_node.max, Lit):
                     ast_node.mark_as_kernel_candidate()
@@ -195,3 +196,8 @@ class FetchKernelReferences(Visitor):
             # Variables only have a device version when changed within kernels
             if self.writing:
                 ast_node.device_flag = True
+    
+    def visit_Iter(self, ast_node):
+        for k in self.kernel_stack:
+            if ast_node.is_ref_candidate():
+                k.add_iter(ast_node, self.writing)
