@@ -165,7 +165,7 @@ psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
 
 #psim.compute_half()
 psim.build_cell_lists(linkedCellWidth)
-# psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
+psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
 psim.compute(gravity,
              symbols={'densityParticle_SI': densityParticle_SI,
@@ -175,11 +175,10 @@ psim.compute(gravity,
 
 psim.compute(linear_spring_dashpot,
              linkedCellWidth,
-             symbols={'dt': dt_SI,
-                      'pi': math.pi,
+             symbols={'pi': math.pi,
                       'kappa': kappa,
                       'lnDryResCoeff': lnDryResCoeff,
                       'collisionTime_SI': collisionTime_SI})
 
-psim.compute(euler, symbols={'dt': dt_SI})
+psim.compute(euler, parameters={'dt' : pairs.real()})
 psim.generate()

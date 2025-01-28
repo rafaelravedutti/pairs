@@ -7,7 +7,7 @@ class Decl(ASTNode):
         self.elem = elem
 
     def __str__(self):
-        return f"Decl<self.elem>"
+        return f"Decl<{self.elem}>"
 
     def children(self):
         return [self.elem]

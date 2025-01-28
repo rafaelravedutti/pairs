@@ -8,6 +8,7 @@ from pairs.ir.matrices import MatrixOp
 from pairs.ir.properties import Property, ContactProperty
 from pairs.ir.quaternions import QuaternionOp
 from pairs.ir.variables import Var
+from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import VectorOp
 from pairs.ir.loops import Iter
 
@@ -20,6 +21,7 @@ class Kernel(ASTNode):
         self._id = Kernel.last_kernel
         self._name = name if name is not None else "kernel" + str(Kernel.last_kernel)
         self._variables = {}
+        self._parameters = {}
         self._iters = {}
         self._arrays = {}
         self._properties = {}
@@ -52,6 +54,9 @@ class Kernel(ASTNode):
     def variables(self):
         return self._variables
 
+    def parameters(self):
+        return self._parameters
+    
     def iters(self):
         return self._iters
     
@@ -105,6 +110,17 @@ class Kernel(ASTNode):
                 action = Actions.NoAction if var not in self._variables else self._variables[var]
                 self._variables[var] = Actions.update_rule(action, new_op)
     
+    def add_parameter(self, parameter, write=False):
+        parameter_list = parameter if isinstance(parameter, list) else [parameter]
+        new_op = 'w' if write else 'r'
+
+        for param in parameter_list:
+            assert isinstance(param, Parameter), \
+                "Module.add_parameter(): given element is not of type Parameter!"
+
+            action = Actions.NoAction if param not in self._parameters else self._parameters[param]
+            self._parameters[param] = Actions.update_rule(action, new_op)
+
     def add_iter(self, iter, write=False):
         iter_list = iter if isinstance(iter, list) else [iter]
         new_op = 'w' if write else 'r'

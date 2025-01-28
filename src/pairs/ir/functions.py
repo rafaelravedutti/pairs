@@ -11,6 +11,9 @@ class Call(ASTTerm):
         self.params = [Lit.cvt(sim, p) for p in params]
         self.return_type = return_type
 
+    def __str__(self):
+        return f"Call<{self.func_name}, {self.params}>"
+    
     def name(self):
         return self.func_name
 
@@ -28,8 +31,13 @@ class Call_Int(Call):
     def __init__(self, sim, func_name, parameters):
         super().__init__(sim, func_name, parameters, Types.Int32)
 
+    def __str__(self):
+            return f"Call_Int<{self.func_name}, {self.params}>"
 
 class Call_Void(Call):
     def __init__(self, sim, func_name, parameters):
         super().__init__(sim, func_name, parameters, Types.Invalid)
         sim.add_statement(self)
+    
+    def __str__(self):
+        return f"Cal_Void<{self.func_name}, {self.params}>"

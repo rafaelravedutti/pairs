@@ -115,3 +115,8 @@ class FetchModulesReferences(Visitor):
         for m in self.module_stack:
             if not ast_node.temporary():
                 m.add_variable(ast_node, self.writing)
+
+    def visit_Parameter(self, ast_node):
+        for m in self.module_stack:
+            # parameters are restricted to read-only, passed by value
+            m.add_parameter(ast_node, write=False)

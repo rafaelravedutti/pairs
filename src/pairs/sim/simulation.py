@@ -93,11 +93,13 @@ class Simulation:
         # Different segments of particle code/functions
         self.create_domain = Block(self, [])
         self.setup_particles = Block(self, [])
+        self.module_list = []
+        self.kernel_list = []
+
+        # User-defined modules
         self.setup_functions = []
         self.pre_step_functions = []
         self.functions = []
-        self.module_list = []
-        self.kernel_list = []
 
         # Structures to generated resize code for capacities
         self._check_properties_resize = False
@@ -303,8 +305,8 @@ class Simulation:
         self.neighbor_lists = NeighborLists(self, self.cell_lists)
         return self.neighbor_lists
 
-    def compute(self, func, cutoff_radius=None, symbols={}, pre_step=False, skip_first=False):
-        return compute(self, func, cutoff_radius, symbols, pre_step, skip_first)
+    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=False, skip_first=False):
+        return compute(self, func, cutoff_radius, symbols, parameters, pre_step, skip_first)
 
     def setup(self, func, symbols={}):
         return setup(self, func, symbols)
@@ -447,8 +449,10 @@ class Simulation:
         # Params that determine when a method must be called only when reneighboring
         every_reneighbor_params = {'every': self.reneighbor_frequency}
 
+        timestep_procedures = []
+
         # First steps executed during each time-step in the simulation
-        timestep_procedures = self.pre_step_functions 
+        timestep_procedures += self.pre_step_functions 
 
         comm_routine = [
             (comm.exchange(), every_reneighbor_params),
@@ -458,20 +462,22 @@ class Simulation:
         if self._generate_whole_program:
             timestep_procedures += comm_routine
 
-        timestep_procedures +=    [
+        update_cells =    [
             (BuildCellLists(self, self.cell_lists), every_reneighbor_params),
             (PartitionCellLists(self, self.cell_lists), every_reneighbor_params)
         ]
 
         # Add routine to build neighbor-lists per cell
         if self._store_neighbors_per_cell:
-            timestep_procedures.append(
+            update_cells.append(
                 (BuildCellNeighborLists(self, self.cell_lists), every_reneighbor_params))
 
         # Add routine to build neighbor-lists per particle (standard Verlet Lists)
         if self.neighbor_lists is not None:
-            timestep_procedures.append(
+            update_cells.append(
                 (BuildNeighborLists(self, self.neighbor_lists), every_reneighbor_params))
+
+        timestep_procedures += update_cells
 
         # Add routines for contact history management
         if self._use_contact_history:
@@ -548,6 +554,9 @@ class Simulation:
 
         # Generate a small library to be called
         else:
+            update_cells = [m[0] if isinstance(m, tuple) else m for m in update_cells]
+            update_cells_module = Module(self, name='update_cells', block=Block.from_list(self, update_cells))
+
             initialize_module = Module(self, name='initialize', block=inits)
             create_domain_module = Module(self, name='create_domain', block=self.create_domain)
 
@@ -563,12 +572,34 @@ class Simulation:
             communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).as_block())
             reset_volatiles_module = Module(self, name='reset_volatiles', block=Block(self, ResetVolatileProperties(self)))
 
-            modules_list = [initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module]
+            modules_list = [
+                update_cells_module, 
+                initialize_module, 
+                create_domain_module, 
+                setup_sim_module, 
+                reverse_comm_module, 
+                communicate_module, 
+                reset_volatiles_module
+            ]
 
-            transformations = Transformations(modules_list, self._target)
-            transformations.apply_all()
+            Transformations(modules_list, self._target).apply_all()
+
+            # user defined modules are transformed seperately as indvidual modules 
+            # i.e. they are transformed once again if already transformed in setup_sim or do_timestep
+            user_defined_modules = self.setup_functions + self.pre_step_functions + self.functions
+            user_defined_modules = [m[0] if isinstance(m, tuple) else m for m in user_defined_modules]
+            user_defined_modules = [Module(self, name=m.name, block=Block(self, m), user_defined=True) for m in user_defined_modules]
+            Transformations(user_defined_modules, self._target).apply_all()
 
             # Generate library
-            self.code_gen.generate_library(initialize_module, create_domain_module, setup_sim_module, do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module)
+            self.code_gen.generate_library(update_cells_module, 
+                                           user_defined_modules, 
+                                           initialize_module, 
+                                           create_domain_module, 
+                                           setup_sim_module, 
+                                           do_timestep_module, 
+                                           reverse_comm_module, 
+                                           communicate_module, 
+                                           reset_volatiles_module)
 
         self.code_gen.generate_interfaces()

@@ -28,6 +28,7 @@ from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
 from pairs.ir.print import Print, PrintCode
 from pairs.ir.variables import Var, DeclareVariable, Deref
+from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.timestep import Timestep
@@ -175,10 +176,19 @@ class CGen:
         self.print("")
 
         self.print("// Module headers")
-        for module in self.sim.modules():
-            if module.name != "main":
-                self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj);")
 
+        self.print("namespace pairs::internal {")
+        self.print.add_indent(4)
+
+        for module in self.sim.modules():
+            if module.name != "main" and not module.user_defined:
+                module_params = ", ".join(f"{Types.c_keyword(self.sim, param.type())} {param.name()}"
+                                                for param in module.parameters())
+                module_params = ", " + module_params if module_params else ""
+                self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj{module_params});")
+        
+        self.print.add_indent(-4)
+        self.print("}")
         self.print("")
 
     def generate_host_pairs_accessor_class(self):
@@ -370,7 +380,7 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module):
+    def generate_library(self, update_cells_module, user_defined_modules, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module):
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
@@ -378,6 +388,7 @@ class CGen:
         self.print.start()
         self.generate_preamble()
         self.print(f"#include \"{self.ref}.hpp\"")
+        self.print("")
 
         if self.target.is_gpu():
             for array in self.sim.arrays.statics():
@@ -393,13 +404,22 @@ class CGen:
                     tkw = Types.c_keyword(self.sim, t)
                     size = feature_prop.array_size()
                     self.print(f"__constant__ {tkw} d_{feature_prop.name()}[{size}];")
+
+        self.print("")
                     
+        self.print("namespace pairs::internal {")
+        self.print.add_indent(4)
+        
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            if module.name not in ['initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm', 'communicate', 'reset_volatiles']:
-                self.generate_module(module)
+            if module.name not in ['update_cells', 'initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm', 'communicate', 'reset_volatiles']:
+                if not module.user_defined:
+                    self.generate_module(module)
+
+        self.print.add_indent(-4)
+        self.print("}")
 
         self.print.end()
 
@@ -420,7 +440,7 @@ class CGen:
 
         self.generate_full_object_names = True
         self.print("class PairsSimulation {")
-        self.print("private:")
+        self.print("public:")
         self.print("    PairsRuntime *pairs_runtime;")
         self.print("    struct PairsObjects *pobj;")
         self.print("    friend class PairsAccessor;")
@@ -428,19 +448,19 @@ class CGen:
 
         self.print.add_indent(4)
 
+        for module in user_defined_modules:
+            self.generate_module(module)
+            self.print("")
+        
         self.print("void initialize() {")
         self.print(f"    pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
         self.print(f"    pobj = new PairsObjects();")
-        self.print.add_indent(4)
         self.generate_statement(initialize_module.block)
-        self.print.add_indent(-4)
         self.print("}")
         self.print("")
 
         self.print("void create_domain(int argc, char **argv) {")
-        self.print.add_indent(4)
         self.generate_statement(create_domain_module.block)
-        self.print.add_indent(-4)
         self.print("}")
         self.print("")
 
@@ -466,39 +486,43 @@ class CGen:
         self.print("")
 
         self.print("void setup_sim() {")
-        self.print.add_indent(4)
         self.generate_statement(setup_sim_module.block)
-        self.print.add_indent(-4)
         self.print("}")
         self.print("")
 
-        self.print("void do_timestep(int timestep) {")
-        self.print("    pobj->sim_timestep = timestep;")
-        self.print.add_indent(4)
-        self.generate_statement(do_timestep_module.block)
-        self.print.add_indent(-4)
+        self.print("void update_cells() {")
+        self.generate_statement(update_cells_module.block)
         self.print("}")
         self.print("")
+
+        # self.print("void do_timestep(int timestep) {")
+        # self.print("    pobj->sim_timestep = timestep;")
+        # self.print.add_indent(4)
+        # self.generate_statement(do_timestep_module.block)
+        # self.print.add_indent(-4)
+        # self.print("}")
+        # self.print("")
+
+
 
         self.print("void reverse_comm() {")
-        self.print.add_indent(4)
         self.generate_statement(reverse_comm_module.block)
-        self.print.add_indent(-4)
         self.print("}")
         self.print("")
 
         self.print("void communicate(int timestep) {")
         self.print("    pobj->sim_timestep = timestep;")
-        self.print.add_indent(4)
         self.generate_statement(communicate_module.block)
-        self.print.add_indent(-4)
         self.print("}")
         self.print("")
 
         self.print("void reset_volatiles() {")
-        self.print.add_indent(4)
         self.generate_statement(reset_volatiles_module.block)
-        self.print.add_indent(-4)
+        self.print("}")
+        self.print("")
+
+        self.print("void vtk_write(const char* filename, int start, int end, int timestep, int frequency) {")
+        self.print("    pairs::vtk_write_data(pairs_runtime, filename, start, end, timestep, frequency);")
         self.print("}")
         self.print("")
 
@@ -518,6 +542,62 @@ class CGen:
         
         self.print.end()
         self.generate_full_object_names = False
+
+    def generate_module_declerations(self, module):
+        device_cond = module.run_on_device and self.target.is_gpu()
+
+        for var in module.read_only_variables():
+            type_kw = Types.c_keyword(self.sim, var.type())
+            self.print(f"{type_kw} {var.name()} = pobj->{var.name()};")
+
+        for var in module.write_variables():
+            type_kw = Types.c_keyword(self.sim, var.type())
+
+            if device_cond and var.device_flag:
+                self.print(f"{type_kw} *{var.name()} = pobj->rv_{var.name()}.getDevicePointer();")
+            elif var.force_read:
+                self.print(f"{type_kw} {var.name()} = pobj->{var.name()};")
+            else:
+                self.print(f"{type_kw} *{var.name()} = &(pobj->{var.name()});")
+
+        for array in module.arrays():
+            type_kw = Types.c_keyword(self.sim, array.type())
+            name = array.name() if not device_cond else f"d_{array.name()}"
+            if not array.is_static() or (array.is_static() and not device_cond):
+                self.print(f"{type_kw} *{array.name()} = pobj->{name};")
+
+            if array in module.host_references():
+                self.print(f"{type_kw} *h_{array.name()} = pobj->{array.name()};")
+
+
+        for prop in module.properties():
+            type_kw = Types.c_keyword(self.sim, prop.type())
+            name = prop.name() if not device_cond else f"d_{prop.name()}"
+            self.print(f"{type_kw} *{prop.name()} = pobj->{name};")
+
+            if prop in module.host_references():
+                self.print(f"{type_kw} *h_{prop.name()} = pobj->{prop.name()};")
+
+        for contact_prop in module.contact_properties():
+            type_kw = Types.c_keyword(self.sim, contact_prop.type())
+            name = contact_prop.name() if not device_cond else f"d_{contact_prop.name()}"
+            self.print(f"{type_kw} *{contact_prop.name()} = pobj->{name};")
+
+            if contact_prop in module.host_references():
+                self.print(f"{type_kw} *h_{contact_prop.name()} = pobj->{contact_prop.name()};")
+
+        for feature_prop in module.feature_properties():
+            type_kw = Types.c_keyword(self.sim, feature_prop.type())
+            name = feature_prop.name() if not device_cond else f"d_{feature_prop.name()}"
+
+            if feature_prop.device_flag and device_cond:
+                # self.print(f"{type_kw} *{feature_prop.name()} = {self.generate_object_reference(feature_prop, device=device_cond)};")
+                continue
+            else:
+                self.print(f"{type_kw} *{feature_prop.name()} = pobj->{name};")
+
+            if feature_prop in module.host_references():
+                self.print(f"{type_kw} *h_{feature_prop.name()} = pobj->{feature_prop.name()};")
 
     def generate_module(self, module):
         if module.name == 'main':
@@ -549,65 +629,23 @@ class CGen:
             self.generate_full_object_names = False
 
         else:
-            self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj) {{")
+            module_params = ", ".join(f"{Types.c_keyword(self.sim, param.type())} {param.name()}"
+                                                for param in module.parameters())
+            if not module.user_defined:
+                module_params = ", " + module_params if module_params else ""
+                self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj{module_params}) {{")
+            else:
+                
+                self.print(f"void {module.name}({module_params}) {{")
+
+
             self.print.add_indent(4)
-            device_cond = module.run_on_device and self.target.is_gpu()
 
             if self.debug:
                 self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
 
-            for var in module.read_only_variables():
-                type_kw = Types.c_keyword(self.sim, var.type())
-                self.print(f"{type_kw} {var.name()} = pobj->{var.name()};")
-
-            for var in module.write_variables():
-                type_kw = Types.c_keyword(self.sim, var.type())
-
-                if device_cond and var.device_flag:
-                    self.print(f"{type_kw} *{var.name()} = pobj->rv_{var.name()}.getDevicePointer();")
-                elif var.force_read:
-                    self.print(f"{type_kw} {var.name()} = pobj->{var.name()};")
-                else:
-                    self.print(f"{type_kw} *{var.name()} = &(pobj->{var.name()});")
-
-            for array in module.arrays():
-                type_kw = Types.c_keyword(self.sim, array.type())
-                name = array.name() if not device_cond else f"d_{array.name()}"
-                if not array.is_static() or (array.is_static() and not device_cond):
-                    self.print(f"{type_kw} *{array.name()} = pobj->{name};")
-
-                if array in module.host_references():
-                    self.print(f"{type_kw} *h_{array.name()} = pobj->{array.name()};")
-
-
-            for prop in module.properties():
-                type_kw = Types.c_keyword(self.sim, prop.type())
-                name = prop.name() if not device_cond else f"d_{prop.name()}"
-                self.print(f"{type_kw} *{prop.name()} = pobj->{name};")
-
-                if prop in module.host_references():
-                    self.print(f"{type_kw} *h_{prop.name()} = pobj->{prop.name()};")
-
-            for contact_prop in module.contact_properties():
-                type_kw = Types.c_keyword(self.sim, contact_prop.type())
-                name = contact_prop.name() if not device_cond else f"d_{contact_prop.name()}"
-                self.print(f"{type_kw} *{contact_prop.name()} = pobj->{name};")
-
-                if contact_prop in module.host_references():
-                    self.print(f"{type_kw} *h_{contact_prop.name()} = pobj->{contact_prop.name()};")
-
-            for feature_prop in module.feature_properties():
-                type_kw = Types.c_keyword(self.sim, feature_prop.type())
-                name = feature_prop.name() if not device_cond else f"d_{feature_prop.name()}"
-
-                if feature_prop.device_flag and device_cond:
-                    # self.print(f"{type_kw} *{feature_prop.name()} = {self.generate_object_reference(feature_prop, device=device_cond)};")
-                    continue
-                else:
-                    self.print(f"{type_kw} *{feature_prop.name()} = pobj->{name};")
-
-                if feature_prop in module.host_references():
-                    self.print(f"{type_kw} *h_{feature_prop.name()} = pobj->{feature_prop.name()};")
+            if not module.user_defined:
+                self.generate_module_declerations(module)
 
             self.print.add_indent(-4)
             self.generate_statement(module.block)
@@ -616,6 +654,11 @@ class CGen:
     def generate_kernel(self, kernel):
         kernel_params = "int range_start"
         has_resizes = False
+        for param in kernel.parameters():
+            type_kw = Types.c_keyword(self.sim, param.type())
+            decl = f"{type_kw} {param.name()}"
+            kernel_params += f", {decl}"
+
         for var in kernel.read_only_variables():
             type_kw = Types.c_keyword(self.sim, var.type())
             decl = f"{type_kw} {var.name()}"
@@ -981,6 +1024,9 @@ class CGen:
             kernel = ast_node.kernel
             kernel_params = f"{range_start}"
 
+            for param in kernel.parameters():
+                kernel_params += f", {param.name()}"
+
             for var in kernel.read_only_variables():
                 kernel_params += f", {var.name()}"
 
@@ -1022,7 +1068,9 @@ class CGen:
             self.print("}")
 
         if isinstance(ast_node, ModuleCall):
-            self.print(f"{ast_node.module.name}(pairs_runtime, pobj);")
+            module_params = ", ".join(f"{param.name()}" for param in ast_node.module.parameters())
+            module_params = ", " + module_params if module_params else ""
+            self.print(f"pairs::internal::{ast_node.module.name}(pairs_runtime, pobj{module_params});")
 
         if isinstance(ast_node, Print):
             args = ast_node.args
@@ -1333,7 +1381,10 @@ class CGen:
 
         if isinstance(ast_node, Var):
             return self.generate_object_reference(ast_node, index=index)
-
+        
+        if isinstance(ast_node, Parameter):
+            return ast_node.name()
+        
         if isinstance(ast_node, VectorAccess):
             return self.generate_expression(ast_node.expr, mem, self.generate_expression(ast_node.index))
 

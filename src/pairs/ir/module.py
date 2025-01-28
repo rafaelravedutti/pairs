@@ -4,15 +4,17 @@ from pairs.ir.ast_node import ASTNode
 from pairs.ir.features import FeatureProperty
 from pairs.ir.properties import Property, ContactProperty
 from pairs.ir.variables import Var
+from pairs.ir.parameters import Parameter
 
 
 class Module(ASTNode):
     last_module = 0
 
-    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False):
+    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False, user_defined=False):
         super().__init__(sim)
         self._id = Module.last_module
         self._name = name if name is not None else "module" + str(Module.last_module)
+        self._parameters = {}
         self._variables = {}
         self._arrays = {}
         self._properties = {}
@@ -23,6 +25,7 @@ class Module(ASTNode):
         self._resizes_to_check = resizes_to_check
         self._check_properties_resize = check_properties_resize
         self._run_on_device = run_on_device
+        self._user_defined = user_defined
         self._profile = False
         sim.add_module(self)
         Module.last_module += 1
@@ -45,6 +48,10 @@ class Module(ASTNode):
     @property
     def run_on_device(self):
         return self._run_on_device
+    
+    @property
+    def user_defined(self):
+        return self._user_defined
 
     def profile(self):
         self._profile = True
@@ -53,6 +60,9 @@ class Module(ASTNode):
     def must_profile(self):
         return self._profile
 
+    def parameters(self):
+        return self._parameters
+    
     def variables(self):
         return self._variables
 
@@ -98,6 +108,17 @@ class Module(ASTNode):
 
             action = Actions.NoAction if var not in self._variables else self._variables[var]
             self._variables[var] = Actions.update_rule(action, new_op)
+
+    def add_parameter(self, parameter, write=False):
+        parameter_list = parameter if isinstance(parameter, list) else [parameter]
+        new_op = 'w' if write else 'r'
+
+        for param in parameter_list:
+            assert isinstance(param, Parameter), \
+                "Module.add_parameter(): given element is not of type Parameter!"
+
+            action = Actions.NoAction if param not in self._parameters else self._parameters[param]
+            self._parameters[param] = Actions.update_rule(action, new_op)
 
     def add_property(self, prop, write=False):
         prop_list = prop if isinstance(prop, list) else [prop]
@@ -150,5 +171,8 @@ class ModuleCall(ASTNode):
     def module(self):
         return self._module
 
+    def __str__(self):
+        return f"ModuleCall<{self._module}>"
+    
     def children(self):
         return [self._module]

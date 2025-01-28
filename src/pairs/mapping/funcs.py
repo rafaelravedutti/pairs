@@ -7,6 +7,7 @@ from pairs.ir.loops import For, ParticleFor
 from pairs.ir.operators import Operators
 from pairs.ir.operator_class import OperatorClass
 from pairs.ir.properties import ContactProperty
+from pairs.ir.parameters import Parameter
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
 from pairs.mapping.keywords import Keywords
@@ -80,9 +81,10 @@ class BuildParticleIR(ast.NodeVisitor):
 
         raise Exception("Invalid operator: {}".format(ast.dump(op)))
 
-    def __init__(self, sim, ctx_symbols={}):
+    def __init__(self, sim, ctx_symbols={}, func_params={}):
         self.sim = sim
         self.ctx_symbols = ctx_symbols.copy()
+        self.func_params = func_params.copy()
         self.keywords = Keywords(sim)
 
     def add_symbols(self, symbols):
@@ -210,6 +212,7 @@ class BuildParticleIR(ast.NodeVisitor):
     def visit_Name(self, node):
         symbol_types = [
             self.ctx_symbols.get,
+            self.func_params.get,
             self.sim.array,
             self.sim.property,
             self.sim.feature_property,
@@ -282,7 +285,7 @@ class BuildParticleIR(ast.NodeVisitor):
         return op_class(self.sim, operand, None, BuildParticleIR.get_unary_op(node.op))
 
 
-def compute(sim, func, cutoff_radius=None, symbols={}, pre_step=False, skip_first=False):
+def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=False, skip_first=False):
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
     #print(ast.dump(ast.parse(src, mode='exec')))
@@ -298,6 +301,7 @@ def compute(sim, func, cutoff_radius=None, symbols={}, pre_step=False, skip_firs
 
     # Convert literal symbols
     symbols = {symbol: Lit.cvt(sim, value) for symbol, value in symbols.items()}
+    parameters = {pname: Parameter(sim, pname, ptype) for pname, ptype in parameters.items()}
 
     sim.init_block()
     sim.module_name(func.__name__)
@@ -305,14 +309,14 @@ def compute(sim, func, cutoff_radius=None, symbols={}, pre_step=False, skip_firs
     if nparams == 1:
         for i in ParticleFor(sim):
             for _ in Filter(sim, ScalarOp.cmp(sim.particle_flags[i] & Flags.Fixed, 0)):
-                ir = BuildParticleIR(sim, symbols)
+                ir = BuildParticleIR(sim, symbols, parameters)
                 ir.add_symbols({params[0]: i})
                 ir.visit(tree)
 
     else:
         for interaction_data in ParticleInteraction(sim, nparams, cutoff_radius):
             # Start building IR
-            ir = BuildParticleIR(sim, symbols)
+            ir = BuildParticleIR(sim, symbols, parameters)
             ir.add_symbols({
                 params[0]: interaction_data.i(),
                 params[1]: interaction_data.j(),

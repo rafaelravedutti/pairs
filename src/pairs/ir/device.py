@@ -62,6 +62,9 @@ class CopyProperty(ASTNode):
         self._action = action
         self.sim.add_statement(self)
 
+    def __str__(self):
+        return f"CopyProperty<{self._prop}>"
+    
     def prop(self):
         return self._prop
 
