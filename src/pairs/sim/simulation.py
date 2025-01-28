@@ -568,7 +568,6 @@ class Simulation:
                 ])
 
             setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
-            do_timestep_module = Module(self, name='do_timestep', block=timestep.as_block())
             communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).as_block())
             reset_volatiles_module = Module(self, name='reset_volatiles', block=Block(self, ResetVolatileProperties(self)))
 
@@ -597,7 +596,6 @@ class Simulation:
                                            initialize_module, 
                                            create_domain_module, 
                                            setup_sim_module, 
-                                           do_timestep_module, 
                                            reverse_comm_module, 
                                            communicate_module, 
                                            reset_volatiles_module)

@@ -380,7 +380,7 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, update_cells_module, user_defined_modules, initialize_module, create_domain_module, setup_sim_module,  do_timestep_module, reverse_comm_module, communicate_module, reset_volatiles_module):
+    def generate_library(self, update_cells_module, user_defined_modules, initialize_module, create_domain_module, setup_sim_module, reverse_comm_module, communicate_module, reset_volatiles_module):
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
@@ -414,7 +414,7 @@ class CGen:
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            if module.name not in ['update_cells', 'initialize', 'create_domain', 'setup_sim', 'do_timestep', 'reverse_comm', 'communicate', 'reset_volatiles']:
+            if module.name not in ['update_cells', 'initialize', 'create_domain', 'setup_sim', 'reverse_comm', 'communicate', 'reset_volatiles']:
                 if not module.user_defined:
                     self.generate_module(module)
 
@@ -440,7 +440,7 @@ class CGen:
 
         self.generate_full_object_names = True
         self.print("class PairsSimulation {")
-        self.print("public:")
+        self.print("private:")
         self.print("    PairsRuntime *pairs_runtime;")
         self.print("    struct PairsObjects *pobj;")
         self.print("    friend class PairsAccessor;")
@@ -494,16 +494,6 @@ class CGen:
         self.generate_statement(update_cells_module.block)
         self.print("}")
         self.print("")
-
-        # self.print("void do_timestep(int timestep) {")
-        # self.print("    pobj->sim_timestep = timestep;")
-        # self.print.add_indent(4)
-        # self.generate_statement(do_timestep_module.block)
-        # self.print.add_indent(-4)
-        # self.print("}")
-        # self.print("")
-
-
 
         self.print("void reverse_comm() {")
         self.generate_statement(reverse_comm_module.block)
