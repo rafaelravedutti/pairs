@@ -372,11 +372,22 @@ class CGen:
         self.generate_pairs_object_structure()
         self.generate_module_headers()
 
+        self.print("namespace pairs::internal {")
+        self.print.add_indent(4)
+
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            self.generate_module(module)
+            if module.name!='main':
+                self.generate_module(module)
+
+        self.print.add_indent(-4)
+        self.print("}")
+
+        for module in self.sim.modules():
+            if module.name=='main':
+                self.generate_main(module)
 
         self.print.end()
 
@@ -589,57 +600,58 @@ class CGen:
             if feature_prop in module.host_references():
                 self.print(f"{type_kw} *h_{feature_prop.name()} = pobj->{feature_prop.name()};")
 
+    def generate_main(self, module):
+        assert module.name=='main'
+
+        ndims = module.sim.ndims()
+        nprops = module.sim.properties.nprops()
+        ncontactprops = module.sim.contact_properties.nprops()
+        narrays = module.sim.arrays.narrays()
+        part = DomainPartitioners.c_keyword(module.sim.partitioner())
+
+        self.generate_full_object_names = True
+        self.print("int main(int argc, char **argv) {")
+        self.print(f"    PairsRuntime *pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
+        self.print(f"    struct PairsObjects *pobj = new PairsObjects();")
+
+        if module.sim._enable_profiler:
+            self.print("    LIKWID_MARKER_INIT;")
+
+        self.generate_statement(module.block)
+
+        if module.sim._enable_profiler:
+            self.print("    LIKWID_MARKER_CLOSE;")
+
+        self.print("    pairs::print_timers(pairs_runtime);")
+        self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
+        self.print("    delete pobj;")
+        self.print("    delete pairs_runtime;")
+        self.print("    return 0;")
+        self.print("}")
+        self.generate_full_object_names = False
+
     def generate_module(self, module):
-        if module.name == 'main':
-            ndims = module.sim.ndims()
-            nprops = module.sim.properties.nprops()
-            ncontactprops = module.sim.contact_properties.nprops()
-            narrays = module.sim.arrays.narrays()
-            part = DomainPartitioners.c_keyword(module.sim.partitioner())
-
-            self.generate_full_object_names = True
-            self.print("int main(int argc, char **argv) {")
-            self.print(f"    PairsRuntime *pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-            self.print(f"    struct PairsObjects *pobj = new PairsObjects();")
-
-            if module.sim._enable_profiler:
-                self.print("    LIKWID_MARKER_INIT;")
-
-            self.generate_statement(module.block)
-
-            if module.sim._enable_profiler:
-                self.print("    LIKWID_MARKER_CLOSE;")
-
-            self.print("    pairs::print_timers(pairs_runtime);")
-            self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
-            self.print("    delete pobj;")
-            self.print("    delete pairs_runtime;")
-            self.print("    return 0;")
-            self.print("}")
-            self.generate_full_object_names = False
-
+        module_params = ", ".join(f"{Types.c_keyword(self.sim, param.type())} {param.name()}"
+                                            for param in module.parameters())
+        if not module.user_defined:
+            module_params = ", " + module_params if module_params else ""
+            self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj{module_params}) {{")
         else:
-            module_params = ", ".join(f"{Types.c_keyword(self.sim, param.type())} {param.name()}"
-                                                for param in module.parameters())
-            if not module.user_defined:
-                module_params = ", " + module_params if module_params else ""
-                self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj{module_params}) {{")
-            else:
-                
-                self.print(f"void {module.name}({module_params}) {{")
+            
+            self.print(f"void {module.name}({module_params}) {{")
 
 
-            self.print.add_indent(4)
+        self.print.add_indent(4)
 
-            if self.debug:
-                self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
+        if self.debug:
+            self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
 
-            if not module.user_defined:
-                self.generate_module_declerations(module)
+        if not module.user_defined:
+            self.generate_module_declerations(module)
 
-            self.print.add_indent(-4)
-            self.generate_statement(module.block)
-            self.print("}")
+        self.print.add_indent(-4)
+        self.generate_statement(module.block)
+        self.print("}")
 
     def generate_kernel(self, kernel):
         kernel_params = "int range_start"

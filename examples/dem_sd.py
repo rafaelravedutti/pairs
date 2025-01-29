@@ -181,4 +181,5 @@ psim.compute(linear_spring_dashpot,
                       'collisionTime_SI': collisionTime_SI})
 
 psim.compute(euler, parameters={'dt' : pairs.real()})
+# psim.compute(euler, symbols={'dt' : dt_SI})
 psim.generate()

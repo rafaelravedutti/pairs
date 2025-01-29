@@ -15,18 +15,21 @@ class MarkCandidateLoops(Visitor):
         self.device_module = False
 
     def visit_For(self, ast_node):
-        if self.device_module:
-            if ast_node.not_kernel:
-                self.visit(ast_node.block)
-                ast_node.mark_iter_as_ref_candidate()
-            else:
-                if not isinstance(ast_node.min, Lit) or not isinstance(ast_node.max, Lit):
-                    ast_node.mark_as_kernel_candidate()
+        if self.device_module and not ast_node.not_kernel and (not isinstance(ast_node.min, Lit) or not isinstance(ast_node.max, Lit)):
+            ast_node.mark_as_kernel_candidate()
+        else:
+            ast_node.mark_iter_as_ref_candidate()
+            self.visit(ast_node.block)
+
 
     def visit_Module(self, ast_node):
-        self.device_module = ast_node.run_on_device
-        self.visit_children(ast_node)
+        parent_runs_on_device = self.device_module
+        if ast_node.run_on_device:
+            self.device_module = True
 
+        self.visit_children(ast_node)
+        self.device_module = parent_runs_on_device
+        
 
 class FetchKernelReferences(Visitor):
     def __init__(self, ast=None):

@@ -88,6 +88,7 @@ class AddDeviceKernels(Mutator):
         super().__init__(ast)
         self._module_name = None
         self._kernel_id = 0
+        self._device_module = False
 
     def create_kernel(self, sim, iterator, rmax, block):
         kernel_name = f"{self._module_name}_kernel{self._kernel_id}"
@@ -101,7 +102,7 @@ class AddDeviceKernels(Mutator):
         return kernel
     
     def mutate_For(self, ast_node):
-        if ast_node.is_kernel_candidate():
+        if ast_node.is_kernel_candidate() and self._device_module:
             kernel = self.create_kernel(ast_node.sim, ast_node.iterator, ast_node.max, ast_node.block)
             ast_node = KernelLaunch(ast_node.sim, kernel, ast_node.iterator, ast_node.min, ast_node.max)
 
@@ -111,11 +112,14 @@ class AddDeviceKernels(Mutator):
         return ast_node
 
     def mutate_Module(self, ast_node):
+        parent_runs_on_device = self._device_module
         if ast_node.run_on_device:
+            self._device_module = True
             self._module_name = ast_node.name
             self._kernel_id = 0
 
         ast_node._block = self.mutate(ast_node._block)
+        self._device_module = parent_runs_on_device
         return ast_node
 
 class AddHostReferencesToModules(Mutator):

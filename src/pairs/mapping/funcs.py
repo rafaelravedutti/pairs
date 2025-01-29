@@ -286,6 +286,10 @@ class BuildParticleIR(ast.NodeVisitor):
 
 
 def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=False, skip_first=False):
+    if sim._generate_whole_program:
+        assert not parameters, "Compute functions can't take custom parameters when generating whole program."
+    
+
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
     #print(ast.dump(ast.parse(src, mode='exec')))
