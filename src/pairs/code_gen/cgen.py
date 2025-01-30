@@ -172,20 +172,27 @@ class CGen:
         self.print("using namespace pairs;")
         self.print("")
 
-    def generate_module_headers(self):
+    def generate_module_header(self, module, definition=True):
+        module_params = []
+        if not module.user_defined and not module.interface:
+            module_params += ["PairsRuntime *pairs_runtime", "struct PairsObjects *pobj"]
+
+        if module.name=="init_domain" or module.name=="set_domain":
+            module_params += ["int argc", "char **argv"]
+
+        module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in module.parameters()]
+
+        print_params = ", ".join(module_params)
+        ending = "{" if definition else ";"
+        self.print(f"void {module.name}({print_params}){ending}")
+
+    def generate_module_decls(self):
         self.print("")
-
-        self.print("// Module headers")
-
         self.print("namespace pairs::internal {")
         self.print.add_indent(4)
 
         for module in self.sim.modules():
-            if module.name != "main" and not module.user_defined:
-                module_params = ", ".join(f"{Types.c_keyword(self.sim, param.type())} {param.name()}"
-                                                for param in module.parameters())
-                module_params = ", " + module_params if module_params else ""
-                self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj{module_params});")
+            self.generate_module_header(module, definition=False)
         
         self.print.add_indent(-4)
         self.print("}")
@@ -370,7 +377,7 @@ class CGen:
         self.print.start()
         self.generate_preamble()
         self.generate_pairs_object_structure()
-        self.generate_module_headers()
+        self.generate_module_decls()
 
         self.print("namespace pairs::internal {")
         self.print.add_indent(4)
@@ -391,7 +398,16 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, update_cells_module, user_defined_modules, initialize_module, create_domain_module, setup_sim_module, reverse_comm_module, communicate_module, reset_volatiles_module):
+    def generate_library(self, 
+                         update_cells_module, 
+                         user_defined_modules, 
+                         initialize_module,
+                         set_domain_module, 
+                         setup_sim_module, 
+                         reverse_comm_module, 
+                         communicate_module, 
+                         reset_volatiles_module):
+        
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
@@ -425,7 +441,7 @@ class CGen:
             self.generate_kernel(kernel)
 
         for module in self.sim.modules():
-            if module.name not in ['update_cells', 'initialize', 'create_domain', 'setup_sim', 'reverse_comm', 'communicate', 'reset_volatiles']:
+            if module.name not in ['update_cells', 'initialize', 'set_domain', 'setup_sim', 'reverse_comm', 'communicate', 'reset_volatiles']:
                 if not module.user_defined:
                     self.generate_module(module)
 
@@ -441,7 +457,7 @@ class CGen:
 
         self.generate_preamble()
         self.generate_pairs_object_structure()
-        self.generate_module_headers()
+        self.generate_module_decls()
 
         ndims = module.sim.ndims()
         nprops = module.sim.properties.nprops()
@@ -463,17 +479,19 @@ class CGen:
             self.generate_module(module)
             self.print("")
         
-        self.print("void initialize() {")
+        if set_domain_module:
+            self.print("void initialize() {")
+        else:
+            self.print("void initialize(int argc, char **argv) {")
         self.print(f"    pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
         self.print(f"    pobj = new PairsObjects();")
         self.generate_statement(initialize_module.block)
         self.print("}")
         self.print("")
 
-        self.print("void create_domain(int argc, char **argv) {")
-        self.generate_statement(create_domain_module.block)
-        self.print("}")
-        self.print("")
+        if set_domain_module:
+            self.generate_module(set_domain_module)
+            self.print("")
 
         self.print("template<typename Domain_T>")
         self.print("void use_domain(const std::shared_ptr<Domain_T> &domain_ptr) {")
@@ -631,22 +649,13 @@ class CGen:
         self.generate_full_object_names = False
 
     def generate_module(self, module):
-        module_params = ", ".join(f"{Types.c_keyword(self.sim, param.type())} {param.name()}"
-                                            for param in module.parameters())
-        if not module.user_defined:
-            module_params = ", " + module_params if module_params else ""
-            self.print(f"void {module.name}(PairsRuntime *pairs_runtime, struct PairsObjects *pobj{module_params}) {{")
-        else:
-            
-            self.print(f"void {module.name}({module_params}) {{")
-
-
+        self.generate_module_header(module, definition=True)
         self.print.add_indent(4)
 
         if self.debug:
             self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
 
-        if not module.user_defined:
+        if not module.user_defined and not module.interface:
             self.generate_module_declerations(module)
 
         self.print.add_indent(-4)
@@ -717,13 +726,7 @@ class CGen:
         self.print.add_indent(4)
         self.kernel_context = True
 
-        # if has_resizes:
-            # self.print(f"printf(\"{kernel.name} @@@@@@@@ before kernel: resizes[0] = %d\\n\", resizes[0]);")
-
         self.generate_statement(kernel.block)
-
-        # if has_resizes:
-            # self.print(f"printf(\"{kernel.name} @@@@@@@@ after kernel: resizes[0] = %d\\n\", resizes[0]);")
 
         self.kernel_context = False
         self.print.add_indent(-4)
@@ -1070,9 +1073,15 @@ class CGen:
             self.print("}")
 
         if isinstance(ast_node, ModuleCall):
-            module_params = ", ".join(f"{param.name()}" for param in ast_node.module.parameters())
-            module_params = ", " + module_params if module_params else ""
-            self.print(f"pairs::internal::{ast_node.module.name}(pairs_runtime, pobj{module_params});")
+            module_params = ["pairs_runtime", "pobj"]
+
+            if ast_node.module.name=="init_domain":
+                module_params += ["argc", "argv"]
+
+            module_params += [f"{param.name()}" for param in ast_node.module.parameters()]
+
+            print_params = ", ".join(module_params)
+            self.print(f"pairs::internal::{ast_node.module.name}({print_params});")
 
         if isinstance(ast_node, Print):
             args = ast_node.args

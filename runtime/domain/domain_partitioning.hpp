@@ -37,6 +37,8 @@ public:
         delete[] grid_max;
     }
 
+    double getMin(int dim) const { return grid_min[dim]; }
+    double getMax(int dim) const { return grid_max[dim]; }
     virtual void initialize(int *argc, char ***argv) = 0;
     virtual void update() = 0;
     virtual int getWorldSize() const = 0;

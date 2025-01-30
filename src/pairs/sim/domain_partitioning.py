@@ -1,12 +1,13 @@
 from pairs.ir.assign import Assign
 from pairs.ir.branches import Filter
 from pairs.ir.loops import For
-from pairs.ir.functions import Call_Int, Call_Void
+from pairs.ir.functions import Call_Int, Call_Void, Call
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.sim.flags import Flags
 from pairs.ir.lit import Lit
+from pairs.sim.grid import MutableGrid
 
 
 class DimensionRanges:
@@ -44,14 +45,19 @@ class DimensionRanges:
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
         Call_Void(self.sim, "pairs_runtime->initDomain", [param for delim in grid_array for param in delim])
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['neighbor_ranks', self.neighbor_ranks, self.sim.ndims() * 2])
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['pbc', self.pbc, self.sim.ndims() * 2])
-        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
 
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
         Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
 
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['neighbor_ranks', self.neighbor_ranks, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['pbc', self.pbc, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
+
+        if isinstance(self.sim.grid, MutableGrid):
+            for d in range(self.sim.dims):
+                Assign(self.sim, self.sim.grid.min(d), Call(self.sim, "pairs_runtime->getDomainPartitioner()->getMin", [d], Types.Real))
+                Assign(self.sim, self.sim.grid.max(d), Call(self.sim, "pairs_runtime->getDomainPartitioner()->getMax", [d], Types.Real))
 
     def ghost_particles(self, step, position, offset=0.0):
         # Particles with one of the following flags are ignored
@@ -155,6 +161,11 @@ class BlockForest:
             Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
             Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
             Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
+        
+        if isinstance(self.sim.grid, MutableGrid):
+            for d in range(self.sim.dims):
+                Assign(self.sim, self.sim.grid.min(d), Call(self.sim, "pairs_runtime->getDomainPartitioner()->getMin", [d], Types.Real))
+                Assign(self.sim, self.sim.grid.max(d), Call(self.sim, "pairs_runtime->getDomainPartitioner()->getMax", [d], Types.Real))
 
     def ghost_particles(self, step, position, offset=0.0):
         ''' TODO :  If we have pbc, a sinlge particle can be a ghost particle multiple times (at different locations) for the same neighbor block,

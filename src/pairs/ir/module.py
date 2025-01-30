@@ -10,7 +10,7 @@ from pairs.ir.parameters import Parameter
 class Module(ASTNode):
     last_module = 0
 
-    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False, user_defined=False):
+    def __init__(self, sim, name=None, block=None, resizes_to_check={}, check_properties_resize=False, run_on_device=False, user_defined=False, interface=False):
         super().__init__(sim)
         self._id = Module.last_module
         self._name = name if name is not None else "module" + str(Module.last_module)
@@ -26,6 +26,7 @@ class Module(ASTNode):
         self._check_properties_resize = check_properties_resize
         self._run_on_device = run_on_device
         self._user_defined = user_defined
+        self._interface = interface
         self._profile = False
         sim.add_module(self)
         Module.last_module += 1
@@ -52,6 +53,10 @@ class Module(ASTNode):
     @property
     def user_defined(self):
         return self._user_defined
+
+    @property
+    def interface(self):
+        return self._interface
 
     def profile(self):
         self._profile = True

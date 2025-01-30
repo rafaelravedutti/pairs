@@ -17,11 +17,11 @@ from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.dem_sc_grid import DEMSCGrid
-from pairs.sim.domain import InitializeDomain, UpdateDomain
+from pairs.sim.domain import InitializeDomain, UpdateDomain, SetDomain
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
 from pairs.sim.features import AllocateFeatureProperties
-from pairs.sim.grid import Grid2D, Grid3D
+from pairs.sim.grid import Grid2D, Grid3D, MutableGrid
 from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
@@ -92,6 +92,8 @@ class Simulation:
 
         # Different segments of particle code/functions
         self.create_domain = Block(self, [])
+        self.generate_set_domain_module = True
+
         self.setup_particles = Block(self, [])
         self.module_list = []
         self.kernel_list = []
@@ -265,6 +267,11 @@ class Simulation:
         return self.vars.find(var_name)
 
     def set_domain(self, grid):
+        """Set domain bounds. 
+        If the domain is set through this function, the 'set_domain' module won't be generated in the modular version.
+        Use this function only if you do not need to set domain at runtime.
+        This function is required only for whole-program generation."""
+        self.generate_set_domain_module = False
         self.grid = Grid3D(self, grid[0], grid[1], grid[2], grid[3], grid[4], grid[5])
         self.create_domain.add_statement(InitializeDomain(self))
 
@@ -532,6 +539,8 @@ class Simulation:
 
         # Combine everything into a whole program
         if self._generate_whole_program:
+            assert self.grid, "No domain is created. Set domain bounds with 'set_domain'."
+
             # Initialization and setup functions, together with time-step loop
             # UpdateDomain is added after setup_particles because particles must be already present in the simulation
             body = Block.from_list(self, [
@@ -557,9 +566,15 @@ class Simulation:
             update_cells = [m[0] if isinstance(m, tuple) else m for m in update_cells]
             update_cells_module = Module(self, name='update_cells', block=Block.from_list(self, update_cells))
 
-            initialize_module = Module(self, name='initialize', block=inits)
-            create_domain_module = Module(self, name='create_domain', block=self.create_domain)
-
+            # Either generate a set_domain module, or create domain during initialization 
+            if self.generate_set_domain_module:
+                self.grid = MutableGrid(self, self.dims)
+                initialize_module = Module(self, name='initialize', block=inits)
+                set_domain_module = Module(self, name='set_domain', block=Block(self, SetDomain(self)), interface=True)
+            else:
+                initialize_module = Module(self, name='initialize', block=Block.merge_blocks(inits, self.create_domain))
+                set_domain_module = None
+                
             setup_sim = Block.from_list(self, [
                     self.setup_particles,
                     UpdateDomain(self),
@@ -570,16 +585,18 @@ class Simulation:
             setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
             communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).as_block())
             reset_volatiles_module = Module(self, name='reset_volatiles', block=Block(self, ResetVolatileProperties(self)))
-
+            
             modules_list = [
                 update_cells_module, 
-                initialize_module, 
-                create_domain_module, 
+                initialize_module,
                 setup_sim_module, 
                 reverse_comm_module, 
                 communicate_module, 
                 reset_volatiles_module
             ]
+
+            if self.generate_set_domain_module:
+                modules_list += [set_domain_module]
 
             Transformations(modules_list, self._target).apply_all()
 
@@ -594,7 +611,7 @@ class Simulation:
             self.code_gen.generate_library(update_cells_module, 
                                            user_defined_modules, 
                                            initialize_module, 
-                                           create_domain_module, 
+                                           set_domain_module,
                                            setup_sim_module, 
                                            reverse_comm_module, 
                                            communicate_module, 

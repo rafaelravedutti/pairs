@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     pairs_sim->initialize();
 
     // either create new domain or use an existing one ----------------------------------------
-    pairs_sim->create_domain(argc, argv);
+    pairs_sim->set_domain(argc, argv, 0, 0, 0, 0.1, 0.1, 0.1);
 
     // pairs_sim->use_domain(forest);
 
