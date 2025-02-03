@@ -91,7 +91,6 @@ class BuildParticleIR(ast.NodeVisitor):
         self.ctx_symbols.update(symbols)
 
     def visit_Assign(self, node):
-        #print(ast.dump(node))
         assert len(node.targets) == 1, "Only one target is allowed on assignments!"
         lhs = self.visit(node.targets[0])
         rhs = self.visit(node.value)
@@ -104,15 +103,16 @@ class BuildParticleIR(ast.NodeVisitor):
 
     def visit_AugAssign(self, node):
         lhs = self.visit(node.target)
+        # We need a copy of the target object so it is properly visited during
+        # compiler analyses and transformations
+        lhs_copy = self.visit(node.target)
         rhs = self.visit(node.value)
         op_class = OperatorClass.from_type_list([lhs.type(), rhs.type()])
-        bin_op = op_class(self.sim, lhs, rhs, BuildParticleIR.get_binary_op(node.op))
+        bin_op = op_class(self.sim, lhs_copy, rhs, BuildParticleIR.get_binary_op(node.op))
 
-        if isinstance(lhs, UndefinedSymbol):
-            self.add_symbols({lhs.symbol_id: bin_op})
-            rhs.set_label(lhs.symbol_id)
-        else:
-            Assign(self.sim, lhs, bin_op)
+        assert not isinstance(lhs, UndefinedSymbol), \
+            f"Invalid AugAssign: symbol {lhs} not defined yet!"
+        Assign(self.sim, lhs, bin_op)
 
     def visit_BinOp(self, node):
         #print(ast.dump(node))
