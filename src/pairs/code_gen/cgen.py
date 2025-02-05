@@ -33,6 +33,7 @@ from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
+from pairs.code_gen.accessor import PairsAcessor
 
 
 class CGen:
@@ -61,7 +62,7 @@ class CGen:
             # Ideally this should never be called
             return "nullptr"
         
-        name = obj.name() if not device else f"d_{obj.name()}"
+        name = obj.name() if not device else f"{obj.name()}_d"
         t = obj.type()
         if not Types.is_scalar(t) and index is not None:
             name += f"_{index}"
@@ -197,102 +198,8 @@ class CGen:
         self.print.add_indent(-4)
         self.print("}")
         self.print("")
-
-    def generate_host_pairs_accessor_class(self):
-        self.print("#include <core/math/Vector3.h>")
-        self.print("#include <core/math/Quaternion.h>")
-        self.print("#include <core/math/Matrix3.h>")
-        self.print("")
-        self.print("class PairsAccessor {")
-        self.print("private:")
-        self.print("    std::shared_ptr<PairsSimulation> ps;")
-        self.print("public:")
-        self.print.add_indent(4)
-        self.print("PairsAccessor(const std::shared_ptr<PairsSimulation> &ps_): ps(ps_){}")
-        self.print("")
-        self.print("int size() const { return ps->pobj->nlocal + ps->pobj->nghost; }")
-        self.print("")
-
-        self.print("int nlocal() const { return ps->pobj->nlocal; }")
-        self.print("")
-
-        self.print("int nghost() const { return ps->pobj->nghost; }")
-        self.print("")
-
-        self.print("int getInvalidIdx(){return -1;}")
-        self.print("")
-
-        self.print("pairs::id_t getInvalidUid(){return 0;}")
-        self.print("")
-
-        self.print('''int uidToIdx(pairs::id_t uid){
-        int idx = getInvalidIdx();
-        for(int i=0; i<this->nlocal(); ++i){
-            if (getUid(i) == uid){
-                idx = i;
-                break;
-            }
-        }
-        return idx;''')
-        self.print("}")
-        self.print("")
-
-        self.print('''int uidToIdxGhost(pairs::id_t uid){
-        int idx = getInvalidIdx();
-        for(int i=this->nlocal(); i<this->size(); ++i){
-            if (getUid(i) == uid){
-                idx = i;
-                break;
-            }
-        }
-        return idx;''')
-        self.print("}")
-        self.print("")
-
-        for p in self.sim.properties:
-            ptr = p.name()
-
-            tkw = Types.walberla_keyword(self.sim, p.type())
-
-            splitname = ptr.split('_')
-            funcname = ''.join(word.capitalize() for word in splitname)
-            v = f"ps->pobj->{ptr}"
-            getSignature = f"{tkw} get{funcname}(const size_t i) const"
-            setSignature = f"void set{funcname}(const size_t i, {tkw} const &value)"
-
-            if Types.is_scalar(p.type()):
-                self.print(f"{getSignature} {{return {v}[i];}}")
-                self.print(f"{setSignature} {{{v}[i] = value;}}")
-                self.print("")
-
-            elif p.type()==Types.Vector:
-                self.print(f"{getSignature} {{return {tkw}({v}[i*3 + 0], {v}[i*3 + 1], {v}[i*3 + 2]);}}")
-                self.print(f"{setSignature} {{{v}[i*3 + 0] = value[0]; {v}[i*3 + 1] = value[1]; {v}[i*3 + 2] = value[2];}}")
-                self.print("")
-
-            elif p.type()==Types.Quaternion:
-                self.print(f"{getSignature} {{return {tkw}({v}[i*4 + 0], {v}[i*4 + 1], {v}[i*4 + 2], {v}[i*4 + 3]);}}")
-                self.print(f"{setSignature} {{{v}[i*4 + 0] = value[0]; {v}[i*4 + 1] = value[1]; {v}[i*4 + 2] = value[2]; {v}[i*4 + 3] = value[3];}}")
-                self.print("")
-
-            elif p.type()==Types.Matrix:
-                self.print(f"{getSignature} {{" \
-                           f"return {tkw}({v}[i*9 + 0], {v}[i*9 + 1], {v}[i*9 + 2], "\
-                                        f"{v}[i*9 + 3], {v}[i*9 + 4], {v}[i*9 + 5], "\
-                                        f"{v}[i*9 + 6], {v}[i*9 + 7], {v}[i*9 + 8]);}}")
-                self.print(f"{setSignature} {{" \
-                           f"{v}[i*9 + 0] = value[0]; {v}[i*9 + 1] = value[1]; {v}[i*9 + 2] = value[2]; "\
-                            f"{v}[i*9 + 3] = value[3]; {v}[i*9 + 4] = value[4]; {v}[i*9 + 5] = value[5]; "\
-                            f"{v}[i*9 + 6] = value[6]; {v}[i*9 + 7] = value[7]; {v}[i*9 + 8] = value[8];}}")
-                self.print("")
-            
-            
-        self.print.add_indent(-4)
-        self.print("};")
-        self.print("")
-
+        
     def generate_pairs_object_structure(self):
-
         self.print("")
         externkw = "" if self.sim._generate_whole_program else "extern "
         if self.target.is_gpu():
@@ -301,14 +208,14 @@ class CGen:
                     t = array.type()
                     tkw = Types.c_keyword(self.sim, t)
                     size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
-                    self.print(f"{externkw}__constant__ {tkw} d_{array.name()}[{size}];")
+                    self.print(f"{externkw}__constant__ {tkw} {array.name()}_d[{size}];")
 
             for feature_prop in self.sim.feature_properties:
                 if feature_prop.device_flag:
                     t = feature_prop.type()
                     tkw = Types.c_keyword(self.sim, t)
                     size = feature_prop.array_size()
-                    self.print(f"{externkw}__constant__ {tkw} d_{feature_prop.name()}[{size}];")
+                    self.print(f"{externkw}__constant__ {tkw} {feature_prop.name()}_d[{size}];")
 
         self.print("")
         self.print("struct PairsObjects {")
@@ -330,7 +237,7 @@ class CGen:
                 if a.is_static():
                     continue
                 else:
-                    self.print(f"{tkw} *d_{ptr};")
+                    self.print(f"{tkw} *{ptr}_d;")
 
         self.print("// Properties")
         for p in self.sim.properties:
@@ -339,7 +246,7 @@ class CGen:
             self.print(f"{tkw} *{ptr};")
 
             if self.target.is_gpu() and p.device_flag:
-                self.print(f"{tkw} *d_{ptr};")
+                self.print(f"{tkw} *{ptr}_d;")
 
         self.print("// Contact properties")
         for cp in self.sim.contact_properties:
@@ -348,7 +255,7 @@ class CGen:
             self.print(f"{tkw} *{ptr};")
 
             if self.target.is_gpu() and cp.device_flag:
-                self.print(f"{tkw} *d_{ptr};")
+                self.print(f"{tkw} *{ptr}_d;")
 
         self.print("// Feature properties")
         for fp in self.sim.feature_properties:
@@ -423,14 +330,14 @@ class CGen:
                     t = array.type()
                     tkw = Types.c_keyword(self.sim, t)
                     size = self.generate_expression(ScalarOp.inline(array.alloc_size()))
-                    self.print(f"__constant__ {tkw} d_{array.name()}[{size}];")
+                    self.print(f"__constant__ {tkw} {array.name()}_d[{size}];")
 
             for feature_prop in self.sim.feature_properties:
                 if feature_prop.device_flag:
                     t = feature_prop.type()
                     tkw = Types.c_keyword(self.sim, t)
                     size = feature_prop.array_size()
-                    self.print(f"__constant__ {tkw} d_{feature_prop.name()}[{size}];")
+                    self.print(f"__constant__ {tkw} {feature_prop.name()}_d[{size}];")
 
         self.print("")
                     
@@ -509,9 +416,16 @@ class CGen:
         self.print("}")
         self.print("")
 
-        self.print("int rank(){")
-        self.print("    return pairs_runtime->getDomainPartitioner()->getRank();")
-        self.print("}")
+        self.print("int rank(){ return pairs_runtime->getDomainPartitioner()->getRank();}")
+        self.print("")
+
+        self.print("int size(){ return pobj->nlocal + pobj->nghost;}")
+        self.print("")
+
+        self.print("int nlocal(){ return pobj->nlocal;}")
+        self.print("")
+
+        self.print("int nghost(){ return pobj->nghost;}")
         self.print("")
 
         self.print("void setup_sim() {")
@@ -529,7 +443,7 @@ class CGen:
         self.print("}")
         self.print("")
 
-        self.print("void communicate(int timestep) {")
+        self.print("void communicate(int timestep = 0) {")
         self.print("    pobj->sim_timestep = timestep;")
         self.generate_statement(communicate_module.block)
         self.print("}")
@@ -555,9 +469,7 @@ class CGen:
         self.print.add_indent(-4)
         self.print("};")
 
-        if self.sim.partitioner()==DomainPartitioners.BlockForest:
-            self.generate_host_pairs_accessor_class()
-        # self.generate_host_pairs_accessor_class()
+        PairsAcessor(self).generate()
         
         self.print.end()
         self.generate_full_object_names = False
@@ -581,33 +493,33 @@ class CGen:
 
         for array in module.arrays():
             type_kw = Types.c_keyword(self.sim, array.type())
-            name = array.name() if not device_cond else f"d_{array.name()}"
+            name = array.name() if not device_cond else f"{array.name()}_d"
             if not array.is_static() or (array.is_static() and not device_cond):
                 self.print(f"{type_kw} *{array.name()} = pobj->{name};")
 
             if array in module.host_references():
-                self.print(f"{type_kw} *h_{array.name()} = pobj->{array.name()};")
+                self.print(f"{type_kw} *{array.name()}_h = pobj->{array.name()};")
 
 
         for prop in module.properties():
             type_kw = Types.c_keyword(self.sim, prop.type())
-            name = prop.name() if not device_cond else f"d_{prop.name()}"
+            name = prop.name() if not device_cond else f"{prop.name()}_d"
             self.print(f"{type_kw} *{prop.name()} = pobj->{name};")
 
             if prop in module.host_references():
-                self.print(f"{type_kw} *h_{prop.name()} = pobj->{prop.name()};")
+                self.print(f"{type_kw} *{prop.name()}_h = pobj->{prop.name()};")
 
         for contact_prop in module.contact_properties():
             type_kw = Types.c_keyword(self.sim, contact_prop.type())
-            name = contact_prop.name() if not device_cond else f"d_{contact_prop.name()}"
+            name = contact_prop.name() if not device_cond else f"{contact_prop.name()}_d"
             self.print(f"{type_kw} *{contact_prop.name()} = pobj->{name};")
 
             if contact_prop in module.host_references():
-                self.print(f"{type_kw} *h_{contact_prop.name()} = pobj->{contact_prop.name()};")
+                self.print(f"{type_kw} *{contact_prop.name()}_h = pobj->{contact_prop.name()};")
 
         for feature_prop in module.feature_properties():
             type_kw = Types.c_keyword(self.sim, feature_prop.type())
-            name = feature_prop.name() if not device_cond else f"d_{feature_prop.name()}"
+            name = feature_prop.name() if not device_cond else f"{feature_prop.name()}_d"
 
             if feature_prop.device_flag and device_cond:
                 # self.print(f"{type_kw} *{feature_prop.name()} = {self.generate_object_reference(feature_prop, device=device_cond)};")
@@ -616,7 +528,7 @@ class CGen:
                 self.print(f"{type_kw} *{feature_prop.name()} = pobj->{name};")
 
             if feature_prop in module.host_references():
-                self.print(f"{type_kw} *h_{feature_prop.name()} = pobj->{feature_prop.name()};")
+                self.print(f"{type_kw} *{feature_prop.name()}_h = pobj->{feature_prop.name()};")
 
     def generate_main(self, module):
         assert module.name=='main'
@@ -1018,11 +930,11 @@ class CGen:
             if ast_node.decl:
                 self.print(f"{tkw} *{array_name} = ({tkw} *) malloc({size});")
                 if self.target.is_gpu() and ast_node.array.device_flag:
-                    self.print(f"{tkw} *d_{array_name} = ({tkw} *) pairs::device_alloc({size});")
+                    self.print(f"{tkw} *{array_name}_d = ({tkw} *) pairs::device_alloc({size});")
             else:
                 self.print(f"{array_name} = ({tkw} *) malloc({size});")
                 if self.target.is_gpu() and ast_node.array.device_flag:
-                    self.print(f"d_{array_name} = ({tkw} *) pairs::device_alloc({size});")
+                    self.print(f"{array_name}_d = ({tkw} *) pairs::device_alloc({size});")
 
         if isinstance(ast_node, KernelLaunch):
             range_start = self.generate_expression(ScalarOp.inline(ast_node.min))
@@ -1274,14 +1186,14 @@ class CGen:
 
         if isinstance(ast_node, DeviceStaticRef):
             elem = self.generate_expression(ast_node.elem)
-            return f"d_{elem}"
+            return f"{elem}_d"
 
         if isinstance(ast_node, FeatureProperty):
             return self.generate_object_reference(ast_node)
 
         if isinstance(ast_node, HostRef):
             elem = self.generate_expression(ast_node.elem)
-            return f"h_{elem}"
+            return f"{elem}_h"
 
         if isinstance(ast_node, Iter):
             assert mem is False, "Iterator is not lvalue!"

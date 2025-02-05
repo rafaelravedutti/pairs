@@ -239,6 +239,10 @@ public:
 
     void copyPropertyToHost(Property &prop, action_t action, size_t size);
 
+    DeviceFlags* getPropFlags(){
+        return prop_flags;
+    }
+
     // Contact properties
     ContactProperty &getContactProperty(property_t id);
     ContactProperty &getContactPropertyByName(std::string name);

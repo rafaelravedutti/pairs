@@ -13,13 +13,13 @@ class Types:
     Matrix = 10
     Quaternion = 11
 
-    def walberla_keyword(sim, t):
+    def c_accessor_keyword(sim, t):
         real_kw = 'double' if sim.use_double_precision() else 'float'
         return (
             real_kw if t==Types.Real
-            else f'walberla::math::Vector3<{real_kw}>' if t==Types.Vector
-            else f'walberla::math::Matrix3<{real_kw}>' if t==Types.Matrix
-            else f'walberla::math::Quaternion<{real_kw}>' if t==Types.Quaternion
+            else f'pairs::Vector3<{real_kw}>' if t==Types.Vector
+            else f'pairs::Matrix3<{real_kw}>' if t==Types.Matrix
+            else f'pairs::Quaternion<{real_kw}>' if t==Types.Quaternion
             else 'float' if t == Types.Float
             else 'double' if t == Types.Double
             else 'int' if t == Types.Int32

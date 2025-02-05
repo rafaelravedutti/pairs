@@ -5,6 +5,16 @@
 
 namespace pairs {
 
+#ifdef PAIRS_TARGET_CUDA
+    #define PAIRS_ATTR_HOST __host__ 
+    #define PAIRS_ATTR_DEVICE __device__ 
+    #define PAIRS_ATTR_HOST_DEVICE __host__ __device__
+#else
+    #define PAIRS_ATTR_HOST
+    #define PAIRS_ATTR_DEVICE
+    #define PAIRS_ATTR_HOST_DEVICE
+#endif
+
 constexpr int FLAGS_INFINITE = 1 << 0 ;
 constexpr int FLAGS_GHOST    = 1 << 1 ;
 constexpr int FLAGS_FIXED    = 1 << 2 ;
