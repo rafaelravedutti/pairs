@@ -42,10 +42,9 @@ int main(int argc, char **argv) {
     pairs_sim->create_halfspace(1,1,1,  0, 0, -1,    0, 13);
 
     pairs::id_t pUid = pairs_sim->create_sphere(0.6, 0.6, 0.7,      0, 0, 0,  1000, 0.05, 0, 0);
-    pairs::id_t pUid2 = pairs_sim->create_sphere(0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 0, 0);
+    pairs_sim->create_sphere(0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 0, 0);
 
     MPI_Allreduce(MPI_IN_PLACE, &pUid, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &pUid2, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 
     auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
 
@@ -60,8 +59,8 @@ int main(int argc, char **argv) {
     double dt = 1e-3;
 
     for (int t=0; t<num_timesteps; ++t){
-        // Up-to-date uids might be on host or device. So sync uid before accessing them from host
-        ac->syncUid();
+        // Up-to-date uids might be on host or device. So sync uid in Host before accessing them from host
+        ac->syncUid(PairsAccessor::Host);
 
         // Print position of particle pUid
         //-------------------------------------------------------------------------------------------
@@ -69,16 +68,20 @@ int main(int argc, char **argv) {
             std::cout << "Timestep (" << t << "): Particle " << pUid << " is in rank " << pairs_sim->rank() << std::endl;
             int idx = ac->uidToIdxLocal(pUid);
 
-            // Up-to-date position might be on host or device. So sync position before printing it from host:
-            ac->syncPosition(); 
+            // Up-to-date position might be on host or device. 
+            // Sync position on HostAndDevice before printing it from host and device:
+            ac->syncPosition(PairsAccessor::HostAndDevice); 
+
             std::cout << "Position [from host] = (" 
                     << ac->getPosition(idx)[0] << ", "
                     << ac->getPosition(idx)[1] << ", " 
                     << ac->getPosition(idx)[2] << ")" << std::endl;
             
-            // Position is still synced. Print it from device:
+            // Position is synced on both host and device. Print position from device:
             print_position<<<1,1>>>(*ac, idx);
             checkCudaError(cudaDeviceSynchronize(), "print_position");
+            
+            // There's no need to sync position here to continue the simulation, since position wasn't modified.
         }
 
         // Calculate forces
@@ -89,20 +92,24 @@ int main(int argc, char **argv) {
 
         // Change gravitational force on particle pUid
         //-------------------------------------------------------------------------------------------
-        ac->syncUid();
+        // Here we are syncing Uid on Host again for clarity, but no data transfer will happen since Uid is already on host
+        ac->syncUid(PairsAccessor::Host);
+
         if(pIsLocalInMyRank(pUid)){
             std::cout << "Force Timestep (" << t << "): Particle " << pUid << " is in rank " << pairs_sim->rank() << std::endl;
             int idx = ac->uidToIdxLocal(pUid);
 
-            // Up-to-date force and mass might be on host or device. So sync before accessing them on device:
-            ac->syncForce();
-            ac->syncMass(); 
+            // Up-to-date force and mass might be on host or device. 
+            // So sync them in Device before accessing them on device. (No data will be transfered if they are already on device)
+            ac->syncForce(PairsAccessor::Device);
+            ac->syncMass(PairsAccessor::Device);
 
             // Modify force from device:
             change_gravitational_force<<<1,1>>>(*ac, idx);
             checkCudaError(cudaDeviceSynchronize(), "change_gravitational_force");
 
-            // Force on device was modified. So sync force before printing it from host:
+            // Force on device was modified.
+            // So sync force before continuing the simulation. By default (no args), force is synced on both host and device
             ac->syncForce();
             std::cout << "Force [from host] after changing = (" 
                     << ac->getForce(idx)[0] << ", "

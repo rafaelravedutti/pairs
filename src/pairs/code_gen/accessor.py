@@ -28,17 +28,15 @@ class PairsAcessor:
         self.print("public:")
         self.print.add_indent(4)
 
-        if self.target.is_gpu():
-            self.update()
-
+        self.sync_mode_enum()
+        self.update()
         self.constructor()
 
         for p in self.sim.properties:
             if (p.type()==Types.Vector) or (Types.is_scalar(p.type())):
                 self.get_property(p)    
                 self.set_property(p)
-                if self.target.is_gpu():
-                        self.sync_property(p)
+                self.sync_property(p)
 
         self.utility_funcs()
             
@@ -73,15 +71,16 @@ class PairsAcessor:
 
     def update(self):
         self.print(f"{self.host_attr}void update(){{")
-        self.print.add_indent(4)
-        self.print(f"cudaMemcpy(nlocal_d, &(ps->pobj->nlocal), sizeof(int), cudaMemcpyHostToDevice);")
-        self.print(f"cudaMemcpy(nghost_d, &(ps->pobj->nghost), sizeof(int), cudaMemcpyHostToDevice);")
+        if self.target.is_gpu():
+            self.print.add_indent(4)
+            self.print(f"cudaMemcpy(nlocal_d, &(ps->pobj->nlocal), sizeof(int), cudaMemcpyHostToDevice);")
+            self.print(f"cudaMemcpy(nghost_d, &(ps->pobj->nghost), sizeof(int), cudaMemcpyHostToDevice);")
 
-        for p in self.sim.properties:
-            pname = p.name()
-            self.print(f"{pname}_d = ps->pobj->{pname}_d;")
+            for p in self.sim.properties:
+                pname = p.name()
+                self.print(f"{pname}_d = ps->pobj->{pname}_d;")
 
-        self.print.add_indent(-4)
+            self.print.add_indent(-4)
         self.print("}")
         self.print("")
 
@@ -193,6 +192,13 @@ class PairsAcessor:
 
         self.print("}")
         self.print("")
+    
+    def sync_mode_enum(self):
+        self.print("enum SyncMode{")
+        self.print("    HostAndDevice = 0,")
+        self.print("    Host,")
+        self.print("    Device")
+        self.print("};")
 
     def sync_property(self, prop):
         pname = prop.name()
@@ -200,91 +206,83 @@ class PairsAcessor:
         splitname = pname.split('_')
         funcname = ''.join(word.capitalize() for word in splitname)
 
-        self.print(f"{self.host_attr}void sync{funcname}(){{")
-        self.print.add_indent(4)
-        self.print(f"{pname}_d = ps->pobj->{pname}_d;")
-        self.print(f"cudaMemcpy(&{pname}_device_flag_h, {pname}_device_flag_d, sizeof(bool), cudaMemcpyDeviceToHost);")
-        self.print("")
-        
+        self.print(f"{self.host_attr}void sync{funcname}(SyncMode sync_mode = HostAndDevice){{")
 
-        #####################################################################################################################
-        #####################################################################################################################
-        # self.print(f"if (({pname}_host_flag && {pname}_device_flag_h) || ")
-        # self.print.add_indent(4)
-        # self.print(f"({pname}_host_flag && !ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})) ||")
-        # self.print(f"({pname}_device_flag_h && !ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid}))){{")
-        # self.print(f"PAIRS_ERROR(\"OUT OF SYNC! Both host and device versions of {pname} are in a modified state.\\n\");")
-        # self.print("exit(-1);")
-        # self.print.add_indent(-4)
-        # self.print("}")
-        # self.print("")
+        if self.target.is_gpu():
+            self.print.add_indent(4)
+            self.print(f"{pname}_d = ps->pobj->{pname}_d;")
+            self.print(f"cudaMemcpy(&{pname}_device_flag_h, {pname}_device_flag_d, sizeof(bool), cudaMemcpyDeviceToHost);")
+            self.print("")
+            
 
-
-        self.print(f"if ({pname}_host_flag && {pname}_device_flag_h){{")
-        self.print.add_indent(4)
-        self.print(f"PAIRS_ERROR(\"OUT OF SYNC 1! Both host and device versions of {pname} are in a modified state.\\n\");")
-        self.print("exit(-1);")
-        self.print.add_indent(-4)
-        self.print("}")
-        self.print("")
-
-        self.print(f"if ({pname}_host_flag && !ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})){{")
-        self.print.add_indent(4)
-        self.print(f"PAIRS_ERROR(\"OUT OF SYNC 2! Both host and device versions of {pname} are in a modified state.\\n\");")
-        self.print("exit(-1);")
-        self.print.add_indent(-4)
-        self.print("}")
-        self.print("")
-
-        self.print(f"if ({pname}_device_flag_h && !ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid})){{")
-        self.print.add_indent(4)
-        self.print(f"PAIRS_ERROR(\"OUT OF SYNC 3! Both host and device versions of {pname} are in a modified state.\\n\");")
-        self.print("exit(-1);")
-        self.print.add_indent(-4)
-        self.print("}")
-        self.print("")
-
-        #####################################################################################################################
-        #####################################################################################################################
+            #####################################################################################################################
+            #####################################################################################################################
+            # self.print(f"if (({pname}_host_flag && {pname}_device_flag_h) || ")
+            # self.print.add_indent(4)
+            # self.print(f"({pname}_host_flag && !ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})) ||")
+            # self.print(f"({pname}_device_flag_h && !ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid}))){{")
+            # self.print(f"PAIRS_ERROR(\"OUT OF SYNC! Both host and device versions of {pname} are in a modified state.\\n\");")
+            # self.print("exit(-1);")
+            # self.print.add_indent(-4)
+            # self.print("}")
+            # self.print("")
 
 
-        self.print(f"if ({pname}_host_flag){{")
-        self.print.add_indent(4)
-        self.print(f"ps->pairs_runtime->getPropFlags()->setHostFlag({pid});")
-        self.print(f"ps->pairs_runtime->getPropFlags()->clearDeviceFlag({pid});")
-        self.print.add_indent(-4)
-        self.print("}")
-        
-        self.print(f"else if ({pname}_device_flag_h){{")
-        self.print.add_indent(4)
-        self.print(f"ps->pairs_runtime->getPropFlags()->setDeviceFlag({pid});")
-        self.print(f"ps->pairs_runtime->getPropFlags()->clearHostFlag({pid});")
-        self.print.add_indent(-4)
-        self.print("}")
-        self.print("")
+            self.print(f"if ({pname}_host_flag && {pname}_device_flag_h){{")
+            self.print(f"    PAIRS_ERROR(\"OUT OF SYNC 1! Both host and device versions of {pname} are in a modified state.\\n\");")
+            self.print("    exit(-1);")
+            self.print("}")
+            self.print("")
 
-        nelems = Types.number_of_elements(self.sim, prop.type())
-        tkw = Types.c_keyword(self.sim, prop.type())
+            self.print(f"if ({pname}_host_flag && !ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})){{")
+            self.print(f"    PAIRS_ERROR(\"OUT OF SYNC 2! Both host and device versions of {pname} are in a modified state.\\n\");")
+            self.print("    exit(-1);")
+            self.print("}")
+            self.print("")
 
-        self.print(f"if (ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})) {{")
-        self.print.add_indent(4)
+            self.print(f"if ({pname}_device_flag_h && !ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid})){{")
+            self.print(f"    PAIRS_ERROR(\"OUT OF SYNC 3! Both host and device versions of {pname} are in a modified state.\\n\");")
+            self.print("    exit(-1);")
+            self.print("}")
+            self.print("")
 
-        self.print(f"ps->pairs_runtime->copyPropertyToDevice({pid}, ReadOnly, (((ps->pobj->nlocal + ps->pobj->nghost) * {nelems}) * sizeof({tkw})));")
-        self.print.add_indent(-4)
-        self.print("}")
+            #####################################################################################################################
+            #####################################################################################################################
 
-        self.print(f"else if (ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid})) {{")
-        self.print.add_indent(4)
-        self.print(f"ps->pairs_runtime->copyPropertyToHost({pid}, ReadOnly, (((ps->pobj->nlocal + ps->pobj->nghost) * {nelems}) * sizeof({tkw})));")
-        self.print.add_indent(-4)
-        self.print("}")
-        self.print("")
 
-        self.print(f"{pname}_host_flag = false;")
-        self.print(f"{pname}_device_flag_h = false;")
-        self.print(f"cudaMemcpy({pname}_device_flag_d, &{pname}_device_flag_h, sizeof(bool), cudaMemcpyHostToDevice);")
+            self.print(f"if ({pname}_host_flag){{")
+            self.print(f"    ps->pairs_runtime->getPropFlags()->setHostFlag({pid});")
+            self.print(f"    ps->pairs_runtime->getPropFlags()->clearDeviceFlag({pid});")
+            self.print("}")
+            
+            self.print(f"else if ({pname}_device_flag_h){{")
+            self.print(f"    ps->pairs_runtime->getPropFlags()->setDeviceFlag({pid});")
+            self.print(f"    ps->pairs_runtime->getPropFlags()->clearHostFlag({pid});")
+            self.print("}")
+            self.print("")
 
-        self.print.add_indent(-4)
+            nelems = Types.number_of_elements(self.sim, prop.type())
+            tkw = Types.c_keyword(self.sim, prop.type())
+
+            self.print(f"if (sync_mode==Device || sync_mode==HostAndDevice) {{")
+            self.print(f"    if (ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})) {{")
+            self.print(f"        ps->pairs_runtime->copyPropertyToDevice({pid}, ReadOnly, (((ps->pobj->nlocal + ps->pobj->nghost) * {nelems}) * sizeof({tkw})));")
+            self.print("    }")
+            self.print("}")
+            self.print("")
+
+            self.print(f"if (sync_mode==Host || sync_mode==HostAndDevice) {{")
+            self.print(f"    if (ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid})) {{")
+            self.print(f"        ps->pairs_runtime->copyPropertyToHost({pid}, ReadOnly, (((ps->pobj->nlocal + ps->pobj->nghost) * {nelems}) * sizeof({tkw})));")
+            self.print("    }")
+            self.print("}")
+            self.print("")
+
+            self.print(f"{pname}_host_flag = false;")
+            self.print(f"{pname}_device_flag_h = false;")
+            self.print(f"cudaMemcpy({pname}_device_flag_d, &{pname}_device_flag_h, sizeof(bool), cudaMemcpyHostToDevice);")
+
+            self.print.add_indent(-4)
         self.print("}")
         self.print("")
 

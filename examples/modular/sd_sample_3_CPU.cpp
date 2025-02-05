@@ -25,10 +25,9 @@ int main(int argc, char **argv) {
     pairs_sim->create_halfspace(1,1,1,  0, 0, -1,    0, 13);
 
     pairs::id_t pUid = pairs_sim->create_sphere(0.6, 0.6, 0.7,      0, 0, 0,  1000, 0.05, 0, 0);
-    pairs::id_t pUid2 = pairs_sim->create_sphere(0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 0, 0);
+    pairs_sim->create_sphere(0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 0, 0);
 
     MPI_Allreduce(MPI_IN_PLACE, &pUid, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, &pUid2, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 
     auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
 
