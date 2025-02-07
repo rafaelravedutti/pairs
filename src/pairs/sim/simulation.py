@@ -217,10 +217,18 @@ class Simulation:
         assert self.feature(feature_name) is None, f"Feature already defined: {feature_name}"
         return self.features.add(feature_name, nkinds)
 
-    def add_feature_property(self, feature_name, prop_name, prop_type, prop_data):
+    def add_feature_property(self, feature_name, prop_name, prop_type, prop_data=None):
         feature = self.feature(feature_name)
         assert feature is not None, f"Feature not found: {feature_name}"
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
+
+        array_size = feature.nkinds()**2 * Types.number_of_elements(self, prop_type)
+
+        if not prop_data:
+            prop_data = [0 for i in range(array_size)]
+        else:
+            assert len(prop_data) == array_size, f"Incorrect array size for {prop_name}: Expected array size = {array_size}"
+
         return self.feature_properties.add(feature, prop_name, prop_type, prop_data)
 
     def add_contact_property(self, prop_name, prop_type, prop_default, layout=Layouts.AoS):

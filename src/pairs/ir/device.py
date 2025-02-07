@@ -77,7 +77,29 @@ class CopyProperty(ASTNode):
     def children(self):
         return [self._prop, self.sim.nghost, self.sim.nlocal]
 
+class CopyFeatureProperty(ASTNode):
+    def __init__(self, sim, prop, ctx, action):
+        super().__init__(sim)
+        self._prop = prop
+        self._ctx = ctx
+        self._action = action
+        self.sim.add_statement(self)
 
+    def __str__(self):
+        return f"CopyFeatureProperty<{self._prop}>"
+    
+    def prop(self):
+        return self._prop
+
+    def context(self):
+        return self._ctx
+
+    def action(self):
+        return self._action
+
+    def children(self):
+        return [self._prop]
+    
 class CopyContactProperty(ASTNode):
     def __init__(self, sim, prop, ctx, action):
         super().__init__(sim)

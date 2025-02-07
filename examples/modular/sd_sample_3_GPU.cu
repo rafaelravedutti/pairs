@@ -24,6 +24,20 @@ __global__ void change_gravitational_force(PairsAccessor ac, int idx){
     printf("Force [from device] after setting = (%f, %f, %f) \n", ac.getForce(idx)[0], ac.getForce(idx)[1], ac.getForce(idx)[2]);
 }
 
+void set_feature_properties(std::shared_ptr<PairsAccessor> &ac){
+    ac->setTypeStiffness(0,0, 0);
+    ac->setTypeStiffness(0,1, 1000);
+    ac->setTypeStiffness(1,0, 1000);
+    ac->setTypeStiffness(1,1, 3000);
+    ac->syncTypeStiffness();
+
+    ac->setTypeDampingNorm(0,0, 0);
+    ac->setTypeDampingNorm(0,1, 20);
+    ac->setTypeDampingNorm(1,0, 20);
+    ac->setTypeDampingNorm(1,1, 10);
+    ac->syncTypeDampingNorm();
+}
+
 int main(int argc, char **argv) {
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
@@ -41,8 +55,10 @@ int main(int argc, char **argv) {
     pairs_sim->create_halfspace(1,1,1,  0, -1, 0,    0, 13);
     pairs_sim->create_halfspace(1,1,1,  0, 0, -1,    0, 13);
 
-    pairs::id_t pUid = pairs_sim->create_sphere(0.6, 0.6, 0.7,      0, 0, 0,  1000, 0.05, 0, 0);
-    pairs_sim->create_sphere(0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 0, 0);
+    pairs::id_t pUid = pairs_sim->create_sphere(0.6, 0.6, 0.7,      0, 0, 0,  1000, 0.05, 1, 0);
+    pairs_sim->create_sphere(0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 1, 0);
+
+    set_feature_properties(ac);
 
     MPI_Allreduce(MPI_IN_PLACE, &pUid, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 

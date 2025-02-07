@@ -9,7 +9,7 @@ from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
 from pairs.ir.declaration import Decl
 from pairs.ir.scalars import ScalarOp
-from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyVar, DeviceStaticRef, HostRef
+from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyFeatureProperty, CopyVar, DeviceStaticRef, HostRef
 from pairs.ir.features import FeatureProperty, FeaturePropertyAccess, RegisterFeatureProperty
 from pairs.ir.functions import Call
 from pairs.ir.kernel import KernelLaunch
@@ -902,6 +902,13 @@ class CGen:
             ctx_suffix = "Device" if ast_node.context() == Contexts.Device else "Host"
             size = self.generate_expression(ast_node.prop().copy_size())
             self.print(f"pairs_runtime->copyPropertyTo{ctx_suffix}({prop_id}, {action}, {size}); // {prop_name}")
+
+        if isinstance(ast_node, CopyFeatureProperty):
+            prop_id = ast_node.prop().id()
+            prop_name = ast_node.prop().name()
+            if ast_node.context() == Contexts.Device:
+                assert ast_node.action()==Actions.ReadOnly, "Feature properties can only be read from device."
+                self.print(f"pairs_runtime->copyFeaturePropertyToDevice({prop_id}); // {prop_name}")
 
         if isinstance(ast_node, CopyVar):
             var_name = ast_node.variable().name()

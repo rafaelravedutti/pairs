@@ -48,11 +48,6 @@ def euler(i):
 def gravity(i):
     force[i][2] = force[i][2] - mass[i] * gravity_SI
 
-gravity_SI = 9.81
-diameter = 100      # required for linkedCellWidth. TODO: set linkedCellWidth at runtime
-linkedCellWidth = 1.01 * diameter
-
-ntypes = 1
 
 file_name = os.path.basename(__file__)
 file_name_without_extension = os.path.splitext(file_name)[0]
@@ -76,6 +71,10 @@ elif target == 'cpu':
 else:
     print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
+gravity_SI = 9.81
+diameter = 100      # required for linkedCellWidth. TODO: set linkedCellWidth at runtime
+linkedCellWidth = 1.01 * diameter
+ntypes = 2
 
 psim.add_position('position')
 psim.add_property('mass', pairs.real())
@@ -83,20 +82,17 @@ psim.add_property('linear_velocity', pairs.vector())
 psim.add_property('angular_velocity', pairs.vector())
 psim.add_property('force', pairs.vector(), volatile=True)
 psim.add_property('torque', pairs.vector(), volatile=True)
-psim.add_property('hydrodynamic_force', pairs.vector(), reduce=True)
-psim.add_property('hydrodynamic_torque', pairs.vector(), reduce=True)
-psim.add_property('old_hydrodynamic_force', pairs.vector())
-psim.add_property('old_hydrodynamic_torque', pairs.vector())
 psim.add_property('radius', pairs.real())
 psim.add_property('normal', pairs.vector())
 psim.add_property('inv_inertia', pairs.matrix())
 psim.add_property('rotation_matrix', pairs.matrix())
 psim.add_property('rotation', pairs.quaternion())
+
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'stiffness', pairs.real(), [3000 for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'damping_norm', pairs.real(), [10.0 for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_tan', pairs.real(), [0 for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'friction', pairs.real(), [0 for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'damping_tan', pairs.real())
+psim.add_feature_property('type', 'friction', pairs.real())
 
 psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])

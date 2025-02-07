@@ -4,7 +4,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
-from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyVar, DeviceStaticRef, HostRef
+from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyFeatureProperty, CopyVar, DeviceStaticRef, HostRef
 from pairs.ir.functions import Call_Void
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
@@ -45,6 +45,9 @@ class AddDeviceCopies(Mutator):
 
                     for prop, action in s.module.properties().items():
                         new_stmts += [CopyProperty(s.sim, prop, copy_context, action)]
+
+                    for fp, action in s.module.feature_properties().items():
+                        new_stmts += [CopyFeatureProperty(s.sim, fp, copy_context, action)]
 
                     for contact_prop, action in s.module.contact_properties().items():
                         new_stmts += [CopyContactProperty(s.sim, contact_prop, copy_context, action)]

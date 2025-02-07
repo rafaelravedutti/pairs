@@ -38,11 +38,121 @@ class PairsAcessor:
                 self.set_property(p)
                 self.sync_property(p)
 
+        for fp in self.sim.feature_properties:
+            self.get_feature_property(fp)
+            self.set_feature_property(fp)
+            self.sync_feature_property(fp)
+
         self.utility_funcs()
             
         self.print.add_indent(-4)
         self.print("};")
         self.print("")
+
+    def get_fp_body(self, fp, device=False):
+        self.print.add_indent(4)
+        fp_name = fp.name()
+        f_name = fp.feature().name()
+
+        tkw = Types.c_accessor_keyword(self.sim, fp.type())
+        
+        if self.target.is_gpu() and device:
+            v = f"{fp_name}_d"
+        else:
+            v = f"ps->pobj->{fp_name}"
+
+        idx = f"{fp.feature().nkinds()}*{f_name}1 + {f_name}2"
+        if Types.is_scalar(fp.type()):
+            self.print(f"return {v}[{idx}];")
+        else:
+            nelems = Types.number_of_elements(self.sim, fp.type())
+            return_values = [f"{v}[({idx})*{nelems} + {n}]" for n in range(nelems)] 
+            self.print(f"return {tkw}(" + ", ".join(rv for rv in return_values) + ");")
+        self.print.add_indent(-4)
+
+
+    def get_feature_property(self, fp):
+        fp_name = fp.name()
+        tkw = Types.c_accessor_keyword(self.sim, fp.type())
+        f_name = fp.feature().name()
+
+        splitname = f_name.split('_') + fp_name.split('_')
+        funcname = ''.join(word.capitalize() for word in splitname)
+        self.print(f"{self.host_device_attr}{tkw} get{funcname}(const size_t {f_name}1, const size_t {f_name}2) const{{")
+
+        if self.target.is_gpu():
+            self.ifdef_else("__CUDA_ARCH__", self.get_fp_body, [fp, True], self.get_fp_body, [fp, False])
+        else:
+            self.get_fp_body(fp, False)
+
+        self.print("}")
+        self.print("")
+        
+    def set_fp_body(self, fp, device=False):
+        self.print.add_indent(4)
+        fp_name = fp.name()
+        f_name = fp.feature().name()
+        tkw = Types.c_accessor_keyword(self.sim, fp.type())
+
+        if self.target.is_gpu() and device:
+            v = f"{fp_name}_d"
+        else:
+            v = f"ps->pobj->{fp_name}"
+
+        idx = f"{fp.feature().nkinds()}*{f_name}1 + {f_name}2"
+
+        if Types.is_scalar(fp.type()):
+            self.print(f"{v}[{idx}] = value;")
+        else:
+            nelems = Types.number_of_elements(self.sim, fp.type())
+            set_values = [f"{v}[({idx})*{nelems} + {n}] = value[{n}];" for n in range(nelems)] 
+            for sv in set_values:
+                self.print(sv)
+
+        if self.target.is_gpu():
+            flag = f"*{fp_name}_device_flag_d" if device else f"{fp_name}_host_flag"
+            self.print(f"{flag} = true;")
+
+        self.print.add_indent(-4)
+
+
+    def set_feature_property(self, fp):
+        fp_name = fp.name()
+        tkw = Types.c_accessor_keyword(self.sim, fp.type())
+        f_name = fp.feature().name()
+
+        splitname = f_name.split('_') + fp_name.split('_')
+        funcname = ''.join(word.capitalize() for word in splitname)
+        
+        # Feature properties can only be set from host
+        self.print(f"{self.host_attr}void set{funcname}(const size_t {f_name}1, const size_t {f_name}2, const {tkw} &value){{")
+        self.set_fp_body(fp, False)
+
+        self.print("}")
+        self.print("")
+
+    def sync_feature_property(self, fp):
+        fp_id = fp.id()
+        fp_name = fp.name()
+        f_name = fp.feature().name()
+        splitname = f_name.split('_') + fp_name.split('_')
+        funcname = ''.join(word.capitalize() for word in splitname)
+
+        self.print(f"{self.host_attr}void sync{funcname}(SyncMode sync_mode = HostAndDevice){{")
+
+        if self.target.is_gpu():
+            self.print.add_indent(4)
+            self.print(f"if ({fp_name}_host_flag) {{")
+            self.print(f"    ps->pairs_runtime->copyFeaturePropertyToDevice({fp_id});")
+            self.print("}")
+            self.print("")
+
+            self.print(f"{fp_name}_host_flag = false;")
+            self.print.add_indent(-4)
+
+        self.print("}")
+        self.print("")
+
 
     def member_variables(self):
         self.print("PairsSimulation *ps;")
@@ -66,6 +176,16 @@ class PairsAcessor:
                 self.print(f"{tkw} *{pname}_device_flag_d;")
                 self.print(f"{tkw} {pname}_device_flag_h = false;")
                 self.print(f"{tkw} {pname}_host_flag = false;")
+            
+            self.print("")
+            self.print("//Feature properties are global")
+
+            self.print("")
+            self.print("//Feature property flags")
+            for fp in self.sim.feature_properties:
+                fpname = fp.name()
+                tkw = Types.c_keyword(self.sim, Types.Boolean)
+                self.print(f"{tkw} {fpname}_host_flag = false;")
 
         self.print("")
 
