@@ -63,9 +63,9 @@ class Comm:
     @pairs_host_block
     def reverse_comm(self, reduce=False):
         self.sim.module_name(f"reverse_comm")
-        self.prop_list = self.sim.properties.reduction_props()
+        prop_list = self.sim.properties.reduction_props()
 
-        if self.prop_list :
+        if prop_list :
             for step in range(self.dom_part.number_of_steps() - 1, -1, -1):
                 if self.sim._target.is_gpu():
                     CopyArray(self.sim, self.nsend, Contexts.Host, Actions.ReadOnly)
@@ -84,9 +84,9 @@ class Comm:
                     Assign(self.sim, self.send_offsets_reverse[j], self.recv_offsets[j])
                     Assign(self.sim, self.recv_offsets_reverse[j], self.send_offsets[j])
 
-                PackGhostParticlesReverse(self, step, self.prop_list)
-                CommunicateDataReverse(self, step, self.prop_list)
-                UnpackGhostParticlesReverse(self, step, self.prop_list, reduce)
+                PackGhostParticlesReverse(self, step, prop_list)
+                CommunicateDataReverse(self, step, prop_list)
+                UnpackGhostParticlesReverse(self, step, prop_list, reduce)
 
     @pairs_inline
     def borders(self):
@@ -486,7 +486,7 @@ class UnpackGhostParticlesReverse(Lowerable):
                     nelems = Types.number_of_elements(self.sim, p.type())
                     for e in range(nelems):
                         if self.reduce:
-                            Assign(self.sim, p[m][e], p[m][e] + recv_buffer_reverse[i][p_offset + e])
+                            AtomicInc(self.sim, p[m][e], recv_buffer_reverse[i][p_offset + e])
                         else:
                             Assign(self.sim, p[m][e], recv_buffer_reverse[i][p_offset + e])
 
@@ -495,7 +495,7 @@ class UnpackGhostParticlesReverse(Lowerable):
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Real else x
                     if self.reduce:
-                        Assign(self.sim, p[m], p[m] + cast_fn(recv_buffer_reverse[i][p_offset]))
+                        AtomicInc(self.sim, p[m], cast_fn(recv_buffer_reverse[i][p_offset]))
                     else:
                         Assign(self.sim, p[m], cast_fn(recv_buffer_reverse[i][p_offset]))
                     p_offset += 1
