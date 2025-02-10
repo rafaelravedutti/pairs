@@ -49,21 +49,52 @@ def gravity(i):
     force[i][2] -= mass[i] * gravity_SI
 
 
+# Number of 'type' features and their pair-wise properties
+ntypes = 2
+stiffness_SI = [5000 for i in range(ntypes * ntypes)]
+dampingNorm_SI = [20 for i in range(ntypes * ntypes)]
+dampingTan_SI = [20 for i in range(ntypes * ntypes)]
+friction_SI = [0.2 for i in range(ntypes * ntypes)]
+
+# Domain size
+domainSize_SI=[1, 1, 1]
+
+# Parameters required for generating the initial grid of particles 'dem_sc_grid'
+generationSpacing_SI = 0.1
+diameter_SI = 0.09
+minDiameter_SI = diameter_SI
+maxDiameter_SI = diameter_SI
+initialVelocity_SI = 0.5
+densityParticle_SI = 1000
+
+# Linked cell width 
+linkedCellWidth = 1.01 * maxDiameter_SI
+
+# Required symbol for the 'gravity' module
+gravity_SI = 9.81
+
+# Required symbol for the 'euler' module
+dt_SI = 1e-3
+
+# VTK frequency
+visSpacing = 60
+
+timeSteps = 6000
+
 file_name = os.path.basename(__file__)
 file_name_without_extension = os.path.splitext(file_name)[0]
 
 psim = pairs.simulation(
     file_name_without_extension,
     [pairs.sphere(), pairs.halfspace()],
+    timesteps=timeSteps,
     double_prec=True,
     particle_capacity=1000000,
     neighbor_capacity=20,
     debug=True, 
-    generate_whole_program=False)
-
+    generate_whole_program=True)
 
 target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
-
 if target == 'gpu':
     psim.target(pairs.target_gpu())
 elif target == 'cpu':
@@ -71,10 +102,6 @@ elif target == 'cpu':
 else:
     print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
-gravity_SI = 9.81
-diameter = 100      # required for linkedCellWidth. TODO: set linkedCellWidth at runtime
-linkedCellWidth = 1.01 * diameter
-ntypes = 2
 
 psim.add_position('position')
 psim.add_property('mass', pairs.real())
@@ -89,21 +116,38 @@ psim.add_property('rotation_matrix', pairs.matrix())
 psim.add_property('rotation', pairs.quaternion())
 
 psim.add_feature('type', ntypes)
-psim.add_feature_property('type', 'stiffness', pairs.real(), [3000 for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_norm', pairs.real(), [10.0 for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_tan', pairs.real())
-psim.add_feature_property('type', 'friction', pairs.real())
+psim.add_feature_property('type', 'stiffness', pairs.real(), stiffness_SI)
+psim.add_feature_property('type', 'damping_norm', pairs.real(), dampingNorm_SI)
+psim.add_feature_property('type', 'damping_tan', pairs.real(), dampingTan_SI)
+psim.add_feature_property('type', 'friction', pairs.real(), friction_SI)
 
 psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
 psim.build_cell_lists(linkedCellWidth)
 
+psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
+
+# Generate particles
+psim.dem_sc_grid(domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], 
+                 generationSpacing_SI,
+                 diameter_SI, 
+                 minDiameter_SI, 
+                 maxDiameter_SI, 
+                 initialVelocity_SI, 
+                 densityParticle_SI, 
+                 ntypes)
+
+# Read planes from file
+psim.read_particle_data( "data/sd_planes.input", ['type', 'mass', 'position', 'normal', 'flags'], pairs.halfspace())
+
+psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
+
 psim.setup(update_mass_and_inertia, symbols={'infinity': math.inf })
 
-# The order of user-defined functions is not important here since they are only callable individually
+# The user-defined functions are added to the timestep loop in the order they are given to 'compute'
 psim.compute(spring_dashpot, linkedCellWidth)
-psim.compute(euler, parameters={'dt': pairs.real()})
 psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
+psim.compute(euler, symbols={'dt': dt_SI})
 
 psim.generate()
 
