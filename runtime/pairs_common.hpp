@@ -15,11 +15,20 @@ namespace pairs {
     #define PAIRS_ATTR_HOST_DEVICE
 #endif
 
-constexpr int FLAGS_INFINITE = 1 << 0 ;
-constexpr int FLAGS_GHOST    = 1 << 1 ;
-constexpr int FLAGS_FIXED    = 1 << 2 ;
-constexpr int FLAGS_GLOBAL   = 1 << 3 ;
+namespace flags{
+    constexpr int INFINITE = 1 << 0 ;
+    constexpr int GHOST    = 1 << 1 ;
+    constexpr int FIXED    = 1 << 2 ;
+    constexpr int GLOBAL   = 1 << 3 ;
+}
 
+namespace shapes{
+    enum Type {
+        Sphere = 0,
+        Halfspace = 1,
+        PointMass = 2
+    };
+}
 //#ifdef USE_DOUBLE_PRECISION
 typedef double real_t;
 //#else

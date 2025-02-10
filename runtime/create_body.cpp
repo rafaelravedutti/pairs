@@ -16,9 +16,9 @@ id_t create_halfspace(PairsRuntime *pr,
     auto positions = pr->getAsVectorProperty(pr->getPropertyByName("position"));
     auto normals = pr->getAsVectorProperty(pr->getPropertyByName("normal"));
 
-    if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z) || flag & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL) ){
+    if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z) || flag & (flags::INFINITE | flags::GLOBAL) ){
         int n = pr->getTrackedVariableAsInteger("nlocal");
-        uid = (flag & FLAGS_GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uid = (flag & flags::GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
         uids(n) = uid;
         positions(n, 0) = x;
         positions(n, 1) = y;
@@ -53,7 +53,7 @@ id_t create_sphere(PairsRuntime *pr,
 
     if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z)) {
         int n = pr->getTrackedVariableAsInteger("nlocal");
-        uid = (flag & FLAGS_GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uid = (flag & flags::GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
         uids(n) = uid;
         radii(n) = radius;
         masses(n) = ((4.0 / 3.0) * M_PI) * radius * radius * radius * density;

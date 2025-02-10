@@ -34,7 +34,7 @@ void vtk_write_data(
     ps->copyPropertyToHost(flags, ReadOnly);
 
     for(int i = start; i < end; i++) {
-        if(flags(i) & FLAGS_INFINITE) {
+        if(flags(i) & flags::INFINITE) {
             n--;
         }
     }
@@ -47,7 +47,7 @@ void vtk_write_data(
         out_file << "POINTS " << n << " double\n";
 
         for(int i = start; i < end; i++) {
-            if(!(flags(i) & FLAGS_INFINITE)) {
+            if(!(flags(i) & flags::INFINITE)) {
                 out_file << std::fixed << std::setprecision(prec) << positions(i, 0) << " ";
                 out_file << std::fixed << std::setprecision(prec) << positions(i, 1) << " ";
                 out_file << std::fixed << std::setprecision(prec) << positions(i, 2) << "\n";
@@ -63,7 +63,7 @@ void vtk_write_data(
         out_file << "\n\n";
         out_file << "CELL_TYPES " << n << "\n";
         for(int i = start; i < end; i++) {
-            if(!(flags(i) & FLAGS_INFINITE)) {
+            if(!(flags(i) & flags::INFINITE)) {
                 out_file << "1\n";
             }
         }
@@ -73,7 +73,7 @@ void vtk_write_data(
         out_file << "SCALARS mass double\n";
         out_file << "LOOKUP_TABLE default\n";
         for(int i = start; i < end; i++) {
-            if(!(flags(i) & FLAGS_INFINITE)) {
+            if(!(flags(i) & flags::INFINITE)) {
                 out_file << std::fixed << std::setprecision(prec) << masses(i) << "\n";
             }
         }

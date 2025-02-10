@@ -114,8 +114,8 @@ size_t read_particle_data(
             i++;
         }
 
-        if(within_domain || flags & (FLAGS_INFINITE | FLAGS_FIXED | FLAGS_GLOBAL)) {
-            uid_ptr(n) = (flags & FLAGS_GLOBAL) ? UniqueID::createGlobal(ps) : UniqueID::create(ps);
+        if(within_domain || flags & (flags::INFINITE | flags::FIXED | flags::GLOBAL)) {
+            uid_ptr(n) = (flags & flags::GLOBAL) ? UniqueID::createGlobal(ps) : UniqueID::create(ps);
             shape_ptr(n++) = shape_id;
         }
     }
