@@ -591,7 +591,7 @@ class Simulation:
                 ])
 
             setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
-            communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).as_block())
+            communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).block)
             reset_volatiles_module = Module(self, name='reset_volatiles', block=Block(self, ResetVolatileProperties(self)))
             
             modules_list = [
@@ -610,9 +610,12 @@ class Simulation:
 
             # user defined modules are transformed seperately as indvidual modules 
             # i.e. they are transformed once again if already transformed in setup_sim or do_timestep
-            user_defined_modules = self.setup_functions + self.pre_step_functions + self.functions
-            user_defined_modules = [m[0] if isinstance(m, tuple) else m for m in user_defined_modules]
-            user_defined_modules = [Module(self, name=m.name, block=Block(self, m), user_defined=True) for m in user_defined_modules]
+            udf_internal = self.setup_functions + self.pre_step_functions + self.functions
+            udf_internal = [m[0] if isinstance(m, tuple) else m for m in udf_internal]
+            user_defined_modules = [Module(self, name=m.name, block=Block(self, m), user_defined=True) for m in udf_internal]
+            for i, m in enumerate(user_defined_modules):
+                m._id = udf_internal[i]._id
+
             Transformations(user_defined_modules, self._target).apply_all()
 
             # Generate library

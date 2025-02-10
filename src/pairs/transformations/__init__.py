@@ -104,8 +104,9 @@ class Transformations:
         self.modularize()
         self.add_device_kernels()
         self.add_device_copies()
-        self.add_instrumentation()
         self.lower(True)
         self.add_expression_declarations()
         self.add_host_references_to_modules()
         self.add_device_references_to_modules()
+        self.add_instrumentation()
+
