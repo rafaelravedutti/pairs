@@ -39,8 +39,16 @@ class FetchModulesReferences(Visitor):
             self.visit(ast_node.capacity)
 
     def visit_AtomicInc(self, ast_node):
+        visit_once = self.visit_nodes_once
+        self.visit_nodes_once = False
+        # Force write after read for the same node (visited twice)
+        self.writing = False
+        self.visit(ast_node.elem)
         self.writing = True
         self.visit(ast_node.elem)
+        self.visit_nodes_once = visit_once
+
+
         self.writing = False
         self.visit(ast_node.value)
 
