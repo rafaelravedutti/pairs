@@ -2,7 +2,7 @@ import time
 from pairs.analysis.expressions import DetermineExpressionsTerminals, ResetInPlaceOperations, DetermineInPlaceOperations, ListDeclaredExpressions
 from pairs.analysis.blocks import DiscoverBlockVariants, DetermineExpressionsOwnership, DetermineParentBlocks
 from pairs.analysis.devices import FetchKernelReferences, MarkCandidateLoops
-from pairs.analysis.modules import FetchModulesReferences
+from pairs.analysis.modules import FetchModulesReferences, InferModulesReturnTypes
 
 
 class Analysis:
@@ -51,3 +51,6 @@ class Analysis:
 
     def mark_candidate_loops(self):
         self.apply(MarkCandidateLoops())
+
+    def infer_modules_return_types(self):
+        self.apply(InferModulesReturnTypes())

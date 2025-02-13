@@ -1,5 +1,6 @@
 class Types:
-    Invalid = -1
+    Invalid = -2
+    Void = -1
     Int32 = 0
     Int64 = 1
     UInt64 = 2
@@ -26,6 +27,7 @@ class Types:
             else 'long long int' if t == Types.Int64
             else 'unsigned long long int' if t == Types.UInt64
             else 'bool' if t == Types.Boolean
+            else 'void' if t == Types.Void
             else '<invalid type>'
         )
 
@@ -39,6 +41,7 @@ class Types:
             else 'long long int' if t == Types.Int64
             else 'unsigned long long int' if t == Types.UInt64
             else 'bool' if t == Types.Boolean
+            else 'void' if t == Types.Void
             else '<invalid type>'
         )
 

@@ -36,7 +36,7 @@ class Call_Int(Call):
 
 class Call_Void(Call):
     def __init__(self, sim, func_name, parameters):
-        super().__init__(sim, func_name, parameters, Types.Invalid)
+        super().__init__(sim, func_name, parameters, Types.Void)
         sim.add_statement(self)
     
     def __str__(self):

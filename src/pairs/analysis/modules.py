@@ -1,5 +1,17 @@
 from pairs.ir.visitor import Visitor
 
+class InferModulesReturnTypes(Visitor):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+
+    def visit_Module(self, ast_node):
+        self.current_module = ast_node
+        self.visit_children(ast_node)
+
+    def visit_Return(self, ast_node):
+        self.current_module._return_type = ast_node.expr.type()
+        self.visit_children(ast_node)
+        
 
 class FetchModulesReferences(Visitor):
     def __init__(self, ast=None):

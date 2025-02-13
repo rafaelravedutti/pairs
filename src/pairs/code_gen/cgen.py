@@ -30,6 +30,7 @@ from pairs.ir.print import Print, PrintCode
 from pairs.ir.variables import Var, DeclareVariable, Deref
 from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
+from pairs.ir.ret import Return
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
@@ -185,7 +186,8 @@ class CGen:
 
         print_params = ", ".join(module_params)
         ending = "{" if definition else ";"
-        self.print(f"void {module.name}({print_params}){ending}")
+        tkw = Types.c_keyword(self.sim, module.return_type)
+        self.print(f"{tkw} {module.name}({print_params}){ending}")
 
     def generate_module_decls(self):
         self.print("")
@@ -1139,6 +1141,10 @@ class CGen:
             self.print(f"while({cond}) {{")
             self.generate_statement(ast_node.block)
             self.print("}")
+
+        if isinstance(ast_node, Return):
+            expr = self.generate_expression(ast_node.expr)
+            self.print(f"return {expr};")
 
     def generate_expression(self, ast_node, mem=False, index=None):
         if isinstance(ast_node, Array):
