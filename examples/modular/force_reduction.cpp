@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
     
     // setup_sim after creating all bodies
     pairs_sim->setup_sim();
+    pairs_sim->update_mass_and_inertia();
 
     // Track particle
     //-------------------------------------------------------------------------------------------
@@ -31,7 +32,7 @@ int main(int argc, char **argv) {
 
     // Communicate particles (exchange/ghost)
     //-------------------------------------------------------------------------------------------
-    pairs_sim->communicate();
+    pairs_sim->communicate(0);
     ac->update();
         
     // Helper lambdas for demo
@@ -89,7 +90,7 @@ int main(int argc, char **argv) {
         
         // Do computations
         //-------------------------------------------------------------------------------------------
-        pairs_sim->update_cells(); 
+        pairs_sim->update_cells(t); 
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot();
         pairs_sim->euler(5e-5); 

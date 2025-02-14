@@ -335,12 +335,13 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=F
 
             ir.visit(tree)
 
-    if pre_step:
-        sim.build_pre_step_module_with_statements(skip_first=skip_first, profile=True)
-
+    if sim._generate_whole_program:
+        if pre_step:
+            sim.build_pre_step_module_with_statements(skip_first=skip_first, profile=True)
+        else:
+            sim.build_module_with_statements(skip_first=skip_first, profile=True)
     else:
-        sim.build_module_with_statements(skip_first=skip_first, profile=True)
-
+        sim.build_user_defined_function()
 
 def setup(sim, func, symbols={}):
     src = inspect.getsource(func)
@@ -366,4 +367,8 @@ def setup(sim, func, symbols={}):
         ir.add_symbols({params[0]: i})
         ir.visit(tree)
 
-    sim.build_setup_module_with_statements()
+    if sim._generate_whole_program:
+        sim.build_setup_module_with_statements()
+    else:
+        sim.build_user_defined_function()
+    

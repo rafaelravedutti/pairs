@@ -142,9 +142,10 @@ psim.read_particle_data( "data/sd_planes.input", ['type', 'mass', 'position', 'n
 
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
+# The user-defined setup functions are executed only once before the timestep loop
 psim.setup(update_mass_and_inertia, symbols={'infinity': math.inf })
 
-# The user-defined functions are added to the timestep loop in the order they are given to 'compute'
+# The user-defined compute functions are added to the timestep loop in the order they are given to 'compute'
 psim.compute(spring_dashpot, linkedCellWidth)
 psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
 psim.compute(euler, symbols={'dt': dt_SI})

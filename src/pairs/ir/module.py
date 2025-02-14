@@ -37,7 +37,17 @@ class Module(ASTNode):
         self._interface = interface
         self._return_type = Types.Void
         self._profile = False
-        sim.add_module(self)
+
+        if user_defined:
+            assert not interface, ("User-defined modules can't be part of the interface directly."
+                                "Wrap them inside seperate interface modules.")
+            sim.add_udf_module(self)
+        else:
+            if interface:
+                sim.add_interface_module(self)
+            else:
+                sim.add_module(self)
+                
         Module.last_module += 1
 
     def __str__(self):

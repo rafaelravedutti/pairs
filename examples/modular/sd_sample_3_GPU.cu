@@ -65,8 +65,9 @@ int main(int argc, char **argv) {
     auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
 
     pairs_sim->setup_sim();
+    pairs_sim->update_mass_and_inertia();
 
-    pairs_sim->communicate();
+    pairs_sim->communicate(0);
     // PairsAccessor requires an update when particles are communicated 
     ac->update();
 
@@ -85,15 +86,15 @@ int main(int argc, char **argv) {
             int idx = ac->uidToIdxLocal(pUid);
 
             // Up-to-date position might be on host or device. 
-            // Sync position on HostAndDevice before printing it from host and device:
-            ac->syncPosition(PairsAccessor::HostAndDevice); 
-
+            // Sync position on Host before reading it from host:
+            ac->syncPosition(PairsAccessor::Host); 
             std::cout << "Position [from host] = (" 
                     << ac->getPosition(idx)[0] << ", "
                     << ac->getPosition(idx)[1] << ", " 
                     << ac->getPosition(idx)[2] << ")" << std::endl;
             
-            // Position is synced on both host and device. Print position from device:
+            // Sync position on Device before reading it from device:
+            ac->syncPosition(PairsAccessor::Device); 
             print_position<<<1,1>>>(*ac, idx);
             checkCudaError(cudaDeviceSynchronize(), "print_position");
             
@@ -102,13 +103,12 @@ int main(int argc, char **argv) {
 
         // Calculate forces
         //-------------------------------------------------------------------------------------------
-        pairs_sim->update_cells();
+        pairs_sim->update_cells(t);
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 
 
         // Change gravitational force on particle pUid
         //-------------------------------------------------------------------------------------------
-        // Here we are syncing Uid on Host again for clarity, but no data transfer will happen since Uid is already on host
         ac->syncUid(PairsAccessor::Host);
 
         if(pIsLocalInMyRank(pUid)){
@@ -125,8 +125,8 @@ int main(int argc, char **argv) {
             checkCudaError(cudaDeviceSynchronize(), "change_gravitational_force");
 
             // Force on device was modified.
-            // So sync force before continuing the simulation. By default (no args), force is synced on both host and device
-            ac->syncForce();
+            // So sync force before continuing the simulation.
+            ac->syncForce(PairsAccessor::Host);
             std::cout << "Force [from host] after changing = (" 
                     << ac->getForce(idx)[0] << ", "
                     << ac->getForce(idx)[1] << ", " 

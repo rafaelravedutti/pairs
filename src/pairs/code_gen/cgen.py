@@ -149,7 +149,8 @@ class CGen:
 
         if self.target.is_gpu():
             self.print("#define PAIRS_TARGET_CUDA")
-
+            self.print("#include <math_constants.h>")
+             
         if self.target.is_openmp():
             self.print("#define PAIRS_TARGET_OPENMP")
             self.print("#include <omp.h>")
@@ -176,10 +177,14 @@ class CGen:
 
     def generate_module_header(self, module, definition=True):
         module_params = []
-        if not module.user_defined and not module.interface:
+
+        if not module.interface:
             module_params += ["PairsRuntime *pairs_runtime", "struct PairsObjects *pobj"]
 
-        if module.name=="init_domain" or module.name=="set_domain":
+        if module.name=="initialize" and self.sim.create_domain_at_initialization:
+            module_params += ["int argc", "char **argv"]
+
+        if module.name=="set_domain":
             module_params += ["int argc", "char **argv"]
 
         module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in module.parameters()]
@@ -194,7 +199,9 @@ class CGen:
         self.print("namespace pairs::internal {")
         self.print.add_indent(4)
 
-        for module in self.sim.modules():
+        # All modules except the interface ones are declared in the pairs::internal scope
+        for module in self.sim.modules() + self.sim.udf_modules():
+            assert not module.interface
             self.generate_module_header(module, definition=False)
         
         self.print.add_indent(-4)
@@ -307,16 +314,7 @@ class CGen:
 
         self.print.end()
 
-    def generate_library(self, 
-                         update_cells_module, 
-                         user_defined_modules, 
-                         initialize_module,
-                         set_domain_module, 
-                         setup_sim_module, 
-                         reverse_comm_module, 
-                         communicate_module, 
-                         reset_volatiles_module):
-        
+    def generate_library(self):
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
         ext = ".cu" if self.target.is_gpu() else ".cpp"
@@ -345,14 +343,14 @@ class CGen:
                     
         self.print("namespace pairs::internal {")
         self.print.add_indent(4)
-        
+
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
 
-        for module in self.sim.modules():
-            if module.name not in ['update_cells', 'initialize', 'set_domain', 'setup_sim', 'reverse_comm', 'communicate', 'reset_volatiles']:
-                if not module.user_defined:
-                    self.generate_module(module)
+        # All modules except the interface ones are defined in the pairs::internal scope
+        for module in self.sim.modules() + self.sim.udf_modules():
+            assert not module.interface
+            self.generate_module(module)
 
         self.print.add_indent(-4)
         self.print("}")
@@ -368,105 +366,32 @@ class CGen:
         self.generate_pairs_object_structure()
         self.generate_module_decls()
 
-        ndims = module.sim.ndims()
-        nprops = module.sim.properties.nprops()
-        ncontactprops = module.sim.contact_properties.nprops()
-        narrays = module.sim.arrays.narrays()
-        part = DomainPartitioners.c_keyword(module.sim.partitioner())
-
         self.generate_full_object_names = True
         self.print("class PairsSimulation {")
         self.print("private:")
         self.print("    PairsRuntime *pairs_runtime;")
         self.print("    struct PairsObjects *pobj;")
         self.print("    friend class PairsAccessor;")
+        self.print("")
         self.print("public:")
-
         self.print.add_indent(4)
 
-        for module in user_defined_modules:
+        # Only interface modules are generated in the PairsSimulation class
+        for module in self.sim.interface_modules():
             self.generate_module(module)
+
+        # Generate a 'use_domain' module only if domain is not predefined in the input script
+        if not self.sim.create_domain_at_initialization:
+            self.print("template<typename Domain_T>")
+            self.print("void use_domain(const std::shared_ptr<Domain_T> &domain_ptr) {")
+            self.print("    pairs_runtime->useDomain(domain_ptr);")
+            self.print("}")
             self.print("")
-        
-        if set_domain_module:
-            self.print("void initialize() {")
-        else:
-            self.print("void initialize(int argc, char **argv) {")
-        self.print(f"    pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-        self.print(f"    pobj = new PairsObjects();")
-        self.generate_statement(initialize_module.block)
-        self.print("}")
-        self.print("")
-
-        if set_domain_module:
-            self.generate_module(set_domain_module)
-            self.print("")
-
-        self.print("template<typename Domain_T>")
-        self.print("void use_domain(const std::shared_ptr<Domain_T> &domain_ptr) {")
-        self.print("    pairs_runtime->useDomain(domain_ptr);")
-        self.print("}")
-        self.print("")
-
-        self.print("pairs::id_t create_halfspace(double x, double y, double z, double nx, double ny, double nz, int type, int flag){")
-        self.print("    return pairs::create_halfspace(pairs_runtime, x, y, z, nx, ny, nz, type, flag);")
-        self.print("}")
-        self.print("")
-
-        self.print("pairs::id_t create_sphere(double x, double y, double z, double vx, double vy, double vz, double density, double radius, int type, int flag){")
-        self.print("    return pairs::create_sphere(pairs_runtime, x, y, z, vx, vy, vz, density, radius, type, flag);")
-        self.print("}")
-        self.print("")
-
-        self.print("int rank(){ return pairs_runtime->getDomainPartitioner()->getRank();}")
-        self.print("")
-
-        self.print("int size(){ return pobj->nlocal + pobj->nghost;}")
-        self.print("")
-
-        self.print("int nlocal(){ return pobj->nlocal;}")
-        self.print("")
-
-        self.print("int nghost(){ return pobj->nghost;}")
-        self.print("")
-
-        self.print("void setup_sim() {")
-        self.generate_statement(setup_sim_module.block)
-        self.print("}")
-        self.print("")
-
-        self.print("void update_cells() {")
-        self.generate_statement(update_cells_module.block)
-        self.print("}")
-        self.print("")
-
-        self.print("void reverse_comm() {")
-        self.generate_statement(reverse_comm_module.block)
-        self.print("}")
-        self.print("")
-
-        self.print("void communicate(int timestep = 0) {")
-        self.print("    pobj->sim_timestep = timestep;")
-        self.generate_statement(communicate_module.block)
-        self.print("}")
-        self.print("")
-
-        self.print("void reset_volatiles() {")
-        self.generate_statement(reset_volatiles_module.block)
-        self.print("}")
-        self.print("")
 
         self.print("void vtk_write(const char* filename, int start, int end, int timestep, int frequency) {")
         self.print("    pairs::vtk_write_data(pairs_runtime, filename, start, end, timestep, frequency);")
         self.print("}")
         self.print("")
-
-        self.print("void end() {")
-        self.print("    pairs::print_timers(pairs_runtime);")
-        self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
-        self.print("    delete pobj;")
-        self.print("    delete pairs_runtime;")
-        self.print("}")
 
         self.print.add_indent(-4)
         self.print("};")
@@ -569,12 +494,13 @@ class CGen:
         if self.debug:
             self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
 
-        if not module.user_defined and not module.interface:
+        if not module.interface:
             self.generate_module_declerations(module)
 
         self.print.add_indent(-4)
         self.generate_statement(module.block)
         self.print("}")
+        self.print("")
 
     def generate_kernel(self, kernel):
         kernel_params = "int range_start"
@@ -1228,7 +1154,10 @@ class CGen:
                 return ast_node.value[index]
 
             if isinstance(ast_node.value, float) and math.isinf(ast_node.value):
-                return f"std::numeric_limits<{self.real_type()}>::infinity()"
+                if self.kernel_context:
+                    return "CUDART_INF"
+                else:
+                    return f"std::numeric_limits<{self.real_type()}>::infinity()"
 
             return ast_node.value
 

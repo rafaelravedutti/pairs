@@ -20,6 +20,7 @@ int main(int argc, char **argv) {
     pairs_sim->create_sphere(0.4, 0.4, 0.68,    2, 2, 0,    1000, 0.05, 0, 0);
 
     pairs_sim->setup_sim();
+    pairs_sim->update_mass_and_inertia();
 
     int num_timesteps = 2000;
     int vtk_freq = 20;
@@ -30,7 +31,7 @@ int main(int argc, char **argv) {
 
         pairs_sim->communicate(t);
         
-        pairs_sim->update_cells(); 
+        pairs_sim->update_cells(t); 
 
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 

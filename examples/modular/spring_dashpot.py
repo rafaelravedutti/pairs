@@ -98,9 +98,9 @@ psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
 psim.build_cell_lists(linkedCellWidth)
 
-psim.setup(update_mass_and_inertia, symbols={'infinity': math.inf })
-
-# The order of user-defined functions is not important here since they are only callable individually
+# The order of user-defined functions is not important here since 
+# they are not used by other subroutines and are only callable individually 
+psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
 psim.compute(spring_dashpot, linkedCellWidth)
 psim.compute(euler, parameters={'dt': pairs.real()})
 psim.compute(gravity, symbols={'gravity_SI': gravity_SI })

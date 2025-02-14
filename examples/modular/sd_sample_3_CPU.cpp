@@ -32,8 +32,9 @@ int main(int argc, char **argv) {
     auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
 
     pairs_sim->setup_sim();
+    pairs_sim->update_mass_and_inertia();
 
-    pairs_sim->communicate();
+    pairs_sim->communicate(0);
 
     int num_timesteps = 2000;
     int vtk_freq = 20;
@@ -55,7 +56,7 @@ int main(int argc, char **argv) {
 
         // Calculate forces
         //-------------------------------------------------------------------------------------------
-        pairs_sim->update_cells();
+        pairs_sim->update_cells(t);
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 
 

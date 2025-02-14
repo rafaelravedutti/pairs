@@ -13,7 +13,7 @@ from pairs.ir.variables import Variables
 from pairs.mapping.funcs import compute, setup
 from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists, BuildCellNeighborLists
-from pairs.sim.comm import Comm
+from pairs.sim.comm import Comm, Synchronize, Borders, Exchange, ReverseComm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.dem_sc_grid import DEMSCGrid
@@ -32,6 +32,7 @@ from pairs.sim.timestep import Timestep
 from pairs.sim.variables import DeclareVariables 
 from pairs.sim.vtk import VTKWrite
 from pairs.transformations import Transformations
+from pairs.code_gen.interface import InterfaceModules
 
 
 class Simulation:
@@ -92,13 +93,17 @@ class Simulation:
 
         # Different segments of particle code/functions
         self.create_domain = Block(self, [])
-        self.generate_set_domain_module = True
+        self.create_domain_at_initialization = False
 
         self.setup_particles = Block(self, [])
         self.module_list = []
         self.kernel_list = []
 
-        # User-defined modules
+        # Individual user-defined and interface modules are created only when generate_whole_program is False
+        self.udf_module_list = []
+        self.interface_module_list = []
+
+        # User-defined functions to be called by other subroutines (used only when generate_whole_program is True)
         self.setup_functions = []
         self.pre_step_functions = []
         self.functions = []
@@ -114,6 +119,7 @@ class Simulation:
         # Domain partitioning
         self._dom_part = None
         self._partitioner = None
+        self._comm = None
 
         # Contact history
         self._use_contact_history = use_contact_history
@@ -164,11 +170,30 @@ class Simulation:
     def max_shapes(self):
         return len(self._shapes)
 
+    def add_udf_module(self, module):
+        assert isinstance(module, Module), "add_udf_module(): Given parameter is not of type Module!"
+        assert module.user_defined and not module.interface
+        if module.name not in [m.name for m in self.udf_module_list]:
+            self.udf_module_list.append(module)
+
+    def add_interface_module(self, module):
+        assert isinstance(module, Module), "add_interface_module(): Given parameter is not of type Module!"
+        assert module.interface and not module.user_defined
+        if module.name not in [m.name for m in self.interface_module_list]:
+            self.interface_module_list.append(module)
+
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"
+        assert not module.interface and not module.user_defined
         if module.name not in [m.name for m in self.module_list]:
             self.module_list.append(module)
 
+    def interface_modules(self):
+        return self.interface_module_list
+    
+    def udf_modules(self):
+        return self.udf_module_list
+    
     def modules(self):
         """List simulation modules, with main always in the last position"""
 
@@ -279,7 +304,7 @@ class Simulation:
         If the domain is set through this function, the 'set_domain' module won't be generated in the modular version.
         Use this function only if you do not need to set domain at runtime.
         This function is required only for whole-program generation."""
-        self.generate_set_domain_module = False
+        self.create_domain_at_initialization = True
         self.grid = Grid3D(self, grid[0], grid[1], grid[2], grid[3], grid[4], grid[5])
         self.create_domain.add_statement(InitializeDomain(self))
 
@@ -357,7 +382,7 @@ class Simulation:
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
-                run_on_device=False))
+                run_on_device=True))
 
     def build_pre_step_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
         """Build a Module in the pre-step part of the program using the last initialized block"""
@@ -391,6 +416,16 @@ class Simulation:
 
         else:
             self.functions.append(module)
+
+    def build_user_defined_function(self, run_on_device=True):
+        """Build a user-defined Module that will be callable seperately as part of the interface"""
+        Module(self, name=self._module_name,
+                block=Block(self, self._block),
+                resizes_to_check=self._resizes_to_check,
+                check_properties_resize=self._check_properties_resize,
+                run_on_device=run_on_device,
+                user_defined=True)
+        
 
     def capture_statements(self, capture=True):
         """When toggled, all constructed statements are captured and automatically added to the last initialized block"""
@@ -454,12 +489,37 @@ class Simulation:
 
     def generate(self):
         """Generate the code for the simulation"""
-
         assert self._target is not None, "Target not specified!"
 
-        # Initialize communication instance with specified domain-partitioner
-        comm = Comm(self, self._dom_part)
-        reverse_comm_module = comm.reverse_comm(reduce=True)
+        # Initialize communication instance with the specified domain-partitioner
+        self._comm = Comm(self, self._dom_part)
+        
+        if self._generate_whole_program:
+            self.generate_program()
+        else:
+            self.generate_library()
+
+    def generate_library(self):
+        InterfaceModules(self).create_all()
+        
+        # User defined functions are wrapped inside seperate interface modules here.
+        # The udf's have the same name as their interface module but they get implemented in the pairs::internal scope.
+        for m in self.udf_module_list:
+            module = Module(self, name=m.name, block=Block(self, m), interface=True)
+            module._id = m._id
+
+        Transformations(self.interface_modules(), self._target).apply_all()
+
+        # Generate library
+        self.code_gen.generate_library()
+
+        # Generate getters for the runtime functions
+        self.code_gen.generate_interfaces()
+
+    def generate_program(self):
+        assert self.grid, "No domain is created. Set domain bounds with 'set_domain'."
+
+        reverse_comm_module = ReverseComm(self._comm, reduce=True)
 
         # Params that determine when a method must be called only when reneighboring
         every_reneighbor_params = {'every': self.reneighbor_frequency}
@@ -470,8 +530,8 @@ class Simulation:
         timestep_procedures += self.pre_step_functions 
 
         comm_routine = [
-            (comm.exchange(), every_reneighbor_params),
-            (comm.borders(), comm.synchronize(), every_reneighbor_params)
+            (Exchange(self._comm), every_reneighbor_params),
+            (Borders(self._comm), Synchronize(self._comm), every_reneighbor_params)
             ]
         
         if self._generate_whole_program:
@@ -546,86 +606,25 @@ class Simulation:
         self.leave()
 
         # Combine everything into a whole program
-        if self._generate_whole_program:
-            assert self.grid, "No domain is created. Set domain bounds with 'set_domain'."
+        # Initialization and setup functions, together with time-step loop
+        # UpdateDomain is added after setup_particles because particles must be already present in the simulation
+        body = Block.from_list(self, [
+            self.create_domain,
+            self.setup_particles,
+            UpdateDomain(self),        
+            self.setup_functions,
+            BuildCellListsStencil(self, self.cell_lists),
+            timestep.as_block()
+        ])
 
-            # Initialization and setup functions, together with time-step loop
-            # UpdateDomain is added after setup_particles because particles must be already present in the simulation
-            body = Block.from_list(self, [
-                self.create_domain,
-                self.setup_particles,
-                UpdateDomain(self),        
-                self.setup_functions,
-                BuildCellListsStencil(self, self.cell_lists),
-                timestep.as_block()
-            ])
+        program = Module(self, name='main', block=Block.merge_blocks(inits, body))
 
-            program = Module(self, name='main', block=Block.merge_blocks(inits, body))
+        # Apply transformations
+        transformations = Transformations(program, self._target)
+        transformations.apply_all()
 
-            # Apply transformations
-            transformations = Transformations(program, self._target)
-            transformations.apply_all()
+        # Generate whole program
+        self.code_gen.generate_program(program)
 
-            # Generate program
-            self.code_gen.generate_program(program)
-
-        # Generate a small library to be called
-        else:
-            update_cells = [m[0] if isinstance(m, tuple) else m for m in update_cells]
-            update_cells_module = Module(self, name='update_cells', block=Block.from_list(self, update_cells))
-
-            # Either generate a set_domain module, or create domain during initialization 
-            if self.generate_set_domain_module:
-                self.grid = MutableGrid(self, self.dims)
-                initialize_module = Module(self, name='initialize', block=inits)
-                set_domain_module = Module(self, name='set_domain', block=Block(self, SetDomain(self)), interface=True)
-            else:
-                initialize_module = Module(self, name='initialize', block=Block.merge_blocks(inits, self.create_domain))
-                set_domain_module = None
-                
-            setup_sim = Block.from_list(self, [
-                    self.setup_particles,
-                    UpdateDomain(self),
-                    self.setup_functions,
-                    BuildCellListsStencil(self, self.cell_lists),
-                ])
-
-            setup_sim_module = Module(self, name='setup_sim', block=setup_sim)
-            communicate_module = Module(self, name='communicate', block=Timestep(self, 0, comm_routine).block)
-            reset_volatiles_module = Module(self, name='reset_volatiles', block=Block(self, ResetVolatileProperties(self)))
-            
-            modules_list = [
-                update_cells_module, 
-                initialize_module,
-                setup_sim_module, 
-                reverse_comm_module, 
-                communicate_module, 
-                reset_volatiles_module
-            ]
-
-            if self.generate_set_domain_module:
-                modules_list += [set_domain_module]
-
-            Transformations(modules_list, self._target).apply_all()
-
-            # user defined modules are transformed seperately as indvidual modules 
-            # i.e. they are transformed once again if already transformed in setup_sim or do_timestep
-            udf_internal = self.setup_functions + self.pre_step_functions + self.functions
-            udf_internal = [m[0] if isinstance(m, tuple) else m for m in udf_internal]
-            user_defined_modules = [Module(self, name=m.name, block=Block(self, m), user_defined=True) for m in udf_internal]
-            for i, m in enumerate(user_defined_modules):
-                m._id = udf_internal[i]._id
-
-            Transformations(user_defined_modules, self._target).apply_all()
-
-            # Generate library
-            self.code_gen.generate_library(update_cells_module, 
-                                           user_defined_modules, 
-                                           initialize_module, 
-                                           set_domain_module,
-                                           setup_sim_module, 
-                                           reverse_comm_module, 
-                                           communicate_module, 
-                                           reset_volatiles_module)
-
+        # Generate getters for the runtime functions
         self.code_gen.generate_interfaces()

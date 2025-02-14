@@ -42,7 +42,7 @@ class PairsAcessor:
         self.sync_ctx_enum()
         self.update()
         self.constructor()
-        self.destructor()
+        # self.destructor()
 
         for p in self.sim.properties:
             if (p.type()==Types.Vector) or (Types.is_scalar(p.type())):
