@@ -329,14 +329,16 @@ class Simulation:
             DEMSCGrid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
                       initial_velocity, particle_density, ntypes))
 
-    def build_cell_lists(self, spacing, store_neighbors_per_cell=False):
-        """Add routines to build the linked-cells acceleration structure"""
+    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False):
+        """Add routines to build the linked-cells acceleration structure.
+        Leave spacing as None so it can be set at runtime."""
         self._store_neighbors_per_cell = store_neighbors_per_cell
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 
-    def build_neighbor_lists(self, spacing):
-        """Add routines to build the Verlet Lists acceleration structure"""
+    def build_neighbor_lists(self, spacing=None):
+        """Add routines to build the Verlet Lists acceleration structure.
+        Leave spacing as None so it can be set at runtime."""
 
         assert self._store_neighbors_per_cell is False, \
             "Using neighbor-lists with store_neighbors_per_cell option is invalid."

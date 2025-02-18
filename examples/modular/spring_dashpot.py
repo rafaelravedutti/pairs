@@ -71,11 +71,6 @@ elif target == 'cpu':
 else:
     print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
-gravity_SI = 9.81
-diameter = 100      # required for linkedCellWidth. TODO: set linkedCellWidth at runtime
-linkedCellWidth = 1.01 * diameter
-ntypes = 2
-
 psim.add_position('position')
 psim.add_property('mass', pairs.real())
 psim.add_property('linear_velocity', pairs.vector())
@@ -88,6 +83,7 @@ psim.add_property('inv_inertia', pairs.matrix())
 psim.add_property('rotation_matrix', pairs.matrix())
 psim.add_property('rotation', pairs.quaternion())
 
+ntypes = 2
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'stiffness', pairs.real(), [3000 for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'damping_norm', pairs.real(), [10.0 for i in range(ntypes * ntypes)])
@@ -96,13 +92,15 @@ psim.add_feature_property('type', 'friction', pairs.real())
 
 psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
-psim.build_cell_lists(linkedCellWidth)
+psim.build_cell_lists()
 
 # The order of user-defined functions is not important here since 
 # they are not used by other subroutines and are only callable individually 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
-psim.compute(spring_dashpot, linkedCellWidth)
+psim.compute(spring_dashpot)
 psim.compute(euler, parameters={'dt': pairs.real()})
+
+gravity_SI = 9.81
 psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
 
 psim.generate()

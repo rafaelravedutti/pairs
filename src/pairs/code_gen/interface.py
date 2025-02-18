@@ -93,6 +93,14 @@ class InterfaceModules:
     @pairs_interface_block
     def setup_sim(self):
         self.sim.module_name('setup_sim')
+        
+        if self.sim.cell_lists.runtime_spacing:
+            for d in range(self.sim.dims):
+                Assign(self.sim, self.sim.cell_lists.spacing[d], Parameter(self.sim, f'cell_spacing_d{d}', Types.Real))
+
+        if self.sim.cell_lists.runtime_cutoff_radius:
+            Assign(self.sim, self.sim.cell_lists.cutoff_radius, Parameter(self.sim, 'cutoff_radius', Types.Real))
+
         self.sim.add_statement(self.sim.setup_particles)
         self.sim.add_statement(UpdateDomain(self.sim))
         self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))
