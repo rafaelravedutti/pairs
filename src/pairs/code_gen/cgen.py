@@ -376,22 +376,13 @@ class CGen:
         self.print("public:")
         self.print.add_indent(4)
 
+        self.print("PairsRuntime* getPairsRuntime() {")
+        self.print("    return pairs_runtime;")
+        self.print("}")
+
         # Only interface modules are generated in the PairsSimulation class
         for module in self.sim.interface_modules():
             self.generate_module(module)
-
-        # Generate a 'use_domain' module only if domain is not predefined in the input script
-        if not self.sim.create_domain_at_initialization:
-            self.print("template<typename Domain_T>")
-            self.print("void use_domain(const std::shared_ptr<Domain_T> &domain_ptr) {")
-            self.print("    pairs_runtime->useDomain(domain_ptr);")
-            self.print("}")
-            self.print("")
-
-        self.print("void vtk_write(const char* filename, int start, int end, int timestep, int frequency) {")
-        self.print("    pairs::vtk_write_data(pairs_runtime, filename, start, end, timestep, frequency);")
-        self.print("}")
-        self.print("")
 
         self.print.add_indent(-4)
         self.print("};")

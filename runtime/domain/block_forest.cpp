@@ -18,16 +18,17 @@
 #include "../devices/device.hpp"
 #include "regular_6d_stencil.hpp"
 #include "ParticleDataHandling.hpp"
+#include "../unique_id.hpp"
 
 namespace pairs {
 
 BlockForest::BlockForest(
         PairsRuntime *ps_,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz) :
-        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), globalPBC{pbcx, pbcy, pbcz} {
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz, bool balance_workload_) :
+        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), globalPBC{pbcx, pbcy, pbcz}, balance_workload(balance_workload_) {
 
         subdom = new real_t[ndims * 2];
-    }
+}
 
 BlockForest::BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::blockforest::BlockForest> &bf) :
         forest(bf),
@@ -35,22 +36,13 @@ BlockForest::BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::bloc
                         bf->getDomain().yMin(), bf->getDomain().yMax(),
                         bf->getDomain().zMin(), bf->getDomain().zMax()), 
         ps(ps_), 
-        globalPBC{bf->isXPeriodic(), bf->isYPeriodic(), bf->isZPeriodic()} 
-        {
+        globalPBC{bf->isXPeriodic(), bf->isYPeriodic(), bf->isZPeriodic()} {
             subdom = new real_t[ndims * 2];
-            balance_workload = 0;
-
             mpiManager = walberla::mpi::MPIManager::instance();
             world_size = mpiManager->numProcesses();
             rank = mpiManager->rank();
             this->info = make_shared<walberla::blockforest::InfoCollection>();
-
-            if(balance_workload) {
-                this->initializeWorkloadBalancer();
-            }
-
-        }
-
+}
 
 void BlockForest::updateNeighborhood() {
     std::map<int, std::vector<walberla::math::AABB>> neighborhood;
@@ -63,33 +55,26 @@ void BlockForest::updateNeighborhood() {
     naabbs.clear();
     aabb_offsets.clear();
     aabbs.clear();
-
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
-        auto& block_info = (*info)[block->getId()];
+        for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
+            auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
-        // don't check computationalWeight for now (TODO: compute_boundary_weights)
-        // if(block_info.computationalWeight > 0) {
-            for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
-                auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
-
-                // if(neighbor_rank != me) {
-                    const walberla::BlockID& neighbor_block = block->getNeighborId(neigh);
-                    walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
-                    auto neighbor_info = (*info)[neighbor_block];
-                    auto begin = blocks_pushed[neighbor_rank].begin();
-                    auto end = blocks_pushed[neighbor_rank].end();
-
-                    // if(neighbor_info.computationalWeight > 0 &&
-                    if(   find_if(begin, end, [neighbor_block](const auto &nbh) {
-                            return nbh == neighbor_block; }) == end) {
-
-                        neighborhood[neighbor_rank].push_back(neighbor_aabb);
-                        blocks_pushed[neighbor_rank].push_back(neighbor_block);
-                    }
-                // }
+            // Neighbor blocks that belong to the same rank should be added to 
+            // neighboorhood only if there's PBC along any dim, otherwise they should be skipped.
+            // TODO: Make PBCs work with runtime load balancing
+            if((neighbor_rank != me) || globalPBC[0] || globalPBC[1] || globalPBC[2]) {
+                const walberla::BlockID& neighbor_id = block->getNeighborId(neigh);
+                walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
+                auto begin = blocks_pushed[neighbor_rank].begin();
+                auto end = blocks_pushed[neighbor_rank].end();
+                
+                if(find_if(begin, end, [neighbor_id](const auto &bp) { return bp == neighbor_id; }) == end) {
+                    neighborhood[neighbor_rank].push_back(neighbor_aabb);
+                    blocks_pushed[neighbor_rank].push_back(neighbor_id);
+                }
             }
-        // }
+        }
     }
 
     for(auto& nbh: neighborhood) {
@@ -130,28 +115,41 @@ void BlockForest::updateWeights() {
     walberla::mpi::BufferSystem bs(mpiManager->comm(), 756);
 
     info->clear();
+
+    int sum_block_locals = 0;
+    // Compute the weights for my blocks and their children
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         auto aabb = block->getAABB();
         auto& block_info = (*info)[block->getId()];
-        // TODO: Generate boundary weights
-        // pairs::compute_boundary_weights(
-        //     this->ps,
-        //     aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
-        //     &(block_info.computationalWeight), &(block_info.communicationWeight));
+
+        pairs::compute_boundary_weights(
+            this->ps,
+            aabb.xMin(), aabb.xMax(), aabb.yMin(), aabb.yMax(), aabb.zMin(), aabb.zMax(),
+            &(block_info.computationalWeight), &(block_info.communicationWeight));
+        
+        sum_block_locals += block_info.computationalWeight;
 
         for(int branch = 0; branch < 8; ++branch) {
             const auto b_id = walberla::BlockID(block->getId(), branch);
             const auto b_aabb = forest->getAABBFromBlockId(b_id);
             auto& b_info = (*info)[b_id];
 
-            // pairs::compute_boundary_weights(
-            //     this->ps,
-            //     b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
-            //     &(b_info.computationalWeight), &(b_info.communicationWeight));
+            pairs::compute_boundary_weights(
+                this->ps,
+                b_aabb.xMin(), b_aabb.xMax(), b_aabb.yMin(), b_aabb.yMax(), b_aabb.zMin(), b_aabb.zMax(),
+                &(b_info.computationalWeight), &(b_info.communicationWeight));
         }
     }
+    
+    int non_globals = ps->getTrackedVariableAsInteger("nlocal") - UniqueID::getNumGlobals();
+    
+    if(sum_block_locals!=non_globals){
+        std::cout << "Warning: " << non_globals - sum_block_locals << " particles in rank " << rank << 
+        " may get lost in the next rebalancing." << std::endl;
+    }
 
+    // Send the weights of my blocks and their children to the neighbors of my blocks
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         auto& block_info = (*info)[block->getId()];
@@ -220,8 +218,8 @@ walberla::Vector3<int> BlockForest::getBlockConfig(int num_processes, int nx, in
 
 int BlockForest::getInitialRefinementLevel(int num_processes) {
     int splitFactor = 8;
-    int blocks = splitFactor;
-    int refinementLevel = 1;
+    int blocks = 1;
+    int refinementLevel = 0;
 
     while(blocks < num_processes) {
         refinementLevel++;
@@ -232,6 +230,9 @@ int BlockForest::getInitialRefinementLevel(int num_processes) {
 }
 
 void BlockForest::setBoundingBox() {
+    for (int i=0; i<6; ++i) subdom[i] = 0.0;
+    if (forest->empty()) return;
+
     auto aabb_union = forest->begin()->getAABB();
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
@@ -244,17 +245,6 @@ void BlockForest::setBoundingBox() {
     subdom[3] = aabb_union.yMax();
     subdom[4] = aabb_union.zMin();
     subdom[5] = aabb_union.zMax();
-}
-
-void BlockForest::rebalance() {
-    if(balance_workload) {
-        this->updateWeights();
-        forest->refresh();
-    }
-
-    this->updateWeights();
-    this->updateNeighborhood();
-    this->setBoundingBox();
 }
 
 void BlockForest::initialize(int *argc, char ***argv) {
@@ -272,41 +262,62 @@ void BlockForest::initialize(int *argc, char ***argv) {
     auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) :
                                            getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
 
-    if(rank==0) std::cout << "block_config = " << block_config << std::endl;
-
     auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
 
-    forest = walberla::blockforest::createBlockForest(
-        domain, block_config, walberla::Vector3<bool>(globalPBC[0], globalPBC[1], globalPBC[2]), procs, ref_level);
+    walberla::Vector3<bool> pbc(globalPBC[0], globalPBC[1], globalPBC[2]);
+
+    forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, procs, ref_level);
 
     this->info = make_shared<walberla::blockforest::InfoCollection>();
 
-    if(balance_workload) {
-        this->initializeWorkloadBalancer();
+    if (rank==0) {
+        std::cout << "Domain: " << domain << std::endl;
+        std::cout << "PBC: " << pbc << std::endl;
+        std::cout << "Block config: " << block_config  << std::endl;
+        std::cout << "Initial refinement level: " << ref_level << std::endl;
+        std::cout << "Dynamic load balancing: " << (balance_workload ? "True" : "False") << std::endl;
     }
 }
 
 void BlockForest::update() {
     if(balance_workload) {
-        this->updateWeights();
-        forest->refresh();
-    }
+        if(!forest->loadBalancingFunctionRegistered()){
+            std::cerr << "Workload balancer is not initialized." << std::endl;
+            exit(-1);
+        }
 
-    this->updateWeights();
+        this->updateWeights();
+        const int nlocal = ps->getTrackedVariableAsInteger("nlocal");
+        for(auto &prop: ps->getProperties()) {
+            if(!prop.isVolatile()) {
+                const int ptypesize = get_proptype_size(prop.getType());
+                ps->copyPropertyToHost(prop, pairs::WriteAfterRead, nlocal*ptypesize);
+            }
+        }
+        
+        // PAIRS_DEBUG("Rebalance\n");
+        if (rank==0) std::cout << "Rebalance" << std::endl;
+        forest->refresh(); 
+}
+
     this->updateNeighborhood();
     this->setBoundingBox();
 }
 
-void BlockForest::initializeWorkloadBalancer() {
-    std::string algorithm = "morton";
+void BlockForest::initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) {
+    if (rank==0) {
+        std::cout << "Load balancing algorithm: " << getAlgorithmName(algorithm) << std::endl;
+        std::cout << "regridMin = " << regridMin << ", regirdMax = " << regridMax << std::endl;
+    }
+    this->balance_workload = true;  // balance_workload is set to true in case the forest has been initialized externally
     real_t baseWeight = 1.0;
-    real_t metisipc2redist = 1.0;
-    size_t regridMin = 10;
-    size_t regridMax = 100;
     int maxBlocksPerProcess = 100;
-    string metisAlgorithm = "none";
-    string metisWeightsToUse = "none";
-    string metisEdgeSource = "none";
+
+    // Metis-specific params
+    real_t metisipc2redist = 1.0;
+    string metisAlgorithm = "PART_GEOM_KWAY";
+    string metisWeightsToUse = "BOTH_WEIGHTS";
+    string metisEdgeSource = "EDGES_FROM_EDGE_WEIGHTS";
 
     forest->recalculateBlockLevelsInRefresh(true);
     forest->alwaysRebalanceInRefresh(true);
@@ -316,13 +327,12 @@ void BlockForest::initializeWorkloadBalancer() {
     forest->allowMultipleRefreshCycles(false);
     forest->checkForEarlyOutInRefresh(false);
     forest->checkForLateOutInRefresh(false);
+
+    // TODO: Define another functor that makes use of communicationWeight as well
     forest->setRefreshMinTargetLevelDeterminationFunction(
         walberla::blockforest::MinMaxLevelDetermination(info, regridMin, regridMax));
 
-    std::transform(algorithm.begin(), algorithm.end(), algorithm.begin(),
-        [](unsigned char c) { return std::tolower(c); });
-
-    if(algorithm == "morton") {
+    if(algorithm == Morton) {
         forest->setRefreshPhantomBlockDataAssignmentFunction(
             walberla::blockforest::WeightAssignmentFunctor(info, baseWeight));
         forest->setRefreshPhantomBlockDataPackFunction(
@@ -334,7 +344,7 @@ void BlockForest::initializeWorkloadBalancer() {
         prepFunc.setMaxBlocksPerProcess(maxBlocksPerProcess);
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
 
-    } else if(algorithm == "hilbert") {
+    } else if(algorithm == Hilbert) {
         forest->setRefreshPhantomBlockDataAssignmentFunction(
             walberla::blockforest::WeightAssignmentFunctor(info, baseWeight));
         forest->setRefreshPhantomBlockDataPackFunction(
@@ -346,7 +356,7 @@ void BlockForest::initializeWorkloadBalancer() {
         prepFunc.setMaxBlocksPerProcess(maxBlocksPerProcess);
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
 
-    } else if(algorithm == "metis") {
+    } else if(algorithm == Metis) {
         forest->setRefreshPhantomBlockDataAssignmentFunction(
             walberla::blockforest::MetisAssignmentFunctor(info, baseWeight));
         forest->setRefreshPhantomBlockDataPackFunction(
@@ -362,7 +372,7 @@ void BlockForest::initializeWorkloadBalancer() {
         prepFunc.setipc2redist(metisipc2redist);
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
 
-    } else if(algorithm == "diffusive") {
+    } else if(algorithm == Diffusive) {
         forest->setRefreshPhantomBlockDataAssignmentFunction(
             walberla::blockforest::WeightAssignmentFunctor(info, baseWeight));
         forest->setRefreshPhantomBlockDataPackFunction(
@@ -372,6 +382,10 @@ void BlockForest::initializeWorkloadBalancer() {
 
         auto prepFunc = walberla::blockforest::DynamicDiffusionBalance<walberla::blockforest::WeightAssignmentFunctor::PhantomBlockWeight>(1, 1, false);
         forest->setRefreshPhantomBlockMigrationPreparationFunction(prepFunc);
+    }
+    else {
+        std::cerr << "Invalid load balancing algorithm." << std::endl;
+        exit(-1);
     }
 
     forest->addBlockData(make_shared<walberla::ParticleDataHandling>(ps), "Interface");

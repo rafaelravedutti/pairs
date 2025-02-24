@@ -17,9 +17,10 @@ from pairs.sim.comm import Comm, Synchronize, Borders, Exchange, ReverseComm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.dem_sc_grid import DEMSCGrid
-from pairs.sim.domain import InitializeDomain, UpdateDomain, SetDomain
+from pairs.sim.domain import InitializeDomain, UpdateDomain
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
+from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
 from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.grid import Grid2D, Grid3D, MutableGrid
 from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
@@ -83,6 +84,7 @@ class Simulation:
         self.cell_lists = None
         self._store_neighbors_per_cell = False
         self.neighbor_lists = None
+        self.update_cells_procedures = Block(self, [])
 
         # Context information used to partially build the program AST
         self.scope = []
@@ -131,6 +133,7 @@ class Simulation:
         self.dims = dims                        # Number of dimensions
         self.ntimesteps = timesteps             # Number of time-steps
         self.reneighbor_frequency = 1           # Re-neighbor frequency
+        self.rebalance_frequency = 0            # Re-balance frequency for dynamic load balancing
         self._target = None                     # Hardware target info
         self._pbc = [True for _ in range(dims)] # PBC flags for each dimension
         self._shapes = shapes                   # List of shapes used in the simulation
@@ -151,6 +154,14 @@ class Simulation:
 
         else:
             raise Exception("Invalid domain partitioner.")
+        
+    def set_workload_balancer(self, algorithm=LoadBalancingAlgorithms.Morton, 
+                              regrid_min=100, regrid_max=1000, rebalance_frequency=0):
+        assert self._partitioner == DomainPartitioners.BlockForest, "Load balancing is only supported by BlockForest."
+        self.rebalance_frequency = rebalance_frequency
+        self._dom_part.load_balancer = algorithm
+        self._dom_part.regrid_min = regrid_min
+        self._dom_part.regrid_max = regrid_max
 
     def partitioner(self):
         return self._partitioner
@@ -489,13 +500,30 @@ class Simulation:
     def compute_thermo(self, every=0):
         self._compute_thermo = every
 
+    def create_update_cells_block(self):
+        subroutines = [
+            BuildCellLists(self, self.cell_lists),
+            PartitionCellLists(self, self.cell_lists)
+        ]
+
+        # Add routine to build neighbor-lists per cell
+        if self._store_neighbors_per_cell:
+            subroutines.append(BuildCellNeighborLists(self, self.cell_lists))
+
+        # Add routine to build neighbor-lists per particle (standard Verlet Lists)
+        if self.neighbor_lists is not None:
+            subroutines.append(BuildNeighborLists(self, self.neighbor_lists))
+
+        self.update_cells_procedures.add_statement(subroutines)
+
     def generate(self):
         """Generate the code for the simulation"""
         assert self._target is not None, "Target not specified!"
 
         # Initialize communication instance with the specified domain-partitioner
         self._comm = Comm(self, self._dom_part)
-        
+        self.create_update_cells_block()
+
         if self._generate_whole_program:
             self.generate_program()
         else:
@@ -531,30 +559,25 @@ class Simulation:
         # First steps executed during each time-step in the simulation
         timestep_procedures += self.pre_step_functions 
 
-        comm_routine = [
-            (Exchange(self._comm), every_reneighbor_params),
-            (Borders(self._comm), Synchronize(self._comm), every_reneighbor_params)
-            ]
-        
-        if self._generate_whole_program:
-            timestep_procedures += comm_routine
+        # Rebalancing routines
+        if self.rebalance_frequency:
+            update_domain_procedures = Block.from_list(self, [
+                Exchange(self._comm),
+                UpdateDomain(self),
+                Borders(self._comm),
+                ResetVolatileProperties(self),
+                BuildCellListsStencil(self, self.cell_lists),
+                self.update_cells_procedures
+                ])
 
-        update_cells =    [
-            (BuildCellLists(self, self.cell_lists), every_reneighbor_params),
-            (PartitionCellLists(self, self.cell_lists), every_reneighbor_params)
-        ]
+            timestep_procedures.append((update_domain_procedures, {'every': self.rebalance_frequency}))
 
-        # Add routine to build neighbor-lists per cell
-        if self._store_neighbors_per_cell:
-            update_cells.append(
-                (BuildCellNeighborLists(self, self.cell_lists), every_reneighbor_params))
+        # Communication routines
+        timestep_procedures += [(Exchange(self._comm), every_reneighbor_params),
+                                (Borders(self._comm), Synchronize(self._comm), every_reneighbor_params)]
 
-        # Add routine to build neighbor-lists per particle (standard Verlet Lists)
-        if self.neighbor_lists is not None:
-            update_cells.append(
-                (BuildNeighborLists(self, self.neighbor_lists), every_reneighbor_params))
-
-        timestep_procedures += update_cells
+        # Update acceleration data structures
+        timestep_procedures += [(self.update_cells_procedures, every_reneighbor_params)]
 
         # Add routines for contact history management
         if self._use_contact_history:
@@ -566,15 +589,13 @@ class Simulation:
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
         # Reset volatile properties
-        if self._generate_whole_program:
-            timestep_procedures += [ResetVolatileProperties(self)]
+        timestep_procedures += [ResetVolatileProperties(self)]
 
-        # add computational kernels
+        # Add computational kernels
         timestep_procedures += self.functions
 
         # For whole-program-generation, add reverse_comm wherever needed in the timestep loop (eg: after computational kernels) like this:
-        if self._generate_whole_program:
-            timestep_procedures += [reverse_comm_module]
+        timestep_procedures += [reverse_comm_module]
 
         # Clear unused contact history
         if self._use_contact_history:

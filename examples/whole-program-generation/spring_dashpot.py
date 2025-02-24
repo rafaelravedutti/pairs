@@ -51,21 +51,21 @@ def gravity(i):
 
 # Number of 'type' features and their pair-wise properties
 ntypes = 2
-stiffness_SI = [5000 for i in range(ntypes * ntypes)]
-dampingNorm_SI = [20 for i in range(ntypes * ntypes)]
-dampingTan_SI = [20 for i in range(ntypes * ntypes)]
-friction_SI = [0.2 for i in range(ntypes * ntypes)]
+stiffness_SI = [100000 for i in range(ntypes * ntypes)]
+dampingNorm_SI = [300 for i in range(ntypes * ntypes)]
+dampingTan_SI = [0.0 for i in range(ntypes * ntypes)]
+friction_SI = [0.0 for i in range(ntypes * ntypes)]
 
 # Domain size
-domainSize_SI=[1, 1, 1]
+domainSize_SI=[10, 10, 10]
 
 # Parameters required for generating the initial grid of particles 'dem_sc_grid'
-generationSpacing_SI = 0.1
-diameter_SI = 0.09
+generationSpacing_SI = 0.4
+diameter_SI = 0.3
 minDiameter_SI = diameter_SI
 maxDiameter_SI = diameter_SI
-initialVelocity_SI = 0.5
-densityParticle_SI = 1000
+initialVelocity_SI = 2
+densityParticle_SI = 100
 
 # Linked cell width 
 linkedCellWidth = 1.01 * maxDiameter_SI
@@ -77,9 +77,9 @@ gravity_SI = 9.81
 dt_SI = 1e-3
 
 # VTK frequency
-visSpacing = 60
+visSpacing = 20
 
-timeSteps = 6000
+timeSteps = 2000
 
 file_name = os.path.basename(__file__)
 file_name_without_extension = os.path.splitext(file_name)[0]
@@ -126,6 +126,8 @@ psim.pbc([False, False, False])
 psim.build_cell_lists(linkedCellWidth)
 
 psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
+
+psim.set_workload_balancer(pairs.morton(), regrid_min=100, regrid_max=1000, rebalance_frequency=200)
 
 # Generate particles
 psim.dem_sc_grid(domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], 

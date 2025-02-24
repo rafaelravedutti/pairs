@@ -8,8 +8,11 @@ from pairs.ir.types import Types
 from pairs.sim.flags import Flags
 from pairs.ir.lit import Lit
 from pairs.sim.grid import MutableGrid
-
-
+from pairs.ir.device import CopyArray
+from pairs.ir.contexts import Contexts
+from pairs.ir.actions import Actions
+from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
+from pairs.ir.print import PrintCode
 class DimensionRanges:
     def __init__(self, sim):
         self.sim                = sim
@@ -96,6 +99,9 @@ class DimensionRanges:
 class BlockForest:
     def __init__(self, sim):
         self.sim                = sim
+        self.load_balancer      = None
+        self.regrid_min         = None
+        self.regrid_max         = None
         self.reduce_step        = sim.add_var('reduce_step', Types.Int32)   # this var is treated as a tmp (workaround for gpu)
         self.reduce_step.force_read = True
         self.rank               = sim.add_var('rank', Types.Int32)
@@ -136,7 +142,17 @@ class BlockForest:
 
     def initialize(self):
         grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs_runtime->initDomain", [param for delim in grid_array for param in delim] + self.sim._pbc)
+
+        Call_Void(self.sim, "pairs_runtime->initDomain", 
+                  [param for delim in grid_array for param in delim] + 
+                  self.sim._pbc + ([True] if self.load_balancer is not None else []))
+        
+        if self.load_balancer is not None:
+            PrintCode(self.sim, "pairs_runtime->getDomainPartitioner()->initWorkloadBalancer"
+                      f"({LoadBalancingAlgorithms.c_keyword(self.load_balancer)}, {self.regrid_min}, {self.regrid_max});")
+
+            # Call_Void(self.sim, "pairs_runtime->getDomainPartitioner()->initWorkloadBalancer", 
+            #           [self.load_balancer, self.regrid_min, self.regrid_max])
 
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
@@ -155,6 +171,12 @@ class BlockForest:
             for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
                 Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
                 self.aabbs.realloc()
+            
+            CopyArray(self.sim, self.ranks, Contexts.Host, Actions.WriteOnly, self.nranks)
+            CopyArray(self.sim, self.naabbs, Contexts.Host, Actions.WriteOnly, self.nranks)
+            CopyArray(self.sim, self.aabb_offsets, Contexts.Host, Actions.WriteOnly, self.nranks)
+            CopyArray(self.sim, self.aabbs, Contexts.Host, Actions.WriteOnly, self.ntotal_aabbs * 6)
+            CopyArray(self.sim, self.subdom, Contexts.Host, Actions.WriteOnly)
 
             Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
             Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])

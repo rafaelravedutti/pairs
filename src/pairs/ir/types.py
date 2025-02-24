@@ -24,8 +24,8 @@ class Types:
             else 'float' if t == Types.Float
             else 'double' if t == Types.Double
             else 'int' if t == Types.Int32
-            else 'long long int' if t == Types.Int64
-            else 'unsigned long long int' if t == Types.UInt64
+            else 'int64_t' if t == Types.Int64
+            else 'uint64_t' if t == Types.UInt64
             else 'bool' if t == Types.Boolean
             else 'void' if t == Types.Void
             else '<invalid type>'
@@ -38,8 +38,8 @@ class Types:
             else 'float' if t == Types.Float
             else 'double' if t == Types.Double
             else 'int' if t == Types.Int32
-            else 'long long int' if t == Types.Int64
-            else 'unsigned long long int' if t == Types.UInt64
+            else 'int64_t' if t == Types.Int64
+            else 'uint64_t' if t == Types.UInt64
             else 'bool' if t == Types.Boolean
             else 'void' if t == Types.Void
             else '<invalid type>'

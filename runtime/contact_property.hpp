@@ -37,7 +37,7 @@ public:
     layout_t getLayout() const { return layout; }
     size_t getPrimitiveTypeSize() const {
         return  (type == Prop_Integer) ? sizeof(int) :
-                (type == Prop_UInt64) ? sizeof(unsigned long long int) :
+                (type == Prop_UInt64) ? sizeof(uint64_t) :
                 (type == Prop_Real) ? sizeof(real_t) :
                 (type == Prop_Vector) ? sizeof(real_t) :
                 (type == Prop_Matrix) ? sizeof(real_t) :

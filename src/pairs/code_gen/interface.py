@@ -3,7 +3,7 @@ from pairs.ir.functions import Call_Void, Call, Call_Int
 from pairs.ir.parameters import Parameter
 from pairs.ir.ret import Return
 from pairs.ir.scalars import ScalarOp
-from pairs.sim.domain import UpdateDomain, SetDomain
+from pairs.sim.domain import UpdateDomain
 from pairs.sim.cell_lists import BuildCellListsStencil
 from pairs.sim.comm import Synchronize, Borders, Exchange, ReverseComm
 from pairs.ir.types import Types
@@ -28,12 +28,8 @@ class InterfaceModules:
 
     def create_all(self):
         self.initialize()
-
-        # Generate a 'set_domain' module only if domain is not pre-set in the input script
-        if not self.sim.create_domain_at_initialization:
-            self.set_domain()
-
         self.setup_sim()
+        self.update_domain()
         self.update_cells(self.sim.reneighbor_frequency) 
         self.communicate(self.sim.reneighbor_frequency)
         self.reverse_comm() 
@@ -51,9 +47,6 @@ class InterfaceModules:
         self.nlocal()
         self.nghost()
         self.size()
-        self.create_sphere()
-        self.create_halfspace()
-        self.dem_sc_grid()
         self.end()      
 
     @pairs_interface_block
@@ -85,12 +78,6 @@ class InterfaceModules:
             self.sim.add_statement(inits)
 
     @pairs_interface_block
-    def set_domain(self):
-        assert isinstance(self.sim.grid, MutableGrid)
-        self.sim.module_name('set_domain')
-        self.sim.add_statement(SetDomain(self.sim))
-
-    @pairs_interface_block
     def setup_sim(self):
         self.sim.module_name('setup_sim')
         
@@ -102,9 +89,21 @@ class InterfaceModules:
             Assign(self.sim, self.sim.cell_lists.cutoff_radius, Parameter(self.sim, 'cutoff_radius', Types.Real))
 
         self.sim.add_statement(self.sim.setup_particles)
-        self.sim.add_statement(UpdateDomain(self.sim))
+        # This update assumes all particles have been created exactly in the rank that contains them 
+        self.sim.add_statement(UpdateDomain(self.sim))  
         self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))
-    
+        
+    @pairs_interface_block
+    def update_domain(self):
+        self.sim.module_name('update_domain')
+        self.sim.add_statement(Exchange(self.sim._comm))    # Local particles must be contained in their owners before domain update
+        self.sim.add_statement(UpdateDomain(self.sim))
+        # Exchange is not needed after update since all locals are contained in thier owners
+        self.sim.add_statement(Borders(self.sim._comm))     # Ghosts must be recreated after update
+        self.sim.add_statement(ResetVolatileProperties(self.sim))   # Reset volatile includes the new locals
+        self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))    # Rebuild stencil since subdom sizes have changed
+        self.sim.add_statement(self.sim.update_cells_procedures)
+        
     @pairs_interface_block
     def reset_volatiles(self):
         self.sim.module_name('reset_volatiles')
@@ -118,19 +117,8 @@ class InterfaceModules:
             ScalarOp.cmp((timestep + 1) % reneighbor_frequency, 0),
             ScalarOp.cmp(timestep, 0)
             ))
-        
-        subroutines = [BuildCellLists(self.sim, self.sim.cell_lists),
-                  PartitionCellLists(self.sim, self.sim.cell_lists)]
-        
-        # Add routine to build neighbor-lists per cell
-        if self.sim._store_neighbors_per_cell:
-            subroutines.append(BuildCellNeighborLists(self.sim, self.sim.cell_lists))
 
-        # Add routine to build neighbor-lists per particle (standard Verlet Lists)
-        if self.sim.neighbor_lists:
-            subroutines.append(BuildNeighborLists(self.sim, self.sim.neighbor_lists))
-
-        self.sim.add_statement(Filter(self.sim, cond, Block.from_list(self.sim, subroutines)))
+        self.sim.add_statement(Filter(self.sim, cond, self.sim.update_cells_procedures))
 
     @pairs_interface_block
     def communicate(self, reneighbor_frequency=1):
@@ -142,11 +130,15 @@ class InterfaceModules:
             ))
         
         exchange = Filter(self.sim, cond, Exchange(self.sim._comm))
-        border_sync = Branch(self.sim, cond, blk_if = Borders(self.sim._comm), 
+        border_sync = Branch(self.sim, cond, 
+                             blk_if = Borders(self.sim._comm), 
                              blk_else = Synchronize(self.sim._comm))
         
         self.sim.add_statement(exchange)
         self.sim.add_statement(border_sync)
+        
+        # TODO: Maybe remove this from here, but volatiles must always be reset after exchange
+        self.sim.add_statement(Filter(self.sim, cond, Block(self.sim, ResetVolatileProperties(self.sim))))   
 
     @pairs_interface_block
     def reverse_comm(self):

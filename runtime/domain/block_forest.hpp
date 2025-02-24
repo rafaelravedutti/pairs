@@ -47,7 +47,7 @@ private:
 public:
     BlockForest(
         PairsRuntime *ps_,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz);
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz, bool balance_workload_);
 
     BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::blockforest::BlockForest> &bf);
 
@@ -56,14 +56,17 @@ public:
     }
 
     void initialize(int *argc, char ***argv);
+    void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax);
+
     void update();
     void finalize();
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }
     int getNumberOfNeighborRanks() { return this->nranks; }
     int getNumberOfNeighborAABBs() { return this->total_aabbs; }
+    double getSubdomMin(int dim) const { return subdom[2*dim + 0];}
+    double getSubdomMax(int dim) const { return subdom[2*dim + 1];}
 
-    void initializeWorkloadBalancer();
     void updateNeighborhood();
     void updateWeights();
     walberla::math::Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);

@@ -34,7 +34,7 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
 
     const double xmin = 0.0;
     const double ymin = 0.0;
-    const double zmin = diameter;
+    const double zmin = 0.0;
 
     double gen_domain[] = {xmin, ymin, zmin, xmax, ymax, zmax};
     double ref_point[] = {spacing * 0.5, spacing * 0.5, spacing * 0.5};
@@ -68,10 +68,10 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
             positions(nparticles, 2) = point[2];
             velocities(nparticles, 0) = 0.1 * realRandom<real_t>(-initial_velocity, initial_velocity);
             velocities(nparticles, 1) = 0.1 * realRandom<real_t>(-initial_velocity, initial_velocity);
-            velocities(nparticles, 2) = -initial_velocity;
+            velocities(nparticles, 2) = 0.1 * realRandom<real_t>(-initial_velocity, initial_velocity);
             types(nparticles) = rand() % ntypes;
             flags(nparticles) = 0;
-            shapes(nparticles) = 0; // sphere
+            shapes(nparticles) = shapes::Sphere;
 
             /*
             std::cout << uid(nparticles) << "," << types(nparticles) << "," << masses(nparticles) << "," << radius(nparticles) << ","
@@ -108,6 +108,8 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
             }
         }
     }
+
+    ps->setTrackedVariableAsInteger("nlocal", nparticles);
 
     int global_nparticles = nparticles;
     if(ps->getDomainPartitioner()->getWorldSize() > 1) {

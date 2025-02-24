@@ -73,6 +73,12 @@ inline __host__ int host_atomic_add_resize_check(int *addr, int val, int *resize
 }
 
 #ifdef PAIRS_TARGET_CUDA
+inline void cuda_assert(cudaError_t err, const char *file, int line) {
+    if(err != cudaSuccess) {
+        std::cerr << file << ":" << line << ": " << cudaGetErrorString(err) << std::endl;
+        exit(-1);
+    }
+}
 __device__ double atomicAdd_double(double* address, double val);
 __device__ int atomic_add(int *addr, int val);
 __device__ real_t atomic_add(real_t *addr, real_t val);

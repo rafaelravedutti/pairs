@@ -89,6 +89,8 @@ void Regular6DStencil::initialize(int *argc, char ***argv) {
     this->setBoundingBox();
 }
 
+void Regular6DStencil::initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) {}
+
 void Regular6DStencil::update() {}
 
 void Regular6DStencil::finalize() {

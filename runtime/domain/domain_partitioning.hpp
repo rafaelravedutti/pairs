@@ -39,7 +39,10 @@ public:
 
     double getMin(int dim) const { return grid_min[dim]; }
     double getMax(int dim) const { return grid_max[dim]; }
+    virtual double getSubdomMin(int dim) const = 0;
+    virtual double getSubdomMax(int dim) const = 0;
     virtual void initialize(int *argc, char ***argv) = 0;
+    virtual void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) = 0;
     virtual void update() = 0;
     virtual int getWorldSize() const = 0;
     virtual int getRank() const = 0;

@@ -35,7 +35,7 @@ typedef double real_t;
 //typedef float real_t;
 //#endif
 
-typedef unsigned long long int id_t;
+typedef uint64_t id_t;
 typedef int array_t;
 typedef int property_t;
 typedef int layout_t;
@@ -50,6 +50,18 @@ enum PropertyType {
     Prop_Matrix,
     Prop_Quaternion
 };
+
+constexpr size_t get_proptype_size(PropertyType type){
+    switch (type) {
+        case pairs::Prop_Integer:       return sizeof(int);
+        case pairs::Prop_UInt64:        return sizeof(uint64_t);
+        case pairs::Prop_Real:          return sizeof(real_t);
+        case pairs::Prop_Vector:        return 3*sizeof(real_t);
+        case pairs::Prop_Matrix:        return 9*sizeof(real_t);
+        case pairs::Prop_Quaternion:    return 4*sizeof(real_t);
+        default:             return 0;
+    }
+}
 
 enum DataLayout {
     Invalid = -1,
@@ -78,6 +90,23 @@ enum DomainPartitioners {
     RegularXYPartitioning = 1,
     BlockForestPartitioning = 2
 };
+
+enum LoadBalancingAlgorithms {
+    Morton = 0,
+    Hilbert = 1,
+    Metis = 2,
+    Diffusive = 3
+};
+
+constexpr const char* getAlgorithmName(LoadBalancingAlgorithms alg) {
+    switch (alg) {
+        case Morton:    return "Morton";
+        case Hilbert:   return "Hilbert";
+        case Metis:     return "Metis";
+        case Diffusive: return "Diffusive";
+        default:        return "Invalid";
+    }
+}
 
 #ifdef DEBUG
 #   include <assert.h>

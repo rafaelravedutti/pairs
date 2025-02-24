@@ -78,6 +78,7 @@ class Borders(Lowerable):
         # exists in any force calculation kernel)
         # We ignore normal because there should be no ghost half-spaces
         prop_names = [
+            'flags',
             'uid',
             'type',
             'mass',

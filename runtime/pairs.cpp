@@ -14,7 +14,9 @@ namespace pairs {
 
 void PairsRuntime::initDomain(
     int *argc, char ***argv,
-    real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz) {
+    real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, 
+    bool pbcx, bool pbcy, bool pbcz, 
+    bool balance_workload) {
 
     int mpi_initialized=0;
     MPI_Initialized(&mpi_initialized);
@@ -38,7 +40,7 @@ void PairsRuntime::initDomain(
     
 #ifdef USE_WALBERLA
     else if(dom_part_type == BlockForestPartitioning) {
-        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, pbcx, pbcy, pbcz);
+        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, pbcx, pbcy, pbcz, balance_workload);
     } 
 #endif
 

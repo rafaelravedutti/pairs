@@ -51,6 +51,7 @@ public:
     void setConfig();
     void setBoundingBox();
     void initialize(int *argc, char ***argv);
+    void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax);
     void update();
     void finalize();
 
@@ -58,6 +59,8 @@ public:
     int getRank() const { return rank; }
     int getNumberOfNeighborRanks() { return 6; }
     int getNumberOfNeighborAABBs() { return 6; }
+    double getSubdomMin(int dim) const { return subdom_min[dim];}
+    double getSubdomMax(int dim) const { return subdom_max[dim];}
 
     int isWithinSubdomain(real_t x, real_t y, real_t z);
     void copyRuntimeArray(const std::string& name, void *dest, const int size);

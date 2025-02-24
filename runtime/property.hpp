@@ -43,7 +43,7 @@ public:
     int isVolatile() const { return vol != 0; }
     size_t getPrimitiveTypeSize() const {
         return  (type == Prop_Integer) ? sizeof(int) :
-                (type == Prop_UInt64) ? sizeof(unsigned long long int) :
+                (type == Prop_UInt64) ? sizeof(uint64_t) :
                 (type == Prop_Real) ? sizeof(real_t) :
                 (type == Prop_Vector) ? sizeof(real_t) :
                 (type == Prop_Matrix) ? sizeof(real_t) :
@@ -58,7 +58,7 @@ public:
 
 class UInt64Property : public Property {
 public:
-    inline unsigned long long int &operator()(int i) { return static_cast<unsigned long long int *>(h_ptr)[i]; }
+    inline uint64_t &operator()(int i) { return static_cast<uint64_t *>(h_ptr)[i]; }
 };
 
 class FloatProperty : public Property {

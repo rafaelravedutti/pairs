@@ -109,8 +109,15 @@ endif()
 if(USE_WALBERLA)
     set(RUNTIME_WALBERLA_FILES
         runtime/domain/block_forest.cpp
-        # runtime/boundary_weights.cpp  # avoid compiling this for now. TODO: generate the host and device functions
     )
+
+    # TODO: Generate the host/device functions for computing weights
+    if(COMPILE_CUDA)
+        list(APPEND RUNTIME_WALBERLA_FILES runtime/boundary_weights.cu)
+    else()
+        list(APPEND RUNTIME_WALBERLA_FILES runtime/boundary_weights.cpp)
+    endif()
+
     target_sources(${PAIRS_TARGET} PRIVATE ${RUNTIME_WALBERLA_FILES})
     target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
 

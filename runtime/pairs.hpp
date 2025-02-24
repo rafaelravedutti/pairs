@@ -222,6 +222,10 @@ public:
         copyPropertyToDevice(getProperty(id), action, size);
     }
 
+    void copyPropertyToDevice(Property &prop, action_t action) {
+        copyPropertyToDevice(prop, action, prop.getTotalSize());
+    }
+    
     void copyPropertyToDevice(Property &prop, action_t action, size_t size);
 
     void copyPropertyToHost(property_t id, action_t action) {
@@ -243,6 +247,10 @@ public:
         return prop_flags;
     }
 
+    DeviceFlags* getArrayFlags(){
+        return array_flags;
+    }
+    
     // Contact properties
     ContactProperty &getContactProperty(property_t id);
     ContactProperty &getContactPropertyByName(std::string name);
@@ -313,7 +321,7 @@ public:
     void initDomain(
         int *argc, char ***argv,
         real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax,
-        bool pbcx = 0, bool pbcy = 0, bool pbcz = 0);
+        bool pbcx = 0, bool pbcy = 0, bool pbcz = 0, bool balance_workload = 0);
 
     template<typename Domain_T>
     void useDomain(const std::shared_ptr<Domain_T> &domain_ptr);

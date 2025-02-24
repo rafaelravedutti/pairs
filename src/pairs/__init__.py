@@ -2,6 +2,7 @@ from pairs.ir.types import Types
 from pairs.code_gen.cgen import CGen
 from pairs.code_gen.target import Target
 from pairs.sim.domain_partitioners import DomainPartitioners
+from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
 from pairs.sim.shapes import Shapes
 from pairs.sim.simulation import Simulation
 
@@ -69,3 +70,15 @@ def regular_domain_partitioner_xy():
 
 def block_forest():
     return DomainPartitioners.BlockForest
+
+def morton():
+    return LoadBalancingAlgorithms.Morton
+
+def hilbert():
+    return LoadBalancingAlgorithms.Hilbert
+
+def metis():
+    return LoadBalancingAlgorithms.Metis
+
+def diffusive():
+    return LoadBalancingAlgorithms.Diffusive

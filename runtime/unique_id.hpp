@@ -8,6 +8,7 @@ class UniqueID{
 public:
     inline static id_t create(PairsRuntime *pr);
     inline static id_t createGlobal(PairsRuntime *pr);
+    inline static id_t getNumGlobals();
 
 private:
     static const id_t capacity = 1000000000;   // max number of particles per rank
@@ -15,6 +16,10 @@ private:
     inline static id_t globalCounter = 1;
 
 };
+
+inline id_t UniqueID::getNumGlobals(){
+    return globalCounter - 1;
+}
 
 inline id_t UniqueID::create(PairsRuntime *pr){
     id_t rank = static_cast<id_t>(pr->getDomainPartitioner()->getRank());

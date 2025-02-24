@@ -8,13 +8,6 @@
 
 namespace pairs {
 
-inline void cuda_assert(cudaError_t err, const char *file, int line) {
-    if(err != cudaSuccess) {
-        std::cerr << file << ":" << line << ": " << cudaGetErrorString(err) << std::endl;
-        exit(-1);
-    }
-}
-
 __host__ void *device_alloc(size_t size) {
     void *ptr;
     CUDA_ASSERT(cudaMalloc(&ptr, size));
