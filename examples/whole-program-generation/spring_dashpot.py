@@ -49,13 +49,6 @@ def gravity(i):
     force[i][2] -= mass[i] * gravity_SI
 
 
-# Number of 'type' features and their pair-wise properties
-ntypes = 2
-stiffness_SI = [100000 for i in range(ntypes * ntypes)]
-dampingNorm_SI = [300 for i in range(ntypes * ntypes)]
-dampingTan_SI = [0.0 for i in range(ntypes * ntypes)]
-friction_SI = [0.0 for i in range(ntypes * ntypes)]
-
 # Domain size
 domainSize_SI=[10, 10, 10]
 
@@ -81,6 +74,8 @@ visSpacing = 20
 
 timeSteps = 2000
 
+# file_name_without_extension is the simulation identifer (in this case "spring_dashpot")
+# TODO: Integration with cmake
 file_name = os.path.basename(__file__)
 file_name_without_extension = os.path.splitext(file_name)[0]
 
@@ -103,6 +98,7 @@ else:
     print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
 
+# Register properties
 psim.add_position('position')
 psim.add_property('mass', pairs.real())
 psim.add_property('linear_velocity', pairs.vector())
@@ -115,19 +111,28 @@ psim.add_property('inv_inertia', pairs.matrix())
 psim.add_property('rotation_matrix', pairs.matrix())
 psim.add_property('rotation', pairs.quaternion())
 
+# Define the number of 'type' features and their pair-wise properties
+ntypes = 2
+stiffness_SI = [100000 for i in range(ntypes * ntypes)]
+dampingNorm_SI = [300 for i in range(ntypes * ntypes)]
+dampingTan_SI = [0.5 for i in range(ntypes * ntypes)]
+friction_SI = [20.0 for i in range(ntypes * ntypes)]
+
+# Register 'type' as a feature
 psim.add_feature('type', ntypes)
+
+# Register properties for the 'type' feature
 psim.add_feature_property('type', 'stiffness', pairs.real(), stiffness_SI)
 psim.add_feature_property('type', 'damping_norm', pairs.real(), dampingNorm_SI)
 psim.add_feature_property('type', 'damping_tan', pairs.real(), dampingTan_SI)
 psim.add_feature_property('type', 'friction', pairs.real(), friction_SI)
 
-psim.set_domain_partitioner(pairs.block_forest())
-psim.pbc([False, False, False])
-psim.build_cell_lists(linkedCellWidth)
-
+# Define the domain and optimization strategies
 psim.set_domain([0.0, 0.0, 0.0, domainSize_SI[0], domainSize_SI[1], domainSize_SI[2]])
-
+psim.pbc([False, False, False])
+psim.set_domain_partitioner(pairs.block_forest())
 psim.set_workload_balancer(pairs.morton(), regrid_min=100, regrid_max=1000, rebalance_frequency=200)
+psim.build_cell_lists(linkedCellWidth)
 
 # Generate particles
 psim.dem_sc_grid(domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], 
@@ -144,13 +149,14 @@ psim.read_particle_data( "data/sd_planes.input", ['type', 'mass', 'position', 'n
 
 psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 
-# The user-defined setup functions are executed only once before the timestep loop
+# The user-defined 'setup' functions are executed only once before the timestep loop
 psim.setup(update_mass_and_inertia, symbols={'infinity': math.inf })
 
-# The user-defined compute functions are added to the timestep loop in the order they are given to 'compute'
+# The user-defined 'compute' functions are added to the timestep loop in the order they are given to 'compute'
 psim.compute(spring_dashpot, linkedCellWidth)
 psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
 psim.compute(euler, symbols={'dt': dt_SI})
 
+# Triger code generation
 psim.generate()
 

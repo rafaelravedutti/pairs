@@ -9,10 +9,11 @@ int main(int argc, char **argv) {
     auto ac = std::make_shared<PairsAccessor>(pairs_sim.get());
     
     // Set domain
-    pairs_sim->set_domain(argc, argv, 0, 0, 0, 0.1, 0.1, 0.1);
+    auto pairs_runtime = pairs_sim->getPairsRuntime();
+    pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 0.1, 0.1, 0.1);
 
     // Create bodies
-    pairs::id_t pUid = pairs_sim->create_sphere(0.0499,   0.0499,   0.07,   0.5, 0.5, 0 ,   1000, 0.0045, 0, 0);
+    pairs::id_t pUid = pairs::create_sphere(pairs_runtime, 0.0499,   0.0499,   0.07,   0.5, 0.5, 0 ,   1000, 0.0045, 0, 0);
     
     // setup_sim after creating all bodies
     pairs_sim->setup_sim();
@@ -93,8 +94,7 @@ int main(int argc, char **argv) {
         pairs_sim->update_cells(t); 
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot();
-        pairs_sim->euler(5e-5); 
-        pairs_sim->reset_volatiles();         
+        pairs_sim->euler(5e-5);        
         //-------------------------------------------------------------------------------------------
 
         std::cout << "---- reverse_comm and reduce ----" << std::endl;

@@ -127,7 +127,7 @@ public:
     }
 
     void serialize(IBlock *const block, const BlockDataID& id, mpi::SendBuffer& buffer) override {
-        serializeImpl(static_cast<Block *const>(block), id, buffer, 0, false);
+        serializeImpl(static_cast<Block*>(block), id, buffer, 0, false);
     }
 
     internal::ParticleDeleter* deserialize(IBlock *const block) override {

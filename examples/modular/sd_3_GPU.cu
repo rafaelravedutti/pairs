@@ -46,17 +46,18 @@ int main(int argc, char **argv) {
     // Create PairsAccessor after PairsSimulation is initialized
     auto ac = std::make_shared<PairsAccessor>(pairs_sim.get());
 
-    pairs_sim->set_domain(argc, argv, 0, 0, 0, 1, 1, 1);
+    auto pairs_runtime = pairs_sim->getPairsRuntime();
+    pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1);
 
-    pairs_sim->create_halfspace(0,0,0,  1, 0, 0,     0, 13);
-    pairs_sim->create_halfspace(0,0,0,  0, 1, 0,     0, 13);
-    pairs_sim->create_halfspace(0,0,0,  0, 0, 1,     0, 13);
-    pairs_sim->create_halfspace(1,1,1,  -1, 0, 0,    0, 13);
-    pairs_sim->create_halfspace(1,1,1,  0, -1, 0,    0, 13);
-    pairs_sim->create_halfspace(1,1,1,  0, 0, -1,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, 13);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, 13);
 
-    pairs::id_t pUid = pairs_sim->create_sphere(0.6, 0.6, 0.7,      0, 0, 0,  1000, 0.05, 1, 0);
-    pairs_sim->create_sphere(0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 1, 0);
+    pairs::id_t pUid = pairs::create_sphere(pairs_runtime, 0.6, 0.6, 0.7,      0, 0, 0,  1000, 0.05, 1, 0);
+    pairs::create_sphere(pairs_runtime, 0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 1, 0);
 
     set_feature_properties(ac);
 
@@ -74,7 +75,6 @@ int main(int argc, char **argv) {
     int num_timesteps = 2000;
     int vtk_freq = 20;
     double dt = 1e-3;
-    pairs_sim->vtk_write_subdom("output/subdom", 0, 1);
 
     for (int t=0; t<num_timesteps; ++t){
         // Up-to-date uids might be on host or device. So sync uid in Host before accessing them from host
@@ -137,7 +137,6 @@ int main(int argc, char **argv) {
         // Euler
         //-------------------------------------------------------------------------------------------
         pairs_sim->euler(dt);
-        pairs_sim->reset_volatiles(); 
 
         // Communicate
         //-------------------------------------------------------------------------------------------
@@ -145,8 +144,8 @@ int main(int argc, char **argv) {
         // PairsAccessor requires an update when particles are communicated
         ac->update();
 
-        pairs_sim->vtk_write("output/dem_sd_local", 0, ac->nlocal(), t, vtk_freq);
-        pairs_sim->vtk_write("output/dem_sd_ghost", ac->nlocal(), ac->size(), t, vtk_freq);
+        pairs::vtk_write_data(pairs_runtime, "output/dem_sd_local", 0, ac->nlocal(), t, vtk_freq);
+        pairs::vtk_write_data(pairs_runtime, "output/dem_sd_ghost", ac->nlocal(), ac->size(), t, vtk_freq);
     }
 
     pairs_sim->end();

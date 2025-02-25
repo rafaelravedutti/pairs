@@ -35,8 +35,12 @@ nz = 32
 rho = 0.8442
 temp = 1.44
 
-psim = pairs.simulation("md", [pairs.point_mass()], timesteps=200, double_prec=True, debug=True)
-#psim = pairs.simulation("md", [pairs.point_mass()], timesteps=200, double_prec=True, debug=True, generate_whole_program=True)
+psim = pairs.simulation("md", 
+                        [pairs.point_mass()],
+                        timesteps=200, 
+                        double_prec=True, 
+                        debug=True,
+                        generate_whole_program=True)
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())
@@ -52,14 +56,12 @@ psim.add_feature_property('type', 'epsilon', pairs.real(), [epsilon for i in ran
 psim.add_feature_property('type', 'sigma6', pairs.real(), [sigma6 for i in range(ntypes * ntypes)])
 
 psim.copper_fcc_lattice(nx, ny, nz, rho, temp, ntypes)
-#psim.set_domain_partitioner(pairs.block_forest())
 psim.set_domain_partitioner(pairs.regular_domain_partitioner())
 psim.compute_thermo(100)
 
 psim.reneighbor_every(20)
-#psim.compute_half()
 psim.build_neighbor_lists(cutoff_radius + skin)
-psim.vtk_output(f"output/md_{target}")
+# psim.vtk_output(f"output/md_{target}")
 
 psim.compute(initial_integrate, symbols={'dt': dt}, pre_step=True, skip_first=True)
 psim.compute(lennard_jones, cutoff_radius)

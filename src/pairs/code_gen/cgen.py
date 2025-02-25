@@ -57,6 +57,15 @@ class CGen:
 
     def real_type(self):
         return Types.c_keyword(self.sim, Types.Real)
+    
+    # def generate_cmake_config_file(self):
+    #     self.print = Printer("pairs_cmake_params.txt")
+    #     self.print.start()
+    #     self.print(f"PAIRS_TARGET={self.ref}")
+    #     self.print(f"GENERATE_WHOLE_PROGRAM={'ON' if self.sim._generate_whole_program else 'OFF'}")
+    #     self.print(f"USE_WALBERLA={'ON' if self.sim._partitioner == DomainPartitioners.BlockForest else 'OFF'}")
+    #     # self.print(f"COMPILE_CUDA={'ON' if self.target.is_gpu() else 'OFF'}")
+    #     self.print.end()
 
     def generate_object_reference(self, obj, device=False, index=None):
         if device and (not self.target.is_gpu() or not obj.device_flag):
@@ -99,8 +108,8 @@ class CGen:
         return f"&({ref})"
 
     def generate_interfaces(self):
-        #self.print = Printer(f"runtime/interfaces/{self.ref}.hpp")
-        self.print = Printer("runtime/interfaces/last_generated.hpp")
+        #self.print = Printer(f"interfaces/{self.ref}.hpp")
+        self.print = Printer("internal_interfaces/last_generated.hpp")
         self.print.start()
         self.print("#pragma once")
         self.generate_interface_namespace('pairs_host_interface')
@@ -141,14 +150,9 @@ class CGen:
         self.print("}")
 
     def generate_preamble(self):
-        self.print(f"#define APPLICATION_REFERENCE \"{self.ref}\"")
-
-        # TODO: Either do this, or add USE_WALBERLA to you compile definitions
-        if self.sim.partitioner()==DomainPartitioners.BlockForest:
-            self.print("#define USE_WALBERLA")
+        # self.print(f"#define APPLICATION_REFERENCE \"{self.ref}\"")
 
         if self.target.is_gpu():
-            self.print("#define PAIRS_TARGET_CUDA")
             self.print("#include <math_constants.h>")
              
         if self.target.is_openmp():
@@ -161,16 +165,16 @@ class CGen:
         self.print("#include <stdio.h>")
         self.print("#include <stdlib.h>")
         self.print("//---")
-        self.print("#include \"runtime/likwid-marker.h\"")
-        self.print("#include \"runtime/copper_fcc_lattice.hpp\"")
-        self.print("#include \"runtime/create_body.hpp\"")
-        self.print("#include \"runtime/dem_sc_grid.hpp\"")
-        self.print("#include \"runtime/pairs.hpp\"")
-        self.print("#include \"runtime/read_from_file.hpp\"")
-        self.print("#include \"runtime/stats.hpp\"")
-        self.print("#include \"runtime/timing.hpp\"")
-        self.print("#include \"runtime/thermo.hpp\"")
-        self.print("#include \"runtime/vtk.hpp\"")
+        self.print("#include \"likwid-marker.h\"")
+        self.print("#include \"copper_fcc_lattice.hpp\"")
+        self.print("#include \"create_body.hpp\"")
+        self.print("#include \"dem_sc_grid.hpp\"")
+        self.print("#include \"pairs.hpp\"")
+        self.print("#include \"read_from_file.hpp\"")
+        self.print("#include \"stats.hpp\"")
+        self.print("#include \"timing.hpp\"")
+        self.print("#include \"thermo.hpp\"")
+        self.print("#include \"vtk.hpp\"")
         self.print("")
         self.print("using namespace pairs;")
         self.print("")

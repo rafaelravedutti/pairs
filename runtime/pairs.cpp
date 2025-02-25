@@ -14,7 +14,7 @@ namespace pairs {
 
 void PairsRuntime::initDomain(
     int *argc, char ***argv,
-    real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, 
+    real_t xmin, real_t ymin, real_t zmin, real_t xmax, real_t ymax, real_t zmax, 
     bool pbcx, bool pbcy, bool pbcz, 
     bool balance_workload) {
 

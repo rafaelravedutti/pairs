@@ -23,12 +23,6 @@ void vtk_write_aabb(PairsRuntime *ps, const char *filename, int num,
     filename_oss <<".vtk";
     std::ofstream out_file(filename_oss.str());
 
-    double aabb[3][3];
-    for (int d=0; d<3; ++d){
-        aabb[d][0] = ps->getDomainPartitioner()->getSubdomMin(d);
-        aabb[d][1] = ps->getDomainPartitioner()->getSubdomMax(d);
-    }
-
     out_file << std::fixed << std::setprecision(prec);
     if(out_file.is_open()) {
         out_file << "# vtk DataFile Version 2.0\n";

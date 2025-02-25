@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 project(pairs CXX)
-
 # Set default build type if none is specified
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug, Release, etc.)" FORCE)
@@ -9,30 +8,27 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
-option(USE_WALBERLA "Enable waLBerla support for using BlockForest partitioning" ON)
-option(USE_MPI "USE_MPI" ON)
-option(COMPILE_CUDA "COMPILE_CUDA" ON)
-option(ENABLE_GPU_DIRECT "ENABLE_GPU_DIRECT" ON)
-option(GENERATE_WHOLE_PROGRAM "Generate the whole program (i.e. including the 'main' function). No additional source files are needed." OFF)
-option(BUILD_APP "Build a stand-alone app which uses the P4IRS modular interface. Provide your source files with -DUSER_SOURCE_FILES" OFF)
+option(USE_MPI                      "USE_MPI" ON)
+option(COMPILE_CUDA                 "COMPILE_CUDA" OFF)
+option(GENERATE_WHOLE_PROGRAM       "Generate the whole program (i.e. including the 'main' function). No additional source files are needed." OFF)
+option(BUILD_APP                    "Build a stand-alone app which uses the P4IRS modular interface. Provide your source files with -DUSER_SOURCE_FILES" OFF)
 
 if(GENERATE_WHOLE_PROGRAM AND BUILD_APP)
     message(FATAL_ERROR "You must choose either GENERATE_WHOLE_PROGRAM or BUILD_APP or neither.\n
-        Choose neither if you only want to use the generated libraries in your project (in a seperate build system).")
+        Choose neither if you only want to use the P4IRS library in your project (in a seperate build system).")
 endif()
 
-set(PYTHON_SCRIPT ${PYTHON_SCRIPT} CACHE PATH "The python script triggering code generation")
-if(NOT EXISTS ${PYTHON_SCRIPT})
-    message(FATAL_ERROR "PYTHON_SCRIPT doesn't exist! Specify it with -DPYTHON_SCRIPT=/path/to/script.py")
+set(INPUT_SCRIPT ${INPUT_SCRIPT} CACHE PATH "The input python script triggering code generation")
+if(NOT EXISTS ${INPUT_SCRIPT})
+    message(FATAL_ERROR "INPUT_SCRIPT doesn't exist! Specify it with -DINPUT_SCRIPT=/path/to/script.py")
 endif()
-get_filename_component(PYTHON_SCRIPT_NAME ${PYTHON_SCRIPT} NAME_WE)
+get_filename_component(INPUT_SCRIPT_NAME ${INPUT_SCRIPT} NAME_WE)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
 #================================================================================
 # Setup directories =============================================================
 #================================================================================
-file(COPY runtime DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 file(COPY data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/output)
@@ -44,8 +40,10 @@ file(MAKE_DIRECTORY ${OUTPUT_DIR})
 #================================================================================
 # Generated header (internally used by runtime files) ===========================
 #================================================================================
-set(GEN_INTERFACE_HEADER ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces/last_generated.hpp)
-set(GEN_INTERFACE_DIR ${CMAKE_CURRENT_BINARY_DIR}/runtime/interfaces)
+# TODO: Unify all interfaces
+set(GEN_INTERFACE_DIR ${CMAKE_CURRENT_BINARY_DIR}/internal_interfaces)
+set(GEN_INTERFACE_HEADER ${CMAKE_CURRENT_BINARY_DIR}/last_generated.hpp)
+file(MAKE_DIRECTORY ${GEN_INTERFACE_DIR})
 
 #================================================================================
 # RUNTIME_COMMON_FILES ==========================================================
@@ -80,6 +78,10 @@ else()
     list(APPEND PAIRS_LINK_LIBRARIES ${PAIRS_TARGET})
 endif()
 
+# Include P4IRS 'runtime' dir
+target_include_directories(${PAIRS_TARGET} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+list(APPEND PAIRS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
+
 set_target_properties(${PAIRS_TARGET} PROPERTIES 
     CXX_STANDARD_REQUIRED ON
     CXX_STANDARD 17
@@ -106,7 +108,15 @@ endif()
 #================================================================================
 # waLBerla ======================================================================
 #================================================================================
-if(USE_WALBERLA)
+set(WALBERLA_DIR ${WALBERLA_DIR} CACHE PATH "Path to waLBerla source directory (required only when using BlockForest partitioning).")
+
+if(WALBERLA_DIR)
+    if(EXISTS "${WALBERLA_DIR}")
+        target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
+    else()
+        message(FATAL_ERROR "Invalid WALBERLA_DIR: '${WALBERLA_DIR}' does not exist.")
+    endif()
+
     set(RUNTIME_WALBERLA_FILES
         runtime/domain/block_forest.cpp
     )
@@ -119,7 +129,6 @@ if(USE_WALBERLA)
     endif()
 
     target_sources(${PAIRS_TARGET} PRIVATE ${RUNTIME_WALBERLA_FILES})
-    target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
 
     ## Linking walberla modules
     set(PAIRS_WALBERLA_DEPENDENCIES blockforest core pe)
@@ -157,7 +166,7 @@ execute_process(
 if(COMPILE_CUDA)
     find_package(CUDA REQUIRED)
     enable_language(CUDA)
-    set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${PYTHON_SCRIPT_NAME}.cu")
+    set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${INPUT_SCRIPT_NAME}.cu")
     set(CUDA_ARCH ${CUDA_ARCH} CACHE STRING "CUDA_ARCH environment variable must be set.")
     set(TARGET_ARG "gpu")
 
@@ -172,6 +181,13 @@ if(COMPILE_CUDA)
         set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G -O0 -DDEBUG")
     else()
         set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
+    endif()
+
+    if(NOT DEFINED ENABLE_GPU_DIRECT)
+        set(ENABLE_GPU_DIRECT ON "Enable GPU Direct (default: ON when COMPILE_CUDA is ON)" FORCE)
+    else()
+         # User choice is respected here if they opt to COMPILE_CUDA without GPU Direct
+        set(ENABLE_GPU_DIRECT ${ENABLE_GPU_DIRECT} "Enable GPU Direct (user-defined)" FORCE)
     endif()
 
     if(ENABLE_GPU_DIRECT)
@@ -192,7 +208,11 @@ if(COMPILE_CUDA)
     target_link_libraries(${PAIRS_TARGET} PUBLIC ${CUDA_LIBRARIES})
     list(APPEND PAIRS_LINK_LIBRARIES ${CUDA_LIBRARIES})
 else()
-    set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${PYTHON_SCRIPT_NAME}.cpp")
+    if(ENABLE_GPU_DIRECT)
+        message(FATAL_ERROR "Invalid combination: ENABLE_GPU_DIRECT requires COMPILE_CUDA to be ON")
+    endif()
+
+    set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${INPUT_SCRIPT_NAME}.cpp")
     set(TARGET_ARG "cpu")
     target_sources(${PAIRS_TARGET} PRIVATE runtime/devices/dummy.cpp)
 endif()
@@ -202,9 +222,9 @@ endif()
 #================================================================================
 add_custom_command(
     OUTPUT ${GEN_SOURCES} ${GEN_INTERFACE_HEADER}
-    COMMAND ${PYTHON_EXECUTABLE} ${PYTHON_SCRIPT} ${TARGET_ARG}
+    COMMAND ${PYTHON_EXECUTABLE} ${INPUT_SCRIPT} ${TARGET_ARG}
     COMMENT "Generating code with P4IRS"
-    DEPENDS ${PYTHON_SCRIPT})
+    DEPENDS ${INPUT_SCRIPT})
 
 add_custom_target(generated_code DEPENDS ${GEN_SOURCES} ${GEN_INTERFACE_HEADER})
 add_dependencies(${PAIRS_TARGET} generated_code)
@@ -230,7 +250,11 @@ endif()
 # LIKWID ========================================================================
 #================================================================================
 if(LIKWID_DIR)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLIKWID_PERFMON -pthread -L${LIKWID_DIR}/lib -llikwid ")
+    target_compile_options(${PAIRS_TARGET} PRIVATE -DLIKWID_PERFMON -pthread)
+
+    target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_DIR}/lib/liblikwid.a)
+    list(APPEND PAIRS_LINK_LIBRARIES ${LIKWID_DIR}/lib/liblikwid.a)
+
     include_directories(${LIKWID_DIR}/include)
     list(APPEND PAIRS_INCLUDE_DIRS "${LIKWID_DIR}/include")
 endif()

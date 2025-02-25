@@ -26,9 +26,9 @@ class PairsAcessor:
         if self.target.is_gpu():
             self.host_device_attr = "__host__ __device__ "
             self.host_attr = "__host__ "
-        self.print("#include \"runtime/math/Vector3.hpp\"")
-        # self.print("#include \"runtime/math/Quaternion.hpp\"")
-        # self.print("#include \"runtime/math/Matrix3.hpp\"")
+        self.print("#include \"math/Vector3.hpp\"")
+        # self.print("#include \"math/Quaternion.hpp\"")
+        # self.print("#include \"math/Matrix3.hpp\"")
         self.print("")
 
         self.print("class PairsAccessor {")

@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     pairs_runtime->initDomain(&argc, &argv, 
-                    0, 20, 0, 20, 0, 20,    // Domain bounds
+                    0, 0, 0, 20, 20, 20,    // Domain bounds
                     false, false, false,    // PBCs --------------> TODO: runtime pbc
                     true                    // Enable dynamic load balancing (does initial refinement on a <1,1,1> blockforest)
                 ); 

@@ -1,5 +1,3 @@
-set( WALBERLA_DIR    WALBERLA_DIR-NOTFOUND   CACHE  PATH  "waLBerla path"  )
-
 if ( WALBERLA_DIR )
     # WALBERLA_DIR has to point to the waLBerla source directory
     # this command builds waLBerla (again) in the current build directory in the subfolder "walberla" (second argument)

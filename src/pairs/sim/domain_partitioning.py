@@ -46,8 +46,8 @@ class DimensionRanges:
        return sum([array[i] for i in self.step_indexes(step)])
 
     def initialize(self):
-        grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs_runtime->initDomain", [param for delim in grid_array for param in delim])
+        grid_array = [self.sim.grid.min(d) for d in range(self.sim.ndims())] + [self.sim.grid.max(d) for d in range(self.sim.ndims())]
+        Call_Void(self.sim, "pairs_runtime->initDomain", grid_array)
 
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
@@ -141,11 +141,10 @@ class BlockForest:
         return self.reduce_step
 
     def initialize(self):
-        grid_array = [(self.sim.grid.min(d), self.sim.grid.max(d)) for d in range(self.sim.ndims())]
+        grid_array = [self.sim.grid.min(d) for d in range(self.sim.ndims())] + [self.sim.grid.max(d) for d in range(self.sim.ndims())]
 
         Call_Void(self.sim, "pairs_runtime->initDomain", 
-                  [param for delim in grid_array for param in delim] + 
-                  self.sim._pbc + ([True] if self.load_balancer is not None else []))
+                  grid_array + self.sim._pbc + ([True] if self.load_balancer is not None else []))
         
         if self.load_balancer is not None:
             PrintCode(self.sim, "pairs_runtime->getDomainPartitioner()->initWorkloadBalancer"

@@ -30,16 +30,17 @@ int main(int argc, char **argv) {
 
     // Pass forest to P4IRS
     // -------------------------------------------------------------------------------
-    pairs_sim->use_domain(forest);
+    auto pairs_runtime = pairs_sim->getPairsRuntime();
+    pairs_runtime->useDomain(forest);
 
-    pairs_sim->create_halfspace(0,0,0,  1, 0, 0,     0, 13);
-    pairs_sim->create_halfspace(0,0,0,  0, 1, 0,     0, 13);
-    pairs_sim->create_halfspace(0,0,0,  0, 0, 1,     0, 13);
-    pairs_sim->create_halfspace(1,1,1,  -1, 0, 0,    0, 13);
-    pairs_sim->create_halfspace(1,1,1,  0, -1, 0,    0, 13);
-    pairs_sim->create_halfspace(1,1,1,  0, 0, -1,    0, 13);
-    pairs_sim->create_sphere(0.6, 0.6, 0.7,      -2, -2, 0,  1000, 0.05, 0, 0);
-    pairs_sim->create_sphere(0.4, 0.4, 0.68,    2, 2, 0,    1000, 0.05, 0, 0);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, 13);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, 13);
+    pairs::create_sphere(pairs_runtime, 0.6, 0.6, 0.7,      -2, -2, 0,  1000, 0.05, 0, 0);
+    pairs::create_sphere(pairs_runtime, 0.4, 0.4, 0.68,    2, 2, 0,    1000, 0.05, 0, 0);
 
     pairs_sim->setup_sim(0.1, 0.1, 0.1, 0.1);
     pairs_sim->update_mass_and_inertia();
@@ -59,10 +60,8 @@ int main(int argc, char **argv) {
         pairs_sim->spring_dashpot(); 
         pairs_sim->euler(dt); 
 
-        pairs_sim->reset_volatiles(); 
-
-        pairs_sim->vtk_write("output/dem_sd_local", 0, pairs_sim->nlocal(), t, vtk_freq);
-        pairs_sim->vtk_write("output/dem_sd_ghost", pairs_sim->nlocal(), pairs_sim->size(), t, vtk_freq);
+        pairs::vtk_write_data(pairs_runtime, "output/sd_2_local", 0, pairs_sim->nlocal(), t, vtk_freq);
+        pairs::vtk_write_data(pairs_runtime, "output/sd_2_ghost", pairs_sim->nlocal(), pairs_sim->size(), t, vtk_freq);
     }
 
     pairs_sim->end();
