@@ -1,4 +1,6 @@
 class Printer:
+
+    line_id = 0
     def __init__(self, output):
         self.output = output
         self.stream = None
@@ -16,4 +18,5 @@ class Printer:
 
     def __call__(self, text):
         assert self.stream is not None, "Invalid stream!"
+        Printer.line_id += 1
         self.stream.write(self.indent * ' ' + text + '\n')

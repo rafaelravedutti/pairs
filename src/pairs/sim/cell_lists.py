@@ -11,21 +11,37 @@ from pairs.ir.math import Ceil
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.types import Types
-from pairs.ir.utils import Print
+from pairs.ir.print import Print
 from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
 
 
 class CellLists:
-    def __init__(self, sim, dom_part, spacing, cutoff_radius):
+    def __init__(self, sim, dom_part, spacing=None, cutoff_radius=None):
         self.sim = sim
         self.dom_part = dom_part
-        self.spacing = spacing if isinstance(spacing, list) else [spacing for d in range(sim.ndims())]
-        self.cutoff_radius = cutoff_radius
-        self.nneighbor_cells = [math.ceil(cutoff_radius / self.spacing[d]) for d in range(sim.ndims())]
-        self.nstencil_max = reduce((lambda x, y: x * y), [self.nneighbor_cells[d] * 2 + 1 for d in range(sim.ndims())])
+
+        # Cell spacing and cutoff radius can be set at runtime 
+        # only if they haven't been pre-set in the input script
+        if spacing:
+            self.spacing = spacing if isinstance(spacing, list) else [spacing for d in range(sim.ndims())]
+            self.runtime_spacing = False
+        else:
+            assert self.sim._generate_whole_program==False, "Cell spacing needs to be defined when generating whole program."
+            self.spacing = self.sim.add_array('spacing', self.sim.ndims(), Types.Real)
+            self.runtime_spacing = True
+
+        if cutoff_radius:
+            self.cutoff_radius = cutoff_radius
+            self.runtime_cutoff_radius = False
+        else:
+            assert self.sim._generate_whole_program==False, "cutoff_radius needs to be defined when generating whole program."
+            self.cutoff_radius = self.sim.add_var('cutoff_radius', Types.Real)
+            self.runtime_cutoff_radius = True
+
         # Data introduced in the simulation
         self.nstencil           =   self.sim.add_var('nstencil', Types.Int32)
+        self.nstencil_capacity  =   self.sim.add_var('nstencil_capacity', Types.Int32, 27)
         self.ncells             =   self.sim.add_var('ncells', Types.Int32, 1)
         self.ncells_capacity    =   self.sim.add_var('ncells_capacity', Types.Int32, 100000)
         self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 64)
@@ -34,7 +50,7 @@ class CellLists:
         self.cell_particles     =   self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Types.Int32)
         self.cell_sizes         =   self.sim.add_array('cell_sizes', self.ncells_capacity, Types.Int32)
         self.nshapes            =   self.sim.add_array('nshapes', [self.ncells_capacity, self.sim.max_shapes()], Types.Int32)
-        self.stencil            =   self.sim.add_array('stencil', self.nstencil_max, Types.Int32)
+        self.stencil            =   self.sim.add_array('stencil', self.nstencil_capacity, Types.Int32)
         self.particle_cell      =   self.sim.add_array('particle_cell', self.sim.particle_capacity, Types.Int32)
 
         if sim._store_neighbors_per_cell:
@@ -52,8 +68,9 @@ class BuildCellListsStencil(Lowerable):
     def lower(self):
         stencil = self.cell_lists.stencil
         nstencil = self.cell_lists.nstencil
+        nstencil_capacity = self.cell_lists.nstencil_capacity
         spacing = self.cell_lists.spacing
-        nneighbor_cells = self.cell_lists.nneighbor_cells
+        cutoff_radius = self.cell_lists.cutoff_radius
         dim_ncells = self.cell_lists.dim_ncells
         ncells = self.cell_lists.ncells
         ncells_capacity = self.cell_lists.ncells_capacity
@@ -63,6 +80,7 @@ class BuildCellListsStencil(Lowerable):
 
         self.sim.module_name("build_cell_lists_stencil")
         self.sim.check_resize(ncells_capacity, ncells)
+        self.sim.check_resize(nstencil_capacity, nstencil)
 
         for s in range(self.sim.max_shapes()):
             Assign(self.sim, shapes_buffer[s], self.sim.get_shape_id(s))
@@ -79,7 +97,7 @@ class BuildCellListsStencil(Lowerable):
             Assign(self.sim, nstencil, 0)
 
             for dim in range(self.sim.ndims()):
-                nneigh = nneighbor_cells[dim]
+                nneigh = Ceil(self.sim,(cutoff_radius / spacing[dim]))
                 for dim_offset in For(self.sim, -nneigh, nneigh + 1):
                     index = dim_offset if index is None else index * dim_ncells[dim] + dim_offset
                     if dim == self.sim.ndims() - 1:

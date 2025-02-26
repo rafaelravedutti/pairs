@@ -71,7 +71,7 @@ void Regular6DStencil::setBoundingBox() {
         MPI_Cart_shift(cartesian, d, 1, &(prev[d]), &(next[d]));
         pbc_prev[d] = (myloc[d] == 0) ? 1 : 0;
         pbc_next[d] = (myloc[d] == nranks[d] - 1) ? -1 : 0;
-        subdom_min[d] = this->grid_min[d] + rank_length[d] * (real_t)myloc[d];
+        subdom_min[d] = this->grid_min[d] + rank_length[d] * (real_t) myloc[d];
         subdom_max[d] = subdom_min[d] + rank_length[d];
     }
 
@@ -89,6 +89,10 @@ void Regular6DStencil::initialize(int *argc, char ***argv) {
     this->setBoundingBox();
 }
 
+void Regular6DStencil::initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) {}
+
+void Regular6DStencil::update() {}
+
 void Regular6DStencil::finalize() {
     MPI_Finalize();
 }
@@ -99,14 +103,24 @@ int Regular6DStencil::isWithinSubdomain(real_t x, real_t y, real_t z) {
            z >= subdom_min[2] && z < subdom_max[2] - SMALL;
 }
 
-void Regular6DStencil::fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {
+void Regular6DStencil::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     for(int d = 0; d < ndims; d++) {
-        neighbor_ranks[d * 2 + 0] = prev[d];
-        neighbor_ranks[d * 2 + 1] = next[d];
-        pbc[d * 2 + 0] = pbc_prev[d];
-        pbc[d * 2 + 1] = pbc_next[d];
-        subdom[d * 2 + 0] = subdom_min[d];
-        subdom[d * 2 + 1] = subdom_max[d];
+        if(name.compare("neighbor_ranks") == 0) {
+            int *neighbor_ranks = static_cast<int *>(dest);
+            neighbor_ranks[d * 2 + 0] = prev[d];
+            neighbor_ranks[d * 2 + 1] = next[d];
+        } else if(name.compare("pbc") == 0) {
+            int *pbc = static_cast<int *>(dest);
+            pbc[d * 2 + 0] = pbc_prev[d];
+            pbc[d * 2 + 1] = pbc_next[d];
+        } else if(name.compare("subdom") == 0) {
+            real_t *subdom = static_cast<real_t *>(dest);
+            subdom[d * 2 + 0] = subdom_min[d];
+            subdom[d * 2 + 1] = subdom_max[d];
+        } else {
+            std::cerr << "copyRuntimeArray(): Array \"" << name << "\" is invalid." << std::endl;
+            exit(-1);
+        }
     }
 }
 
@@ -131,8 +145,6 @@ void Regular6DStencil::communicateData(
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    //MPI_Request recv_requests[2];
-    //MPI_Request send_requests[2];
     const real_t *send_prev = &send_buf[send_offsets[dim * 2 + 0] * elem_size];
     const real_t *send_next = &send_buf[send_offsets[dim * 2 + 1] * elem_size];
     real_t *recv_prev = &recv_buf[recv_offsets[dim * 2 + 0] * elem_size];
@@ -143,16 +155,6 @@ void Regular6DStencil::communicateData(
             send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
             recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0,
             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-        /*
-        MPI_Irecv(
-            recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
-            MPI_COMM_WORLD, &recv_requests[0]);
-
-        MPI_Isend(
-            send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
-            MPI_COMM_WORLD, &send_requests[0]);
-        */
     } else {
         pairs::copy_in_device(recv_prev, send_prev, nsend[dim * 2 + 0] * elem_size * sizeof(real_t));
     }
@@ -162,31 +164,44 @@ void Regular6DStencil::communicateData(
             send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
             recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0,
             MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-        /*
-        MPI_Irecv(
-            recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
-            MPI_COMM_WORLD, &recv_requests[1]);
-
-        MPI_Isend(
-            send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
-            MPI_COMM_WORLD, &send_requests[1]);
-        */
     } else {
         pairs::copy_in_device(recv_next, send_next, nsend[dim * 2 + 1] * elem_size * sizeof(real_t));
     }
+}
 
-    //MPI_Waitall(2, recv_requests, MPI_STATUSES_IGNORE);
-    //MPI_Waitall(2, send_requests, MPI_STATUSES_IGNORE);
+void Regular6DStencil::communicateDataReverse(
+    int dim, int elem_size,
+    const real_t *send_buf, const int *send_offsets, const int *nsend,
+    real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
+
+    const real_t *send_prev = &send_buf[send_offsets[dim * 2 + 0] * elem_size];
+    const real_t *send_next = &send_buf[send_offsets[dim * 2 + 1] * elem_size];
+    real_t *recv_prev = &recv_buf[recv_offsets[dim * 2 + 0] * elem_size];
+    real_t *recv_next = &recv_buf[recv_offsets[dim * 2 + 1] * elem_size];
+
+    if(prev[dim] != rank) {
+        MPI_Sendrecv(
+            send_prev, nsend[dim * 2 + 0] * elem_size, MPI_DOUBLE, next[dim], 0,
+            recv_prev, nrecv[dim * 2 + 0] * elem_size, MPI_DOUBLE, prev[dim], 0,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    } else {
+        pairs::copy_in_device(recv_prev, send_prev, nsend[dim * 2 + 0] * elem_size * sizeof(real_t));
+    }
+
+    if(next[dim] != rank) {
+        MPI_Sendrecv(
+            send_next, nsend[dim * 2 + 1] * elem_size, MPI_DOUBLE, prev[dim], 0,
+            recv_next, nrecv[dim * 2 + 1] * elem_size, MPI_DOUBLE, next[dim], 0,
+            MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    } else {
+        pairs::copy_in_device(recv_next, send_next, nsend[dim * 2 + 1] * elem_size * sizeof(real_t));
+    }
 }
 
 void Regular6DStencil::communicateAllData(
     int ndims, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
-
-    //std::vector<MPI_Request> send_requests(ndims * 2, MPI_REQUEST_NULL);
-    //std::vector<MPI_Request> recv_requests(ndims * 2, MPI_REQUEST_NULL);
 
     for (int d = 0; d < ndims; d++) {
         const real_t *send_prev = &send_buf[send_offsets[d * 2 + 0] * elem_size];
@@ -199,16 +214,6 @@ void Regular6DStencil::communicateAllData(
                 send_prev, nsend[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
                 recv_prev, nrecv[d * 2 + 0] * elem_size, MPI_DOUBLE, next[d], 0,
                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-            /*
-            MPI_Isend(
-                send_prev, nsend[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
-                MPI_COMM_WORLD, &send_requests[d * 2 + 0]);
-
-            MPI_Irecv(
-                recv_prev, nrecv[d * 2 + 0] * elem_size, MPI_DOUBLE, prev[d], 0,
-                MPI_COMM_WORLD, &recv_requests[d * 2 + 0]);
-            */
         } else {
             pairs::copy_in_device(recv_prev, send_prev, nsend[d * 2 + 0] * elem_size * sizeof(real_t));
         }
@@ -218,23 +223,10 @@ void Regular6DStencil::communicateAllData(
                 send_next, nsend[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
                 recv_next, nrecv[d * 2 + 1] * elem_size, MPI_DOUBLE, prev[d], 0,
                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-            /*
-            MPI_Isend(
-                send_next, nsend[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
-                MPI_COMM_WORLD, &send_requests[d * 2 + 1]);
-
-            MPI_Irecv(
-                recv_next, nrecv[d * 2 + 1] * elem_size, MPI_DOUBLE, next[d], 0,
-                MPI_COMM_WORLD, &recv_requests[d * 2 + 1]);
-            */
         } else {
             pairs::copy_in_device(recv_next, send_next, nsend[d * 2 + 1] * elem_size * sizeof(real_t));
         }
     }
-
-    //MPI_Waitall(ndims * 2, send_requests.data(), MPI_STATUSES_IGNORE);
-    //MPI_Waitall(ndims * 2, recv_requests.data(), MPI_STATUSES_IGNORE);
 }
 
 }

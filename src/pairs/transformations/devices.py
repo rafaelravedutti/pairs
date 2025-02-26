@@ -4,7 +4,7 @@ from pairs.ir.block import Block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
 from pairs.ir.contexts import Contexts
-from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyVar, DeviceStaticRef, HostRef
+from pairs.ir.device import CopyArray, CopyContactProperty, CopyProperty, CopyFeatureProperty, CopyVar, DeviceStaticRef, HostRef
 from pairs.ir.functions import Call_Void
 from pairs.ir.kernel import Kernel, KernelLaunch
 from pairs.ir.lit import Lit
@@ -45,6 +45,9 @@ class AddDeviceCopies(Mutator):
 
                     for prop, action in s.module.properties().items():
                         new_stmts += [CopyProperty(s.sim, prop, copy_context, action)]
+
+                    for fp, action in s.module.feature_properties().items():
+                        new_stmts += [CopyFeatureProperty(s.sim, fp, copy_context, action)]
 
                     for contact_prop, action in s.module.contact_properties().items():
                         new_stmts += [CopyContactProperty(s.sim, contact_prop, copy_context, action)]
@@ -88,6 +91,7 @@ class AddDeviceKernels(Mutator):
         super().__init__(ast)
         self._module_name = None
         self._kernel_id = 0
+        self._device_module = False
 
     def create_kernel(self, sim, iterator, rmax, block):
         kernel_name = f"{self._module_name}_kernel{self._kernel_id}"
@@ -99,61 +103,27 @@ class AddDeviceKernels(Mutator):
             self._kernel_id += 1
 
         return kernel
+    
+    def mutate_For(self, ast_node):
+        if ast_node.is_kernel_candidate() and self._device_module:
+            kernel = self.create_kernel(ast_node.sim, ast_node.iterator, ast_node.max, ast_node.block)
+            ast_node = KernelLaunch(ast_node.sim, kernel, ast_node.iterator, ast_node.min, ast_node.max)
+
+        else:
+            ast_node.block = self.mutate(ast_node.block)
+        
+        return ast_node
 
     def mutate_Module(self, ast_node):
+        parent_runs_on_device = self._device_module
         if ast_node.run_on_device:
+            self._device_module = True
             self._module_name = ast_node.name
             self._kernel_id = 0
 
-            new_stmts = []
-            for stmt in ast_node._block.stmts:
-                if stmt is not None:
-                    if isinstance(stmt, For) and stmt.is_kernel_candidate():
-                        kernel = self.create_kernel(ast_node.sim, stmt.iterator, stmt.max, stmt.block)
-                        new_stmts.append(
-                            KernelLaunch(ast_node.sim, kernel, stmt.iterator, stmt.min, stmt.max))
-
-                    else:
-                        if isinstance(stmt, Branch):
-                            stmt = self.check_and_mutate_branch(stmt)
-
-                        new_stmts.append(stmt)
-
-            ast_node._block.stmts = new_stmts
-
         ast_node._block = self.mutate(ast_node._block)
+        self._device_module = parent_runs_on_device
         return ast_node
-
-    def check_and_mutate_branch(self, ast_node):
-        new_stmts = []
-        for stmt in ast_node.block_if.stmts:
-            if stmt is not None:
-                if isinstance(stmt, For) and stmt.is_kernel_candidate():
-                    kernel = self.create_kernel(ast_node.sim, stmt.iterator, stmt.max, stmt.block)
-                    new_stmts.append(
-                        KernelLaunch(ast_node.sim, kernel, stmt.iterator, stmt.min, stmt.max))
-
-                else:
-                    new_stmts.append(stmt)
-
-        ast_node.block_if.stmts = new_stmts
-
-        if ast_node.block_else is not None:
-            new_stmts = []
-            for stmt in ast_node.block_else.stmts:
-                if stmt is not None:
-                    if isinstance(stmt, For) and stmt.is_kernel_candidate():
-                        kernel = self.create_kernel(ast_node.sim, stmt.iterator, stmt.max, stmt.block)
-                        new_stmts.append(
-                            KernelLaunch(ast_node.sim, kernel, stmt.iterator, stmt.min, stmt.max))
-
-                    else:
-                        new_stmts.append(stmt)
-
-            ast_node.block_else.stmts = new_stmts
-
-        return ast_node
-
 
 class AddHostReferencesToModules(Mutator):
     def __init__(self, ast=None):

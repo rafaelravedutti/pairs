@@ -2,18 +2,23 @@ import time
 from pairs.analysis.expressions import DetermineExpressionsTerminals, ResetInPlaceOperations, DetermineInPlaceOperations, ListDeclaredExpressions
 from pairs.analysis.blocks import DiscoverBlockVariants, DetermineExpressionsOwnership, DetermineParentBlocks
 from pairs.analysis.devices import FetchKernelReferences, MarkCandidateLoops
-from pairs.analysis.modules import FetchModulesReferences
+from pairs.analysis.modules import FetchModulesReferences, InferModulesReturnTypes
 
 
 class Analysis:
+    """Compiler analysis performed on P4IRS"""
+
     def __init__(self, ast):
-        self._ast = ast
+        self._ast_list = ast if isinstance(ast, list) else [ast]
 
     def apply(self, analysis):
         print(f"Performing analysis: {type(analysis).__name__}... ", end="")
         start = time.time()
-        analysis.set_ast(self._ast)
-        analysis.visit()
+
+        for ast in self._ast_list:
+            analysis.set_ast(ast)
+            analysis.visit()
+
         elapsed = time.time() - start
         print(f"{elapsed:.2f}s elapsed.")
 
@@ -46,3 +51,6 @@ class Analysis:
 
     def mark_candidate_loops(self):
         self.apply(MarkCandidateLoops())
+
+    def infer_modules_return_types(self):
+        self.apply(InferModulesReturnTypes())

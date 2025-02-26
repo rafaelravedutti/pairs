@@ -42,6 +42,21 @@ def pairs_device_block(func):
     return inner
 
 
+def pairs_interface_block(func):
+    def inner(*args, **kwargs):
+        sim = args[0].sim # self.sim
+        sim.init_block()
+        func(*args, **kwargs)
+        return Module(sim,
+            name=sim._module_name,
+            block=Block(sim, sim._block),
+            resizes_to_check=sim._resizes_to_check,
+            check_properties_resize=sim._check_properties_resize,
+            run_on_device=False,
+            interface=True)
+
+    return inner
+
 class Block(ASTNode):
     def __init__(self, sim, stmts):
         super().__init__(sim)

@@ -12,32 +12,37 @@
 #include "property.hpp"
 #include "runtime_var.hpp"
 #include "timers.hpp"
+#include "tracked_variable.hpp"
 #include "devices/device.hpp"
+#include "domain/block_forest.hpp"
 #include "domain/regular_6d_stencil.hpp"
 
 #pragma once
 
-#define FLAGS_INFINITE  (1 << 0)
-#define FLAGS_GHOST     (1 << 1)
-#define FLAGS_FIXED     (1 << 2)
-#define FLAGS_GLOBAL    (1 << 3)
 
 namespace pairs {
 
-class PairsSimulation {
+class PairsRuntime {
 private:
-    Regular6DStencil *dom_part;
-    //DomainPartitioner *dom_part;
+    DomainPartitioner *dom_part;
     DomainPartitioners dom_part_type;
     std::vector<Property> properties;
     std::vector<ContactProperty> contact_properties;
     std::vector<FeatureProperty> feature_properties;
     std::vector<Array> arrays;
+    std::vector<TrackedVariable> tracked_variables;
     DeviceFlags *prop_flags, *contact_prop_flags, *array_flags;
     Timers<double> *timers;
+    int *nlocal, *nghost;
 
 public:
-    PairsSimulation(int nprops_, int ncontactprops_, int narrays_, DomainPartitioners dom_part_type_) {
+    PairsRuntime(
+        int nprops_,
+        int ncontactprops_,
+        int narrays_,
+        DomainPartitioners dom_part_type_) {
+
+        dom_part = nullptr;
         dom_part_type = dom_part_type_;
         prop_flags = new DeviceFlags(nprops_);
         contact_prop_flags = new DeviceFlags(ncontactprops_);
@@ -45,7 +50,7 @@ public:
         timers = new Timers<double>(1e-6);
     }
 
-    ~PairsSimulation() {
+    ~PairsRuntime() {
         dom_part->finalize();
         delete prop_flags;
         delete contact_prop_flags;
@@ -55,8 +60,40 @@ public:
 
     // Variables
     template<typename T>
-    RuntimeVar<T> addDeviceVariable(T *h_ptr) {
-       return RuntimeVar<T>(h_ptr); 
+    RuntimeVar<T> &addDeviceVariable(T *h_ptr) {
+        // TODO: Proper memory mangement for RuntimeVar variables
+        RuntimeVar<T> *ret = new RuntimeVar<T>(h_ptr);
+        return *ret; 
+    }
+
+    void trackVariable(std::string variable_name, void *ptr) {
+        PAIRS_ASSERT(
+            std::find_if(tracked_variables.begin(), tracked_variables.end(),
+            [variable_name](TrackedVariable _v) {
+                return _v.getName() == variable_name;
+            }) == std::end(tracked_variables));
+
+        tracked_variables.push_back(TrackedVariable(variable_name, ptr)); 
+    }
+
+    TrackedVariable &getTrackedVariable(std::string variable_name) {
+        auto v = std::find_if(
+            tracked_variables.begin(),
+            tracked_variables.end(),
+            [variable_name](TrackedVariable _v) { return _v.getName() == variable_name; });
+
+        PAIRS_ASSERT(v != std::end(tracked_variables));
+        return *v;
+    }
+
+    void setTrackedVariableAsInteger(std::string variable_name, int value) {
+        auto& tv = getTrackedVariable(variable_name);
+        *(static_cast<int *>(tv.getPointer())) = value;
+    }
+
+    int getTrackedVariableAsInteger(std::string variable_name) {
+        auto& tv = getTrackedVariable(variable_name);
+        return *(static_cast<int *>(tv.getPointer()));
     }
 
     // Arrays
@@ -108,6 +145,7 @@ public:
     void copyArraySliceToHost(Array &array, action_t action, size_t offset, size_t size);
 
     // Properties
+    std::vector<Property> &getProperties() { return properties; };
     Property &getProperty(property_t id);
     Property &getPropertyByName(std::string name);
     void addProperty(Property prop);
@@ -115,11 +153,11 @@ public:
     template<typename T_ptr>
     void addProperty(
         property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t,
-        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
+        PropertyType type, layout_t layout, int vol, size_t sx, size_t sy = 1);
 
     template<typename T_ptr> void addProperty(
         property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr,
-        PropertyType type, layout_t layout, size_t sx, size_t sy = 1);
+        PropertyType type, layout_t layout, int vol, size_t sx, size_t sy = 1);
 
     template<typename T_ptr>
     void reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx = 1, size_t sy = 1);
@@ -129,6 +167,10 @@ public:
 
     inline IntProperty &getAsIntegerProperty(Property &prop) {
         return static_cast<IntProperty&>(prop);
+    }
+
+    inline UInt64Property &getAsUInt64Property(Property &prop) {
+        return static_cast<UInt64Property&>(prop);
     }
 
     inline FloatProperty &getAsFloatProperty(Property &prop) {
@@ -149,6 +191,10 @@ public:
 
     inline IntProperty &getIntegerProperty(property_t property) {
         return static_cast<IntProperty&>(getProperty(property));
+    }
+
+    inline UInt64Property &getUInt64Property(property_t property) {
+        return static_cast<UInt64Property&>(getProperty(property));
     }
 
     inline FloatProperty &getFloatProperty(property_t property) {
@@ -176,6 +222,10 @@ public:
         copyPropertyToDevice(getProperty(id), action, size);
     }
 
+    void copyPropertyToDevice(Property &prop, action_t action) {
+        copyPropertyToDevice(prop, action, prop.getTotalSize());
+    }
+    
     void copyPropertyToDevice(Property &prop, action_t action, size_t size);
 
     void copyPropertyToHost(property_t id, action_t action) {
@@ -193,6 +243,14 @@ public:
 
     void copyPropertyToHost(Property &prop, action_t action, size_t size);
 
+    DeviceFlags* getPropFlags(){
+        return prop_flags;
+    }
+
+    DeviceFlags* getArrayFlags(){
+        return array_flags;
+    }
+    
     // Contact properties
     ContactProperty &getContactProperty(property_t id);
     ContactProperty &getContactPropertyByName(std::string name);
@@ -262,9 +320,15 @@ public:
     // Communication
     void initDomain(
         int *argc, char ***argv,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax);
+        real_t xmin, real_t ymin, real_t zmin, real_t xmax, real_t ymax, real_t zmax, 
+        bool pbcx = 0, bool pbcy = 0, bool pbcz = 0, bool balance_workload = 0);
 
-    Regular6DStencil *getDomainPartitioner() { return dom_part; }
+    template<typename Domain_T>
+    void useDomain(const std::shared_ptr<Domain_T> &domain_ptr);
+
+    void updateDomain() { dom_part->update(); }
+
+    DomainPartitioner *getDomainPartitioner() { return dom_part; }
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
 
     void communicateData(
@@ -272,6 +336,11 @@ public:
         const real_t *send_buf, const int *send_offsets, const int *nsend,
         real_t *recv_buf, const int *recv_offsets, const int *nrecv);
 
+    void communicateDataReverse(
+        int dim, int elem_size,
+        const real_t *send_buf, const int *send_offsets, const int *nsend,
+        real_t *recv_buf, const int *recv_offsets, const int *nrecv);
+        
     void communicateAllData(
         int ndims, int elem_size,
         const real_t *send_buf, const int *send_offsets, const int *nsend,
@@ -282,7 +351,9 @@ public:
         const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
         real_t *recv_buf, int *contact_roffsets, int *nrecv_contact);
 
-    void fillCommunicationArrays(int neighbor_ranks[], int pbc[], real_t subdom[]);
+    void copyRuntimeArray(const std::string& name, void *dest, const int size);
+    int getNumberOfNeighborRanks() { return this->getDomainPartitioner()->getNumberOfNeighborRanks(); }
+    int getNumberOfNeighborAABBs() { return this->getDomainPartitioner()->getNumberOfNeighborAABBs(); }
 
     // Device functions
     void sync() { device_synchronize(); }
@@ -296,8 +367,38 @@ public:
     }
 };
 
+template<typename Domain_T>
+void PairsRuntime::useDomain(const std::shared_ptr<Domain_T> &domain_ptr){
+    
+    if(dom_part){ 
+        PAIRS_ERROR("DomainPartitioner already exists!\n"); 
+        exit(-1);
+    }
+
+    if(dom_part_type == RegularPartitioning) {
+        PAIRS_ERROR("useDomain not implemented for Regular6DStencil!\n");
+        exit(-1);
+
+    } else if(dom_part_type == RegularXYPartitioning) {        
+        PAIRS_ERROR("useDomain not implemented for Regular6DStencil!\n");
+        exit(-1);
+
+    } 
+    
+#ifdef USE_WALBERLA
+    else if(dom_part_type == BlockForestPartitioning) {
+        dom_part = new BlockForest(this, domain_ptr);
+    } 
+#endif
+
+    else {
+        PAIRS_ERROR("Domain partitioning type not implemented!\n");
+        exit(-1);
+    }
+}
+
 template<typename T_ptr>
-void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
+void PairsRuntime::addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size) {
     PAIRS_ASSERT(size > 0);
 
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
@@ -306,7 +407,7 @@ void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, std:
 }
 
 template<typename T_ptr>
-void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
+void PairsRuntime::addArray(array_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
     PAIRS_ASSERT(size > 0);
 
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
@@ -316,19 +417,19 @@ void PairsSimulation::addArray(array_t id, std::string name, T_ptr **h_ptr, T_pt
 }
 
 template<typename T_ptr>
-void PairsSimulation::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, size_t size) {
+void PairsRuntime::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, size_t size) {
     addArray(Array(id, name, h_ptr, nullptr, size, true));
 }
 
 template<typename T_ptr>
-void PairsSimulation::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, size_t size) {
+void PairsRuntime::addStaticArray(array_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, size_t size) {
     addArray(Array(id, name, h_ptr, d_ptr, size, true));
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size) {
+void PairsRuntime::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, size_t size) {
     // This should be a pointer (and not a reference) in order to be modified
-    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array _a) { return _a.getId() == id; });
     PAIRS_ASSERT(a != std::end(arrays));
     PAIRS_ASSERT(size > 0);
 
@@ -341,9 +442,9 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, std::nullptr_t, si
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
+void PairsRuntime::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t size) {
     // This should be a pointer (and not a reference) in order to be modified
-    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array a) { return a.getId() == id; });
+    auto a = std::find_if(arrays.begin(), arrays.end(), [id](Array _a) { return _a.getId() == id; });
     PAIRS_ASSERT(a != std::end(arrays));
     PAIRS_ASSERT(size > 0);
 
@@ -363,20 +464,22 @@ void PairsSimulation::reallocArray(array_t id, T_ptr **h_ptr, T_ptr **d_ptr, siz
 }
 
 template<typename T_ptr>
-void PairsSimulation::addProperty(
-    property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy) {
+void PairsRuntime::addProperty(
+    property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t,
+    PropertyType type, layout_t layout, int vol, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
 
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr);
-    addProperty(Property(id, name, *h_ptr, nullptr, type, layout, sx, sy));
+    addProperty(Property(id, name, *h_ptr, nullptr, type, layout, vol, sx, sy));
 }
 
 template<typename T_ptr>
-void PairsSimulation::addProperty(
-    property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, PropertyType type, layout_t layout, size_t sx, size_t sy) {
+void PairsRuntime::addProperty(
+    property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr,
+    PropertyType type, layout_t layout, int vol, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
     PAIRS_ASSERT(size > 0);
@@ -384,11 +487,11 @@ void PairsSimulation::addProperty(
     *h_ptr = (T_ptr *) pairs::host_alloc(size);
     *d_ptr = (T_ptr *) pairs::device_alloc(size);
     PAIRS_ASSERT(*h_ptr != nullptr && *d_ptr != nullptr);
-    addProperty(Property(id, name, *h_ptr, *d_ptr, type, layout, sx, sy));
+    addProperty(Property(id, name, *h_ptr, *d_ptr, type, layout, vol, sx, sy));
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
+void PairsRuntime::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto p = std::find_if(properties.begin(),
 		    	  properties.end(),
@@ -407,7 +510,7 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, std::nullptr
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
+void PairsRuntime::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto p = std::find_if(properties.begin(),
 		    	  properties.end(),
@@ -433,7 +536,7 @@ void PairsSimulation::reallocProperty(property_t id, T_ptr **h_ptr, T_ptr **d_pt
 }
 
 template<typename T_ptr>
-void PairsSimulation::addContactProperty(
+void PairsRuntime::addContactProperty(
     property_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, PropertyType type, layout_t layout, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
@@ -445,7 +548,7 @@ void PairsSimulation::addContactProperty(
 }
 
 template<typename T_ptr>
-void PairsSimulation::addContactProperty(
+void PairsRuntime::addContactProperty(
     property_t id, std::string name, T_ptr **h_ptr, T_ptr **d_ptr, PropertyType type, layout_t layout, size_t sx, size_t sy) {
 
     size_t size = sx * sy * sizeof(T_ptr);
@@ -458,7 +561,7 @@ void PairsSimulation::addContactProperty(
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
+void PairsRuntime::reallocContactProperty(property_t id, T_ptr **h_ptr, std::nullptr_t, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto cp = std::find_if(contact_properties.begin(),
 		    	   contact_properties.end(),
@@ -477,7 +580,7 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, std::
 }
 
 template<typename T_ptr>
-void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
+void PairsRuntime::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr **d_ptr, size_t sx, size_t sy) {
     // This should be a pointer (and not a reference) in order to be modified
     auto cp = std::find_if(contact_properties.begin(),
 		    	   contact_properties.end(),
@@ -503,14 +606,14 @@ void PairsSimulation::reallocContactProperty(property_t id, T_ptr **h_ptr, T_ptr
 }
 
 template<typename T_ptr>
-void PairsSimulation::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, PropertyType type, int nkinds, int array_size) {
+void PairsRuntime::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, std::nullptr_t, PropertyType type, int nkinds, int array_size) {
     PAIRS_ASSERT(nkinds > 0 && array_size > 0);
     PAIRS_ASSERT(h_ptr != nullptr);
     addFeatureProperty(FeatureProperty(id, name, h_ptr, nullptr, type, nkinds, array_size));
 }
 
 template<typename T_ptr>
-void PairsSimulation::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, PropertyType type, int nkinds, int array_size) {
+void PairsRuntime::addFeatureProperty(property_t id, std::string name, T_ptr *h_ptr, T_ptr *d_ptr, PropertyType type, int nkinds, int array_size) {
     PAIRS_ASSERT(nkinds > 0 && array_size > 0);
     PAIRS_ASSERT(h_ptr != nullptr && d_ptr != nullptr);
     addFeatureProperty(FeatureProperty(id, name, h_ptr, d_ptr, type, nkinds, array_size));

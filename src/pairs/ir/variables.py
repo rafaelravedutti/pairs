@@ -18,8 +18,8 @@ class Variables:
         self.vars = []
         self.nvars = 0
 
-    def add(self, v_name, v_type, v_value=0):
-        var = Var(self.sim, v_name, v_type, v_value)
+    def add(self, v_name, v_type, v_value=0, v_runtime_track=False):
+        var = Var(self.sim, v_name, v_type, v_value, v_runtime_track)
         self.vars.append(var)
         return var
 
@@ -39,15 +39,17 @@ class Variables:
 
 
 class Var(ASTTerm):
-    def __init__(self, sim, var_name, var_type, init_value=0, temp=False):
+    def __init__(self, sim, var_name, var_type, init_value=0, runtime_track=False, temp=False):
         super().__init__(sim, OperatorClass.from_type(var_type))
         self.var_name = var_name
         self.var_type = var_type
         self.var_init_value = Lit.cvt(sim, init_value)
+        self.var_runtime_track = runtime_track
         self.var_temporary = temp
         self.mutable = True
         self.var_bonded_arrays = []
         self.device_flag = False
+        self.force_read = False
 
         if temp:
             DeclareVariable(sim, self)
@@ -74,6 +76,9 @@ class Var(ASTTerm):
     def init_value(self):
         return self.var_init_value
 
+    def runtime_track(self):
+        return self.var_runtime_track
+
     def add_bonded_array(self, array):
         self.var_bonded_arrays.append(array)
 
@@ -99,6 +104,10 @@ class Deref(ASTTerm):
     @property
     def var(self):
         return self._var
+
+    def copy(self, deep=False):
+        # Terminal copies are just themselves
+        return self
 
     def type(self):
         return self._var.type()

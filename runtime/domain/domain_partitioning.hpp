@@ -8,6 +8,7 @@ class Regular6DStencil;
 
 class DomainPartitioner {
     friend class Regular6DStencil;
+    friend class BlockForest;
 
 protected:
     real_t *grid_min;
@@ -36,13 +37,35 @@ public:
         delete[] grid_max;
     }
 
+    double getMin(int dim) const { return grid_min[dim]; }
+    double getMax(int dim) const { return grid_max[dim]; }
+    virtual double getSubdomMin(int dim) const = 0;
+    virtual double getSubdomMax(int dim) const = 0;
     virtual void initialize(int *argc, char ***argv) = 0;
-    virtual void fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom) = 0;
+    virtual void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) = 0;
+    virtual void update() = 0;
+    virtual int getWorldSize() const = 0;
+    virtual int getRank() const = 0;
+    virtual int getNumberOfNeighborAABBs() = 0;
+    virtual int getNumberOfNeighborRanks() = 0;
+    virtual int isWithinSubdomain(real_t x, real_t y, real_t z) = 0;
+    virtual void copyRuntimeArray(const std::string& name, void *dest, const int size) = 0;
     virtual void communicateSizes(int dim, const int *nsend, int *nrecv) = 0;
     virtual void communicateData(
         int dim, int elem_size,
         const real_t *send_buf, const int *send_offsets, const int *nsend,
         real_t *recv_buf, const int *recv_offsets, const int *nrecv) = 0;
+
+    virtual void communicateDataReverse(
+        int dim, int elem_size,
+        const real_t *send_buf, const int *send_offsets, const int *nsend,
+        real_t *recv_buf, const int *recv_offsets, const int *nrecv) = 0;
+
+    virtual void communicateAllData(
+        int ndims, int elem_size,
+        const real_t *send_buf, const int *send_offsets, const int *nsend,
+        real_t *recv_buf, const int *recv_offsets, const int *nrecv) = 0;
+        
     virtual void finalize() = 0;
 };
 

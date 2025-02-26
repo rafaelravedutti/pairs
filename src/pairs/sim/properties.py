@@ -4,7 +4,7 @@ from pairs.ir.loops import ParticleFor
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.properties import RegisterProperty, RegisterContactProperty
 from pairs.ir.types import Types
-from pairs.ir.utils import Print
+from pairs.ir.print import Print
 from pairs.sim.lowerable import Lowerable, FinalLowerable
 from functools import reduce
 import operator

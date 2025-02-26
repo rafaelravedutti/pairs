@@ -10,6 +10,7 @@ from pairs.ir.quaternions import Quaternion
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
 from pairs.ir.types import Types
+from pairs.ir.print import Print
 from pairs.ir.vectors import Vector, ZeroVector
 from pairs.sim.shapes import Shapes
 
@@ -30,6 +31,9 @@ class Keywords:
     def exists(self, keyword):
         method = self.get_method(f"keyword_{keyword}")
         return method is not None
+    
+    def keyword_printf(self, args):
+        Print(self.sim, *args)
 
     def keyword_is_point_mass(self, args):
         assert len(args) == 1, "is_point_mass() keyword requires one parameter."

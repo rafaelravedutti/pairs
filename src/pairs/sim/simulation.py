@@ -4,7 +4,7 @@ from pairs.ir.branches import Filter
 from pairs.ir.features import Features, FeatureProperties
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
-from pairs.ir.module import Module
+from pairs.ir.module import Module, ModuleCall
 from pairs.ir.properties import Properties, ContactProperties
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
@@ -13,15 +13,16 @@ from pairs.ir.variables import Variables
 from pairs.mapping.funcs import compute, setup
 from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists, BuildCellNeighborLists
-from pairs.sim.comm import Comm
+from pairs.sim.comm import Comm, Synchronize, Borders, Exchange, ReverseComm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.dem_sc_grid import DEMSCGrid
-from pairs.sim.domain import InitializeDomain
+from pairs.sim.domain import InitializeDomain, UpdateDomain
 from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.sim.domain_partitioning import DimensionRanges
+from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
+from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
 from pairs.sim.features import AllocateFeatureProperties
-from pairs.sim.grid import Grid2D, Grid3D
+from pairs.sim.grid import Grid2D, Grid3D, MutableGrid
 from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
 from pairs.sim.lattice import ParticleLattice
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
@@ -32,9 +33,12 @@ from pairs.sim.timestep import Timestep
 from pairs.sim.variables import DeclareVariables 
 from pairs.sim.vtk import VTKWrite
 from pairs.transformations import Transformations
+from pairs.code_gen.interface import InterfaceModules
 
 
 class Simulation:
+    """P4IRS Simulation class, this class is the center of kernel simulations which contains all
+       fundamental data structures to generate a P4IRS simulation code"""
     def __init__(
         self,
         code_gen,
@@ -44,10 +48,15 @@ class Simulation:
         double_prec=False,
         use_contact_history=False,
         particle_capacity=800000,
-        neighbor_capacity=100):
+        neighbor_capacity=100,
+        generate_whole_program=False):
 
+        # Code generator for the simulation
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
+        self._generate_whole_program = generate_whole_program
+
+        # Data structures to be generated
         self.position_prop = None
         self.properties = Properties(self)
         self.vars = Variables(self)
@@ -55,60 +64,104 @@ class Simulation:
         self.features = Features(self)
         self.feature_properties = FeatureProperties(self)
         self.contact_properties = ContactProperties(self)
-        self.particle_capacity = self.add_var('particle_capacity', Types.Int32, particle_capacity)
+
+        # General capacities, sizes and particle properties
+        self.sim_timestep = self.add_var('sim_timestep', Types.Int32, runtime=True)
+        self.particle_capacity = \
+            self.add_var('particle_capacity', Types.Int32, particle_capacity, runtime=True)
         self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, neighbor_capacity)
-        self.nlocal = self.add_var('nlocal', Types.Int32)
-        self.nghost = self.add_var('nghost', Types.Int32)
+        self.nlocal = self.add_var('nlocal', Types.Int32, runtime=True)
+        self.nghost = self.add_var('nghost', Types.Int32, runtime=True)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
-        self.particle_uid = self.add_property('uid', Types.Int32, 0)
+        self.particle_uid = self.add_property('uid', Types.UInt64, 0)
         self.particle_shape = self.add_property('shape', Types.Int32, 0)
         self.particle_flags = self.add_property('flags', Types.Int32, 0)
+
+        # Grid for the simulation
         self.grid = None
+
+        # Acceleration structures
         self.cell_lists = None
         self._store_neighbors_per_cell = False
         self.neighbor_lists = None
+        self.update_cells_procedures = Block(self, [])
+
+        # Context information used to partially build the program AST
         self.scope = []
         self.nested_count = 0
         self.nest = False
         self._capture_statements = True
         self._block = Block(self, [])
-        self.setups = Block(self, [])
+
+        # Different segments of particle code/functions
+        self.create_domain = Block(self, [])
+        self.create_domain_at_initialization = False
+
+        self.setup_particles = Block(self, [])
+        self.module_list = []
+        self.kernel_list = []
+
+        # Individual user-defined and interface modules are created only when generate_whole_program is False
+        self.udf_module_list = []
+        self.interface_module_list = []
+
+        # User-defined functions to be called by other subroutines (used only when generate_whole_program is True)
         self.setup_functions = []
         self.pre_step_functions = []
         self.functions = []
-        self.module_list = []
-        self.kernel_list = []
+
+        # Structures to generated resize code for capacities
         self._check_properties_resize = False
         self._resizes_to_check = {}
-        self._module_name = None
-        self._double_prec = double_prec
-        self.dims = dims
-        self.ntimesteps = timesteps
-        self.expr_id = 0
-        self.iter_id = 0
-        self.reneighbor_frequency = 1
+
+        # VTK data
         self.vtk_file = None
         self.vtk_frequency = 0
+
+        # Domain partitioning
         self._dom_part = None
         self._partitioner = None
-        self._target = None
-        self._pbc = [True for _ in range(dims)]
+        self._comm = None
+
+        # Contact history
         self._use_contact_history = use_contact_history
         self._contact_history = ContactHistory(self) if use_contact_history else None
-        self._shapes = shapes
-        self._compute_half = False
-        self._apply_list = None
-        self._enable_profiler = False
-        self._compute_thermo = 0
+
+
+        self._module_name = None                # Current module name
+        self._double_prec = double_prec         # Use double-precision FP arithmetic
+        self.dims = dims                        # Number of dimensions
+        self.ntimesteps = timesteps             # Number of time-steps
+        self.reneighbor_frequency = 1           # Re-neighbor frequency
+        self.rebalance_frequency = 0            # Re-balance frequency for dynamic load balancing
+        self._target = None                     # Hardware target info
+        self._pbc = [True for _ in range(dims)] # PBC flags for each dimension
+        self._shapes = shapes                   # List of shapes used in the simulation
+        self._compute_half = False              # Compute half of interactions (Newton 3D Law)
+        self._apply_list = None                 # Context elements when using apply() directive
+        self._enable_profiler = False           # Enable/disable profiler
+        self._compute_thermo = 0                # Compute thermo information
 
     def set_domain_partitioner(self, partitioner):
+        """Selects domain-partitioner used and create its object for this simulation instance"""
         self._partitioner = partitioner
 
         if partitioner in (DomainPartitioners.Regular, DomainPartitioners.RegularXY):
             self._dom_part = DimensionRanges(self)
 
+        elif partitioner == DomainPartitioners.BlockForest:
+            self._dom_part = BlockForest(self)
+
         else:
             raise Exception("Invalid domain partitioner.")
+        
+    def set_workload_balancer(self, algorithm=LoadBalancingAlgorithms.Morton, 
+                              regrid_min=100, regrid_max=1000, rebalance_frequency=0):
+        assert self._partitioner == DomainPartitioners.BlockForest, "Load balancing is only supported by BlockForest."
+        self.rebalance_frequency = rebalance_frequency
+        self._dom_part.load_balancer = algorithm
+        self._dom_part.regrid_min = regrid_min
+        self._dom_part.regrid_max = regrid_max
 
     def partitioner(self):
         return self._partitioner
@@ -128,12 +181,33 @@ class Simulation:
     def max_shapes(self):
         return len(self._shapes)
 
+    def add_udf_module(self, module):
+        assert isinstance(module, Module), "add_udf_module(): Given parameter is not of type Module!"
+        assert module.user_defined and not module.interface
+        if module.name not in [m.name for m in self.udf_module_list]:
+            self.udf_module_list.append(module)
+
+    def add_interface_module(self, module):
+        assert isinstance(module, Module), "add_interface_module(): Given parameter is not of type Module!"
+        assert module.interface and not module.user_defined
+        if module.name not in [m.name for m in self.interface_module_list]:
+            self.interface_module_list.append(module)
+
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"
+        assert not module.interface and not module.user_defined
         if module.name not in [m.name for m in self.module_list]:
             self.module_list.append(module)
 
+    def interface_modules(self):
+        return self.interface_module_list
+    
+    def udf_modules(self):
+        return self.udf_module_list
+    
     def modules(self):
+        """List simulation modules, with main always in the last position"""
+
         sorted_mods = []
         main_mod = None
         for m in self.module_list:
@@ -142,7 +216,10 @@ class Simulation:
             else:
                 main_mod = m
 
-        return sorted_mods + [main_mod]
+        if main_mod is not None:
+            sorted_mods += [main_mod]
+
+        return sorted_mods
 
     def add_kernel(self, kernel):
         assert isinstance(kernel, Kernel), "add_kernel(): Given parameter is not of type Kernel!"
@@ -163,9 +240,9 @@ class Simulation:
         assert len(pbc_config) == self.dims, "PBC must be specified for each dimension."
         self._pbc = pbc_config
 
-    def add_property(self, prop_name, prop_type, value=0.0, volatile=False):
+    def add_property(self, prop_name, prop_type, value=0.0, volatile=False, reduce=False):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, prop_type, value, volatile)
+        return self.properties.add(prop_name, prop_type, value, volatile, p_reduce=reduce)
 
     def add_position(self, prop_name, value=[0.0, 0.0, 0.0], volatile=False, layout=Layouts.AoS):
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
@@ -176,10 +253,18 @@ class Simulation:
         assert self.feature(feature_name) is None, f"Feature already defined: {feature_name}"
         return self.features.add(feature_name, nkinds)
 
-    def add_feature_property(self, feature_name, prop_name, prop_type, prop_data):
+    def add_feature_property(self, feature_name, prop_name, prop_type, prop_data=None):
         feature = self.feature(feature_name)
         assert feature is not None, f"Feature not found: {feature_name}"
         assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
+
+        array_size = feature.nkinds()**2 * Types.number_of_elements(self, prop_type)
+
+        if not prop_data:
+            prop_data = [0 for i in range(array_size)]
+        else:
+            assert len(prop_data) == array_size, f"Incorrect array size for {prop_name}: Expected array size = {array_size}"
+
         return self.feature_properties.add(feature, prop_name, prop_type, prop_data)
 
     def add_contact_property(self, prop_name, prop_type, prop_default, layout=Layouts.AoS):
@@ -212,9 +297,9 @@ class Simulation:
     def array(self, arr_name):
         return self.arrays.find(arr_name)
 
-    def add_var(self, var_name, var_type, init_value=0):
+    def add_var(self, var_name, var_type, init_value=0, runtime=False):
         assert self.var(var_name) is None, f"Variable already defined: {var_name}"
-        return self.vars.add(var_name, var_type, init_value)
+        return self.vars.add(var_name, var_type, init_value, runtime)
 
     def add_temp_var(self, init_value):
         return self.vars.add_temp(init_value)
@@ -226,33 +311,46 @@ class Simulation:
         return self.vars.find(var_name)
 
     def set_domain(self, grid):
+        """Set domain bounds. 
+        If the domain is set through this function, the 'set_domain' module won't be generated in the modular version.
+        Use this function only if you do not need to set domain at runtime.
+        This function is required only for whole-program generation."""
+        self.create_domain_at_initialization = True
         self.grid = Grid3D(self, grid[0], grid[1], grid[2], grid[3], grid[4], grid[5])
-        self.setups.add_statement(InitializeDomain(self))
+        self.create_domain.add_statement(InitializeDomain(self))
 
     def reneighbor_every(self, frequency):
         self.reneighbor_frequency = frequency
 
     def create_particle_lattice(self, grid, spacing, props={}):
-        self.setups.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
+        self.setup_particles.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
 
     def read_particle_data(self, filename, prop_names, shape_id):
+        """Generate statement to read particle data from file"""
         props = [self.property(prop_name) for prop_name in prop_names]
-        self.setups.add_statement(ReadParticleData(self, filename, props, shape_id))
+        self.setup_particles.add_statement(ReadParticleData(self, filename, props, shape_id))
 
     def copper_fcc_lattice(self, nx, ny, nz, rho, temperature, ntypes):
-        self.setups.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
+        """Specific initialization for MD Copper FCC lattice case"""
+        self.setup_particles.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
 
     def dem_sc_grid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter, initial_velocity, particle_density, ntypes):
-        self.setups.add_statement(
+        """Specific initialization for DEM grid"""
+        self.setup_particles.add_statement(
             DEMSCGrid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
                       initial_velocity, particle_density, ntypes))
 
-    def build_cell_lists(self, spacing, store_neighbors_per_cell=False):
+    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False):
+        """Add routines to build the linked-cells acceleration structure.
+        Leave spacing as None so it can be set at runtime."""
         self._store_neighbors_per_cell = store_neighbors_per_cell
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 
-    def build_neighbor_lists(self, spacing):
+    def build_neighbor_lists(self, spacing=None):
+        """Add routines to build the Verlet Lists acceleration structure.
+        Leave spacing as None so it can be set at runtime."""
+
         assert self._store_neighbors_per_cell is False, \
             "Using neighbor-lists with store_neighbors_per_cell option is invalid."
 
@@ -260,13 +358,14 @@ class Simulation:
         self.neighbor_lists = NeighborLists(self, self.cell_lists)
         return self.neighbor_lists
 
-    def compute(self, func, cutoff_radius=None, symbols={}, pre_step=False, skip_first=False):
-        return compute(self, func, cutoff_radius, symbols, pre_step, skip_first)
+    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=False, skip_first=False):
+        return compute(self, func, cutoff_radius, symbols, parameters, pre_step, skip_first)
 
     def setup(self, func, symbols={}):
         return setup(self, func, symbols)
 
     def init_block(self):
+        """Initialize new block in this simulation instance"""
         self._block = Block(self, [])
         self._check_properties_resize = False
         self._resizes_to_check = {}
@@ -276,24 +375,30 @@ class Simulation:
         self._module_name = name
 
     def check_properties_resize(self):
+        """Enable checking properties for resizing"""
         self._check_properties_resize = True
 
     def check_resize(self, capacity, size):
+        """Determine that capacity must always be checked with respect to size in a block/module"""
+
         if capacity not in self._resizes_to_check:
             self._resizes_to_check[capacity] = size
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
     def build_setup_module_with_statements(self):
+        """Build a Module in the setup part of the program using the last initialized block"""
+
         self.setup_functions.append(
             Module(self,
                 name=self._module_name,
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
-                run_on_device=False))
+                run_on_device=True))
 
     def build_pre_step_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
+        """Build a Module in the pre-step part of the program using the last initialized block"""
         module = Module(self, name=self._module_name,
                               block=Block(self, self._block),
                               resizes_to_check=self._resizes_to_check,
@@ -310,6 +415,7 @@ class Simulation:
             self.pre_step_functions.append(module)
 
     def build_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
+        """Build a Module in the compute part of the program using the last initialized block"""
         module = Module(self, name=self._module_name,
                               block=Block(self, self._block),
                               resizes_to_check=self._resizes_to_check,
@@ -324,10 +430,22 @@ class Simulation:
         else:
             self.functions.append(module)
 
+    def build_user_defined_function(self, run_on_device=True):
+        """Build a user-defined Module that will be callable seperately as part of the interface"""
+        Module(self, name=self._module_name,
+                block=Block(self, self._block),
+                resizes_to_check=self._resizes_to_check,
+                check_properties_resize=self._check_properties_resize,
+                run_on_device=run_on_device,
+                user_defined=True)
+        
+
     def capture_statements(self, capture=True):
+        """When toggled, all constructed statements are captured and automatically added to the last initialized block"""
         self._capture_statements = capture
 
     def add_statement(self, stmt):
+        """Add captured statements to the last block when _capture_statements is toggled"""
         if self._capture_statements:
             if not self.scope:
                 self._block.add_statement(stmt)
@@ -337,6 +455,7 @@ class Simulation:
         return stmt
 
     def nest_mode(self):
+        """When explicitly constructing loops in P4IRS, make them nested"""
         self.nested_count = 0
         self.nest = True
         yield
@@ -345,9 +464,11 @@ class Simulation:
             self.scope.pop()
 
     def enter(self, scope):
+        """Enter a new scope, used for tracking scopes when building P4IRS AST elements"""
         self.scope.append(scope)
 
     def leave(self):
+        """Leave last scope, used for tracking scopes when building P4IRS AST elements"""
         if not self.nest:
             self.scope.pop()
         else:
@@ -379,26 +500,86 @@ class Simulation:
     def compute_thermo(self, every=0):
         self._compute_thermo = every
 
-    def generate(self):
-        assert self._target is not None, "Target not specified!"
-        comm = Comm(self, self._dom_part)
-        every_reneighbor_params = {'every': self.reneighbor_frequency}
-
-        timestep_procedures = self.pre_step_functions + [
-            (comm.exchange(), every_reneighbor_params),
-            (comm.borders(), comm.synchronize(), every_reneighbor_params),
-            (BuildCellLists(self, self.cell_lists), every_reneighbor_params),
-            (PartitionCellLists(self, self.cell_lists), every_reneighbor_params)
+    def create_update_cells_block(self):
+        subroutines = [
+            BuildCellLists(self, self.cell_lists),
+            PartitionCellLists(self, self.cell_lists)
         ]
 
+        # Add routine to build neighbor-lists per cell
         if self._store_neighbors_per_cell:
-            timestep_procedures.append(
-                (BuildCellNeighborLists(self, self.cell_lists), every_reneighbor_params))
+            subroutines.append(BuildCellNeighborLists(self, self.cell_lists))
 
+        # Add routine to build neighbor-lists per particle (standard Verlet Lists)
         if self.neighbor_lists is not None:
-            timestep_procedures.append(
-                (BuildNeighborLists(self, self.neighbor_lists), every_reneighbor_params))
+            subroutines.append(BuildNeighborLists(self, self.neighbor_lists))
 
+        self.update_cells_procedures.add_statement(subroutines)
+
+    def generate(self):
+        """Generate the code for the simulation"""
+        assert self._target is not None, "Target not specified!"
+
+        # Initialize communication instance with the specified domain-partitioner
+        self._comm = Comm(self, self._dom_part)
+        self.create_update_cells_block()
+
+        if self._generate_whole_program:
+            self.generate_program()
+        else:
+            self.generate_library()
+
+    def generate_library(self):
+        InterfaceModules(self).create_all()
+        
+        # User defined functions are wrapped inside seperate interface modules here.
+        # The udf's have the same name as their interface module but they get implemented in the pairs::internal scope.
+        for m in self.udf_module_list:
+            module = Module(self, name=m.name, block=Block(self, m), interface=True)
+            module._id = m._id
+
+        Transformations(self.interface_modules(), self._target).apply_all()
+
+        # Generate library
+        self.code_gen.generate_library()
+
+        # Generate getters for the runtime functions
+        self.code_gen.generate_interfaces()
+
+    def generate_program(self):
+        assert self.grid, "No domain is created. Set domain bounds with 'set_domain'."
+
+        reverse_comm_module = ReverseComm(self._comm, reduce=True)
+
+        # Params that determine when a method must be called only when reneighboring
+        every_reneighbor_params = {'every': self.reneighbor_frequency}
+
+        timestep_procedures = []
+
+        # First steps executed during each time-step in the simulation
+        timestep_procedures += self.pre_step_functions 
+
+        # Rebalancing routines
+        if self.rebalance_frequency:
+            update_domain_procedures = Block.from_list(self, [
+                Exchange(self._comm),
+                UpdateDomain(self),
+                Borders(self._comm),
+                ResetVolatileProperties(self),
+                BuildCellListsStencil(self, self.cell_lists),
+                self.update_cells_procedures
+                ])
+
+            timestep_procedures.append((update_domain_procedures, {'every': self.rebalance_frequency}))
+
+        # Communication routines
+        timestep_procedures += [(Exchange(self._comm), every_reneighbor_params),
+                                (Borders(self._comm), Synchronize(self._comm), every_reneighbor_params)]
+
+        # Update acceleration data structures
+        timestep_procedures += [(self.update_cells_procedures, every_reneighbor_params)]
+
+        # Add routines for contact history management
         if self._use_contact_history:
             if self.neighbor_lists is not None:
                 timestep_procedures.append(
@@ -407,30 +588,26 @@ class Simulation:
 
             timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
 
-        timestep_procedures += [ResetVolatileProperties(self)] + self.functions
+        # Reset volatile properties
+        timestep_procedures += [ResetVolatileProperties(self)]
 
+        # Add computational kernels
+        timestep_procedures += self.functions
+
+        # For whole-program-generation, add reverse_comm wherever needed in the timestep loop (eg: after computational kernels) like this:
+        timestep_procedures += [reverse_comm_module]
+
+        # Clear unused contact history
         if self._use_contact_history:
             timestep_procedures.append(ClearUnusedContactHistory(self, self._contact_history))
 
+        # Add routine to calculate thermal data
         if self._compute_thermo != 0:
             timestep_procedures.append(
                 (ComputeThermo(self), {'every': self._compute_thermo}))
 
-        timestep = Timestep(self, self.ntimesteps, timestep_procedures)
-        self.enter(timestep.block)
 
-        if self.vtk_file is not None:
-            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep(), self.vtk_frequency))
-
-        self.leave()
-
-        body = Block.from_list(self, [
-            self.setups,
-            self.setup_functions,
-            BuildCellListsStencil(self, self.cell_lists),
-            timestep.as_block()
-        ])
-
+        # Data structures and timer/markers initialization
         inits = Block.from_list(self, [
             DeclareVariables(self),
             DeclareArrays(self),
@@ -441,12 +618,36 @@ class Simulation:
             RegisterMarkers(self)
         ])
 
+        # Construct the time-step loop
+        timestep = Timestep(self, self.ntimesteps, timestep_procedures)
+        self.enter(timestep.block)
+
+        # Add routine to write VTK data when set
+        if self.vtk_file is not None:
+            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep(), self.vtk_frequency))
+
+        self.leave()
+
+        # Combine everything into a whole program
+        # Initialization and setup functions, together with time-step loop
+        # UpdateDomain is added after setup_particles because particles must be already present in the simulation
+        body = Block.from_list(self, [
+            self.create_domain,
+            self.setup_particles,
+            UpdateDomain(self),        
+            self.setup_functions,
+            BuildCellListsStencil(self, self.cell_lists),
+            timestep.as_block()
+        ])
+
         program = Module(self, name='main', block=Block.merge_blocks(inits, body))
 
         # Apply transformations
         transformations = Transformations(program, self._target)
         transformations.apply_all()
 
-        # Generate program
-        #ASTGraph(self.functions, "functions.dot").render()
+        # Generate whole program
         self.code_gen.generate_program(program)
+
+        # Generate getters for the runtime functions
+        self.code_gen.generate_interfaces()

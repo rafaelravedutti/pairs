@@ -1,5 +1,6 @@
 class Types:
-    Invalid = -1
+    Invalid = -2
+    Void = -1
     Int32 = 0
     Int64 = 1
     UInt64 = 2
@@ -13,6 +14,23 @@ class Types:
     Matrix = 10
     Quaternion = 11
 
+    def c_accessor_keyword(sim, t):
+        real_kw = 'double' if sim.use_double_precision() else 'float'
+        return (
+            real_kw if t==Types.Real
+            else f'pairs::Vector3<{real_kw}>' if t==Types.Vector
+            else f'pairs::Matrix3<{real_kw}>' if t==Types.Matrix
+            else f'pairs::Quaternion<{real_kw}>' if t==Types.Quaternion
+            else 'float' if t == Types.Float
+            else 'double' if t == Types.Double
+            else 'int' if t == Types.Int32
+            else 'int64_t' if t == Types.Int64
+            else 'uint64_t' if t == Types.UInt64
+            else 'bool' if t == Types.Boolean
+            else 'void' if t == Types.Void
+            else '<invalid type>'
+        )
+
     def c_keyword(sim, t):
         real_kw = 'double' if sim.use_double_precision() else 'float'
         return (
@@ -20,14 +38,16 @@ class Types:
             else 'float' if t == Types.Float
             else 'double' if t == Types.Double
             else 'int' if t == Types.Int32
-            else 'long long int' if t == Types.Int64
-            else 'unsigned long long int' if t == Types.UInt64
+            else 'int64_t' if t == Types.Int64
+            else 'uint64_t' if t == Types.UInt64
             else 'bool' if t == Types.Boolean
+            else 'void' if t == Types.Void
             else '<invalid type>'
         )
 
     def c_property_keyword(t):
         return "Prop_Integer"      if t == Types.Int32 else \
+               "Prop_UInt64"       if t == Types.UInt64 else \
                "Prop_Real"         if t == Types.Real else \
                "Prop_Vector"       if t == Types.Vector else \
                "Prop_Matrix"       if t == Types.Matrix else \

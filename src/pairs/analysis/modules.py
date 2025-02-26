@@ -1,5 +1,17 @@
 from pairs.ir.visitor import Visitor
 
+class InferModulesReturnTypes(Visitor):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+
+    def visit_Module(self, ast_node):
+        self.current_module = ast_node
+        self.visit_children(ast_node)
+
+    def visit_Return(self, ast_node):
+        self.current_module._return_type = ast_node.expr.type()
+        self.visit_children(ast_node)
+        
 
 class FetchModulesReferences(Visitor):
     def __init__(self, ast=None):
@@ -39,8 +51,16 @@ class FetchModulesReferences(Visitor):
             self.visit(ast_node.capacity)
 
     def visit_AtomicInc(self, ast_node):
+        visit_once = self.visit_nodes_once
+        self.visit_nodes_once = False
+        # Force write after read for the same node (visited twice)
+        self.writing = False
+        self.visit(ast_node.elem)
         self.writing = True
         self.visit(ast_node.elem)
+        self.visit_nodes_once = visit_once
+
+
         self.writing = False
         self.visit(ast_node.value)
 
@@ -115,3 +135,8 @@ class FetchModulesReferences(Visitor):
         for m in self.module_stack:
             if not ast_node.temporary():
                 m.add_variable(ast_node, self.writing)
+
+    def visit_Parameter(self, ast_node):
+        for m in self.module_stack:
+            # parameters are restricted to read-only, passed by value
+            m.add_parameter(ast_node, write=False)

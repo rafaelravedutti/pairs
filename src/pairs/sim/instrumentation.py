@@ -13,7 +13,7 @@ class RegisterTimers(FinalLowerable):
             Call_Void(self.sim, "pairs::register_timer", [t, Timers.name(t)])
 
         for m in self.sim.module_list:
-            if m.name != 'main':
+            if m.name != 'main' and m.name != 'initialize':
                 Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, m.name])
 
 
@@ -25,5 +25,5 @@ class RegisterMarkers(FinalLowerable):
     def lower(self):
         if self.sim._enable_profiler:
             for m in self.sim.module_list:
-                if m.name != 'main' and m.must_profile():
+                if m.name != 'main' and m.name != 'initialize' and m.must_profile():
                     Call_Void(self.sim, "LIKWID_MARKER_REGISTER", [m.name])

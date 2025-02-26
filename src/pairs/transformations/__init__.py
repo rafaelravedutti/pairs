@@ -2,7 +2,7 @@ import time
 from pairs.analysis import Analysis
 from pairs.transformations.blocks import LiftDeclarations, MergeAdjacentBlocks
 from pairs.transformations.devices import AddDeviceCopies, AddDeviceKernels, AddHostReferencesToModules, AddDeviceReferencesToModules
-from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, SimplifyExpressions, PruneUnusedVectorIndexes, AddExpressionDeclarations
+from pairs.transformations.expressions import ReplaceSymbols, LowerNeighborIndexes, ConstantPropagation, SimplifyExpressions, PruneUnusedVectorIndexes, AddExpressionDeclarations
 from pairs.transformations.instrumentation import AddModulesInstrumentation
 from pairs.transformations.loops import LICM
 from pairs.transformations.lower import Lower
@@ -10,24 +10,29 @@ from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLo
 
 
 class Transformations:
-    def __init__(self, ast, target):
-        self._ast = ast
+    def __init__(self, ast_list, target):
+        self._ast_list = ast_list if isinstance(ast_list, list) else [ast_list]
         self._target = target
         self._module_resizes = None
 
     def apply(self, transformation, data=None):
         print(f"Applying transformation: {type(transformation).__name__}... ", end="")
         start = time.time()
-        transformation.set_ast(self._ast)
-        if data is not None:
-            transformation.set_data(data)
 
-        self._ast = transformation.mutate()
+        new_ast_list = []
+        for ast in self._ast_list:
+            transformation.set_ast(ast)
+            if data is not None:
+                transformation.set_data(data)
+
+            new_ast_list.append(transformation.mutate())
+
+        self._ast_list = new_ast_list
         elapsed = time.time() - start
         print(f"{elapsed:.2f}s elapsed.")
 
     def analysis(self):
-        return Analysis(self._ast)
+        return Analysis(self._ast_list)
 
     def lower(self, lower_finals=False):
         nlowered = 1
@@ -42,6 +47,7 @@ class Transformations:
         self.apply(PruneUnusedVectorIndexes())
         self.apply(LowerNeighborIndexes())
         self.apply(ReplaceSymbols())
+        self.apply(ConstantPropagation())
         self.apply(SimplifyExpressions())
 
     def lift_declarations_to_owner_blocks(self):
@@ -61,12 +67,14 @@ class Transformations:
         self._module_resizes = add_resize_logic.module_resizes
         self.analysis().fetch_modules_references()
         self.apply(DereferenceWriteVariables())
+        self.analysis().infer_modules_return_types()
         self.apply(ReplaceModulesByCalls(), [self._module_resizes])
         self.apply(MergeAdjacentBlocks())
 
     def add_device_copies(self):
         if self._target.is_gpu():
             self.apply(AddDeviceCopies(), [self._module_resizes])
+            self.analysis().fetch_modules_references()
 
     def add_device_kernels(self):
         if self._target.is_gpu():
@@ -97,8 +105,13 @@ class Transformations:
         self.modularize()
         self.add_device_kernels()
         self.add_device_copies()
-        self.add_instrumentation()
         self.lower(True)
         self.add_expression_declarations()
         self.add_host_references_to_modules()
         self.add_device_references_to_modules()
+        
+        # TODO: Place stop timers before the function returns
+        # or simply don't instrument modules that have a non-void return type
+        # to avoid having to deal with returns within conditional blocks 
+        # self.add_instrumentation()
+

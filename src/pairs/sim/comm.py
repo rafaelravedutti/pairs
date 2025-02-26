@@ -9,7 +9,7 @@ from pairs.ir.contexts import Contexts
 from pairs.ir.device import CopyArray
 from pairs.ir.functions import Call_Void
 from pairs.ir.loops import For, ParticleFor, While
-from pairs.ir.utils import Print
+from pairs.ir.print import Print, PrintCode
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
@@ -23,42 +23,62 @@ class Comm:
         self.nsend_all        = sim.add_var('nsend_all', Types.Int32)
         self.send_capacity    = sim.add_var('send_capacity', Types.Int32, 200000)
         self.recv_capacity    = sim.add_var('recv_capacity', Types.Int32, 200000)
-        self.elem_capacity    = sim.add_var('elem_capacity', Types.Int32, 40)
-        self.neigh_capacity   = sim.add_var('neigh_capacity', Types.Int32, 10)
-        self.nsend            = sim.add_array('nsend', [self.neigh_capacity], Types.Int32)
-        self.send_offsets     = sim.add_array('send_offsets', [self.neigh_capacity], Types.Int32)
+        self.elem_capacity    = sim.add_var('elem_capacity', Types.Int32, 100)
+        self.nsend            = sim.add_array('nsend', [dom_part.nranks_capacity], Types.Int32)
+        self.send_offsets     = sim.add_array('send_offsets', [dom_part.nranks_capacity], Types.Int32)
         self.send_buffer      = sim.add_array('send_buffer', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
         self.send_map         = sim.add_array('send_map', [self.send_capacity], Types.Int32, arr_sync=False)
         self.exchg_flag       = sim.add_array('exchg_flag', [sim.particle_capacity], Types.Int32, arr_sync=False)
         self.exchg_copy_to    = sim.add_array('exchg_copy_to', [self.send_capacity], Types.Int32, arr_sync=False)
         self.send_mult        = sim.add_array('send_mult', [self.send_capacity, sim.ndims()], Types.Int32)
-        self.nrecv            = sim.add_array('nrecv', [self.neigh_capacity], Types.Int32)
-        self.recv_offsets     = sim.add_array('recv_offsets', [self.neigh_capacity], Types.Int32)
+        self.nrecv            = sim.add_array('nrecv', [dom_part.nranks_capacity], Types.Int32)
+        self.recv_offsets     = sim.add_array('recv_offsets', [dom_part.nranks_capacity], Types.Int32)
         self.recv_buffer      = sim.add_array('recv_buffer', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
         self.recv_map         = sim.add_array('recv_map', [self.recv_capacity], Types.Int32)
         self.recv_mult        = sim.add_array('recv_mult', [self.recv_capacity, sim.ndims()], Types.Int32)
-        self.nsend_contact    = sim.add_array('nsend_contact', [self.neigh_capacity], Types.Int32)
-        self.nrecv_contact    = sim.add_array('nrecv_contact', [self.neigh_capacity], Types.Int32)
-        self.contact_soffsets = sim.add_array('contact_soffsets', [self.neigh_capacity], Types.Int32)
-        self.contact_roffsets = sim.add_array('contact_roffsets', [self.neigh_capacity], Types.Int32)
+        self.nsend_contact    = sim.add_array('nsend_contact', [dom_part.nranks_capacity], Types.Int32)
+        self.nrecv_contact    = sim.add_array('nrecv_contact', [dom_part.nranks_capacity], Types.Int32)
+        self.contact_soffsets = sim.add_array('contact_soffsets', [dom_part.nranks_capacity], Types.Int32)
+        self.contact_roffsets = sim.add_array('contact_roffsets', [dom_part.nranks_capacity], Types.Int32)
+        
+        if self.sim.properties.reduction_props():
+            self.nsend_reverse            = sim.add_array('nsend_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.send_offsets_reverse     = sim.add_array('send_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.send_buffer_reverse      = sim.add_array('send_buffer_reverse', [self.send_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+            self.nrecv_reverse            = sim.add_array('nrecv_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.recv_offsets_reverse     = sim.add_array('recv_offsets_reverse', [dom_part.nranks_capacity], Types.Int32)
+            self.recv_buffer_reverse      = sim.add_array('recv_buffer_reverse', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
+
+
+class Synchronize(Lowerable):
+    def __init__(self, comm):
+        self.sim = comm.sim
+        self.comm = comm
 
     @pairs_inline
-    def synchronize(self):
+    def lower(self):
         # Every property that is not constant across timesteps and have neighbor accesses during any
         # interaction kernel (i.e. property[j] in force calculation kernel)
         prop_names = ['position', 'linear_velocity', 'angular_velocity']
         prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
 
-        PackAllGhostParticles(self, prop_list)
-        CommunicateAllData(self, prop_list)
-        UnpackAllGhostParticles(self, prop_list)
+        PackAllGhostParticles(self.comm, prop_list)
+        CommunicateAllData(self.comm, prop_list)
+        UnpackAllGhostParticles(self.comm, prop_list)
+
+
+class Borders(Lowerable):
+    def __init__(self, comm):
+        self.sim = comm.sim
+        self.comm = comm
 
     @pairs_inline
-    def borders(self):
+    def lower(self):
         # Every property that has neighbor accesses during any interaction kernel (i.e. property[j]
         # exists in any force calculation kernel)
         # We ignore normal because there should be no ghost half-spaces
         prop_names = [
+            'flags',
             'uid',
             'type',
             'mass',
@@ -71,84 +91,128 @@ class Comm:
 
         prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
 
-        Assign(self.sim, self.nsend_all, 0)
+        Assign(self.sim, self.comm.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
 
-        for step in range(self.dom_part.number_of_steps()):
+        for step in range(self.comm.dom_part.number_of_steps()):
             if self.sim._target.is_gpu():
-                CopyArray(self.sim, self.nsend, Contexts.Host, Actions.Ignore)
-                CopyArray(self.sim, self.nrecv, Contexts.Host, Actions.Ignore)
+                CopyArray(self.sim, self.comm.nsend, Contexts.Host, Actions.Ignore)
+                CopyArray(self.sim, self.comm.nrecv, Contexts.Host, Actions.Ignore)
 
-            for j in self.dom_part.step_indexes(step):
-                Assign(self.sim, self.nsend[j], 0)
-                Assign(self.sim, self.nrecv[j], 0)
+            for j in self.comm.dom_part.step_indexes(step):
+                Assign(self.sim, self.comm.nsend[j], 0)
+                Assign(self.sim, self.comm.nrecv[j], 0)
 
             if self.sim._target.is_gpu():
-                CopyArray(self.sim, self.nsend, Contexts.Device, Actions.Ignore)
-                CopyArray(self.sim, self.nrecv, Contexts.Device, Actions.Ignore)
+                CopyArray(self.sim, self.comm.nsend, Contexts.Device, Actions.Ignore)
+                CopyArray(self.sim, self.comm.nrecv, Contexts.Device, Actions.Ignore)
 
-            DetermineGhostParticles(self, step, self.sim.cell_spacing())
-            CommunicateSizes(self, step)
-            SetCommunicationOffsets(self, step)
-            PackGhostParticles(self, step, prop_list)
-            CommunicateData(self, step, prop_list)
-            UnpackGhostParticles(self, step, prop_list)
+            DetermineGhostParticles(self.comm, step, self.sim.cell_spacing())
+            CommunicateSizes(self.comm, step)
+            SetCommunicationOffsets(self.comm, step)
+            PackGhostParticles(self.comm, step, prop_list)
+            CommunicateData(self.comm, step, prop_list)
+            UnpackGhostParticles(self.comm, step, prop_list)
 
-            step_nrecv = sum([self.nrecv[j] for j in self.dom_part.step_indexes(step)])
+            step_nrecv = self.comm.dom_part.reduce_sum_step_indexes(step, self.comm.nrecv)
             Assign(self.sim, self.sim.nghost, self.sim.nghost + step_nrecv)
 
+
+class Exchange(Lowerable):
+    def __init__(self, comm):
+        self.sim = comm.sim
+        self.comm = comm
+
     @pairs_inline
-    def exchange(self):
+    def lower(self):
         # Every property except volatiles
         prop_list = self.sim.properties.non_volatiles()
 
-        for step in range(self.dom_part.number_of_steps()):
-            Assign(self.sim, self.nsend_all, 0)
-            Assign(self.sim, self.sim.nghost, 0)
+        for step in range(self.comm.dom_part.number_of_steps()):
+            Assign(self.comm.sim, self.comm.nsend_all, 0)
+            Assign(self.comm.sim, self.sim.nghost, 0)
 
             for s in range(step + 1):
-                for j in self.dom_part.step_indexes(s):
-                    Assign(self.sim, self.nsend[j], 0)
-                    Assign(self.sim, self.nrecv[j], 0)
-                    Assign(self.sim, self.send_offsets[j], 0)
-                    Assign(self.sim, self.recv_offsets[j], 0)
-                    Assign(self.sim, self.nsend_contact[j], 0)
-                    Assign(self.sim, self.nrecv_contact[j], 0)
-                    Assign(self.sim, self.contact_soffsets[j], 0)
-                    Assign(self.sim, self.contact_soffsets[j], 0)
+                for j in self.comm.dom_part.step_indexes(s):
+                    Assign(self.comm.sim, self.comm.nsend[j], 0)
+                    Assign(self.comm.sim, self.comm.nrecv[j], 0)
+                    Assign(self.comm.sim, self.comm.send_offsets[j], 0)
+                    Assign(self.comm.sim, self.comm.recv_offsets[j], 0)
+                    Assign(self.comm.sim, self.comm.nsend_contact[j], 0)
+                    Assign(self.comm.sim, self.comm.nrecv_contact[j], 0)
+                    Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
+                    Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
 
             if self.sim._target.is_gpu():
-                CopyArray(self.sim, self.nsend, Contexts.Device, Actions.Ignore)
-                CopyArray(self.sim, self.nrecv, Contexts.Device, Actions.Ignore)
+                CopyArray(self.comm.sim, self.comm.nsend, Contexts.Device, Actions.Ignore)
+                CopyArray(self.comm.sim, self.comm.nrecv, Contexts.Device, Actions.Ignore)
 
-            DetermineGhostParticles(self, step, 0.0)
-            CommunicateSizes(self, step)
-            SetCommunicationOffsets(self, step)
-            PackGhostParticles(self, step, prop_list)
-
-            if self.sim._target.is_gpu():
-                send_map_size = self.nsend_all * Sizeof(self.sim, Types.Int32)
-                exchg_flag_size = self.sim.nlocal * Sizeof(self.sim, Types.Int32)
-                CopyArray(self.sim, self.send_map, Contexts.Host, Actions.ReadOnly, send_map_size)
-                CopyArray(self.sim, self.exchg_flag, Contexts.Host, Actions.ReadOnly, exchg_flag_size)
-
-            RemoveExchangedParticles_part1(self)
+            DetermineGhostParticles(self.comm, step, 0.0)
+            CommunicateSizes(self.comm, step)
+            SetCommunicationOffsets(self.comm, step)
+            PackGhostParticles(self.comm, step, prop_list)
 
             if self.sim._target.is_gpu():
-                exchg_copy_to_size = self.nsend_all * Sizeof(self.sim, Types.Int32)
+                send_map_size = self.comm.nsend_all * Sizeof(self.comm.sim, Types.Int32)
+                exchg_flag_size = self.sim.nlocal * Sizeof(self.comm.sim, Types.Int32)
+                CopyArray(self.comm.sim, self.comm.send_map, Contexts.Host, Actions.ReadOnly, send_map_size)
+                CopyArray(self.comm.sim, self.comm.exchg_flag, Contexts.Host, Actions.ReadOnly, exchg_flag_size)
+
+            RemoveExchangedParticles_part1(self.comm)
+
+            if self.sim._target.is_gpu():
+                exchg_copy_to_size = self.comm.nsend_all * Sizeof(self.comm.sim, Types.Int32)
                 CopyArray(
-                    self.sim, self.exchg_copy_to, Contexts.Device, Actions.ReadOnly, exchg_copy_to_size)
+                    self.comm.sim, self.comm.exchg_copy_to, Contexts.Device, Actions.ReadOnly, exchg_copy_to_size)
 
-            RemoveExchangedParticles_part2(self, prop_list)
-            CommunicateData(self, step, prop_list)
-            UnpackGhostParticles(self, step, prop_list)
+            RemoveExchangedParticles_part2(self.comm, prop_list)
+            CommunicateData(self.comm, step, prop_list)
+            UnpackGhostParticles(self.comm, step, prop_list)
 
             if self.sim._use_contact_history:
-                PackContactHistoryData(self, step)
-                CommunicateContactHistoryData(self, step)
-                UnpackContactHistoryData(self, step)
+                PackContactHistoryData(self.comm, step)
+                CommunicateContactHistoryData(self.comm, step)
+                UnpackContactHistoryData(self.comm, step)
 
-            ChangeSizeAfterExchange(self, step)
+            ChangeSizeAfterExchange(self.comm, step)
+
+
+class ReverseComm(Lowerable):
+    def __init__(self, comm, reduce=False):
+        self.sim = comm.sim
+        self.comm = comm
+        self.reduce = reduce
+
+    @pairs_inline
+    def lower(self):
+        prop_list = self.sim.properties.reduction_props()
+
+        if prop_list :
+            for step in range(self.comm.dom_part.number_of_steps() - 1, -1, -1):
+                if self.sim._target.is_gpu():
+                    CopyArray(self.sim, self.comm.nsend, Contexts.Host, Actions.ReadOnly)
+                    CopyArray(self.sim, self.comm.nrecv, Contexts.Host, Actions.ReadOnly)
+                    CopyArray(self.sim, self.comm.send_offsets, Contexts.Host, Actions.ReadOnly)
+                    CopyArray(self.sim, self.comm.recv_offsets, Contexts.Host, Actions.ReadOnly)
+
+                    CopyArray(self.sim, self.comm.nsend_reverse, Contexts.Host, Actions.WriteOnly)
+                    CopyArray(self.sim, self.comm.nrecv_reverse, Contexts.Host, Actions.WriteOnly)
+                    CopyArray(self.sim, self.comm.send_offsets_reverse, Contexts.Host, Actions.WriteOnly)
+                    CopyArray(self.sim, self.comm.recv_offsets_reverse, Contexts.Host, Actions.WriteOnly)
+                
+                for j in self.comm.dom_part.step_indexes(step):
+                    Assign(self.sim, self.comm.nsend_reverse[j], self.comm.nrecv[j])
+                    Assign(self.sim, self.comm.nrecv_reverse[j], self.comm.nsend[j])
+                    Assign(self.sim, self.comm.send_offsets_reverse[j], self.comm.recv_offsets[j])
+                    Assign(self.sim, self.comm.recv_offsets_reverse[j], self.comm.send_offsets[j])
+
+                PackGhostParticlesReverse(self.comm, step, prop_list)
+                CommunicateDataReverse(self.comm, step, prop_list)
+                UnpackGhostParticlesReverse(self.comm, step, prop_list, self.reduce)
+
+
+
+
 
 
 class CommunicateSizes(Lowerable):
@@ -160,7 +224,7 @@ class CommunicateSizes(Lowerable):
 
     @pairs_inline
     def lower(self):
-        Call_Void(self.sim, "pairs->communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
+        Call_Void(self.sim, "pairs_runtime->communicateSizes", [self.step, self.comm.nsend, self.comm.nrecv])
 
 
 class CommunicateData(Lowerable):
@@ -176,12 +240,29 @@ class CommunicateData(Lowerable):
         elem_size = sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
 
         Call_Void(self.sim,
-                  "pairs->communicateData",
+                  "pairs_runtime->communicateData",
                   [self.step, elem_size,
                    self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
                    self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
 
+class CommunicateDataReverse(Lowerable):
+    def __init__(self, comm, step, prop_list):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.prop_list = prop_list
+        self.sim.add_statement(self)
 
+    @pairs_inline
+    def lower(self):
+        elem_size = sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+        Call_Void(self.sim,
+                  "pairs_runtime->communicateDataReverse",
+                  [self.step, elem_size,
+                   self.comm.send_buffer_reverse, self.comm.send_offsets_reverse, self.comm.nsend_reverse,
+                   self.comm.recv_buffer_reverse, self.comm.recv_offsets_reverse, self.comm.nrecv_reverse])
+        
 class CommunicateContactHistoryData(Lowerable):
     def __init__(self, comm, step):
         super().__init__(comm.sim)
@@ -195,7 +276,7 @@ class CommunicateContactHistoryData(Lowerable):
                                   for cp in self.sim.contact_properties]) + 1
 
         Call_Void(self.sim,
-                  "pairs->communicateContactHistoryData",
+                  "pairs_runtime->communicateContactHistoryData",
                   [self.step, nelems_per_contact,
                    self.comm.send_buffer, self.comm.contact_soffsets, self.comm.nsend_contact,
                    self.comm.recv_buffer, self.comm.contact_roffsets, self.comm.nrecv_contact])
@@ -214,7 +295,7 @@ class CommunicateAllData(Lowerable):
 
         Call_Void(
             self.sim,
-            "pairs->communicateAllData",
+            "pairs_runtime->communicateAllData",
             [self.comm.dom_part.number_of_steps(), elem_size,
              self.comm.send_buffer, self.comm.send_offsets, self.comm.nsend,
              self.comm.recv_buffer, self.comm.recv_offsets, self.comm.nrecv])
@@ -241,6 +322,7 @@ class DetermineGhostParticles(Lowerable):
         self.sim.check_resize(self.comm.send_capacity, nsend)
         #self.sim.check_resize(self.comm.send_capacity, nsend_all)
 
+        # PrintCode(self.sim, f"std::cout << \"resizes[0] {self.sim._module_name} ========== \" << pobj->resizes[0] << std::endl;")
         if is_exchange:
             for i in ParticleFor(self.sim):
                 Assign(self.sim, exchg_flag[i], 0)
@@ -274,18 +356,18 @@ class SetCommunicationOffsets(Lowerable):
         recv_offsets = self.comm.recv_offsets
         self.sim.module_name(f"set_communication_offsets{self.step}")
 
-        isend = 0
-        irecv = 0
+        isend = self.sim.add_temp_var(0)
+        irecv = self.sim.add_temp_var(0)
         for i in range(self.step):
             for j in self.comm.dom_part.step_indexes(i):
-                isend += nsend[j]
-                irecv += nrecv[j]
+                Assign(self.sim, isend, ScalarOp.inline(isend + nsend[j]))
+                Assign(self.sim, irecv, ScalarOp.inline(irecv + nrecv[j]))
 
         for j in self.comm.dom_part.step_indexes(self.step):
             Assign(self.sim, send_offsets[j], isend)
             Assign(self.sim, recv_offsets[j], irecv)
-            isend += nsend[j]
-            irecv += nrecv[j]
+            Assign(self.sim, isend, ScalarOp.inline(isend + nsend[j]))
+            Assign(self.sim, irecv, ScalarOp.inline(irecv + nrecv[j]))
 
 
 class PackGhostParticles(Lowerable):
@@ -307,9 +389,9 @@ class PackGhostParticles(Lowerable):
         send_mult = self.comm.send_mult
         self.sim.module_name(f"pack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        step_indexes = self.comm.dom_part.step_indexes(self.step)
-        start = self.comm.send_offsets[step_indexes[0]]
-        for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nsend[j] for j in step_indexes]))):
+        start = self.comm.send_offsets[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nsend))
+        for i in For(self.sim, start, end):
             p_offset = 0
             m = send_map[i]
             for p in self.prop_list:
@@ -327,6 +409,44 @@ class PackGhostParticles(Lowerable):
                 else:
                     cast_fn = lambda x: Cast(self.sim, x, Types.Real) if p.type() != Types.Real else x
                     Assign(self.sim, send_buffer[i][p_offset], cast_fn(p[m]))
+                    p_offset += 1
+
+class PackGhostParticlesReverse(Lowerable):
+    def __init__(self, comm, step, prop_list):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.prop_list = prop_list
+        self.sim.add_statement(self)
+
+    def get_elems_per_particle(self):
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+    @pairs_device_block
+    def lower(self):
+        nlocal = self.sim.nlocal
+        send_buffer_reverse = self.comm.send_buffer_reverse
+        send_buffer_reverse.set_stride(1, self.get_elems_per_particle())
+
+        self.sim.module_name(f"pack_ghost_particles_reverse{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
+
+        start = self.comm.send_offsets_reverse[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nsend_reverse))
+        for i in For(self.sim, start, end):
+            p_offset = 0
+            m = nlocal + i
+            for p in self.prop_list:
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        src = p[m][e]
+                        Assign(self.sim, send_buffer_reverse[i][p_offset + e], src)
+
+                    p_offset += nelems
+
+                else:
+                    cast_fn = lambda x: Cast(self.sim, x, Types.Real) if p.type() != Types.Real else x
+                    Assign(self.sim, send_buffer_reverse[i][p_offset], cast_fn(p[m]))
                     p_offset += 1
 
             
@@ -348,9 +468,9 @@ class UnpackGhostParticles(Lowerable):
         recv_buffer.set_stride(1, self.get_elems_per_particle())
         self.sim.module_name(f"unpack_ghost_particles{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        step_indexes = self.comm.dom_part.step_indexes(self.step)
-        start = self.comm.recv_offsets[step_indexes[0]]
-        for i in For(self.sim, start, ScalarOp.inline(start + sum([self.comm.nrecv[j] for j in step_indexes]))):
+        start = self.comm.recv_offsets[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nrecv))
+        for i in For(self.sim, start, end):
             p_offset = 0
             for p in self.prop_list:
                 if not Types.is_scalar(p.type()):
@@ -365,6 +485,49 @@ class UnpackGhostParticles(Lowerable):
                     Assign(self.sim, p[nlocal + i], cast_fn(recv_buffer[i][p_offset]))
                     p_offset += 1
 
+class UnpackGhostParticlesReverse(Lowerable):
+    def __init__(self, comm, step, prop_list, reduce=False):
+        super().__init__(comm.sim)
+        self.comm = comm
+        self.step = step
+        self.prop_list = prop_list
+        self.reduce = reduce
+        self.sim.add_statement(self)
+        
+
+    def get_elems_per_particle(self):
+        return sum([Types.number_of_elements(self.sim, p.type()) for p in self.prop_list])
+
+    @pairs_device_block
+    def lower(self):
+        send_map = self.comm.send_map
+        recv_buffer_reverse = self.comm.recv_buffer_reverse
+        recv_buffer_reverse.set_stride(1, self.get_elems_per_particle())
+        self.sim.module_name(f"unpack_ghost_particles_reverse{self.step}_" + "_".join([str(p.id()) for p in self.prop_list]))
+
+        start = self.comm.recv_offsets_reverse[self.comm.dom_part.first_step_index(self.step)]
+        end = ScalarOp.inline(start + self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nrecv_reverse))
+        for i in For(self.sim, start, end):
+            p_offset = 0
+            m = send_map[i]
+            for p in self.prop_list:
+                if not Types.is_scalar(p.type()):
+                    nelems = Types.number_of_elements(self.sim, p.type())
+                    for e in range(nelems):
+                        if self.reduce:
+                            AtomicInc(self.sim, p[m][e], recv_buffer_reverse[i][p_offset + e])
+                        else:
+                            Assign(self.sim, p[m][e], recv_buffer_reverse[i][p_offset + e])
+
+                    p_offset += nelems
+
+                else:
+                    cast_fn = lambda x: Cast(self.sim, x, p.type()) if p.type() != Types.Real else x
+                    if self.reduce:
+                        AtomicInc(self.sim, p[m], cast_fn(recv_buffer_reverse[i][p_offset]))
+                    else:
+                        Assign(self.sim, p[m], cast_fn(recv_buffer_reverse[i][p_offset]))
+                    p_offset += 1
 
 class PackAllGhostParticles(Lowerable):
     def __init__(self, comm, prop_list):
@@ -423,9 +586,7 @@ class UnpackAllGhostParticles(Lowerable):
         recv_buffer.set_stride(1, self.get_elems_per_particle())
         self.sim.module_name(f"unpack_all_ghost_particles" + "_".join([str(p.id()) for p in self.prop_list]))
 
-        nrecv_size = sum([len(dom_part.step_indexes(s)) for s in range(dom_part.number_of_steps())])
-        nrecv_all = sum([self.comm.nrecv[j] for j in range(nrecv_size)])
-
+        nrecv_all = self.comm.dom_part.reduce_sum_all_steps(self.comm.nrecv)
         for i in For(self.sim, 0, nrecv_all):
             p_offset = 0
             for p in self.prop_list:
@@ -517,7 +678,8 @@ class ChangeSizeAfterExchange(Lowerable):
     def lower(self):
         self.sim.module_name(f"change_size_after_exchange{self.step}")
         self.sim.check_resize(self.sim.particle_capacity, self.sim.nlocal)
-        Assign(self.sim, self.sim.nlocal, self.sim.nlocal + sum([self.comm.nrecv[j] for j in self.comm.dom_part.step_indexes(self.step)]))
+        nrecv = self.comm.dom_part.reduce_sum_step_indexes(self.step, self.comm.nrecv)
+        Assign(self.sim, self.sim.nlocal, self.sim.nlocal + nrecv)
 
 
 class PackContactHistoryData(Lowerable):
@@ -612,7 +774,6 @@ class UnpackContactHistoryData(Lowerable):
         contact_used = self.sim._contact_history.contact_used
         self.sim.module_name(f"unpack_contact_history{self.step}")
 
-        step_indexes = self.comm.dom_part.step_indexes(self.step)
         nelems_per_contact = sum([Types.number_of_elements(self.sim, cp.type()) \
                                   for cp in self.sim.contact_properties]) + 1
 

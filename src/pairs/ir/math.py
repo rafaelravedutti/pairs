@@ -1,6 +1,7 @@
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.types import Types
+from pairs.ir.lit import Lit
 
 
 class MathFunction(ASTTerm):
@@ -115,6 +116,7 @@ class Cos(MathFunction):
 
 class Ceil(MathFunction):
     def __init__(self, sim, expr):
+        expr = Lit.cvt(sim, expr)
         assert Types.is_real(expr.type()), "Expression must be of real type!"
         super().__init__(sim)
         self._params = [expr]

@@ -97,9 +97,6 @@ if target != 'cpu' and target != 'gpu':
 
 # Config file parameters
 domainSize_SI = [0.8, 0.015, 0.2]
-#domainSize_SI = [0.4, 0.4, 0.2] # node base
-#domainSize_SI = [0.6, 0.6, 0.2] # node base
-#domainSize_SI = [0.8, 0.8, 0.2] # node base
 diameter_SI = 0.0029
 gravity_SI = 9.81
 densityFluid_SI = 1000
@@ -112,7 +109,6 @@ restitutionCoefficient = 0.1
 collisionTime_SI = 5e-4
 poissonsRatio = 0.22
 timeSteps = 10000
-#timeSteps = 1000
 visSpacing = 100
 denseBottomLayer = False
 bottomLayerOffsetFactor = 1.0
@@ -128,13 +124,14 @@ frictionStatic = 0.0
 frictionDynamic = frictionCoefficient
 
 psim = pairs.simulation(
-    "dem",
+    "linear_spring_dashpot",
     [pairs.sphere(), pairs.halfspace()],
     timesteps=timeSteps,
     double_prec=True,
     use_contact_history=True,
     particle_capacity=1000000,
-    neighbor_capacity=20)
+    neighbor_capacity=20,
+    generate_whole_program=True)
 
 if target == 'gpu':
     psim.target(pairs.target_gpu())
@@ -167,29 +164,16 @@ psim.dem_sc_grid(
     domainSize_SI[0], domainSize_SI[1], domainSize_SI[2], generationSpacing_SI,
     diameter_SI, minDiameter_SI, maxDiameter_SI, initialVelocity_SI, densityParticle_SI, ntypes)
 
-#psim.read_particle_data(
-#    "data/spheres.input",
-#    "data/spheres_4x4x2.input",
-#    "data/spheres_6x6x2.input",
-#    "data/spheres_8x8x2.input",
-#    ['uid', 'type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
-#    pairs.sphere())
-
-#psim.read_particle_data(
-#    "data/spheres_bottom.input",
-#    ['type', 'mass', 'radius', 'position', 'linear_velocity', 'flags'],
-#    pairs.sphere())
 
 psim.read_particle_data(
     "data/planes.input",
-    ['uid', 'type', 'mass', 'position', 'normal', 'flags'],
+    ['type', 'mass', 'position', 'normal', 'flags'],
     pairs.halfspace())
 
 psim.setup(update_mass_and_inertia, {'densityParticle_SI': densityParticle_SI,
                                      'pi': math.pi,
                                      'infinity': math.inf })
 
-#psim.compute_half()
 psim.build_cell_lists(linkedCellWidth)
 #psim.vtk_output(f"output/dem_{target}", frequency=visSpacing)
 

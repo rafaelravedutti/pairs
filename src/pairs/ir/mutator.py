@@ -54,6 +54,18 @@ class Mutator:
             ast_node._reduction_variable = self.mutate(ast_node._reduction_variable)
 
         return ast_node
+    
+    def mutate_Return(self, ast_node):
+        ast_node.expr = self.mutate(ast_node.expr)
+        return ast_node
+    
+    def mutate_Print(self, ast_node):
+        ast_node.args = [self.mutate(arg) for arg in ast_node.args]
+        return ast_node
+
+    def mutate_PrintCode(self, ast_node):
+        ast_node.arg = self.mutate(ast_node.arg)
+        return ast_node
 
     def mutate_ArrayAccess(self, ast_node):
         ast_node.array = self.mutate(ast_node.array)

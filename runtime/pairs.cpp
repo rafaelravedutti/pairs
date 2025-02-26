@@ -7,39 +7,61 @@
 #include "pairs.hpp"
 #include "pairs_common.hpp"
 #include "devices/device.hpp"
+#include "domain/block_forest.hpp"
 #include "domain/regular_6d_stencil.hpp"
 
 namespace pairs {
 
-void PairsSimulation::initDomain(
+void PairsRuntime::initDomain(
     int *argc, char ***argv,
-    real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax) {
+    real_t xmin, real_t ymin, real_t zmin, real_t xmax, real_t ymax, real_t zmax, 
+    bool pbcx, bool pbcy, bool pbcz, 
+    bool balance_workload) {
 
-    if(dom_part_type == Regular) {
+    int mpi_initialized=0;
+    MPI_Initialized(&mpi_initialized);
+    
+    if(mpi_initialized){ 
+        PAIRS_ERROR("MPI is already initialized!\n"); 
+        exit(-1);
+    }
+    if(dom_part){ 
+        PAIRS_ERROR("DomainPartitioner already exists!\n"); 
+        exit(-1);
+    }
+
+    if(dom_part_type == RegularPartitioning) {
         const int flags[] = {1, 1, 1};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
-    } else if(dom_part_type == RegularXY) {
+    } else if(dom_part_type == RegularXYPartitioning) {
         const int flags[] = {1, 1, 0};
         dom_part = new Regular6DStencil(xmin, xmax, ymin, ymax, zmin, zmax, flags);
-    } else {
-        PAIRS_EXCEPTION("Domain partitioning type not implemented!\n");
+    } 
+    
+#ifdef USE_WALBERLA
+    else if(dom_part_type == BlockForestPartitioning) {
+        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, pbcx, pbcy, pbcz, balance_workload);
+    } 
+#endif
+
+    else {
+        PAIRS_ERROR("(initDomain) Domain partitioning type not implemented!\n");
+        exit(-1);
     }
 
     dom_part->initialize(argc, argv);
 }
 
-void PairsSimulation::addArray(Array array) {
-    int id = array.getId();
-    auto a = std::find_if(
-        arrays.begin(),
-        arrays.end(),
-        [id](Array _a) { return _a.getId() == id; });
+void PairsRuntime::addArray(Array array) {
+    PAIRS_ASSERT(
+        std::find_if(arrays.begin(), arrays.end(), [array](Array _a) {
+            return _a.getId() == array.getId();
+        }) == std::end(arrays));
 
-    PAIRS_ASSERT(a == std::end(arrays));
     arrays.push_back(array);
 }
 
-Array &PairsSimulation::getArray(array_t id) {
+Array &PairsRuntime::getArray(array_t id) {
     auto a = std::find_if(
         arrays.begin(),
         arrays.end(),
@@ -49,7 +71,7 @@ Array &PairsSimulation::getArray(array_t id) {
     return *a;
 }
 
-Array &PairsSimulation::getArrayByName(std::string name) {
+Array &PairsRuntime::getArrayByName(std::string name) {
     auto a = std::find_if(
         arrays.begin(),
         arrays.end(),
@@ -59,7 +81,7 @@ Array &PairsSimulation::getArrayByName(std::string name) {
     return *a;
 }
 
-Array &PairsSimulation::getArrayByHostPointer(const void *h_ptr) {
+Array &PairsRuntime::getArrayByHostPointer(const void *h_ptr) {
     auto a = std::find_if(
         arrays.begin(),
         arrays.end(),
@@ -69,18 +91,16 @@ Array &PairsSimulation::getArrayByHostPointer(const void *h_ptr) {
     return *a;
 }
 
-void PairsSimulation::addProperty(Property prop) {
-    int id = prop.getId();
-    auto p = std::find_if(
-        properties.begin(),
-        properties.end(),
-        [id](Property _p) { return _p.getId() == id; });
+void PairsRuntime::addProperty(Property prop) {
+    PAIRS_ASSERT(
+        std::find_if(properties.begin(), properties.end(), [prop](Property _p) {
+            return _p.getId() == prop.getId();
+        }) == std::end(properties));
 
-    PAIRS_ASSERT(p == std::end(properties));
     properties.push_back(prop);
 }
 
-Property &PairsSimulation::getProperty(property_t id) {
+Property &PairsRuntime::getProperty(property_t id) {
     auto p = std::find_if(
         properties.begin(),
         properties.end(),
@@ -90,7 +110,7 @@ Property &PairsSimulation::getProperty(property_t id) {
     return *p;
 }
 
-Property &PairsSimulation::getPropertyByName(std::string name) {
+Property &PairsRuntime::getPropertyByName(std::string name) {
     auto p = std::find_if(
         properties.begin(),
         properties.end(),
@@ -100,18 +120,19 @@ Property &PairsSimulation::getPropertyByName(std::string name) {
     return *p;
 }
 
-void PairsSimulation::addContactProperty(ContactProperty contact_prop) {
-    int id = contact_prop.getId();
-    auto cp = std::find_if(
-        contact_properties.begin(),
-        contact_properties.end(),
-        [id](ContactProperty _cp) { return _cp.getId() == id; });
+void PairsRuntime::addContactProperty(ContactProperty contact_prop) {
+    PAIRS_ASSERT(
+        std::find_if(
+            contact_properties.begin(),
+            contact_properties.end(),
+            [contact_prop](ContactProperty _cp) {
+                return _cp.getId() == contact_prop.getId();
+            }) == std::end(contact_properties));
 
-    PAIRS_ASSERT(cp == std::end(contact_properties));
     contact_properties.push_back(contact_prop);
 }
 
-ContactProperty &PairsSimulation::getContactProperty(property_t id) {
+ContactProperty &PairsRuntime::getContactProperty(property_t id) {
     auto cp = std::find_if(
         contact_properties.begin(),
         contact_properties.end(),
@@ -121,7 +142,7 @@ ContactProperty &PairsSimulation::getContactProperty(property_t id) {
     return *cp;
 }
 
-ContactProperty &PairsSimulation::getContactPropertyByName(std::string name) {
+ContactProperty &PairsRuntime::getContactPropertyByName(std::string name) {
     auto cp = std::find_if(
         contact_properties.begin(),
         contact_properties.end(),
@@ -131,18 +152,19 @@ ContactProperty &PairsSimulation::getContactPropertyByName(std::string name) {
     return *cp;
 }
 
-void PairsSimulation::addFeatureProperty(FeatureProperty feature_prop) {
-    int id = feature_prop.getId();
-    auto fp = std::find_if(
-        feature_properties.begin(),
-        feature_properties.end(),
-        [id](FeatureProperty _fp) { return _fp.getId() == id; });
+void PairsRuntime::addFeatureProperty(FeatureProperty feature_prop) {
+    PAIRS_ASSERT(
+        std::find_if(
+            feature_properties.begin(),
+            feature_properties.end(),
+            [feature_prop](FeatureProperty _fp) {
+                return _fp.getId() == feature_prop.getId();
+            }) == std::end(feature_properties));
 
-    PAIRS_ASSERT(fp == std::end(feature_properties));
     feature_properties.push_back(feature_prop);
 }
 
-FeatureProperty &PairsSimulation::getFeatureProperty(property_t id) {
+FeatureProperty &PairsRuntime::getFeatureProperty(property_t id) {
     auto fp = std::find_if(feature_properties.begin(),
                            feature_properties.end(),
                            [id](FeatureProperty _fp) { return _fp.getId() == id; });
@@ -150,7 +172,7 @@ FeatureProperty &PairsSimulation::getFeatureProperty(property_t id) {
     return *fp;
 }
 
-FeatureProperty &PairsSimulation::getFeaturePropertyByName(std::string name) {
+FeatureProperty &PairsRuntime::getFeaturePropertyByName(std::string name) {
     auto fp = std::find_if(feature_properties.begin(),
                            feature_properties.end(),
                            [name](FeatureProperty _fp) { return _fp.getName() == name; });
@@ -158,7 +180,7 @@ FeatureProperty &PairsSimulation::getFeaturePropertyByName(std::string name) {
     return *fp;
 }
 
-void PairsSimulation::copyArraySliceToDevice(
+void PairsRuntime::copyArraySliceToDevice(
     Array &array, action_t action, size_t offset, size_t size) {
 
     int array_id = array.getId();
@@ -167,7 +189,7 @@ void PairsSimulation::copyArraySliceToDevice(
         if(action == Ignore || !array_flags->isDeviceFlagSet(array_id)) {
             if(!array.isStatic()) {
                 PAIRS_DEBUG(
-                    "Copying array %s to device (offset=%d, n=%d)\n",
+                    "Copying array %s to device (offset=%lu, n=%lu)\n",
                     array.getName().c_str(), offset, size);
 
                 pairs::copy_slice_to_device(
@@ -183,16 +205,23 @@ void PairsSimulation::copyArraySliceToDevice(
     array_flags->setDeviceFlag(array_id);
 }
 
-void PairsSimulation::copyArrayToDevice(Array &array, action_t action, size_t size) {
+void PairsRuntime::copyArrayToDevice(Array &array, action_t action, size_t size) {
     int array_id = array.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isDeviceFlagSet(array_id)) {
             if(array.isStatic()) {
-                PAIRS_DEBUG("Copying static array %s to device (n=%d)\n", array.getName().c_str(), size);
-                pairs::copy_static_symbol_to_device(array.getHostPointer(), array.getDevicePointer(), size);
+                PAIRS_DEBUG(
+                    "Copying static array %s to device (n=%lu)\n",
+                    array.getName().c_str(), size);
+
+                pairs::copy_static_symbol_to_device(
+                    array.getHostPointer(), array.getDevicePointer(), size);
             } else {
-                PAIRS_DEBUG("Copying array %s to device (n=%d)\n", array.getName().c_str(), size);
+                PAIRS_DEBUG(
+                    "Copying array %s to device (n=%lu)\n",
+                    array.getName().c_str(), size);
+
                 pairs::copy_to_device(array.getHostPointer(), array.getDevicePointer(), size);
             }
         }
@@ -205,14 +234,14 @@ void PairsSimulation::copyArrayToDevice(Array &array, action_t action, size_t si
     array_flags->setDeviceFlag(array_id);
 }
 
-void PairsSimulation::copyArraySliceToHost(Array &array, action_t action, size_t offset, size_t size) {
+void PairsRuntime::copyArraySliceToHost(Array &array, action_t action, size_t offset, size_t size) {
     int array_id = array.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isHostFlagSet(array_id)) {
             if(!array.isStatic()) {
                 PAIRS_DEBUG(
-                    "Copying array %s to host (offset=%d, n=%d)\n",
+                    "Copying array %s to host (offset=%lu, n=%lu)\n",
                     array.getName().c_str(), offset, size);
 
                 pairs::copy_slice_to_host(
@@ -228,16 +257,19 @@ void PairsSimulation::copyArraySliceToHost(Array &array, action_t action, size_t
     array_flags->setHostFlag(array_id);
 }
 
-void PairsSimulation::copyArrayToHost(Array &array, action_t action, size_t size) {
+void PairsRuntime::copyArrayToHost(Array &array, action_t action, size_t size) {
     int array_id = array.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isHostFlagSet(array_id)) {
             if(array.isStatic()) {
-                PAIRS_DEBUG("Copying static array %s to host (n=%d)\n", array.getName().c_str(), size);
-                pairs::copy_static_symbol_to_host(array.getDevicePointer(), array.getHostPointer(), size);
+                PAIRS_DEBUG(
+                    "Copying static array %s to host (n=%lu)\n", array.getName().c_str(), size);
+
+                pairs::copy_static_symbol_to_host(
+                    array.getDevicePointer(), array.getHostPointer(), size);
             } else {
-                PAIRS_DEBUG("Copying array %s to host (n=%d)\n", array.getName().c_str(), size);
+                PAIRS_DEBUG("Copying array %s to host (n=%lu)\n", array.getName().c_str(), size);
                 pairs::copy_to_host(array.getDevicePointer(), array.getHostPointer(), size);
             }
         }
@@ -250,12 +282,12 @@ void PairsSimulation::copyArrayToHost(Array &array, action_t action, size_t size
     array_flags->setHostFlag(array_id);
 }
 
-void PairsSimulation::copyPropertyToDevice(Property &prop, action_t action, size_t size) {
+void PairsRuntime::copyPropertyToDevice(Property &prop, action_t action, size_t size) {
     int prop_id = prop.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to device (n=%d)\n", prop.getName().c_str(), size);
+            PAIRS_DEBUG("Copying property %s to device (n=%lu)\n", prop.getName().c_str(), size);
             pairs::copy_to_device(prop.getHostPointer(), prop.getDevicePointer(), size);
         }
     }
@@ -267,12 +299,12 @@ void PairsSimulation::copyPropertyToDevice(Property &prop, action_t action, size
     prop_flags->setDeviceFlag(prop_id);
 }
 
-void PairsSimulation::copyPropertyToHost(Property &prop, action_t action, size_t size) {
+void PairsRuntime::copyPropertyToHost(Property &prop, action_t action, size_t size) {
     int prop_id = prop.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isHostFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to host (n=%d)\n", prop.getName().c_str(), size);
+            PAIRS_DEBUG("Copying property %s to host (n=%lu)\n", prop.getName().c_str(), size);
             pairs::copy_to_host(prop.getDevicePointer(), prop.getHostPointer(), size);
         }
     }
@@ -284,15 +316,19 @@ void PairsSimulation::copyPropertyToHost(Property &prop, action_t action, size_t
     prop_flags->setHostFlag(prop_id);
 }
 
-void PairsSimulation::copyContactPropertyToDevice(
+void PairsRuntime::copyContactPropertyToDevice(
     ContactProperty &contact_prop, action_t action, size_t size) {
 
     int prop_id = contact_prop.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !contact_prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying contact property %s to device (n=%d)\n", contact_prop.getName().c_str(), size);
-            pairs::copy_to_device(contact_prop.getHostPointer(), contact_prop.getDevicePointer(), size);
+            PAIRS_DEBUG("Copying contact property %s to device (n=%lu)\n",
+                contact_prop.getName().c_str(), size);
+
+            pairs::copy_to_device(
+                contact_prop.getHostPointer(), contact_prop.getDevicePointer(), size);
+
             contact_prop_flags->setDeviceFlag(prop_id);
         }
     }
@@ -302,15 +338,19 @@ void PairsSimulation::copyContactPropertyToDevice(
     }
 }
 
-void PairsSimulation::copyContactPropertyToHost(
+void PairsRuntime::copyContactPropertyToHost(
     ContactProperty &contact_prop, action_t action, size_t size) {
 
     int prop_id = contact_prop.getId();
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(!contact_prop_flags->isHostFlagSet(contact_prop.getId())) {
-            PAIRS_DEBUG("Copying contact property %s to host (n=%d)\n", contact_prop.getName().c_str(), size);
-            pairs::copy_to_host(contact_prop.getDevicePointer(), contact_prop.getHostPointer(), size);
+            PAIRS_DEBUG("Copying contact property %s to host (n=%lu)\n",
+                contact_prop.getName().c_str(), size);
+
+            pairs::copy_to_host(
+                contact_prop.getDevicePointer(), contact_prop.getHostPointer(), size);
+
             contact_prop_flags->setHostFlag(prop_id);
         }
     }
@@ -320,13 +360,17 @@ void PairsSimulation::copyContactPropertyToHost(
     }
 }
 
-void PairsSimulation::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
+void PairsRuntime::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
     const size_t n = feature_prop.getArraySize();
-    PAIRS_DEBUG("Copying feature property %s to device (n=%d)\n", feature_prop.getName().c_str(), n);
-    pairs::copy_static_symbol_to_device(feature_prop.getHostPointer(), feature_prop.getDevicePointer(), n);
+
+    PAIRS_DEBUG("Copying feature property %s to device (n=%lu)\n",
+        feature_prop.getName().c_str(), n);
+
+    pairs::copy_static_symbol_to_device(
+        feature_prop.getHostPointer(), feature_prop.getDevicePointer(), n);
 }
 
-void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
+void PairsRuntime::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
     auto nsend_id = getArrayByHostPointer(send_sizes).getId();
     auto nrecv_id = getArrayByHostPointer(recv_sizes).getId();
 
@@ -341,7 +385,7 @@ void PairsSimulation::communicateSizes(int dim, const int *send_sizes, int *recv
     this->getTimers()->stop(Communication);
 }
 
-void PairsSimulation::communicateData(
+void PairsRuntime::communicateData(
     int dim, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
@@ -369,13 +413,22 @@ void PairsSimulation::communicateData(
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
-    for(int d = 0; d <= dim; d++) {
-        nsend_all += nsend[d * 2 + 0];
-        nsend_all += nsend[d * 2 + 1];
-        nrecv_all += nrecv[d * 2 + 0];
-        nrecv_all += nrecv[d * 2 + 1];
+    if(this->dom_part_type == RegularPartitioning || this->dom_part_type == RegularXYPartitioning){
+        for(int d = 0; d <= dim; d++) {
+            nsend_all += nsend[d * 2 + 0];
+            nsend_all += nsend[d * 2 + 1];
+            nrecv_all += nrecv[d * 2 + 0];
+            nrecv_all += nrecv[d * 2 + 1];
+        }
     }
-
+    else if (this->dom_part_type == BlockForestPartitioning){
+        int nranks = this->getDomainPartitioner()->getNumberOfNeighborRanks();
+        for (int n=0; n<nranks; ++n){
+            nsend_all += nsend[n];
+            nrecv_all += nrecv[n];
+        }
+    }
+    
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
@@ -395,7 +448,70 @@ void PairsSimulation::communicateData(
     #endif
 }
 
-void PairsSimulation::communicateAllData(
+void PairsRuntime::communicateDataReverse(
+    int dim, int elem_size,
+    const real_t *send_buf, const int *send_offsets, const int *nsend,
+    real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
+
+    const real_t *send_buf_ptr = send_buf;
+    real_t *recv_buf_ptr = recv_buf;
+    auto send_buf_array = getArrayByHostPointer(send_buf);
+    auto recv_buf_array = getArrayByHostPointer(recv_buf);
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
+    auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
+    auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
+    auto nsend_id = getArrayByHostPointer(nsend).getId();
+    auto nrecv_id = getArrayByHostPointer(nrecv).getId();
+
+    this->getTimers()->start(DeviceTransfers);
+    copyArrayToHost(send_offsets_id, ReadOnly);
+    copyArrayToHost(recv_offsets_id, ReadOnly);
+    copyArrayToHost(nsend_id, ReadOnly);
+    copyArrayToHost(nrecv_id, ReadOnly);
+
+    #ifdef ENABLE_CUDA_AWARE_MPI
+    send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
+    recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    #else
+    int nsend_all = 0;
+    int nrecv_all = 0;
+    if(this->dom_part_type == RegularPartitioning || this->dom_part_type == RegularXYPartitioning){
+        for(int d = 2; d >= dim; d--) {
+            nsend_all += nsend[d * 2 + 0];
+            nsend_all += nsend[d * 2 + 1];
+            nrecv_all += nrecv[d * 2 + 0];
+            nrecv_all += nrecv[d * 2 + 1];
+        }
+    }
+    else if (this->dom_part_type == BlockForestPartitioning){
+        int nranks = this->getDomainPartitioner()->getNumberOfNeighborRanks();
+        for (int n=0; n<nranks; ++n){   // blockforest doesn't need reverse loop
+            nsend_all += nsend[n];
+            nrecv_all += nrecv[n];
+        }
+    }
+
+    copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
+    array_flags->setHostFlag(recv_buf_id);
+    array_flags->clearDeviceFlag(recv_buf_id);
+    #endif
+
+    this->getTimers()->stop(DeviceTransfers);
+
+    this->getTimers()->start(Communication);
+    this->getDomainPartitioner()->communicateDataReverse(
+        dim, elem_size, send_buf_ptr, send_offsets, nsend, recv_buf_ptr, recv_offsets, nrecv);
+    this->getTimers()->stop(Communication);
+
+    #ifndef ENABLE_CUDA_AWARE_MPI
+    this->getTimers()->start(DeviceTransfers);
+    copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
+    this->getTimers()->stop(DeviceTransfers);
+    #endif
+}
+
+void PairsRuntime::communicateAllData(
     int ndims, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
@@ -423,11 +539,20 @@ void PairsSimulation::communicateAllData(
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
-    for(int d = 0; d <= ndims; d++) {
-        nsend_all += nsend[d * 2 + 0];
-        nsend_all += nsend[d * 2 + 1];
-        nrecv_all += nrecv[d * 2 + 0];
-        nrecv_all += nrecv[d * 2 + 1];
+    if(this->dom_part_type == RegularPartitioning || this->dom_part_type == RegularXYPartitioning){
+        for(int d = 0; d <= ndims; d++) {
+            nsend_all += nsend[d * 2 + 0];
+            nsend_all += nsend[d * 2 + 1];
+            nrecv_all += nrecv[d * 2 + 0];
+            nrecv_all += nrecv[d * 2 + 1];
+        }
+    }
+    else if (this->dom_part_type == BlockForestPartitioning){
+        int nranks = this->getDomainPartitioner()->getNumberOfNeighborRanks();
+        for (int n=0; n<nranks; ++n){
+            nsend_all += nsend[n];
+            nrecv_all += nrecv[n];
+        }
     }
 
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
@@ -449,7 +574,7 @@ void PairsSimulation::communicateAllData(
     #endif
 }
 
-void PairsSimulation::communicateContactHistoryData(
+void PairsRuntime::communicateContactHistoryData(
     int dim, int nelems_per_contact,
     const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
     real_t *recv_buf, int *contact_roffsets, int *nrecv_contact) {
@@ -515,8 +640,8 @@ void PairsSimulation::communicateContactHistoryData(
     #endif
 }
 
-void PairsSimulation::fillCommunicationArrays(int *neighbor_ranks, int *pbc, real_t *subdom) {
-    this->getDomainPartitioner()->fillArrays(neighbor_ranks, pbc, subdom);
+void PairsRuntime::copyRuntimeArray(const std::string& name, void *dest, const int size) {
+    this->getDomainPartitioner()->copyRuntimeArray(name, dest, size);
 }
 
 }

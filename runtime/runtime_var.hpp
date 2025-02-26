@@ -5,11 +5,12 @@
 namespace pairs {
 
 template<typename T>
-class RuntimeVar{
+class RuntimeVar {
 protected:
     T *h_ptr, *d_ptr;
 
 public:
+    RuntimeVar() = default;
     RuntimeVar(T *ptr) {
         h_ptr = ptr;
         d_ptr = (T *) pairs::device_alloc(sizeof(T));

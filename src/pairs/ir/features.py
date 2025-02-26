@@ -131,9 +131,7 @@ class FeatureProperty(ASTNode):
                      self.feature_prop_feature.nkinds()]
 
     def array_size(self):
-        nelems = self.feature_prop_feature.nkinds() * \
-                 Types.number_of_elements(self.sim, self.feature_prop_type)
-        return nelems * nelems
+        return self.feature_prop_feature.nkinds()**2  * Types.number_of_elements(self.sim, self.feature_prop_type)
 
     def __getitem__(self, expr):
         return FeaturePropertyAccess(self.sim, self, expr)
@@ -161,7 +159,7 @@ class FeaturePropertyAccess(ASTTerm):
             sizes = feature_prop.sizes()
             layout = feature_prop.layout()
 
-            for elem in range(Types.number_of_elements(feature_prop.type())):
+            for elem in range(Types.number_of_elements(self.sim, feature_prop.type())):
                 if layout == Layouts.AoS:
                     self.vector_indexes[elem] = self.index * sizes[0] + elem
                 elif layout == Layouts.SoA:

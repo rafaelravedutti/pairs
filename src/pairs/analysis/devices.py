@@ -12,30 +12,24 @@ from pairs.ir.vectors import VectorOp
 class MarkCandidateLoops(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
+        self.device_module = False
+
+    def visit_For(self, ast_node):
+        if self.device_module and not ast_node.not_kernel and (not isinstance(ast_node.min, Lit) or not isinstance(ast_node.max, Lit)):
+            ast_node.mark_as_kernel_candidate()
+        else:
+            ast_node.mark_iter_as_ref_candidate()
+            self.visit(ast_node.block)
+
 
     def visit_Module(self, ast_node):
-        possible_candidates = []
-        for stmt in ast_node._block.stmts:
-            if stmt is not None:
-                if isinstance(stmt, Branch):
-                    for branch_stmt in stmt.block_if.stmts:
-                        if isinstance(branch_stmt, For):
-                            possible_candidates.append(branch_stmt)
-
-                    if stmt.block_else is not None:
-                        for branch_stmt in stmt.block_else.stmts:
-                            if isinstance(branch_stmt, For):
-                                possible_candidates.append(branch_stmt)
-
-                if isinstance(stmt, For):
-                    possible_candidates.append(stmt)
-
-        for stmt in possible_candidates:
-            if not isinstance(stmt.min, Lit) or not isinstance(stmt.max, Lit):
-                stmt.mark_as_kernel_candidate()
+        parent_runs_on_device = self.device_module
+        if ast_node.run_on_device:
+            self.device_module = True
 
         self.visit_children(ast_node)
-
+        self.device_module = parent_runs_on_device
+        
 
 class FetchKernelReferences(Visitor):
     def __init__(self, ast=None):
@@ -205,3 +199,12 @@ class FetchKernelReferences(Visitor):
             # Variables only have a device version when changed within kernels
             if self.writing:
                 ast_node.device_flag = True
+
+    def visit_Parameter(self, ast_node):
+        for k in self.kernel_stack:
+            k.add_parameter(ast_node, self.writing)
+
+    def visit_Iter(self, ast_node):
+        for k in self.kernel_stack:
+            if ast_node.is_ref_candidate():
+                k.add_iter(ast_node, self.writing)

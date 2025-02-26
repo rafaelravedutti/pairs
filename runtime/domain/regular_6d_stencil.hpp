@@ -51,17 +51,30 @@ public:
     void setConfig();
     void setBoundingBox();
     void initialize(int *argc, char ***argv);
+    void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax);
+    void update();
     void finalize();
+
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }
+    int getNumberOfNeighborRanks() { return 6; }
+    int getNumberOfNeighborAABBs() { return 6; }
+    double getSubdomMin(int dim) const { return subdom_min[dim];}
+    double getSubdomMax(int dim) const { return subdom_max[dim];}
+
     int isWithinSubdomain(real_t x, real_t y, real_t z);
-    void fillArrays(int *neighbor_ranks, int *pbc, real_t *subdom);
+    void copyRuntimeArray(const std::string& name, void *dest, const int size);
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
     void communicateData(
         int dim, int elem_size,
         const real_t *send_buf, const int *send_offsets, const int *nsend,
         real_t *recv_buf, const int *recv_offsets, const int *nrecv);
 
+    void communicateDataReverse(
+        int dim, int elem_size,
+        const real_t *send_buf, const int *send_offsets, const int *nsend,
+        real_t *recv_buf, const int *recv_offsets, const int *nrecv);
+        
     void communicateAllData(
         int ndims, int elem_size,
         const real_t *send_buf, const int *send_offsets, const int *nsend,

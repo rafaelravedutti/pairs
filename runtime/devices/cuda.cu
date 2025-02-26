@@ -1,17 +1,12 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <cstring>
+#include "../pairs_common.hpp"
+#include "device.hpp"
 
 #define CUDA_ASSERT(a) { pairs::cuda_assert((a), __FILE__, __LINE__); }
 
 namespace pairs {
-
-inline void cuda_assert(cudaError_t err, const char *file, int line) {
-    if(err != cudaSuccess) {
-        std::cerr << file << ":" << line << ": " << cudaGetErrorString(err) << std::endl;
-        exit(-1);
-    }
-}
 
 __host__ void *device_alloc(size_t size) {
     void *ptr;
@@ -69,6 +64,40 @@ __host__ void copy_static_symbol_to_device(void *h_ptr, const void *d_ptr, size_
 
 __host__ void copy_static_symbol_to_host(void *d_ptr, const void *h_ptr, size_t count) {
     //CUDA_ASSERT(cudaMemcpyFromSymbol(h_ptr, d_ptr, count));
+}
+
+#if __CUDA_ARCH__ < 600
+__device__ double atomicAdd_double(double* address, double val) {
+    unsigned long long int * ull_addr = (unsigned long long int*) address;
+    unsigned long long int old = *ull_addr, assumed;
+
+    do {
+        assumed = old;
+        old = atomicCAS(ull_addr, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+        // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+
+    return __longlong_as_double(old);
+}
+#else
+__device__ double atomicAdd_double(double* address, double val) {
+    return atomicAdd(address, val);
+}
+#endif
+
+__device__ int atomic_add(int *addr, int val) { return atomicAdd(addr, val); }
+__device__ real_t atomic_add(real_t *addr, real_t val) { return atomicAdd_double(addr, val); }
+__device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
+    const int add_res = *addr + val;
+    
+    // printf("atomic_add_resize_check::: add_res %d --- val %d --- capacity %d --- resize %d\n", add_res, val, capacity, *resize);
+    
+    if(add_res >= capacity) {
+        *resize = add_res;
+        return *addr;
+    }
+
+    return atomic_add(addr, val);
 }
 
 }

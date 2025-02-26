@@ -1,0 +1,75 @@
+#include "create_body.hpp"
+
+namespace pairs {
+
+// returns the uid of the body created, or 0 if the body is not created
+id_t create_halfspace(PairsRuntime *pr, 
+                    double x, double y, double z, 
+                    double nx, double ny, double nz, 
+                    int type, int flag){
+    // TODO: increase capacity if exceeded
+    id_t uid = 0;
+    auto uids = pr->getAsUInt64Property(pr->getPropertyByName("uid"));   
+    auto shapes = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
+    auto types = pr->getAsIntegerProperty(pr->getPropertyByName("type"));
+    auto flags = pr->getAsIntegerProperty(pr->getPropertyByName("flags"));
+    auto positions = pr->getAsVectorProperty(pr->getPropertyByName("position"));
+    auto normals = pr->getAsVectorProperty(pr->getPropertyByName("normal"));
+
+    if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z) || flag & (flags::INFINITE | flags::GLOBAL) ){
+        int n = pr->getTrackedVariableAsInteger("nlocal");
+        uid = (flag & flags::GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uids(n) = uid;
+        positions(n, 0) = x;
+        positions(n, 1) = y;
+        positions(n, 2) = z;
+        normals(n, 0) = nx;
+        normals(n, 1) = ny;
+        normals(n, 2) = nz;
+        types(n) = type;
+        flags(n) = flag;
+        shapes(n) = 1;   // halfspace
+        pr->setTrackedVariableAsInteger("nlocal", n + 1);
+    }
+
+    return uid;
+}
+
+// returns the uid of the body created, or 0 if the body is not created
+id_t create_sphere(PairsRuntime *pr, 
+                    double x, double y, double z, 
+                    double vx, double vy, double vz, 
+                    double density, double radius, int type, int flag){
+    // TODO: increase capacity if exceeded
+    id_t uid = 0;
+    auto uids = pr->getAsUInt64Property(pr->getPropertyByName("uid"));   
+    auto shapes = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
+    auto types = pr->getAsIntegerProperty(pr->getPropertyByName("type"));
+    auto flags = pr->getAsIntegerProperty(pr->getPropertyByName("flags"));
+    auto masses = pr->getAsFloatProperty(pr->getPropertyByName("mass"));
+    auto radii = pr->getAsFloatProperty(pr->getPropertyByName("radius"));
+    auto positions = pr->getAsVectorProperty(pr->getPropertyByName("position"));
+    auto velocities = pr->getAsVectorProperty(pr->getPropertyByName("linear_velocity"));
+
+    if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z)) {
+        int n = pr->getTrackedVariableAsInteger("nlocal");
+        uid = (flag & flags::GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uids(n) = uid;
+        radii(n) = radius;
+        masses(n) = ((4.0 / 3.0) * M_PI) * radius * radius * radius * density;
+        positions(n, 0) = x;
+        positions(n, 1) = y;
+        positions(n, 2) = z;
+        velocities(n, 0) = vx;
+        velocities(n, 1) = vy;
+        velocities(n, 2) = vz;
+        types(n) = type;
+        flags(n) = flag;
+        shapes(n) = 0;   // sphere
+        pr->setTrackedVariableAsInteger("nlocal", n + 1);
+    }
+    
+    return uid;
+}
+
+}
