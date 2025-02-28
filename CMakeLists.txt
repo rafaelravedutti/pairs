@@ -42,7 +42,7 @@ file(MAKE_DIRECTORY ${OUTPUT_DIR})
 #================================================================================
 # TODO: Unify all interfaces
 set(GEN_INTERFACE_DIR ${CMAKE_CURRENT_BINARY_DIR}/internal_interfaces)
-set(GEN_INTERFACE_HEADER ${CMAKE_CURRENT_BINARY_DIR}/last_generated.hpp)
+set(GEN_INTERFACE_HEADER ${GEN_INTERFACE_DIR}/last_generated.hpp)
 file(MAKE_DIRECTORY ${GEN_INTERFACE_DIR})
 
 #================================================================================
