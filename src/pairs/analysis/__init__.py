@@ -1,7 +1,7 @@
 import time
 from pairs.analysis.expressions import DetermineExpressionsTerminals, ResetInPlaceOperations, DetermineInPlaceOperations, ListDeclaredExpressions
 from pairs.analysis.blocks import DiscoverBlockVariants, DetermineExpressionsOwnership, DetermineParentBlocks
-from pairs.analysis.devices import FetchKernelReferences, MarkCandidateLoops
+from pairs.analysis.devices import FetchKernelReferences, MarkCandidateLoops, FetchDeviceCopies
 from pairs.analysis.modules import FetchModulesReferences, InferModulesReturnTypes
 
 
@@ -54,3 +54,6 @@ class Analysis:
 
     def infer_modules_return_types(self):
         self.apply(InferModulesReturnTypes())
+
+    def fetch_device_copies(self):
+        self.apply(FetchDeviceCopies())

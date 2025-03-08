@@ -29,6 +29,7 @@ class Module(ASTNode):
         self._contact_properties = {}
         self._feature_properties = {}
         self._host_references = set()
+        self._device_copies = set()
         self._block = block
         self._resizes_to_check = resizes_to_check
         self._check_properties_resize = check_properties_resize
@@ -115,6 +116,9 @@ class Module(ASTNode):
     def host_references(self):
         return self._host_references
 
+    def device_copies(self):
+        return self._device_copies
+    
     def add_array(self, array, write=False):
         array_list = array if isinstance(array, list) else [array]
         new_op = 'w' if write else 'r'
@@ -184,6 +188,9 @@ class Module(ASTNode):
 
     def add_host_reference(self, elem):
         self._host_references.add(elem)
+
+    def add_device_copy(self, elem):
+        self._device_copies.add(elem)
 
     def children(self):
         return [self._block]

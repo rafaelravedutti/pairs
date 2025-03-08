@@ -355,6 +355,8 @@ public:
     int getNumberOfNeighborRanks() { return this->getDomainPartitioner()->getNumberOfNeighborRanks(); }
     int getNumberOfNeighborAABBs() { return this->getDomainPartitioner()->getNumberOfNeighborAABBs(); }
 
+    void allReduceInplaceSum(real_t *red_buffer, int num_elems);
+
     // Device functions
     void sync() { device_synchronize(); }
 

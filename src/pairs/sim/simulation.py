@@ -10,7 +10,7 @@ from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
 from pairs.ir.variables import Variables
 #from pairs.graph.graphviz import ASTGraph
-from pairs.mapping.funcs import compute, setup
+from pairs.mapping.funcs import compute
 from pairs.sim.arrays import DeclareArrays
 from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists, BuildCellNeighborLists
 from pairs.sim.comm import Comm, Synchronize, Borders, Exchange, ReverseComm
@@ -301,11 +301,11 @@ class Simulation:
         assert self.var(var_name) is None, f"Variable already defined: {var_name}"
         return self.vars.add(var_name, var_type, init_value, runtime)
 
-    def add_temp_var(self, init_value):
-        return self.vars.add_temp(init_value)
+    def add_temp_var(self, init_value, type=None):
+        return self.vars.add_temp(init_value, type)
 
-    def add_symbol(self, sym_type):
-        return Symbol(self, sym_type)
+    def add_symbol(self, sym_type, name=None):
+        return Symbol(self, sym_type, name)
 
     def var(self, var_name):
         return self.vars.find(var_name)
@@ -358,11 +358,9 @@ class Simulation:
         self.neighbor_lists = NeighborLists(self, self.cell_lists)
         return self.neighbor_lists
 
-    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=False, skip_first=False):
-        return compute(self, func, cutoff_radius, symbols, parameters, pre_step, skip_first)
+    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False):
+        return compute(self, func, cutoff_radius, symbols, parameters, compute_globals)
 
-    def setup(self, func, symbols={}):
-        return setup(self, func, symbols)
 
     def init_block(self):
         """Initialize new block in this simulation instance"""
@@ -440,6 +438,16 @@ class Simulation:
                 user_defined=True)
         
 
+    def build_interface_module(self, run_on_device=False):
+        """Build a user-defined Module that will be callable seperately as part of the interface"""
+        Module(self, name=self._module_name,
+                block=Block(self, self._block),
+                resizes_to_check=self._resizes_to_check,
+                check_properties_resize=self._check_properties_resize,
+                run_on_device=run_on_device,
+                user_defined=False,
+                interface=True)
+        
     def capture_statements(self, capture=True):
         """When toggled, all constructed statements are captured and automatically added to the last initialized block"""
         self._capture_statements = capture
@@ -531,13 +539,6 @@ class Simulation:
 
     def generate_library(self):
         InterfaceModules(self).create_all()
-        
-        # User defined functions are wrapped inside seperate interface modules here.
-        # The udf's have the same name as their interface module but they get implemented in the pairs::internal scope.
-        for m in self.udf_module_list:
-            module = Module(self, name=m.name, block=Block(self, m), interface=True)
-            module._id = m._id
-
         Transformations(self.interface_modules(), self._target).apply_all()
 
         # Generate library

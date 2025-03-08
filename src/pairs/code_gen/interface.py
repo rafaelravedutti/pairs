@@ -245,7 +245,7 @@ class InterfaceModules:
     @pairs_interface_block
     def end(self):
         self.sim.module_name('end')
-        Call_Void(self.sim, "pairs::print_timers", [])
+        # Call_Void(self.sim, "pairs::print_timers", [])
         Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
         PrintCode(self.sim, "delete pobj;")
         PrintCode(self.sim, "delete pairs_runtime;")

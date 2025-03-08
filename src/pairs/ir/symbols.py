@@ -7,16 +7,20 @@ from pairs.ir.types import Types
 
 
 class Symbol(ASTTerm):
-    def __init__(self, sim, sym_type):
+    def __init__(self, sim, sym_type, name=None):
         super().__init__(sim, OperatorClass.from_type(sym_type))
         self.sym_type = sym_type
         self.assign_to = None
+        self.name = name
 
     def __str__(self):
         return f"Symbol<{Types.c_keyword(self.sim, self.sym_type)}>"
 
     def assign(self, node):
         self.assign_to = node
+    
+    def get_assigned_node(self):
+        return self.assign_to
 
     def type(self):
         return self.sym_type

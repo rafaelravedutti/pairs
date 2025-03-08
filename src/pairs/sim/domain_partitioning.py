@@ -158,30 +158,30 @@ class BlockForest:
         Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
         Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborRanks", []))
 
-        for _ in Filter(self.sim, ScalarOp.neq(self.nranks, 0)):
-            Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
+        # for _ in Filter(self.sim, ScalarOp.neq(self.nranks, 0)): # TODO: Test different block configs with PBC
+        Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
 
-            for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
-                Assign(self.sim, self.nranks_capacity, self.nranks + 10)
-                self.ranks.realloc()
-                self.naabbs.realloc()
-                self.aabb_offsets.realloc()
+        for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
+            Assign(self.sim, self.nranks_capacity, self.nranks + 10)
+            self.ranks.realloc()
+            self.naabbs.realloc()
+            self.aabb_offsets.realloc()
 
-            for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
-                Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
-                self.aabbs.realloc()
-            
-            CopyArray(self.sim, self.ranks, Contexts.Host, Actions.WriteOnly, self.nranks)
-            CopyArray(self.sim, self.naabbs, Contexts.Host, Actions.WriteOnly, self.nranks)
-            CopyArray(self.sim, self.aabb_offsets, Contexts.Host, Actions.WriteOnly, self.nranks)
-            CopyArray(self.sim, self.aabbs, Contexts.Host, Actions.WriteOnly, self.ntotal_aabbs * 6)
-            CopyArray(self.sim, self.subdom, Contexts.Host, Actions.WriteOnly)
+        for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
+            Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
+            self.aabbs.realloc()
+        
+        CopyArray(self.sim, self.ranks, Contexts.Host, Actions.WriteOnly, self.nranks)
+        CopyArray(self.sim, self.naabbs, Contexts.Host, Actions.WriteOnly, self.nranks)
+        CopyArray(self.sim, self.aabb_offsets, Contexts.Host, Actions.WriteOnly, self.nranks)
+        CopyArray(self.sim, self.aabbs, Contexts.Host, Actions.WriteOnly, self.ntotal_aabbs * 6)
+        CopyArray(self.sim, self.subdom, Contexts.Host, Actions.WriteOnly)
 
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
         
         if isinstance(self.sim.grid, MutableGrid):
             for d in range(self.sim.dims):

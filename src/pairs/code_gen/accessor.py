@@ -253,7 +253,7 @@ class PairsAcessor:
         
         self.print(f"{self.host_device_attr}{tkw} get{funcname}({params}) const{{")
 
-        if self.target.is_gpu():
+        if self.target.is_gpu() and prop.device_flag:
             self.ifdef_else("__CUDA_ARCH__", self.getter_body, [prop, True], self.getter_body, [prop, False])
         else:
             self.getter_body(prop, False)

@@ -132,7 +132,7 @@ class BuildCellLists(Lowerable):
         for i in ParticleFor(self.sim, local_only=False):
             flat_index = self.sim.add_temp_var(0)
 
-            for _ in Filter(self.sim, ASTTerm.not_op(particle_flags[i] & Flags.Infinite)):
+            for _ in Filter(self.sim, ASTTerm.not_op(particle_flags[i] & (Flags.Infinite | Flags.Global))):
                 cell_index = [
                     Cast.int(self.sim,
                         (positions[i][dim] - (dom_part.min(dim) - spacing[dim])) / spacing[dim]) \

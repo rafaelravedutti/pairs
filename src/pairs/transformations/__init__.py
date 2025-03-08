@@ -73,6 +73,7 @@ class Transformations:
 
     def add_device_copies(self):
         if self._target.is_gpu():
+            self.analysis().fetch_device_copies()
             self.apply(AddDeviceCopies(), [self._module_resizes])
             self.analysis().fetch_modules_references()
 
@@ -104,10 +105,11 @@ class Transformations:
         self.licm()
         self.modularize()
         self.add_device_kernels()
+        self.add_host_references_to_modules()
         self.add_device_copies()
         self.lower(True)
         self.add_expression_declarations()
-        self.add_host_references_to_modules()
+        # self.add_host_references_to_modules()
         self.add_device_references_to_modules()
         
         # TODO: Place stop timers before the function returns

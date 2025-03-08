@@ -83,7 +83,48 @@ class Abs(MathFunction):
     def type(self):
         return self._params[0].type()
 
+class Min(MathFunction):
+    def __init__(self, sim, a, b):
+        super().__init__(sim)
+        self._params = [a, b]
 
+    def __str__(self):
+        return f"Min<{self._params}>"
+
+    def function_name(self):
+        return "MIN"
+
+    def type(self):
+        return self._params[0].type()
+    
+class Max(MathFunction):
+    def __init__(self, sim, a, b):
+        super().__init__(sim)
+        self._params = [a, b]
+
+    def __str__(self):
+        return f"Max<{self._params}>"
+
+    def function_name(self):
+        return "MAX"
+
+    def type(self):
+        return self._params[0].type()
+    
+class Sign(MathFunction):
+    def __init__(self, sim, expr):
+        super().__init__(sim)
+        self._params = [expr]
+
+    def __str__(self):
+        return f"Sign<{self._params}>"
+
+    def function_name(self):
+        return "SIGN"
+
+    def type(self):
+        return self._params[0].type()
+    
 class Sin(MathFunction):
     def __init__(self, sim, expr):
         super().__init__(sim)

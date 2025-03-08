@@ -45,6 +45,7 @@ class CGen:
         self.target = None
         self.print = None
         self.kernel_context = False
+        self.loop_scope = False
         self.generate_full_object_names = False
         self.ref = ref
         self.debug = debug
@@ -486,8 +487,8 @@ class CGen:
         self.generate_module_header(module, definition=True)
         self.print.add_indent(4)
 
-        if self.debug:
-            self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
+        # if self.debug:
+        #     self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
 
         if not module.interface:
             self.generate_module_declerations(module)
@@ -617,7 +618,10 @@ class CGen:
             self.print.add_indent(-4)
 
         if isinstance(ast_node, Continue):
-            self.print("continue;")
+            if self.loop_scope:
+                self.print("continue;")
+            else:
+                self.print("return;")
 
         # TODO: Why there are Decls for other types?
         if isinstance(ast_node, Decl):
@@ -755,7 +759,7 @@ class CGen:
                 for i in matrix_op.indexes_to_generate():
                     lhs = self.generate_expression(matrix_op.lhs, matrix_op.mem, index=i)
                     rhs = self.generate_expression(matrix_op.rhs, index=i)
-                    operator = vector_op.operator()
+                    operator = matrix_op.operator()
 
                     if operator.is_unary():
                         self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {operator.symbol()}({lhs});")
@@ -848,7 +852,9 @@ class CGen:
                 self.print("#pragma omp parallel for")
 
             self.print(f"for(int {iterator} = {lower_range}; {iterator} < {upper_range}; {iterator}++) {{")
+            self.loop_scope = True
             self.generate_statement(ast_node.block)
+            self.loop_scope = False
             self.print("}")
 
 
@@ -1060,7 +1066,9 @@ class CGen:
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)
             self.print(f"while({cond}) {{")
+            self.loop_scope = True
             self.generate_statement(ast_node.block)
+            self.loop_scope = False
             self.print("}")
 
         if isinstance(ast_node, Return):

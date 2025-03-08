@@ -59,6 +59,9 @@ def point_mass():
 def sphere():
     return Shapes.Sphere
 
+def box():
+    return Shapes.Box
+
 def halfspace():
     return Shapes.Halfspace
 

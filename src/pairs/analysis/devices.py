@@ -9,6 +9,32 @@ from pairs.ir.visitor import Visitor
 from pairs.ir.vectors import VectorOp
 
 
+class FetchDeviceCopies(Visitor):
+    def __init__(self, ast=None):
+        super().__init__(ast)
+        self.module_stack = []
+
+    def visit_Module(self, ast_node):      
+        self.module_stack.append(ast_node)
+        self.visit_children(ast_node)
+        self.module_stack.pop()
+
+    def visit_CopyArray(self, ast_node):
+        print(self.module_stack[-1].name , " array = ", ast_node.array().name() )
+        self.module_stack[-1].add_device_copy(ast_node.array())
+
+    def visit_CopyProperty(self, ast_node):
+        self.module_stack[-1].add_device_copy(ast_node.prop())
+
+    def visit_CopyFeatureProperty(self, ast_node):
+        self.module_stack[-1].add_device_copy(ast_node.prop())
+
+    def visit_CopyContactProperty(self, ast_node):
+        self.module_stack[-1].add_device_copy(ast_node.contact_prop())
+
+    def visit_CopyVar(self, ast_node):
+        self.module_stack[-1].add_device_copy(ast_node.variable())
+
 class MarkCandidateLoops(Visitor):
     def __init__(self, ast=None):
         super().__init__(ast)
