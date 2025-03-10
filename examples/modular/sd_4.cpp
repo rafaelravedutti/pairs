@@ -41,7 +41,6 @@ int main(int argc, char **argv) {
 
     pairs_runtime->initDomain(&argc, &argv, 
                     0, 0, 0, 20, 20, 20,    // Domain bounds
-                    false, false, false,    // PBCs --------------> TODO: runtime pbc
                     true                    // Enable dynamic load balancing (does initial refinement on a <1,1,1> blockforest)
                 ); 
 
@@ -61,7 +60,7 @@ int main(int argc, char **argv) {
     
     double lcw = diameter_max * 1.01;       // Linked-cell width
     double interaction_radius = diameter_max;
-    pairs_sim->setup_sim(lcw, lcw, lcw, interaction_radius);
+    pairs_sim->setup_cells(lcw, lcw, lcw, interaction_radius);
 
     pairs_sim->update_mass_and_inertia();
 

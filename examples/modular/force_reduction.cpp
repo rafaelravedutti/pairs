@@ -15,8 +15,8 @@ int main(int argc, char **argv) {
     // Create bodies
     pairs::id_t pUid = pairs::create_sphere(pairs_runtime, 0.0499,   0.0499,   0.07,   0.5, 0.5, 0 ,   1000, 0.0045, 0, 0);
     
-    // setup_sim after creating all bodies
-    pairs_sim->setup_sim();
+    // setup_cells after creating all bodies
+    pairs_sim->setup_cells();
     pairs_sim->update_mass_and_inertia();
 
     // Track particle

@@ -28,7 +28,7 @@ class InterfaceModules:
 
     def create_all(self):
         self.initialize()
-        self.setup_sim()
+        self.setup_cells()
         self.update_domain()
         self.update_cells(self.sim.reneighbor_frequency) 
         self.communicate(self.sim.reneighbor_frequency)
@@ -60,6 +60,9 @@ class InterfaceModules:
         PrintCode(self.sim, f"pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
         PrintCode(self.sim, f"pobj = new PairsObjects();")
 
+        if self.sim.grid is None:
+            self.sim.grid = MutableGrid(self.sim, self.sim.dims)
+
         inits = Block.from_list(self.sim, [
             DeclareVariables(self.sim),
             DeclareArrays(self.sim),
@@ -70,16 +73,11 @@ class InterfaceModules:
             RegisterMarkers(self.sim)
         ])
 
-        if self.sim.create_domain_at_initialization:
-            self.sim.add_statement(Block.merge_blocks(inits, self.sim.create_domain))
-        else:
-            assert self.sim.grid is None, "A grid already exists"
-            self.sim.grid = MutableGrid(self.sim, self.sim.dims)
-            self.sim.add_statement(inits)
+        self.sim.add_statement(inits)
 
     @pairs_interface_block
-    def setup_sim(self):
-        self.sim.module_name('setup_sim')
+    def setup_cells(self):
+        self.sim.module_name('setup_cells')
         
         if self.sim.cell_lists.runtime_spacing:
             for d in range(self.sim.dims):
@@ -88,7 +86,6 @@ class InterfaceModules:
         if self.sim.cell_lists.runtime_cutoff_radius:
             Assign(self.sim, self.sim.cell_lists.cutoff_radius, Parameter(self.sim, 'cutoff_radius', Types.Real))
 
-        self.sim.add_statement(self.sim.setup_particles)
         # This update assumes all particles have been created exactly in the rank that contains them 
         self.sim.add_statement(UpdateDomain(self.sim))  
         self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))

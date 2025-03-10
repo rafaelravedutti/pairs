@@ -24,8 +24,8 @@ namespace pairs {
 
 BlockForest::BlockForest(
         PairsRuntime *ps_,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz, bool balance_workload_) :
-        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), globalPBC{pbcx, pbcy, pbcz}, balance_workload(balance_workload_) {
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool balance_workload_) :
+        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), balance_workload(balance_workload_) {
 
         subdom = new real_t[ndims * 2];
 }
@@ -35,8 +35,7 @@ BlockForest::BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::bloc
         DomainPartitioner(bf->getDomain().xMin(), bf->getDomain().xMax(),
                         bf->getDomain().yMin(), bf->getDomain().yMax(),
                         bf->getDomain().zMin(), bf->getDomain().zMax()), 
-        ps(ps_), 
-        globalPBC{bf->isXPeriodic(), bf->isYPeriodic(), bf->isZPeriodic()} {
+        ps(ps_) {
             subdom = new real_t[ndims * 2];
             mpiManager = walberla::mpi::MPIManager::instance();
             world_size = mpiManager->numProcesses();
@@ -60,10 +59,8 @@ void BlockForest::updateNeighborhood() {
         for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
             auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
-            // Neighbor blocks that belong to the same rank should be added to 
-            // neighboorhood only if there's PBC along any dim, otherwise they should be skipped.
             // TODO: Make PBCs work with runtime load balancing
-            if((neighbor_rank != me) || globalPBC[0] || globalPBC[1] || globalPBC[2]) {
+            // if(neighbor_rank != me) {
                 const walberla::BlockID& neighbor_id = block->getNeighborId(neigh);
                 walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
                 auto begin = blocks_pushed[neighbor_rank].begin();
@@ -73,7 +70,7 @@ void BlockForest::updateNeighborhood() {
                     neighborhood[neighbor_rank].push_back(neighbor_aabb);
                     blocks_pushed[neighbor_rank].push_back(neighbor_id);
                 }
-            }
+            // }
         }
     }
 
@@ -264,7 +261,8 @@ void BlockForest::initialize(int *argc, char ***argv) {
 
     auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
 
-    walberla::Vector3<bool> pbc(globalPBC[0], globalPBC[1], globalPBC[2]);
+    // PBC's are forced to true here and sperately handled when determining ghosts 
+    walberla::Vector3<bool> pbc(true, true, true);
 
     forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, procs, ref_level);
 
@@ -298,7 +296,7 @@ void BlockForest::update() {
         // PAIRS_DEBUG("Rebalance\n");
         if (rank==0) std::cout << "Rebalance" << std::endl;
         forest->refresh(); 
-}
+    }
 
     this->updateNeighborhood();
     this->setBoundingBox();

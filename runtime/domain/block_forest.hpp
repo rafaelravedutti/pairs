@@ -40,14 +40,13 @@ private:
     std::vector<double> aabbs;
     PairsRuntime *ps;
     real_t *subdom;
-    const bool globalPBC[3];
     int world_size, rank, nranks, total_aabbs;
     bool balance_workload = false;
 
 public:
     BlockForest(
         PairsRuntime *ps_,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz, bool balance_workload_);
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool balance_workload_);
 
     BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::blockforest::BlockForest> &bf);
 

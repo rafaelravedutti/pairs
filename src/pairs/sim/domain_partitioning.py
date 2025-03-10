@@ -45,10 +45,6 @@ class DimensionRanges:
     def reduce_sum_step_indexes(self, step, array):
        return sum([array[i] for i in self.step_indexes(step)])
 
-    def initialize(self):
-        grid_array = [self.sim.grid.min(d) for d in range(self.sim.ndims())] + [self.sim.grid.max(d) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs_runtime->initDomain", grid_array)
-
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
         Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
@@ -140,25 +136,10 @@ class BlockForest:
             
         return self.reduce_step
 
-    def initialize(self):
-        grid_array = [self.sim.grid.min(d) for d in range(self.sim.ndims())] + [self.sim.grid.max(d) for d in range(self.sim.ndims())]
-
-        Call_Void(self.sim, "pairs_runtime->initDomain", 
-                  grid_array + self.sim._pbc + ([True] if self.load_balancer is not None else []))
-        
-        if self.load_balancer is not None:
-            PrintCode(self.sim, "pairs_runtime->getDomainPartitioner()->initWorkloadBalancer"
-                      f"({LoadBalancingAlgorithms.c_keyword(self.load_balancer)}, {self.regrid_min}, {self.regrid_max});")
-
-            # Call_Void(self.sim, "pairs_runtime->getDomainPartitioner()->initWorkloadBalancer", 
-            #           [self.load_balancer, self.regrid_min, self.regrid_max])
-
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
         Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
         Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborRanks", []))
-
-        # for _ in Filter(self.sim, ScalarOp.neq(self.nranks, 0)): # TODO: Test different block configs with PBC
         Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
 
         for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
@@ -229,7 +210,7 @@ class BlockForest:
                             for _ in Filter(self.sim, full_cond):
                                 yield i, r, self.ranks[r], pbc_shifts
 
-                        for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me (cuz I'm the only rank in a dimension that has pbc)
+                        for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me
                             pbc_shifts = []
                             isghost = Lit(self.sim, 0)
 

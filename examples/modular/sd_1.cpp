@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
     pairs::create_sphere(pairs_runtime, 0.6, 0.6, 0.7,      -2, -2, 0,  1000, 0.05, 0, 0);
     pairs::create_sphere(pairs_runtime, 0.4, 0.4, 0.68,    2, 2, 0,    1000, 0.05, 0, 0);
 
-    pairs_sim->setup_sim(0.1, 0.1, 0.1, 0.1);
+    pairs_sim->setup_cells(0.1, 0.1, 0.1, 0.1);
     pairs_sim->update_mass_and_inertia();
 
     int num_timesteps = 2000;

@@ -17,7 +17,7 @@ from pairs.sim.comm import Comm, Synchronize, Borders, Exchange, ReverseComm
 from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 from pairs.sim.copper_fcc_lattice import CopperFCCLattice
 from pairs.sim.dem_sc_grid import DEMSCGrid
-from pairs.sim.domain import InitializeDomain, UpdateDomain
+from pairs.sim.domain import UpdateDomain
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
 from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
@@ -93,11 +93,6 @@ class Simulation:
         self._capture_statements = True
         self._block = Block(self, [])
 
-        # Different segments of particle code/functions
-        self.create_domain = Block(self, [])
-        self.create_domain_at_initialization = False
-
-        self.setup_particles = Block(self, [])
         self.module_list = []
         self.kernel_list = []
 
@@ -311,34 +306,11 @@ class Simulation:
         return self.vars.find(var_name)
 
     def set_domain(self, grid):
-        """Set domain bounds. 
-        If the domain is set through this function, the 'set_domain' module won't be generated in the modular version.
-        Use this function only if you do not need to set domain at runtime.
-        This function is required only for whole-program generation."""
-        self.create_domain_at_initialization = True
+        """Set domain bounds if they are known at P4IRS compile time"""
         self.grid = Grid3D(self, grid[0], grid[1], grid[2], grid[3], grid[4], grid[5])
-        self.create_domain.add_statement(InitializeDomain(self))
 
     def reneighbor_every(self, frequency):
         self.reneighbor_frequency = frequency
-
-    def create_particle_lattice(self, grid, spacing, props={}):
-        self.setup_particles.add_statement(ParticleLattice(self, grid, spacing, props, self.position()))
-
-    def read_particle_data(self, filename, prop_names, shape_id):
-        """Generate statement to read particle data from file"""
-        props = [self.property(prop_name) for prop_name in prop_names]
-        self.setup_particles.add_statement(ReadParticleData(self, filename, props, shape_id))
-
-    def copper_fcc_lattice(self, nx, ny, nz, rho, temperature, ntypes):
-        """Specific initialization for MD Copper FCC lattice case"""
-        self.setup_particles.add_statement(CopperFCCLattice(self, nx, ny, nz, rho, temperature, ntypes))
-
-    def dem_sc_grid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter, initial_velocity, particle_density, ntypes):
-        """Specific initialization for DEM grid"""
-        self.setup_particles.add_statement(
-            DEMSCGrid(self, xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
-                      initial_velocity, particle_density, ntypes))
 
     def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False):
         """Add routines to build the linked-cells acceleration structure.
@@ -546,7 +518,7 @@ class Simulation:
 
         # Generate getters for the runtime functions
         self.code_gen.generate_interfaces()
-
+"""
     def generate_program(self):
         assert self.grid, "No domain is created. Set domain bounds with 'set_domain'."
 
@@ -652,3 +624,4 @@ class Simulation:
 
         # Generate getters for the runtime functions
         self.code_gen.generate_interfaces()
+"""

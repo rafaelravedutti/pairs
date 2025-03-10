@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
 
     auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
 
-    pairs_sim->setup_sim(0.1, 0.1, 0.1, 0.1);
+    pairs_sim->setup_cells(0.1, 0.1, 0.1, 0.1);
     pairs_sim->update_mass_and_inertia();
 
     pairs_sim->communicate(0);

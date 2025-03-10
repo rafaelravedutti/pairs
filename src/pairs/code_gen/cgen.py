@@ -186,12 +186,6 @@ class CGen:
         if not module.interface:
             module_params += ["PairsRuntime *pairs_runtime", "struct PairsObjects *pobj"]
 
-        if module.name=="initialize" and self.sim.create_domain_at_initialization:
-            module_params += ["int argc", "char **argv"]
-
-        if module.name=="set_domain":
-            module_params += ["int argc", "char **argv"]
-
         module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in module.parameters()]
 
         print_params = ", ".join(module_params)
@@ -923,9 +917,6 @@ class CGen:
         if isinstance(ast_node, ModuleCall):
             module_params = ["pairs_runtime", "pobj"]
 
-            if ast_node.module.name=="init_domain":
-                module_params += ["argc", "argv"]
-
             module_params += [f"{param.name()}" for param in ast_node.module.parameters()]
 
             print_params = ", ".join(module_params)
@@ -1105,9 +1096,6 @@ class CGen:
 
             if ast_node.name().startswith("pairs::"):
                 extra_params += ["pairs_runtime"]
-
-            if ast_node.name() == "pairs_runtime->initDomain":
-                extra_params += ["&argc", "&argv"]
 
             params = ", ".join(extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
             return f"{ast_node.name()}({params})"
