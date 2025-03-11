@@ -73,6 +73,9 @@ class InterfaceModules:
             RegisterMarkers(self.sim)
         ])
 
+        if self.sim._enable_profiler:
+            PrintCode(self.sim, "LIKWID_MARKER_INIT;")
+
         self.sim.add_statement(inits)
 
     @pairs_interface_block
@@ -187,62 +190,14 @@ class InterfaceModules:
         Return(self.sim, ScalarOp.inline(self.sim.nlocal + self.sim.nghost))
 
     @pairs_interface_block
-    def create_sphere(self):
-        self.sim.module_name('create_sphere')
-        x = Parameter(self.sim, 'x', Types.Real)
-        y = Parameter(self.sim, 'y', Types.Real)
-        z = Parameter(self.sim, 'z', Types.Real)
-        vx = Parameter(self.sim, 'vx', Types.Real)
-        vy = Parameter(self.sim, 'vy', Types.Real)
-        vz = Parameter(self.sim, 'vz', Types.Real)
-        density = Parameter(self.sim, 'density', Types.Real)
-        radius = Parameter(self.sim, 'radius', Types.Real)
-        ptype = Parameter(self.sim, 'type', Types.Real)
-        flag = Parameter(self.sim, 'flag', Types.Real)
-
-        Return(self.sim, Call(self.sim, "pairs::create_sphere", 
-                              [x, y, z, vx, vy, vz, 
-                               density, radius, ptype, flag], Types.UInt64))
-
-    @pairs_interface_block
-    def create_halfspace(self):
-        self.sim.module_name('create_halfspace')
-        x = Parameter(self.sim, 'x', Types.Real)
-        y = Parameter(self.sim, 'y', Types.Real)
-        z = Parameter(self.sim, 'z', Types.Real)
-        nx = Parameter(self.sim, 'nx', Types.Real)
-        ny = Parameter(self.sim, 'ny', Types.Real)
-        nz = Parameter(self.sim, 'nz', Types.Real)
-        ptype = Parameter(self.sim, 'type', Types.Real)
-        flag = Parameter(self.sim, 'flag', Types.Real)
-
-        Return(self.sim, Call(self.sim, "pairs::create_halfspace", 
-                              [x, y, z, nx, ny, nz, ptype, flag], Types.UInt64))
-        
-    @pairs_interface_block
-    def dem_sc_grid(self):
-        self.sim.module_name('dem_sc_grid')
-        xmax = Parameter(self.sim, 'xmax', Types.Real)
-        ymax = Parameter(self.sim, 'ymax', Types.Real)
-        zmax = Parameter(self.sim, 'zmax', Types.Real)
-        spacing = Parameter(self.sim, 'spacing', Types.Real)
-        diameter = Parameter(self.sim, 'diameter', Types.Real)
-        min_diameter = Parameter(self.sim, 'min_diameter', Types.Real)
-        max_diameter = Parameter(self.sim, 'max_diameter', Types.Real)
-        initial_velocity = Parameter(self.sim, 'initial_velocity', Types.Real)
-        particle_density = Parameter(self.sim, 'particle_density', Types.Real)
-        ntypes = Parameter(self.sim, 'ntypes', Types.Int32)
-
-        Assign(self.sim, self.sim.nlocal,
-               Call_Int(self.sim, "pairs::dem_sc_grid",
-                        [xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
-                         initial_velocity, particle_density, ntypes]))
-        Return(self.sim, self.sim.nlocal)
-
-    @pairs_interface_block
     def end(self):
         self.sim.module_name('end')
-        # Call_Void(self.sim, "pairs::print_timers", [])
+
+        if self.sim._enable_profiler:
+            PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
+            
+        Call_Void(self.sim, "pairs::print_timers", [])
+        Call_Void(self.sim, "pairs::log_timers", [])
         Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
         PrintCode(self.sim, "delete pobj;")
         PrintCode(self.sim, "delete pairs_runtime;")

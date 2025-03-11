@@ -111,9 +111,5 @@ class Transformations:
         self.add_expression_declarations()
         # self.add_host_references_to_modules()
         self.add_device_references_to_modules()
-        
-        # TODO: Place stop timers before the function returns
-        # or simply don't instrument modules that have a non-void return type
-        # to avoid having to deal with returns within conditional blocks 
-        # self.add_instrumentation()
+        self.add_instrumentation()
 

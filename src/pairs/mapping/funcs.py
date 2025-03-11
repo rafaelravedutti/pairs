@@ -15,7 +15,7 @@ from pairs.sim.flags import Flags
 from pairs.sim.interaction import ParticleInteraction
 from pairs.sim.global_interaction import  GlobalLocalInteraction, GlobalGlobalInteraction, GlobalReduction, SortGlobals, PackGlobals, ResetReductionProps, ReduceGlobals, UnpackGlobals
 from pairs.ir.module import Module
-from pairs.ir.block import Block, pairs_device_block
+from pairs.ir.block import Block, pairs_block
 from pairs.sim.lowerable import Lowerable
 
 class UndefinedSymbol():
@@ -288,10 +288,12 @@ class BuildParticleIR(ast.NodeVisitor):
         return op_class(self.sim, operand, None, BuildParticleIR.get_unary_op(node.op))
 
 class OneBodyKernel(Lowerable):
-    def __init__(self, sim, module_name):
+    def __init__(self, sim, module_name, run_on_device, profile):
         super().__init__(sim)
         self.block = Block(sim, [])
         self.module_name = module_name
+        self.run_on_device = run_on_device
+        self.profile = profile
 
     def add_statement(self, stmt):
         self.block.add_statement(stmt)
@@ -303,12 +305,12 @@ class OneBodyKernel(Lowerable):
             yield i
         self.sim.leave()
     
-    @pairs_device_block
+    @pairs_block
     def lower(self):
         self.sim.module_name(self.module_name)
         self.sim.add_statement(self.block)
 
-def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False):
+def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, run_on_device=True, profile=False):
     if sim._generate_whole_program:
         assert not parameters, "Compute functions can't take custom parameters when generating whole program."
 
@@ -333,14 +335,14 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
     sim.module_name(func.__name__)
 
     if nparams == 1:
-        for i in OneBodyKernel(sim, func.__name__):
+        for i in OneBodyKernel(sim, func.__name__, run_on_device=run_on_device, profile=profile):
             ir = BuildParticleIR(sim, symbols, parameters)
             ir.add_symbols({params[0]: i})
             ir.visit(tree)
 
     else:
         # Compute local-local and local-global interactions
-        particle_interaction = ParticleInteraction(sim, func.__name__, nparams, cutoff_radius)
+        particle_interaction = ParticleInteraction(sim, func.__name__, nparams, cutoff_radius, run_on_device=run_on_device, profile=profile)
         for interaction_data in particle_interaction:
             # Start building IR
             ir = BuildParticleIR(sim, symbols, parameters)
@@ -409,5 +411,5 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
             
     # User defined functions are wrapped inside seperate interface modules here.
     # The udf's have the same name as their interface module but they get implemented in the pairs::internal scope.
-    sim.build_interface_module()  
+    sim.build_interface_module_with_statements(run_on_device, profile)  
     

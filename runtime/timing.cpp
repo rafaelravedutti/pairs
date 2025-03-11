@@ -20,4 +20,8 @@ void print_timers(PairsRuntime *ps) {
     ps->printTimers();
 }
 
+void log_timers(PairsRuntime *ps) {
+    ps->logTimers();
+}
+
 }

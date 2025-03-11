@@ -12,9 +12,20 @@ def pairs_inline(func):
     return inner
 
 
+def pairs_block(func):
+    """This decorator needs the owning class of the method being decorated to have a 'run_on_device' member. 
+    If the variable doesn't exist it defaults to False here, hence pairs_host_block gets used."""
+    def wrapper(*args, **kwargs):
+        self = args[0]
+        decorator = pairs_device_block if getattr(self, "run_on_device", False) else pairs_host_block
+        return decorator(func)(*args, **kwargs)
+    return wrapper
+
+
 def pairs_host_block(func):
     def inner(*args, **kwargs):
         sim = args[0].sim # self.sim
+        profile = getattr(args[0], "profile", False)
         sim.init_block()
         func(*args, **kwargs)
         return Module(sim,
@@ -22,7 +33,8 @@ def pairs_host_block(func):
             block=Block(sim, sim._block),
             resizes_to_check=sim._resizes_to_check,
             check_properties_resize=sim._check_properties_resize,
-            run_on_device=False)
+            run_on_device=False,
+            profile=profile)
 
     return inner
 
@@ -30,6 +42,7 @@ def pairs_host_block(func):
 def pairs_device_block(func):
     def inner(*args, **kwargs):
         sim = args[0].sim # self.sim
+        profile = getattr(args[0], "profile", False)
         sim.init_block()
         func(*args, **kwargs)
         return Module(sim,
@@ -37,7 +50,8 @@ def pairs_device_block(func):
             block=Block(sim, sim._block),
             resizes_to_check=sim._resizes_to_check,
             check_properties_resize=sim._check_properties_resize,
-            run_on_device=True)
+            run_on_device=True,
+            profile=profile)
 
     return inner
 

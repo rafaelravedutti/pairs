@@ -198,9 +198,8 @@ class CGen:
         self.print("namespace pairs::internal {")
         self.print.add_indent(4)
 
-        # All modules except the interface ones are declared in the pairs::internal scope
-        for module in self.sim.modules() + self.sim.udf_modules():
-            assert not module.interface
+        # All internal modules are declared in the pairs::internal scope
+        for module in self.sim.modules():
             self.generate_module_header(module, definition=False)
         
         self.print.add_indent(-4)
@@ -346,9 +345,8 @@ class CGen:
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
 
-        # All modules except the interface ones are defined in the pairs::internal scope
-        for module in self.sim.modules() + self.sim.udf_modules():
-            assert not module.interface
+        # All internal modules are defined in the pairs::internal scope
+        for module in self.sim.modules():
             self.generate_module(module)
 
         self.print.add_indent(-4)

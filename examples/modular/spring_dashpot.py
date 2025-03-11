@@ -98,7 +98,7 @@ psim.build_cell_lists()
 # The order of user-defined functions is not important here since 
 # they are not used by other subroutines and are only callable individually 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
-psim.compute(spring_dashpot)
+psim.compute(spring_dashpot, profile=True)
 psim.compute(euler, parameters={'dt': pairs.real()})
 
 gravity_SI = 9.81

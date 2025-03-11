@@ -362,10 +362,15 @@ public:
 
     // Timers
     Timers<double> *getTimers() { return timers; }
+    
     void printTimers() {
         if(this->getDomainPartitioner()->getRank() == 0) {
             this->getTimers()->print();
         }
+    }
+
+    void logTimers() {
+        this->getTimers()->writeToFile(this->getDomainPartitioner()->getRank());
     }
 };
 

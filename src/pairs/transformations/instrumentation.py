@@ -1,8 +1,8 @@
 from pairs.ir.block import Block
 from pairs.ir.functions import Call_Void
-from pairs.ir.module import ModuleCall
 from pairs.ir.mutator import Mutator
 from pairs.ir.timers import Timers
+from pairs.ir.types import Types
 
 
 class AddModulesInstrumentation(Mutator):
@@ -12,7 +12,8 @@ class AddModulesInstrumentation(Mutator):
     def mutate_ModuleCall(self, ast_node):
         ast_node._module = self.mutate(ast_node._module)
         module = ast_node._module
-        if module.name == 'main' or module.name == 'initialize':
+
+        if module.name == 'initialize' or module.name == 'end' or module.return_type!=Types.Void:
             return ast_node
 
         if module.must_profile():

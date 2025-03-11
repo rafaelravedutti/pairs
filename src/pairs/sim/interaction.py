@@ -1,7 +1,7 @@
 from pairs.ir.assign import Assign
 from pairs.ir.ast_term import ASTTerm
 from pairs.ir.scalars import ScalarOp
-from pairs.ir.block import Block, pairs_device_block
+from pairs.ir.block import Block, pairs_block
 from pairs.ir.branches import Filter, Branch
 from pairs.ir.loops import For, ParticleFor
 from pairs.ir.math import Sqrt, Abs, Min, Sign
@@ -307,8 +307,10 @@ class InteractionData:
         self.contact_normal().assign(contact_normal if s_relative else -contact_normal)
 
 class ParticleInteraction(Lowerable):
-    def __init__(self, sim, module_name,  nbody, cutoff_radius=None, use_cell_lists=False):
+    def __init__(self, sim, module_name,  nbody, cutoff_radius=None, use_cell_lists=False, run_on_device=True, profile=False):
         super().__init__(sim)
+        self.run_on_device = run_on_device
+        self.profile = profile
         self.module_name = module_name
         self.nbody = nbody
         self.contact_threshold = 0.0
@@ -316,6 +318,7 @@ class ParticleInteraction(Lowerable):
         self.maxs = self.sim.max_shapes()
         self.interactions_data = {}
         self.cutoff_radius = cutoff_radius
+        
         if any(self.sim.get_shape_id(s)==Shapes.PointMass for s in range(self.maxs)): 
             assert cutoff_radius is not None
 
@@ -415,7 +418,7 @@ class ParticleInteraction(Lowerable):
         self.sim.add_statement(Filter(self.sim, interaction_data.cutoff_condition, self.blocks[ishape*self.maxs + jshape]))
         self.apply_reductions(i, ishape, jshape)
 
-    @pairs_device_block
+    @pairs_block
     def lower(self):
         self.sim.module_name(f"{self.module_name}_local_interactions")
         if self.nbody == 2:

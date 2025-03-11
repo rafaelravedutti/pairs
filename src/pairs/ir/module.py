@@ -16,8 +16,8 @@ class Module(ASTNode):
                  block=None, 
                  resizes_to_check={}, 
                  check_properties_resize=False, 
-                 run_on_device=False, 
-                 user_defined=False, 
+                 run_on_device=False,
+                 profile=False, 
                  interface=False):
         super().__init__(sim)
         self._id = Module.last_module
@@ -34,20 +34,17 @@ class Module(ASTNode):
         self._resizes_to_check = resizes_to_check
         self._check_properties_resize = check_properties_resize
         self._run_on_device = run_on_device
-        self._user_defined = user_defined
         self._interface = interface
         self._return_type = Types.Void
-        self._profile = False
+        self._profile = profile
+        
+        if profile:
+            self.sim.enable_profiler()
 
-        if user_defined:
-            assert not interface, ("User-defined modules can't be part of the interface directly."
-                                "Wrap them inside seperate interface modules.")
-            sim.add_udf_module(self)
+        if interface:
+            sim.add_interface_module(self)
         else:
-            if interface:
-                sim.add_interface_module(self)
-            else:
-                sim.add_module(self)
+            sim.add_module(self)
                 
         Module.last_module += 1
 
@@ -70,10 +67,6 @@ class Module(ASTNode):
     def run_on_device(self):
         return self._run_on_device
     
-    @property
-    def user_defined(self):
-        return self._user_defined
-
     @property
     def interface(self):
         return self._interface

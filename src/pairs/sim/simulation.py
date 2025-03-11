@@ -1,37 +1,23 @@
 from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
-from pairs.ir.branches import Filter
 from pairs.ir.features import Features, FeatureProperties
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
-from pairs.ir.module import Module, ModuleCall
+from pairs.ir.module import Module
 from pairs.ir.properties import Properties, ContactProperties
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
 from pairs.ir.variables import Variables
 #from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
-from pairs.sim.arrays import DeclareArrays
-from pairs.sim.cell_lists import CellLists, BuildCellLists, BuildCellListsStencil, PartitionCellLists, BuildCellNeighborLists
-from pairs.sim.comm import Comm, Synchronize, Borders, Exchange, ReverseComm
-from pairs.sim.contact_history import ContactHistory, BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
-from pairs.sim.copper_fcc_lattice import CopperFCCLattice
-from pairs.sim.dem_sc_grid import DEMSCGrid
-from pairs.sim.domain import UpdateDomain
+from pairs.sim.cell_lists import CellLists, BuildCellLists, PartitionCellLists, BuildCellNeighborLists
+from pairs.sim.comm import Comm
+from pairs.sim.contact_history import ContactHistory
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
 from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
-from pairs.sim.features import AllocateFeatureProperties
-from pairs.sim.grid import Grid2D, Grid3D, MutableGrid
-from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
-from pairs.sim.lattice import ParticleLattice
+from pairs.sim.grid import Grid3D
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
-from pairs.sim.properties import AllocateProperties, AllocateContactProperties, ResetVolatileProperties
-from pairs.sim.read_from_file import ReadParticleData
-from pairs.sim.thermo import ComputeThermo
-from pairs.sim.timestep import Timestep
-from pairs.sim.variables import DeclareVariables 
-from pairs.sim.vtk import VTKWrite
 from pairs.transformations import Transformations
 from pairs.code_gen.interface import InterfaceModules
 
@@ -176,45 +162,25 @@ class Simulation:
     def max_shapes(self):
         return len(self._shapes)
 
-    def add_udf_module(self, module):
-        assert isinstance(module, Module), "add_udf_module(): Given parameter is not of type Module!"
-        assert module.user_defined and not module.interface
-        if module.name not in [m.name for m in self.udf_module_list]:
-            self.udf_module_list.append(module)
-
     def add_interface_module(self, module):
         assert isinstance(module, Module), "add_interface_module(): Given parameter is not of type Module!"
-        assert module.interface and not module.user_defined
+        assert module.interface
         if module.name not in [m.name for m in self.interface_module_list]:
             self.interface_module_list.append(module)
 
     def add_module(self, module):
         assert isinstance(module, Module), "add_module(): Given parameter is not of type Module!"
-        assert not module.interface and not module.user_defined
+        assert not module.interface
         if module.name not in [m.name for m in self.module_list]:
             self.module_list.append(module)
 
     def interface_modules(self):
+        """List interface modules"""
         return self.interface_module_list
-    
-    def udf_modules(self):
-        return self.udf_module_list
-    
+        
     def modules(self):
-        """List simulation modules, with main always in the last position"""
-
-        sorted_mods = []
-        main_mod = None
-        for m in self.module_list:
-            if m.name != 'main':
-                sorted_mods.append(m)
-            else:
-                main_mod = m
-
-        if main_mod is not None:
-            sorted_mods += [main_mod]
-
-        return sorted_mods
+        """List internal modules"""
+        return self.module_list
 
     def add_kernel(self, kernel):
         assert isinstance(kernel, Kernel), "add_kernel(): Given parameter is not of type Kernel!"
@@ -330,8 +296,8 @@ class Simulation:
         self.neighbor_lists = NeighborLists(self, self.cell_lists)
         return self.neighbor_lists
 
-    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False):
-        return compute(self, func, cutoff_radius, symbols, parameters, compute_globals)
+    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, run_on_device=True, profile=False):
+        return compute(self, func, cutoff_radius, symbols, parameters, compute_globals, run_on_device, profile)
 
 
     def init_block(self):
@@ -356,68 +322,13 @@ class Simulation:
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
-    def build_setup_module_with_statements(self):
-        """Build a Module in the setup part of the program using the last initialized block"""
-
-        self.setup_functions.append(
-            Module(self,
-                name=self._module_name,
-                block=Block(self, self._block),
-                resizes_to_check=self._resizes_to_check,
-                check_properties_resize=self._check_properties_resize,
-                run_on_device=True))
-
-    def build_pre_step_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
-        """Build a Module in the pre-step part of the program using the last initialized block"""
-        module = Module(self, name=self._module_name,
-                              block=Block(self, self._block),
-                              resizes_to_check=self._resizes_to_check,
-                              check_properties_resize=self._check_properties_resize,
-                              run_on_device=run_on_device)
-
-        if profile:
-            module.profile()
-
-        if skip_first:
-            self.pre_step_functions.append((module, {'skip_first': True}))
-
-        else:
-            self.pre_step_functions.append(module)
-
-    def build_module_with_statements(self, run_on_device=True, skip_first=False, profile=False):
-        """Build a Module in the compute part of the program using the last initialized block"""
-        module = Module(self, name=self._module_name,
-                              block=Block(self, self._block),
-                              resizes_to_check=self._resizes_to_check,
-                              check_properties_resize=self._check_properties_resize,
-                              run_on_device=run_on_device)
-        if profile:
-            module.profile()
-
-        if skip_first:
-            self.functions.append((module, {'skip_first': True}))
-
-        else:
-            self.functions.append(module)
-
-    def build_user_defined_function(self, run_on_device=True):
+    def build_interface_module_with_statements(self, run_on_device=False, profile=False):
         """Build a user-defined Module that will be callable seperately as part of the interface"""
         Module(self, name=self._module_name,
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
                 run_on_device=run_on_device,
-                user_defined=True)
-        
-
-    def build_interface_module(self, run_on_device=False):
-        """Build a user-defined Module that will be callable seperately as part of the interface"""
-        Module(self, name=self._module_name,
-                block=Block(self, self._block),
-                resizes_to_check=self._resizes_to_check,
-                check_properties_resize=self._check_properties_resize,
-                run_on_device=run_on_device,
-                user_defined=False,
                 interface=True)
         
     def capture_statements(self, capture=True):

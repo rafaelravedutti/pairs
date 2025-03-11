@@ -1,12 +1,10 @@
 class Timers:
     Invalid = -1
-    All = 0
-    Communication = 1
-    DeviceTransfers = 2
-    Offset = 3
+    Communication = 0
+    DeviceTransfers = 1
+    Offset = 2
 
     def name(timer):
-        return "all"            if timer == Timers.All else             \
-               "mpi"            if timer == Timers.Communication else   \
-               "transfers"      if timer == Timers.DeviceTransfers else \
-               "invalid"
+        return "MARKERS::MPI"                if timer == Timers.Communication else   \
+               "MARKERS::DEVICE_TRANSFERS"   if timer == Timers.DeviceTransfers else \
+               "INVALID"

@@ -104,19 +104,6 @@ class GlobalReduction:
                     for app in self.particle_interaction.apply_list[ishape*self.sim.max_shapes() + jshape]:
                         self.red_props.add(app.prop())
 
-        # self.sim.add_statement(self)
-
-    # @pairs_inline
-    # def lower(self):
-    #     SortGlobals(self)
-    #     PackGlobals(self, self.intermediate_buffer)
-    #     ResetReductionProps(self)
-    #     GlobalLocalInteraction(self)
-    #     PackGlobals(self, self.red_buffer)
-    #     ReduceGlobals(self)
-    #     UnpackGlobals(self)
-    #     GlobalGlobalInteraction(self)
-
     def global_particles(self):
         for p in For(self.sim, 0, self.sim.cell_lists.cell_sizes[0]):
             i = self.sim.cell_lists.cell_particles[0][p]

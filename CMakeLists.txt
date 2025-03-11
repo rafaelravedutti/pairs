@@ -250,10 +250,12 @@ endif()
 # LIKWID ========================================================================
 #================================================================================
 if(LIKWID_DIR)
+    # Example: -DLIKWID_DIR=/apps/likwid/5.4.0
+
     target_compile_options(${PAIRS_TARGET} PRIVATE -DLIKWID_PERFMON -pthread)
 
-    target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_DIR}/lib/liblikwid.a)
-    list(APPEND PAIRS_LINK_LIBRARIES ${LIKWID_DIR}/lib/liblikwid.a)
+    target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_DIR}/lib/liblikwid.so)
+    list(APPEND PAIRS_LINK_LIBRARIES ${LIKWID_DIR}/lib/liblikwid.so)
 
     include_directories(${LIKWID_DIR}/include)
     list(APPEND PAIRS_INCLUDE_DIRS "${LIKWID_DIR}/include")

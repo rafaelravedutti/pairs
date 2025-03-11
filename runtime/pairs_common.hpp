@@ -79,10 +79,9 @@ enum Actions {
 };
 
 enum TimerMarkers {
-    All = 0,
-    Communication = 1,
-    DeviceTransfers = 2,
-    Offset = 3
+    MPI = 0,
+    DeviceTransfers = 1,
+    Offset = 2
 };
 
 enum DomainPartitioners {
