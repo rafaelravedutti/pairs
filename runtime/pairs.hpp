@@ -370,7 +370,8 @@ public:
     }
 
     void logTimers() {
-        this->getTimers()->writeToFile(this->getDomainPartitioner()->getRank());
+        this->getTimers()->writeToFile(this->getDomainPartitioner()->getRank(), 
+                                        this->getDomainPartitioner()->getWorldSize());
     }
 };
 

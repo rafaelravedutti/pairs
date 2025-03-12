@@ -33,10 +33,13 @@ public:
             std::chrono::duration_cast<TimeUnit>(current_clock - clocks[id]).count()) * time_factor;
     }
 
-    void writeToFile(int rank){
+    void writeToFile(int rank, int world_size){
+        std::string filename = "timers_" + std::to_string(world_size) + ".txt";
+        if (rank==0) std::cout << "Writing timers log to: " << filename << std::endl;
+
         MPI_File file;
-        MPI_File_open(MPI_COMM_WORLD, "timers.txt", MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file);
-    
+        MPI_File_open(MPI_COMM_WORLD, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file);
+
         std::ostringstream ss;
         ss << "Rank: " << rank << "\n";
         ss << std::left << std::setw(80) << "Timer"
@@ -80,6 +83,32 @@ public:
     }
 
     void print(){
+        std::cout << "--------------------------------------------------------------------------------------------------------\n";
+        std::cout << std::left << std::setw(80) << "Timer (MPI rank: 0)"
+            << std::left << std::setw(15) << "Total [ms]"
+            << std::left << std::setw(15) << "Count" << "\n";
+        std::cout << "--------------------------------------------------------------------------------------------------------\n";
+        
+        // Modules
+        for (size_t i = TimerMarkers::Offset; i < time_counters.size(); ++i) {
+            const std::string& counterName = counter_names[i];
+            if(counterName.find("INTERFACE_MODULES::") == 0) {
+                std::cout << std::left << std::setw(80) << counter_names[i]
+                        << std::left << std::setw(15) << std::fixed << std::setprecision(2) << time_counters[i]
+                        << std::left << std::setw(15) << call_counters[i]
+                        << "\n";
+            }
+        }
+
+        // Markers
+        for (size_t i = 0; i < TimerMarkers::Offset; ++i) {
+            std::cout << std::left << std::setw(80) << counter_names[i]
+                    << std::left << std::setw(15) << std::fixed << std::setprecision(2) << time_counters[i]
+                    << std::left << std::setw(15) << 1
+                    << "\n";
+        }
+
+        std::cout << "--------------------------------------------------------------------------------------------------------\n";
     }
 
     void computeCategories() {

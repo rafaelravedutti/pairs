@@ -20,7 +20,6 @@ class FetchDeviceCopies(Visitor):
         self.module_stack.pop()
 
     def visit_CopyArray(self, ast_node):
-        print(self.module_stack[-1].name , " array = ", ast_node.array().name() )
         self.module_stack[-1].add_device_copy(ast_node.array())
 
     def visit_CopyProperty(self, ast_node):

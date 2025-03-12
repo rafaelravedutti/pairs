@@ -31,8 +31,6 @@ from pairs.ir.variables import Var, DeclareVariable, Deref
 from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.ir.ret import Return
-from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
 from pairs.code_gen.accessor import PairsAcessor
 
@@ -59,15 +57,6 @@ class CGen:
     def real_type(self):
         return Types.c_keyword(self.sim, Types.Real)
     
-    # def generate_cmake_config_file(self):
-    #     self.print = Printer("pairs_cmake_params.txt")
-    #     self.print.start()
-    #     self.print(f"PAIRS_TARGET={self.ref}")
-    #     self.print(f"GENERATE_WHOLE_PROGRAM={'ON' if self.sim._generate_whole_program else 'OFF'}")
-    #     self.print(f"USE_WALBERLA={'ON' if self.sim._partitioner == DomainPartitioners.BlockForest else 'OFF'}")
-    #     # self.print(f"COMPILE_CUDA={'ON' if self.target.is_gpu() else 'OFF'}")
-    #     self.print.end()
-
     def generate_object_reference(self, obj, device=False, index=None):
         if device and (not self.target.is_gpu() or not obj.device_flag):
             # Ideally this should never be called
@@ -151,8 +140,6 @@ class CGen:
         self.print("}")
 
     def generate_preamble(self):
-        # self.print(f"#define APPLICATION_REFERENCE \"{self.ref}\"")
-
         if self.target.is_gpu():
             self.print("#include <math_constants.h>")
              
@@ -208,7 +195,7 @@ class CGen:
         
     def generate_pairs_object_structure(self):
         self.print("")
-        externkw = "" if self.sim._generate_whole_program else "extern "
+        externkw = "extern "
         if self.target.is_gpu():
             for array in self.sim.arrays.statics():
                 if array.device_flag:
@@ -283,34 +270,6 @@ class CGen:
         self.print.add_indent(-4)
         self.print("};")
         self.print("")
-
-    def generate_program(self, ast_node):
-        self.generate_interfaces()
-        ext = ".cu" if self.target.is_gpu() else ".cpp"
-        self.print = Printer(self.ref + ext)
-        self.print.start()
-        self.generate_preamble()
-        self.generate_pairs_object_structure()
-        self.generate_module_decls()
-
-        self.print("namespace pairs::internal {")
-        self.print.add_indent(4)
-
-        for kernel in self.sim.kernels():
-            self.generate_kernel(kernel)
-
-        for module in self.sim.modules():
-            if module.name!='main':
-                self.generate_module(module)
-
-        self.print.add_indent(-4)
-        self.print("}")
-
-        for module in self.sim.modules():
-            if module.name=='main':
-                self.generate_main(module)
-
-        self.print.end()
 
     def generate_library(self):
         self.generate_interfaces()
@@ -445,36 +404,6 @@ class CGen:
             if feature_prop in module.host_references():
                 self.print(f"{type_kw} *{feature_prop.name()}_h = pobj->{feature_prop.name()};")
 
-    def generate_main(self, module):
-        assert module.name=='main'
-
-        ndims = module.sim.ndims()
-        nprops = module.sim.properties.nprops()
-        ncontactprops = module.sim.contact_properties.nprops()
-        narrays = module.sim.arrays.narrays()
-        part = DomainPartitioners.c_keyword(module.sim.partitioner())
-
-        self.generate_full_object_names = True
-        self.print("int main(int argc, char **argv) {")
-        self.print(f"    PairsRuntime *pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-        self.print(f"    struct PairsObjects *pobj = new PairsObjects();")
-
-        if module.sim._enable_profiler:
-            self.print("    LIKWID_MARKER_INIT;")
-
-        self.generate_statement(module.block)
-
-        if module.sim._enable_profiler:
-            self.print("    LIKWID_MARKER_CLOSE;")
-
-        self.print("    pairs::print_timers(pairs_runtime);")
-        self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
-        self.print("    delete pobj;")
-        self.print("    delete pairs_runtime;")
-        self.print("    return 0;")
-        self.print("}")
-        self.generate_full_object_names = False
-
     def generate_module(self, module):
         self.generate_module_header(module, definition=True)
         self.print.add_indent(4)
@@ -596,9 +525,7 @@ class CGen:
             if ast_node.check_for_resize():
                 resize = self.generate_expression(ast_node.resize)
                 capacity = self.generate_expression(ast_node.capacity)
-                # self.print(f"printf (\" %d -- before AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
                 self.print(f"pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
-                # self.print(f"printf (\" %d -- after AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
 
             else:
                 self.print(f"pairs::{prefix}atomic_add(&({elem}), {value});")
@@ -802,9 +729,7 @@ class CGen:
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}, {size}); // {array_name}")
 
             else:
-                # self.print(f"std::cout<< \"{Printer.line_id} -- before {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
-                # self.print(f"std::cout<< \"{Printer.line_id} -- after {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
 
         if isinstance(ast_node, CopyContactProperty):
             prop_id = ast_node.contact_prop().id()
@@ -1009,9 +934,6 @@ class CGen:
 
             if self.target.is_gpu() and fp.device_flag:
                 self.print(f"pairs_runtime->copyFeaturePropertyToDevice({fp.id()}); // {fp.name()}")
-
-        if isinstance(ast_node, Timestep):
-            self.generate_statement(ast_node.block)
 
         if isinstance(ast_node, ReallocProperty):
             p = ast_node.property()

@@ -64,13 +64,13 @@ class InterfaceModules:
             self.sim.grid = MutableGrid(self.sim, self.sim.dims)
 
         inits = Block.from_list(self.sim, [
+            RegisterTimers(self.sim),
+            RegisterMarkers(self.sim),
             DeclareVariables(self.sim),
             DeclareArrays(self.sim),
             AllocateProperties(self.sim),
             AllocateContactProperties(self.sim),
             AllocateFeatureProperties(self.sim),
-            RegisterTimers(self.sim),
-            RegisterMarkers(self.sim)
         ])
 
         if self.sim._enable_profiler:

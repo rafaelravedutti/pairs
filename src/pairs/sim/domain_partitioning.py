@@ -11,8 +11,7 @@ from pairs.sim.grid import MutableGrid
 from pairs.ir.device import CopyArray
 from pairs.ir.contexts import Contexts
 from pairs.ir.actions import Actions
-from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
-from pairs.ir.print import PrintCode
+
 class DimensionRanges:
     def __init__(self, sim):
         self.sim                = sim

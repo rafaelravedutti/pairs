@@ -27,7 +27,6 @@ class CellLists:
             self.spacing = spacing if isinstance(spacing, list) else [spacing for d in range(sim.ndims())]
             self.runtime_spacing = False
         else:
-            assert self.sim._generate_whole_program==False, "Cell spacing needs to be defined when generating whole program."
             self.spacing = self.sim.add_array('spacing', self.sim.ndims(), Types.Real)
             self.runtime_spacing = True
 
@@ -35,7 +34,6 @@ class CellLists:
             self.cutoff_radius = cutoff_radius
             self.runtime_cutoff_radius = False
         else:
-            assert self.sim._generate_whole_program==False, "cutoff_radius needs to be defined when generating whole program."
             self.cutoff_radius = self.sim.add_var('cutoff_radius', Types.Real)
             self.runtime_cutoff_radius = True
 

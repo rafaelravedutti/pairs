@@ -10,13 +10,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
 option(USE_MPI                      "USE_MPI" ON)
 option(COMPILE_CUDA                 "COMPILE_CUDA" OFF)
-option(GENERATE_WHOLE_PROGRAM       "Generate the whole program (i.e. including the 'main' function). No additional source files are needed." OFF)
-option(BUILD_APP                    "Build a stand-alone app which uses the P4IRS modular interface. Provide your source files with -DUSER_SOURCE_FILES" OFF)
-
-if(GENERATE_WHOLE_PROGRAM AND BUILD_APP)
-    message(FATAL_ERROR "You must choose either GENERATE_WHOLE_PROGRAM or BUILD_APP or neither.\n
-        Choose neither if you only want to use the P4IRS library in your project (in a seperate build system).")
-endif()
+set(USER_SOURCE_FILES "" CACHE STRING "List of source files to compile (semicolon-separated)")
 
 set(INPUT_SCRIPT ${INPUT_SCRIPT} CACHE PATH "The input python script triggering code generation")
 if(NOT EXISTS ${INPUT_SCRIPT})
@@ -71,7 +65,7 @@ set(PAIRS_LINK_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 set(PAIRS_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 
 # The target can either be an executable or a static library
-if(GENERATE_WHOLE_PROGRAM OR BUILD_APP)
+if(USER_SOURCE_FILES)
     add_executable(${PAIRS_TARGET} ${RUNTIME_COMMON_FILES})
 else()
     add_library(${PAIRS_TARGET} STATIC ${RUNTIME_COMMON_FILES})
@@ -90,13 +84,7 @@ set_target_properties(${PAIRS_TARGET} PROPERTIES
 #================================================================================
 # USER_SOURCE_FILES =============================================================
 #================================================================================
-if(BUILD_APP)
-    set(USER_SOURCE_FILES "" CACHE STRING "List of source files to compile (semicolon-separated)")
-    if(NOT USER_SOURCE_FILES)
-        message(FATAL_ERROR "BUILD_APP is ON. You have to specify source files like this:\n
-            -DUSER_SOURCE_FILES=src/main.cpp;src/helper.cpp")
-    endif()
-
+if(USER_SOURCE_FILES)
     foreach(file ${USER_SOURCE_FILES})
         if(NOT EXISTS ${file})
             message(FATAL_ERROR "File '${file}' does not exist!")

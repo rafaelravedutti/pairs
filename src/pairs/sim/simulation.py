@@ -15,7 +15,6 @@ from pairs.sim.comm import Comm
 from pairs.sim.contact_history import ContactHistory
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
-from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
 from pairs.sim.grid import Grid3D
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
 from pairs.transformations import Transformations
@@ -30,17 +29,14 @@ class Simulation:
         code_gen,
         shapes,
         dims=3,
-        timesteps=100,
         double_prec=False,
         use_contact_history=False,
         particle_capacity=800000,
-        neighbor_capacity=100,
-        generate_whole_program=False):
+        neighbor_capacity=100):
 
         # Code generator for the simulation
         self.code_gen = code_gen
         self.code_gen.assign_simulation(self)
-        self._generate_whole_program = generate_whole_program
 
         # Data structures to be generated
         self.position_prop = None
@@ -52,7 +48,6 @@ class Simulation:
         self.contact_properties = ContactProperties(self)
 
         # General capacities, sizes and particle properties
-        self.sim_timestep = self.add_var('sim_timestep', Types.Int32, runtime=True)
         self.particle_capacity = \
             self.add_var('particle_capacity', Types.Int32, particle_capacity, runtime=True)
         self.neighbor_capacity = self.add_var('neighbor_capacity', Types.Int32, neighbor_capacity)
@@ -79,17 +74,12 @@ class Simulation:
         self._capture_statements = True
         self._block = Block(self, [])
 
+        # Interface modules
+        self.interface_module_list = []
+        
+        # Internal modules and kernels
         self.module_list = []
         self.kernel_list = []
-
-        # Individual user-defined and interface modules are created only when generate_whole_program is False
-        self.udf_module_list = []
-        self.interface_module_list = []
-
-        # User-defined functions to be called by other subroutines (used only when generate_whole_program is True)
-        self.setup_functions = []
-        self.pre_step_functions = []
-        self.functions = []
 
         # Structures to generated resize code for capacities
         self._check_properties_resize = False
@@ -112,7 +102,6 @@ class Simulation:
         self._module_name = None                # Current module name
         self._double_prec = double_prec         # Use double-precision FP arithmetic
         self.dims = dims                        # Number of dimensions
-        self.ntimesteps = timesteps             # Number of time-steps
         self.reneighbor_frequency = 1           # Re-neighbor frequency
         self.rebalance_frequency = 0            # Re-balance frequency for dynamic load balancing
         self._target = None                     # Hardware target info
@@ -136,14 +125,6 @@ class Simulation:
         else:
             raise Exception("Invalid domain partitioner.")
         
-    def set_workload_balancer(self, algorithm=LoadBalancingAlgorithms.Morton, 
-                              regrid_min=100, regrid_max=1000, rebalance_frequency=0):
-        assert self._partitioner == DomainPartitioners.BlockForest, "Load balancing is only supported by BlockForest."
-        self.rebalance_frequency = rebalance_frequency
-        self._dom_part.load_balancer = algorithm
-        self._dom_part.regrid_min = regrid_min
-        self._dom_part.regrid_max = regrid_max
-
     def partitioner(self):
         return self._partitioner
 
@@ -299,7 +280,6 @@ class Simulation:
     def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, run_on_device=True, profile=False):
         return compute(self, func, cutoff_radius, symbols, parameters, compute_globals, run_on_device, profile)
 
-
     def init_block(self):
         """Initialize new block in this simulation instance"""
         self._block = Block(self, [])
@@ -322,7 +302,7 @@ class Simulation:
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
-    def build_interface_module_with_statements(self, run_on_device=False, profile=False):
+    def build_interface_module_with_statements(self, run_on_device=False):
         """Build a user-defined Module that will be callable seperately as part of the interface"""
         Module(self, name=self._module_name,
                 block=Block(self, self._block),
@@ -415,12 +395,6 @@ class Simulation:
         self._comm = Comm(self, self._dom_part)
         self.create_update_cells_block()
 
-        if self._generate_whole_program:
-            self.generate_program()
-        else:
-            self.generate_library()
-
-    def generate_library(self):
         InterfaceModules(self).create_all()
         Transformations(self.interface_modules(), self._target).apply_all()
 
@@ -429,110 +403,3 @@ class Simulation:
 
         # Generate getters for the runtime functions
         self.code_gen.generate_interfaces()
-"""
-    def generate_program(self):
-        assert self.grid, "No domain is created. Set domain bounds with 'set_domain'."
-
-        reverse_comm_module = ReverseComm(self._comm, reduce=True)
-
-        # Params that determine when a method must be called only when reneighboring
-        every_reneighbor_params = {'every': self.reneighbor_frequency}
-
-        timestep_procedures = []
-
-        # First steps executed during each time-step in the simulation
-        timestep_procedures += self.pre_step_functions 
-
-        # Rebalancing routines
-        if self.rebalance_frequency:
-            update_domain_procedures = Block.from_list(self, [
-                Exchange(self._comm),
-                UpdateDomain(self),
-                Borders(self._comm),
-                ResetVolatileProperties(self),
-                BuildCellListsStencil(self, self.cell_lists),
-                self.update_cells_procedures
-                ])
-
-            timestep_procedures.append((update_domain_procedures, {'every': self.rebalance_frequency}))
-
-        # Communication routines
-        timestep_procedures += [(Exchange(self._comm), every_reneighbor_params),
-                                (Borders(self._comm), Synchronize(self._comm), every_reneighbor_params)]
-
-        # Update acceleration data structures
-        timestep_procedures += [(self.update_cells_procedures, every_reneighbor_params)]
-
-        # Add routines for contact history management
-        if self._use_contact_history:
-            if self.neighbor_lists is not None:
-                timestep_procedures.append(
-                    (BuildContactHistory(self, self._contact_history, self.cell_lists),
-                    every_reneighbor_params))
-
-            timestep_procedures.append(ResetContactHistoryUsageStatus(self, self._contact_history))
-
-        # Reset volatile properties
-        timestep_procedures += [ResetVolatileProperties(self)]
-
-        # Add computational kernels
-        timestep_procedures += self.functions
-
-        # For whole-program-generation, add reverse_comm wherever needed in the timestep loop (eg: after computational kernels) like this:
-        timestep_procedures += [reverse_comm_module]
-
-        # Clear unused contact history
-        if self._use_contact_history:
-            timestep_procedures.append(ClearUnusedContactHistory(self, self._contact_history))
-
-        # Add routine to calculate thermal data
-        if self._compute_thermo != 0:
-            timestep_procedures.append(
-                (ComputeThermo(self), {'every': self._compute_thermo}))
-
-
-        # Data structures and timer/markers initialization
-        inits = Block.from_list(self, [
-            DeclareVariables(self),
-            DeclareArrays(self),
-            AllocateProperties(self),
-            AllocateContactProperties(self),
-            AllocateFeatureProperties(self),
-            RegisterTimers(self),
-            RegisterMarkers(self)
-        ])
-
-        # Construct the time-step loop
-        timestep = Timestep(self, self.ntimesteps, timestep_procedures)
-        self.enter(timestep.block)
-
-        # Add routine to write VTK data when set
-        if self.vtk_file is not None:
-            timestep.add(VTKWrite(self, self.vtk_file, timestep.timestep(), self.vtk_frequency))
-
-        self.leave()
-
-        # Combine everything into a whole program
-        # Initialization and setup functions, together with time-step loop
-        # UpdateDomain is added after setup_particles because particles must be already present in the simulation
-        body = Block.from_list(self, [
-            self.create_domain,
-            self.setup_particles,
-            UpdateDomain(self),        
-            self.setup_functions,
-            BuildCellListsStencil(self, self.cell_lists),
-            timestep.as_block()
-        ])
-
-        program = Module(self, name='main', block=Block.merge_blocks(inits, body))
-
-        # Apply transformations
-        transformations = Transformations(program, self._target)
-        transformations.apply_all()
-
-        # Generate whole program
-        self.code_gen.generate_program(program)
-
-        # Generate getters for the runtime functions
-        self.code_gen.generate_interfaces()
-"""

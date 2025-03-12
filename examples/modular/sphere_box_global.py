@@ -71,8 +71,7 @@ psim = pairs.simulation(
     double_prec=True,
     particle_capacity=1000000,
     neighbor_capacity=20,
-    debug=True, 
-    generate_whole_program=False)
+    debug=True)
 
 
 target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"

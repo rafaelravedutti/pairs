@@ -311,9 +311,6 @@ class OneBodyKernel(Lowerable):
         self.sim.add_statement(self.block)
 
 def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, run_on_device=True, profile=False):
-    if sim._generate_whole_program:
-        assert not parameters, "Compute functions can't take custom parameters when generating whole program."
-
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
     #print(ast.dump(ast.parse(src, mode='exec')))
@@ -411,5 +408,5 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
             
     # User defined functions are wrapped inside seperate interface modules here.
     # The udf's have the same name as their interface module but they get implemented in the pairs::internal scope.
-    sim.build_interface_module_with_statements(run_on_device, profile)  
+    sim.build_interface_module_with_statements(run_on_device)  
     
