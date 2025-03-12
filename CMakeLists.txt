@@ -119,10 +119,10 @@ if(WALBERLA_DIR)
     target_sources(${PAIRS_TARGET} PRIVATE ${RUNTIME_WALBERLA_FILES})
 
     ## Linking walberla modules
-    set(PAIRS_WALBERLA_DEPENDENCIES blockforest core pe)
+    set(PAIRS_WALBERLA_DEPENDENCIES walberla::blockforest walberla::core walberla::pe)
     find_package(waLBerla REQUIRED)
     set(WALBERLA_LINK_LIBRARIES_KEYWORD PUBLIC)
-    target_link_modules(${PAIRS_TARGET} ${PAIRS_WALBERLA_DEPENDENCIES})     # This is a walberla helper function
+    target_link_libraries(${PAIRS_TARGET} PUBLIC ${PAIRS_WALBERLA_DEPENDENCIES})
 
     ## TODO: PAIRS_LINK_DIRS and PAIRS_LINK_LIBRARIES for walberla modules *AND* their dependencies
     ## This implemention only works if the consumer of the library is itself a walberla app (made within the build system of walberla)
