@@ -20,7 +20,6 @@ from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.ir.print import PrintCode
 from pairs.ir.assign import Assign
 from pairs.sim.contact_history import BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
-from pairs.sim.thermo import ComputeThermo
 
 class InterfaceModules:
     def __init__(self, sim):
@@ -39,9 +38,6 @@ class InterfaceModules:
             if self.neighbor_lists:
                 self.build_contact_history(self.sim.reneighbor_frequency)
             self.reset_contact_history()
-
-        if self.sim._compute_thermo != 0:
-            self.compute_thermo(self.sim._compute_thermo)
 
         self.rank()
         self.nlocal()
@@ -163,11 +159,6 @@ class InterfaceModules:
         self.sim.module_name('reset_contact_history')
         self.sim.add_statement(ResetContactHistoryUsageStatus(self.sim, self.sim._contact_history))
         self.sim.add_statement(ClearUnusedContactHistory(self.sim, self.sim._contact_history))
-
-    @pairs_interface_block
-    def compute_thermo(self):
-        self.sim.module_name('compute_thermo')
-        self.sim.add_statement(ComputeThermo(self.sim))
 
     @pairs_interface_block
     def rank(self):
