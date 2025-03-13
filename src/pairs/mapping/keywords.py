@@ -13,7 +13,7 @@ from pairs.ir.types import Types
 from pairs.ir.print import Print
 from pairs.ir.vectors import Vector, ZeroVector
 from pairs.sim.shapes import Shapes
-
+from pairs.sim.flags import Flags
 
 class Keywords:
     def __init__(self, sim):
@@ -47,11 +47,41 @@ class Keywords:
         assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
         return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.Sphere)
 
+    def keyword_is_box(self, args):
+        assert len(args) == 1, "is_box() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.Box)
+
     def keyword_is_halfspace(self, args):
         assert len(args) == 1, "is_sphere() keyword requires one parameter."
         particle_id = args[0]
         assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
         return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.Halfspace)
+
+    def keyword_is_infinite(self, args):
+        assert len(args) == 1, "is_infinite() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return self.sim.particle_flags[particle_id] & Flags.Infinite
+
+    def keyword_is_ghost(self, args):
+        assert len(args) == 1, "is_ghost() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return self.sim.particle_flags[particle_id] & Flags.Ghost
+    
+    def keyword_is_fixed(self, args):
+        assert len(args) == 1, "is_fixed() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return self.sim.particle_flags[particle_id] & Flags.Fixed
+
+    def keyword_is_global(self, args):
+        assert len(args) == 1, "is_global() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return self.sim.particle_flags[particle_id] & Flags.Global
 
     def keyword_select(self, args):
         assert len(args) == 3, "select() keyword requires three parameters!"
@@ -125,6 +155,10 @@ class Keywords:
         assert len(args) == 0, "zero_vector() keyword requires no parameter."
         return ZeroVector(self.sim)
 
+    def keyword_vector(self, args):
+        assert len(args) == self.sim.ndims(), "vector()"
+        return Vector(self.sim, [args[i] for i in range(self.sim.ndims())])
+
     def keyword_transposed(self, args):
         assert len(args) == 1, "transposed() keyword requires one parameter."
         matrix = args[0]
@@ -151,13 +185,18 @@ class Keywords:
                                   inv_det * ((matrix[3] * matrix[7]) - (matrix[4] * matrix[6])),
                                   inv_det * ((matrix[6] * matrix[1]) - (matrix[7] * matrix[0])),
                                   inv_det * ((matrix[0] * matrix[4]) - (matrix[1] * matrix[3])) ])
-
+    
     def keyword_diagonal_matrix(self, args):
-        assert len(args) == 1, "diagonal_matrix() keyword requires one parameter!"
-        value = args[0]
-        nelems = Types.number_of_elements(self.sim, Types.Matrix)
-        return Matrix(self.sim, [value if i % (self.sim.ndims() + 1) == 0 else 0.0 \
-                                 for i in range(nelems)])
+        assert len(args) == 1 or len(args) == self.sim.ndims(), f"diagonal_matrix() keyword requires 1 or {self.sim.ndims()} parameters!"
+        if len(args) == 1:
+            value = args[0]
+            nelems = Types.number_of_elements(self.sim, Types.Matrix)
+            return Matrix(self.sim, [value if i % (self.sim.ndims() + 1) == 0 else 0.0 \
+                                    for i in range(nelems)])
+        elif len(args) == self.sim.ndims(): 
+            nelems = Types.number_of_elements(self.sim, Types.Matrix)
+            return Matrix(self.sim, [args[i % self.sim.ndims()] if i % (self.sim.ndims() + 1) == 0 else 0.0 \
+                                    for i in range(nelems)])
 
     def keyword_matrix_multiplication(self, args):
         assert len(args) == 2, "matrix_multiplication() keyword requires two parameters!"

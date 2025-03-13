@@ -36,6 +36,7 @@ def spring_dashpot(i, j):
     apply(torque, cross(contact_point(i, j) - position, partial_force))
 
 def euler(i):
+    skip_when(is_fixed(i) or is_infinite(i))
     inv_mass = 1.0 / mass[i]
     position[i] +=  0.5 * inv_mass * force[i] * dt * dt + linear_velocity[i] * dt
     linear_velocity[i] += inv_mass * force[i] * dt
@@ -58,8 +59,7 @@ psim = pairs.simulation(
     double_prec=True,
     particle_capacity=1000000,
     neighbor_capacity=20,
-    debug=True, 
-    generate_whole_program=False)
+    debug=True)
 
 
 target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
@@ -97,7 +97,7 @@ psim.build_cell_lists()
 # The order of user-defined functions is not important here since 
 # they are not used by other subroutines and are only callable individually 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
-psim.compute(spring_dashpot)
+psim.compute(spring_dashpot, profile=True)
 psim.compute(euler, parameters={'dt': pairs.real()})
 
 gravity_SI = 9.81

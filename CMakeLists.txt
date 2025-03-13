@@ -9,14 +9,9 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
 option(USE_MPI                      "USE_MPI" ON)
+option(USE_WALBERLA                 "Enable waLBerla support for using BlockForest domain partitioning and dynamic load balancing" OFF)
 option(COMPILE_CUDA                 "COMPILE_CUDA" OFF)
-option(GENERATE_WHOLE_PROGRAM       "Generate the whole program (i.e. including the 'main' function). No additional source files are needed." OFF)
-option(BUILD_APP                    "Build a stand-alone app which uses the P4IRS modular interface. Provide your source files with -DUSER_SOURCE_FILES" OFF)
-
-if(GENERATE_WHOLE_PROGRAM AND BUILD_APP)
-    message(FATAL_ERROR "You must choose either GENERATE_WHOLE_PROGRAM or BUILD_APP or neither.\n
-        Choose neither if you only want to use the P4IRS library in your project (in a seperate build system).")
-endif()
+set(USER_SOURCE_FILES "" CACHE STRING "List of source files to compile (semicolon-separated)")
 
 set(INPUT_SCRIPT ${INPUT_SCRIPT} CACHE PATH "The input python script triggering code generation")
 if(NOT EXISTS ${INPUT_SCRIPT})
@@ -42,7 +37,7 @@ file(MAKE_DIRECTORY ${OUTPUT_DIR})
 #================================================================================
 # TODO: Unify all interfaces
 set(GEN_INTERFACE_DIR ${CMAKE_CURRENT_BINARY_DIR}/internal_interfaces)
-set(GEN_INTERFACE_HEADER ${CMAKE_CURRENT_BINARY_DIR}/last_generated.hpp)
+set(GEN_INTERFACE_HEADER ${GEN_INTERFACE_DIR}/last_generated.hpp)
 file(MAKE_DIRECTORY ${GEN_INTERFACE_DIR})
 
 #================================================================================
@@ -50,14 +45,14 @@ file(MAKE_DIRECTORY ${GEN_INTERFACE_DIR})
 #================================================================================
 set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
-    runtime/copper_fcc_lattice.cpp
-    runtime/create_body.cpp
-    runtime/dem_sc_grid.cpp
-    runtime/read_from_file.cpp
-    runtime/stats.cpp
-    runtime/thermo.cpp
-    runtime/timing.cpp
-    runtime/vtk.cpp
+    runtime/utility/copper_fcc_lattice.cpp
+    runtime/utility/create_body.cpp
+    runtime/utility/dem_sc_grid.cpp
+    runtime/utility/read_from_file.cpp
+    runtime/utility/stats.cpp
+    runtime/utility/thermo.cpp
+    runtime/utility/timing.cpp
+    runtime/utility/vtk.cpp
     runtime/domain/regular_6d_stencil.cpp)
 
 #================================================================================
@@ -71,7 +66,7 @@ set(PAIRS_LINK_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 set(PAIRS_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 
 # The target can either be an executable or a static library
-if(GENERATE_WHOLE_PROGRAM OR BUILD_APP)
+if(USER_SOURCE_FILES)
     add_executable(${PAIRS_TARGET} ${RUNTIME_COMMON_FILES})
 else()
     add_library(${PAIRS_TARGET} STATIC ${RUNTIME_COMMON_FILES})
@@ -90,13 +85,7 @@ set_target_properties(${PAIRS_TARGET} PROPERTIES
 #================================================================================
 # USER_SOURCE_FILES =============================================================
 #================================================================================
-if(BUILD_APP)
-    set(USER_SOURCE_FILES "" CACHE STRING "List of source files to compile (semicolon-separated)")
-    if(NOT USER_SOURCE_FILES)
-        message(FATAL_ERROR "BUILD_APP is ON. You have to specify source files like this:\n
-            -DUSER_SOURCE_FILES=src/main.cpp;src/helper.cpp")
-    endif()
-
+if(USER_SOURCE_FILES)
     foreach(file ${USER_SOURCE_FILES})
         if(NOT EXISTS ${file})
             message(FATAL_ERROR "File '${file}' does not exist!")
@@ -108,14 +97,8 @@ endif()
 #================================================================================
 # waLBerla ======================================================================
 #================================================================================
-set(WALBERLA_DIR ${WALBERLA_DIR} CACHE PATH "Path to waLBerla source directory (required only when using BlockForest partitioning).")
-
-if(WALBERLA_DIR)
-    if(EXISTS "${WALBERLA_DIR}")
-        target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
-    else()
-        message(FATAL_ERROR "Invalid WALBERLA_DIR: '${WALBERLA_DIR}' does not exist.")
-    endif()
+if(USE_WALBERLA)
+    target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
 
     set(RUNTIME_WALBERLA_FILES
         runtime/domain/block_forest.cpp
@@ -123,18 +106,19 @@ if(WALBERLA_DIR)
 
     # TODO: Generate the host/device functions for computing weights
     if(COMPILE_CUDA)
-        list(APPEND RUNTIME_WALBERLA_FILES runtime/boundary_weights.cu)
+        list(APPEND RUNTIME_WALBERLA_FILES runtime/domain/boundary_weights.cu)
     else()
-        list(APPEND RUNTIME_WALBERLA_FILES runtime/boundary_weights.cpp)
+        list(APPEND RUNTIME_WALBERLA_FILES runtime/domain/boundary_weights.cpp)
     endif()
-
+    
     target_sources(${PAIRS_TARGET} PRIVATE ${RUNTIME_WALBERLA_FILES})
 
-    ## Linking walberla modules
-    set(PAIRS_WALBERLA_DEPENDENCIES blockforest core pe)
-    find_package(waLBerla REQUIRED)
-    set(WALBERLA_LINK_LIBRARIES_KEYWORD PUBLIC)
-    target_link_modules(${PAIRS_TARGET} ${PAIRS_WALBERLA_DEPENDENCIES})     # This is a walberla helper function
+    add_subdirectory(external/walberla EXCLUDE_FROM_ALL)
+    waLBerla_import()
+
+    # Recent issue from the waLBerla side: warnings about empty CUDA_ARCHITECTURES for walberla_gpu 
+    set(PAIRS_WALBERLA_DEPENDENCIES walberla::blockforest walberla::core)
+    target_link_libraries(${PAIRS_TARGET} PUBLIC ${PAIRS_WALBERLA_DEPENDENCIES})
 
     ## TODO: PAIRS_LINK_DIRS and PAIRS_LINK_LIBRARIES for walberla modules *AND* their dependencies
     ## This implemention only works if the consumer of the library is itself a walberla app (made within the build system of walberla)
@@ -250,10 +234,12 @@ endif()
 # LIKWID ========================================================================
 #================================================================================
 if(LIKWID_DIR)
+    # Example: -DLIKWID_DIR=/apps/likwid/5.4.0
+
     target_compile_options(${PAIRS_TARGET} PRIVATE -DLIKWID_PERFMON -pthread)
 
-    target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_DIR}/lib/liblikwid.a)
-    list(APPEND PAIRS_LINK_LIBRARIES ${LIKWID_DIR}/lib/liblikwid.a)
+    target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_DIR}/lib/liblikwid.so)
+    list(APPEND PAIRS_LINK_LIBRARIES ${LIKWID_DIR}/lib/liblikwid.so)
 
     include_directories(${LIKWID_DIR}/include)
     list(APPEND PAIRS_INCLUDE_DIRS "${LIKWID_DIR}/include")

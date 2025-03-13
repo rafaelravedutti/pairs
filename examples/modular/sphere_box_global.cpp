@@ -1,0 +1,101 @@
+#include <iostream>
+#include <memory>
+#include <iomanip>
+
+#include "sphere_box_global.hpp"
+
+// cmake -DINPUT_SCRIPT=../examples/modular/sphere_box_global.py -DWALBERLA_DIR=../../walberla -DBUILD_APP=ON -DUSER_SOURCE_FILES=../examples/modular/sphere_box_global.cpp -DCOMPILE_CUDA=ON ..
+
+void set_feature_properties(std::shared_ptr<PairsAccessor> &ac){
+    ac->setTypeStiffness(0,0, 1e6);
+    ac->setTypeStiffness(0,1, 1e6);
+    ac->setTypeStiffness(1,0, 1e6);
+    ac->setTypeStiffness(1,1, 1e6);
+    ac->syncTypeStiffness();
+
+    ac->setTypeDampingNorm(0,0, 300);
+    ac->setTypeDampingNorm(0,1, 300);
+    ac->setTypeDampingNorm(1,0, 300);
+    ac->setTypeDampingNorm(1,1, 300);
+    ac->syncTypeDampingNorm();
+
+    ac->setTypeFriction(0,0, 1.2);
+    ac->setTypeFriction(0,1, 1.2);
+    ac->setTypeFriction(1,0, 1.2);
+    ac->setTypeFriction(1,1, 1.2);
+    ac->syncTypeFriction();
+
+    ac->setTypeDampingTan(0,0, 300);
+    ac->setTypeDampingTan(0,1, 300);
+    ac->setTypeDampingTan(1,0, 300);
+    ac->setTypeDampingTan(1,1, 300);
+    ac->syncTypeDampingTan();
+}
+
+int main(int argc, char **argv) {
+    auto pairs_sim = std::make_shared<PairsSimulation>();
+    pairs_sim->initialize();
+
+    auto ac = std::make_shared<PairsAccessor>(pairs_sim.get());
+    set_feature_properties(ac);
+
+    auto pairs_runtime = pairs_sim->getPairsRuntime();
+
+    pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 30, 30, 30, false, false, false, true); 
+    pairs_runtime->getDomainPartitioner()->initWorkloadBalancer(pairs::Hilbert, 100, 800);
+
+    pairs::create_halfspace(pairs_runtime, 0,0,0,       1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,       0, 1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,       0, 0, 1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 30,30,30,    -1, 0, 0,   0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 30,30,30,    0, -1, 0,   0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 30,30,30,    0, 0, -1,   0, pairs::flags::INFINITE | pairs::flags::FIXED); 
+
+    double radius = 0.5;
+    // Create a bed of small particles
+    pairs::dem_sc_grid(pairs_runtime, 30, 20, 5,  radius*2 , radius*2 , radius*2, radius*2,    2,      250,    2);
+
+    // Create 3 global bodies, one of which is fixed
+    pairs::create_box(pairs_runtime,    12, 12, 13.5,   0, 0, 0,    15, 2, 13,  20,    0,       pairs::flags::GLOBAL); 
+    pairs::create_sphere(pairs_runtime, 15, 20, 15,     0, 4, 0,                50, 4, 0,       pairs::flags::GLOBAL);
+    pairs::create_sphere(pairs_runtime, 15, 25, 4,      0, 0, 0,                50, 4, 0,       pairs::flags::GLOBAL | pairs::flags::FIXED); 
+    
+    // Use the diameter of small particles to set up the cell list
+    double lcw = radius * 2;
+    pairs_sim->setup_sim(lcw, lcw, lcw, lcw);
+    pairs_sim->update_mass_and_inertia();
+    pairs_sim->communicate(0);
+
+    int num_timesteps = 20000; 
+    int vtk_freq = 100;
+    int rebalance_freq = 2000;
+    double dt = 0.001;
+
+    pairs::vtk_write_subdom(pairs_runtime, "output/subdom_init", 0);
+    
+    for (int t=0; t<num_timesteps; ++t){
+        if ((t % vtk_freq==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
+        
+        if (t % rebalance_freq == 0){ 
+            pairs_sim->update_domain();
+        }
+        
+        pairs_sim->update_cells(t); 
+
+        pairs_sim->gravity(); 
+        
+        // All global and local interactions are contained within the 'spring_dashpot' module
+        // You have the option to call spring_dashpot before or after 'gravity' or any other force-update module
+        pairs_sim->spring_dashpot();     
+
+        pairs_sim->euler(dt); 
+        pairs_sim->communicate(t);
+        
+        if (t % vtk_freq==0){
+            pairs::vtk_with_rotation(pairs_runtime, pairs::Shapes::Box, "output/local_boxes", 0, pairs_sim->nlocal(), t);
+            pairs::vtk_with_rotation(pairs_runtime, pairs::Shapes::Sphere, "output/local_spheres", 0, pairs_sim->nlocal(), t);
+        }
+    }
+
+    pairs_sim->end();
+}

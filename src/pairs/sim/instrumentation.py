@@ -1,6 +1,7 @@
 from pairs.ir.block import pairs_inline
 from pairs.ir.functions import Call_Void
 from pairs.ir.timers import Timers
+from pairs.ir.types import Types
 from pairs.sim.lowerable import FinalLowerable
 
 class RegisterTimers(FinalLowerable):
@@ -12,9 +13,14 @@ class RegisterTimers(FinalLowerable):
         for t in range(Timers.Offset):
             Call_Void(self.sim, "pairs::register_timer", [t, Timers.name(t)])
 
-        for m in self.sim.module_list:
-            if m.name != 'main' and m.name != 'initialize':
-                Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, m.name])
+        # Interface modules
+        for m in self.sim.interface_modules():
+            if m.name != 'initialize' and m.name != 'end' and m.return_type==Types.Void:
+                Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, "INTERFACE_MODULES::" + m.name])
+        
+        # Internal modules
+        for m in self.sim.modules():
+            Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, "INTERNAL_MODULES::" + m.name])
 
 
 class RegisterMarkers(FinalLowerable):
@@ -24,6 +30,7 @@ class RegisterMarkers(FinalLowerable):
     @pairs_inline
     def lower(self):
         if self.sim._enable_profiler:
-            for m in self.sim.module_list:
-                if m.name != 'main' and m.name != 'initialize' and m.must_profile():
+            # Only internal modules are profiled
+            for m in self.sim.modules():
+                if m.must_profile():
                     Call_Void(self.sim, "LIKWID_MARKER_REGISTER", [m.name])

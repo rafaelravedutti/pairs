@@ -2,7 +2,6 @@ from pairs.ir.types import Types
 from pairs.code_gen.cgen import CGen
 from pairs.code_gen.target import Target
 from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
 from pairs.sim.shapes import Shapes
 from pairs.sim.simulation import Simulation
 
@@ -11,17 +10,14 @@ def simulation(
     ref,
     shapes,
     dims=3,
-    timesteps=100,
     double_prec=False,
     use_contact_history=False,
     particle_capacity=800000,
     neighbor_capacity=100,
-    debug=False,
-    generate_whole_program=False):
+    debug=False):
 
     return Simulation(
-        CGen(ref, debug), shapes, dims, timesteps, double_prec, use_contact_history,
-        particle_capacity, neighbor_capacity, generate_whole_program)
+        CGen(ref, debug), shapes, dims, double_prec, use_contact_history, particle_capacity, neighbor_capacity)
 
 def target_cpu(parallel=False):
     if parallel:
@@ -59,6 +55,9 @@ def point_mass():
 def sphere():
     return Shapes.Sphere
 
+def box():
+    return Shapes.Box
+
 def halfspace():
     return Shapes.Halfspace
 
@@ -70,15 +69,3 @@ def regular_domain_partitioner_xy():
 
 def block_forest():
     return DomainPartitioners.BlockForest
-
-def morton():
-    return LoadBalancingAlgorithms.Morton
-
-def hilbert():
-    return LoadBalancingAlgorithms.Hilbert
-
-def metis():
-    return LoadBalancingAlgorithms.Metis
-
-def diffusive():
-    return LoadBalancingAlgorithms.Diffusive

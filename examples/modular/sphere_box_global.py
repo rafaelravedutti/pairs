@@ -2,7 +2,7 @@ import math
 import pairs
 import sys
 import os
-
+        
 def update_mass_and_inertia(i):
     rotation_matrix[i] = diagonal_matrix(1.0)
     rotation[i] = default_quaternion()
@@ -10,9 +10,21 @@ def update_mass_and_inertia(i):
     if is_sphere(i):
         inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
 
-    else:
+    elif is_box(i):
+        inv_inertia[i] = inversed(diagonal_matrix (
+            edge_length[i][1]*edge_length[i][1] + edge_length[i][2]*edge_length[i][2],
+            edge_length[i][0]*edge_length[i][0] + edge_length[i][2]*edge_length[i][2],
+            edge_length[i][0]*edge_length[i][0] + edge_length[i][1]*edge_length[i][1]) * (mass[i] / 12.0))
+        
+        axis = vector(1,0.5,1)
+        angle = -3.1415/6.0
+        rotation[i] = quaternion(axis, angle) * rotation[i]
+        rotation_matrix[i] = quaternion_to_rotation_matrix(rotation[i])
+
+    elif is_halfspace(i):
         mass[i] = infinity
         inv_inertia[i] = 0.0
+
 
 def spring_dashpot(i, j):
     delta_ij = -penetration_depth(i, j)
@@ -25,17 +37,18 @@ def spring_dashpot(i, j):
     rel_vel_n = dot(rel_vel, contact_normal(i, j))
     rel_vel_t = rel_vel - rel_vel_n * contact_normal(i, j)
 
-    fNabs = stiffness[i,j] * delta_ij + damping_norm[i,j] * rel_vel_n
+    fNabs = stiffness[i,j] * delta_ij + max(damping_norm[i,j] * rel_vel_n, 0.0)
     fN = fNabs * contact_normal(i, j)
 
     fTabs = min(damping_tan[i,j] * length(rel_vel_t), friction[i, j] * fNabs)
-    fT = fTabs * normalized(rel_vel_t)
+    fT =  fTabs * normalized(rel_vel_t)
 
     partial_force = fN + fT
     apply(force, partial_force)
-    apply(torque, cross(contact_point(i, j) - position, partial_force))
+    apply(torque, cross(contact_point(i, j) - position[i], partial_force))
 
 def euler(i):
+    skip_when(is_fixed(i) or is_infinite(i))
     inv_mass = 1.0 / mass[i]
     position[i] +=  0.5 * inv_mass * force[i] * dt * dt + linear_velocity[i] * dt
     linear_velocity[i] += inv_mass * force[i] * dt
@@ -46,7 +59,7 @@ def euler(i):
     angular_velocity[i] += wdot * dt
 
 def gravity(i):
-    force[i][2] -= force[i][2] - mass[i] * gravity_SI
+    force[i][2] -= mass[i] * gravity_SI
 
 
 file_name = os.path.basename(__file__)
@@ -54,7 +67,7 @@ file_name_without_extension = os.path.splitext(file_name)[0]
 
 psim = pairs.simulation(
     file_name_without_extension,
-    [pairs.sphere(), pairs.halfspace()],
+    [pairs.sphere(), pairs.halfspace(), pairs.box()],
     double_prec=True,
     particle_capacity=1000000,
     neighbor_capacity=20,
@@ -70,11 +83,6 @@ elif target == 'cpu':
 else:
     print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
-gravity_SI = 9.81
-diameter = 100      # required for linkedCellWidth. TODO: set linkedCellWidth at runtime
-linkedCellWidth = 1.01 * diameter
-ntypes = 2
-
 psim.add_position('position')
 psim.add_property('mass', pairs.real())
 psim.add_property('linear_velocity', pairs.vector())
@@ -86,11 +94,9 @@ psim.add_property('normal', pairs.vector())
 psim.add_property('inv_inertia', pairs.matrix())
 psim.add_property('rotation_matrix', pairs.matrix())
 psim.add_property('rotation', pairs.quaternion())
+psim.add_property('edge_length', pairs.vector())
 
-# Properties that get reduced during reverse communication
-psim.add_property('hydrodynamic_force', pairs.vector(), reduce=True)
-psim.add_property('hydrodynamic_torque', pairs.vector(), reduce=True)
-
+ntypes = 2
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'stiffness', pairs.real(), [3000 for i in range(ntypes * ntypes)])
 psim.add_feature_property('type', 'damping_norm', pairs.real(), [10.0 for i in range(ntypes * ntypes)])
@@ -99,14 +105,16 @@ psim.add_feature_property('type', 'friction', pairs.real())
 
 psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
-psim.build_cell_lists(linkedCellWidth)
+psim.build_cell_lists()
 
-# The order of user-defined functions is not important here since 
-# they are not used by other subroutines and are only callable individually 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
-psim.compute(spring_dashpot, linkedCellWidth)
-psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
+
+# 'compute_globals' enables computation of forces on global bodies
+psim.compute(spring_dashpot, compute_globals=True)
 psim.compute(euler, parameters={'dt': pairs.real()})
+
+gravity_SI = 9.81
+psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
 
 psim.generate()
 

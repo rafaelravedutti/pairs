@@ -18,7 +18,7 @@ id_t create_halfspace(PairsRuntime *pr,
 
     if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z) || flag & (flags::INFINITE | flags::GLOBAL) ){
         int n = pr->getTrackedVariableAsInteger("nlocal");
-        uid = (flag & flags::GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uid = (flag & (flags::INFINITE | flags::GLOBAL)) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
         uids(n) = uid;
         positions(n, 0) = x;
         positions(n, 1) = y;
@@ -28,7 +28,7 @@ id_t create_halfspace(PairsRuntime *pr,
         normals(n, 2) = nz;
         types(n) = type;
         flags(n) = flag;
-        shapes(n) = 1;   // halfspace
+        shapes(n) = Shapes::Halfspace;
         pr->setTrackedVariableAsInteger("nlocal", n + 1);
     }
 
@@ -50,10 +50,11 @@ id_t create_sphere(PairsRuntime *pr,
     auto radii = pr->getAsFloatProperty(pr->getPropertyByName("radius"));
     auto positions = pr->getAsVectorProperty(pr->getPropertyByName("position"));
     auto velocities = pr->getAsVectorProperty(pr->getPropertyByName("linear_velocity"));
+    auto angular_velocity = pr->getAsVectorProperty(pr->getPropertyByName("angular_velocity"));
 
-    if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z)) {
+    if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z) || flag & (flags::INFINITE | flags::GLOBAL)) {
         int n = pr->getTrackedVariableAsInteger("nlocal");
-        uid = (flag & flags::GLOBAL) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uid = (flag & (flags::INFINITE | flags::GLOBAL)) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
         uids(n) = uid;
         radii(n) = radius;
         masses(n) = ((4.0 / 3.0) * M_PI) * radius * radius * radius * density;
@@ -65,10 +66,56 @@ id_t create_sphere(PairsRuntime *pr,
         velocities(n, 2) = vz;
         types(n) = type;
         flags(n) = flag;
-        shapes(n) = 0;   // sphere
+        shapes(n) = Shapes::Sphere;
+        angular_velocity(n, 0) = 0;
+        angular_velocity(n, 1) = 0;
+        angular_velocity(n, 2) = 0;
         pr->setTrackedVariableAsInteger("nlocal", n + 1);
     }
     
+    return uid;
+}
+
+id_t create_box(PairsRuntime *pr, 
+    double x, double y, double z, 
+    double vx, double vy, double vz, 
+    double ex, double ey, double ez, 
+    double density, int type, int flag){
+    // TODO: increase capacity if exceeded
+    id_t uid = 0;
+    auto uids = pr->getAsUInt64Property(pr->getPropertyByName("uid"));   
+    auto shapes = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
+    auto types = pr->getAsIntegerProperty(pr->getPropertyByName("type"));
+    auto flags = pr->getAsIntegerProperty(pr->getPropertyByName("flags"));
+    auto masses = pr->getAsFloatProperty(pr->getPropertyByName("mass"));
+    auto positions = pr->getAsVectorProperty(pr->getPropertyByName("position"));
+    auto velocities = pr->getAsVectorProperty(pr->getPropertyByName("linear_velocity"));
+    auto edge_length = pr->getAsVectorProperty(pr->getPropertyByName("edge_length"));
+    auto angular_velocity = pr->getAsVectorProperty(pr->getPropertyByName("angular_velocity"));
+
+    if(pr->getDomainPartitioner()->isWithinSubdomain(x, y, z) || flag & (flags::INFINITE | flags::GLOBAL)) {
+        int n = pr->getTrackedVariableAsInteger("nlocal");
+        uid = (flag & (flags::INFINITE | flags::GLOBAL)) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
+        uids(n) = uid;
+        edge_length(n, 0) = ex;
+        edge_length(n, 1) = ey;
+        edge_length(n, 2) = ez;
+        masses(n) = ex * ey * ez * density;
+        positions(n, 0) = x;
+        positions(n, 1) = y;
+        positions(n, 2) = z;
+        velocities(n, 0) = vx;
+        velocities(n, 1) = vy;
+        velocities(n, 2) = vz;
+        types(n) = type;
+        flags(n) = flag;
+        shapes(n) = Shapes::Box;
+        angular_velocity(n, 0) = 0;
+        angular_velocity(n, 1) = 0;
+        angular_velocity(n, 2) = 0;
+        pr->setTrackedVariableAsInteger("nlocal", n + 1);
+    }
+
     return uid;
 }
 

@@ -20,7 +20,6 @@ from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.ir.print import PrintCode
 from pairs.ir.assign import Assign
 from pairs.sim.contact_history import BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
-from pairs.sim.thermo import ComputeThermo
 
 class InterfaceModules:
     def __init__(self, sim):
@@ -28,7 +27,7 @@ class InterfaceModules:
 
     def create_all(self):
         self.initialize()
-        self.setup_sim()
+        self.setup_cells()
         self.update_domain()
         self.update_cells(self.sim.reneighbor_frequency) 
         self.communicate(self.sim.reneighbor_frequency)
@@ -39,9 +38,6 @@ class InterfaceModules:
             if self.neighbor_lists:
                 self.build_contact_history(self.sim.reneighbor_frequency)
             self.reset_contact_history()
-
-        if self.sim._compute_thermo != 0:
-            self.compute_thermo(self.sim._compute_thermo)
 
         self.rank()
         self.nlocal()
@@ -60,26 +56,27 @@ class InterfaceModules:
         PrintCode(self.sim, f"pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
         PrintCode(self.sim, f"pobj = new PairsObjects();")
 
+        if self.sim.grid is None:
+            self.sim.grid = MutableGrid(self.sim, self.sim.dims)
+
         inits = Block.from_list(self.sim, [
+            RegisterTimers(self.sim),
+            RegisterMarkers(self.sim),
             DeclareVariables(self.sim),
             DeclareArrays(self.sim),
             AllocateProperties(self.sim),
             AllocateContactProperties(self.sim),
             AllocateFeatureProperties(self.sim),
-            RegisterTimers(self.sim),
-            RegisterMarkers(self.sim)
         ])
 
-        if self.sim.create_domain_at_initialization:
-            self.sim.add_statement(Block.merge_blocks(inits, self.sim.create_domain))
-        else:
-            assert self.sim.grid is None, "A grid already exists"
-            self.sim.grid = MutableGrid(self.sim, self.sim.dims)
-            self.sim.add_statement(inits)
+        if self.sim._enable_profiler:
+            PrintCode(self.sim, "LIKWID_MARKER_INIT;")
+
+        self.sim.add_statement(inits)
 
     @pairs_interface_block
-    def setup_sim(self):
-        self.sim.module_name('setup_sim')
+    def setup_cells(self):
+        self.sim.module_name('setup_cells')
         
         if self.sim.cell_lists.runtime_spacing:
             for d in range(self.sim.dims):
@@ -88,7 +85,6 @@ class InterfaceModules:
         if self.sim.cell_lists.runtime_cutoff_radius:
             Assign(self.sim, self.sim.cell_lists.cutoff_radius, Parameter(self.sim, 'cutoff_radius', Types.Real))
 
-        self.sim.add_statement(self.sim.setup_particles)
         # This update assumes all particles have been created exactly in the rank that contains them 
         self.sim.add_statement(UpdateDomain(self.sim))  
         self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))
@@ -165,11 +161,6 @@ class InterfaceModules:
         self.sim.add_statement(ClearUnusedContactHistory(self.sim, self.sim._contact_history))
 
     @pairs_interface_block
-    def compute_thermo(self):
-        self.sim.module_name('compute_thermo')
-        self.sim.add_statement(ComputeThermo(self.sim))
-
-    @pairs_interface_block
     def rank(self):
         self.sim.module_name('rank')
         Return(self.sim, self.sim.domain_partitioning().rank)
@@ -190,62 +181,14 @@ class InterfaceModules:
         Return(self.sim, ScalarOp.inline(self.sim.nlocal + self.sim.nghost))
 
     @pairs_interface_block
-    def create_sphere(self):
-        self.sim.module_name('create_sphere')
-        x = Parameter(self.sim, 'x', Types.Real)
-        y = Parameter(self.sim, 'y', Types.Real)
-        z = Parameter(self.sim, 'z', Types.Real)
-        vx = Parameter(self.sim, 'vx', Types.Real)
-        vy = Parameter(self.sim, 'vy', Types.Real)
-        vz = Parameter(self.sim, 'vz', Types.Real)
-        density = Parameter(self.sim, 'density', Types.Real)
-        radius = Parameter(self.sim, 'radius', Types.Real)
-        ptype = Parameter(self.sim, 'type', Types.Real)
-        flag = Parameter(self.sim, 'flag', Types.Real)
-
-        Return(self.sim, Call(self.sim, "pairs::create_sphere", 
-                              [x, y, z, vx, vy, vz, 
-                               density, radius, ptype, flag], Types.UInt64))
-
-    @pairs_interface_block
-    def create_halfspace(self):
-        self.sim.module_name('create_halfspace')
-        x = Parameter(self.sim, 'x', Types.Real)
-        y = Parameter(self.sim, 'y', Types.Real)
-        z = Parameter(self.sim, 'z', Types.Real)
-        nx = Parameter(self.sim, 'nx', Types.Real)
-        ny = Parameter(self.sim, 'ny', Types.Real)
-        nz = Parameter(self.sim, 'nz', Types.Real)
-        ptype = Parameter(self.sim, 'type', Types.Real)
-        flag = Parameter(self.sim, 'flag', Types.Real)
-
-        Return(self.sim, Call(self.sim, "pairs::create_halfspace", 
-                              [x, y, z, nx, ny, nz, ptype, flag], Types.UInt64))
-        
-    @pairs_interface_block
-    def dem_sc_grid(self):
-        self.sim.module_name('dem_sc_grid')
-        xmax = Parameter(self.sim, 'xmax', Types.Real)
-        ymax = Parameter(self.sim, 'ymax', Types.Real)
-        zmax = Parameter(self.sim, 'zmax', Types.Real)
-        spacing = Parameter(self.sim, 'spacing', Types.Real)
-        diameter = Parameter(self.sim, 'diameter', Types.Real)
-        min_diameter = Parameter(self.sim, 'min_diameter', Types.Real)
-        max_diameter = Parameter(self.sim, 'max_diameter', Types.Real)
-        initial_velocity = Parameter(self.sim, 'initial_velocity', Types.Real)
-        particle_density = Parameter(self.sim, 'particle_density', Types.Real)
-        ntypes = Parameter(self.sim, 'ntypes', Types.Int32)
-
-        Assign(self.sim, self.sim.nlocal,
-               Call_Int(self.sim, "pairs::dem_sc_grid",
-                        [xmax, ymax, zmax, spacing, diameter, min_diameter, max_diameter,
-                         initial_velocity, particle_density, ntypes]))
-        Return(self.sim, self.sim.nlocal)
-
-    @pairs_interface_block
     def end(self):
         self.sim.module_name('end')
+
+        if self.sim._enable_profiler:
+            PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
+            
         Call_Void(self.sim, "pairs::print_timers", [])
+        Call_Void(self.sim, "pairs::log_timers", [])
         Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
         PrintCode(self.sim, "delete pobj;")
         PrintCode(self.sim, "delete pairs_runtime;")

@@ -13,7 +13,7 @@
 #include <blockforest/loadbalancing/weight_assignment/MetisAssignmentFunctor.h>
 #include <blockforest/loadbalancing/weight_assignment/WeightAssignmentFunctor.h>
 //---
-#include "../boundary_weights.hpp"
+#include "boundary_weights.hpp"
 #include "../pairs_common.hpp"
 #include "../devices/device.hpp"
 #include "regular_6d_stencil.hpp"
@@ -24,8 +24,8 @@ namespace pairs {
 
 BlockForest::BlockForest(
         PairsRuntime *ps_,
-        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool pbcx, bool pbcy, bool pbcz, bool balance_workload_) :
-        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), globalPBC{pbcx, pbcy, pbcz}, balance_workload(balance_workload_) {
+        real_t xmin, real_t xmax, real_t ymin, real_t ymax, real_t zmin, real_t zmax, bool balance_workload_) :
+        DomainPartitioner(xmin, xmax, ymin, ymax, zmin, zmax), ps(ps_), balance_workload(balance_workload_) {
 
         subdom = new real_t[ndims * 2];
 }
@@ -35,8 +35,7 @@ BlockForest::BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::bloc
         DomainPartitioner(bf->getDomain().xMin(), bf->getDomain().xMax(),
                         bf->getDomain().yMin(), bf->getDomain().yMax(),
                         bf->getDomain().zMin(), bf->getDomain().zMax()), 
-        ps(ps_), 
-        globalPBC{bf->isXPeriodic(), bf->isYPeriodic(), bf->isZPeriodic()} {
+        ps(ps_) {
             subdom = new real_t[ndims * 2];
             mpiManager = walberla::mpi::MPIManager::instance();
             world_size = mpiManager->numProcesses();
@@ -60,10 +59,8 @@ void BlockForest::updateNeighborhood() {
         for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
             auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
-            // Neighbor blocks that belong to the same rank should be added to 
-            // neighboorhood only if there's PBC along any dim, otherwise they should be skipped.
             // TODO: Make PBCs work with runtime load balancing
-            if((neighbor_rank != me) || globalPBC[0] || globalPBC[1] || globalPBC[2]) {
+            // if(neighbor_rank != me) {
                 const walberla::BlockID& neighbor_id = block->getNeighborId(neigh);
                 walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
                 auto begin = blocks_pushed[neighbor_rank].begin();
@@ -73,7 +70,7 @@ void BlockForest::updateNeighborhood() {
                     neighborhood[neighbor_rank].push_back(neighbor_aabb);
                     blocks_pushed[neighbor_rank].push_back(neighbor_id);
                 }
-            }
+            // }
         }
     }
 
@@ -182,38 +179,41 @@ void BlockForest::updateWeights() {
     }
 }
 
-walberla::Vector3<int> BlockForest::getBlockConfig(int num_processes, int nx, int ny, int nz) {
-    const int bx_factor = 1;
-    const int by_factor = 1;
-    const int bz_factor = 1;
-    const int ax = nx * ny;
-    const int ay = nx * nz;
-    const int az = ny * nz;
+walberla::Vector3<int> BlockForest::getBlockConfig() {
+    real_t area[3];
+    real_t best_surf = 0.0;
+    int ndims = 3;
+    int d = 0;
+    int nranks[3] = {1, 1, 1};
 
-    int bestsurf = 2 * (ax + ay + az);
-    int x = 1;
-    int y = 1;
-    int z = 1;
-
-    for(int i = 1; i < num_processes; ++i) {
-        if(num_processes % i == 0) {
-            const int rem_yz = num_processes / i;
-
-            for(int j = 1; j < rem_yz; ++j) {
-                if(rem_yz % j == 0) {
-                    const int k = rem_yz / j;
-                    const int surf = (ax / i / j) + (ay / i / k) + (az / j / k);
-
-                    if(surf < bestsurf) {
-                        x = i, y = j, z = k;
-                        bestsurf = surf;
-                    }
-                }
-            }
+    for(int d1 = 0; d1 < ndims; d1++) {
+        for(int d2 = d1 + 1; d2 < ndims; d2++) {
+            area[d] = (this->grid_max[d1] - this->grid_min[d1]) *
+                      (this->grid_max[d2] - this->grid_min[d2]);
+            best_surf += 2.0 * area[d];
+            d++;
         }
     }
 
-    return walberla::Vector3<int>(x * bx_factor, y * by_factor, z * bz_factor);
+    for (int i = 1; i <= world_size; i++) {
+        if (world_size % i == 0) {
+            const int rem_yz = world_size / i;
+
+            for (int j = 1; j <= rem_yz; j++) {
+                if (rem_yz % j == 0) {
+                    const int k = rem_yz / j;
+                    const real_t surf = (area[0] / i / j) + (area[1] / i / k) + (area[2] / j / k);
+                    if (surf < best_surf) {
+                        nranks[0] = i;
+                        nranks[1] = j;
+                        nranks[2] = k;
+                        best_surf = surf;
+                    }
+            }
+            }
+        }
+    }
+    return walberla::Vector3<int>(nranks[0], nranks[1], nranks[2]);
 }
 
 int BlockForest::getInitialRefinementLevel(int num_processes) {
@@ -253,20 +253,14 @@ void BlockForest::initialize(int *argc, char ***argv) {
     mpiManager->useWorldComm();
     world_size = mpiManager->numProcesses();
     rank = mpiManager->rank();
-
-    walberla::math::AABB domain(
-        grid_min[0], grid_min[1], grid_min[2], grid_max[0], grid_max[1], grid_max[2]);
-
-    int gridsize[3] = {32, 32, 32};
-    auto procs = mpiManager->numProcesses();
-    auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) :
-                                           getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
-
-    auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
-
-    walberla::Vector3<bool> pbc(globalPBC[0], globalPBC[1], globalPBC[2]);
-
-    forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, procs, ref_level);
+    
+    auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) : getBlockConfig();
+    auto ref_level = balance_workload ? getInitialRefinementLevel(world_size) : 0;
+    
+    // PBC's are forced to true here and sperately handled when determining ghosts 
+    walberla::Vector3<bool> pbc(true, true, true);
+    walberla::math::AABB domain(grid_min[0], grid_min[1], grid_min[2], grid_max[0], grid_max[1], grid_max[2]);
+    forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, world_size, ref_level);
 
     this->info = make_shared<walberla::blockforest::InfoCollection>();
 
@@ -298,7 +292,7 @@ void BlockForest::update() {
         // PAIRS_DEBUG("Rebalance\n");
         if (rank==0) std::cout << "Rebalance" << std::endl;
         forest->refresh(); 
-}
+    }
 
     this->updateNeighborhood();
     this->setBoundingBox();

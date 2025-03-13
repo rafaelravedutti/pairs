@@ -321,7 +321,7 @@ public:
     void initDomain(
         int *argc, char ***argv,
         real_t xmin, real_t ymin, real_t zmin, real_t xmax, real_t ymax, real_t zmax, 
-        bool pbcx = 0, bool pbcy = 0, bool pbcz = 0, bool balance_workload = 0);
+        bool balance_workload = false);
 
     template<typename Domain_T>
     void useDomain(const std::shared_ptr<Domain_T> &domain_ptr);
@@ -355,15 +355,23 @@ public:
     int getNumberOfNeighborRanks() { return this->getDomainPartitioner()->getNumberOfNeighborRanks(); }
     int getNumberOfNeighborAABBs() { return this->getDomainPartitioner()->getNumberOfNeighborAABBs(); }
 
+    void allReduceInplaceSum(real_t *red_buffer, int num_elems);
+
     // Device functions
     void sync() { device_synchronize(); }
 
     // Timers
     Timers<double> *getTimers() { return timers; }
+    
     void printTimers() {
         if(this->getDomainPartitioner()->getRank() == 0) {
             this->getTimers()->print();
         }
+    }
+
+    void logTimers() {
+        this->getTimers()->writeToFile(this->getDomainPartitioner()->getRank(), 
+                                        this->getDomainPartitioner()->getWorldSize());
     }
 };
 

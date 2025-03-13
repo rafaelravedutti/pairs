@@ -4,6 +4,8 @@ from pairs.ir.assign import Assign
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.lit import Lit
 from pairs.ir.operator_class import OperatorClass
+from pairs.ir.types import Types
+from pairs.ir.accessor_class import AccessorClass
 
 
 class Variables:
@@ -23,10 +25,10 @@ class Variables:
         self.vars.append(var)
         return var
 
-    def add_temp(self, init):
+    def add_temp(self, init, type):
         lit = Lit.cvt(self.sim, init)
         tmp_id = Variables.new_temp_id()
-        tmp_var = Var(self.sim, f"tmp{tmp_id}", lit.type(), temp=True)
+        tmp_var = Var(self.sim, f"tmp{tmp_id}", lit.type() if type is None else type, temp=True)
         Assign(self.sim, tmp_var, lit)
         return tmp_var
 
@@ -57,6 +59,11 @@ class Var(ASTTerm):
     def __str__(self):
         return f"Var<{self.var_name}>"
 
+    def __getitem__(self, index):
+        assert not Types.is_scalar(self.var_type)
+        _acc_class = AccessorClass.from_type(self.var_type)
+        return _acc_class(self.sim, self, Lit.cvt(self.sim, index))
+    
     def copy(self, deep=False):
         # Terminal copies are just themselves
         return self

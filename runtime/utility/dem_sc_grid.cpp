@@ -71,7 +71,7 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
             velocities(nparticles, 2) = 0.1 * realRandom<real_t>(-initial_velocity, initial_velocity);
             types(nparticles) = rand() % ntypes;
             flags(nparticles) = 0;
-            shapes(nparticles) = shapes::Sphere;
+            shapes(nparticles) = Shapes::Sphere;
 
             /*
             std::cout << uid(nparticles) << "," << types(nparticles) << "," << masses(nparticles) << "," << radius(nparticles) << ","

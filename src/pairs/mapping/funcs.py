@@ -13,7 +13,10 @@ from pairs.ir.types import Types
 from pairs.mapping.keywords import Keywords
 from pairs.sim.flags import Flags
 from pairs.sim.interaction import ParticleInteraction
-
+from pairs.sim.global_interaction import  GlobalLocalInteraction, GlobalGlobalInteraction, GlobalReduction, SortGlobals, PackGlobals, ResetReductionProps, ReduceGlobals, UnpackGlobals
+from pairs.ir.module import Module
+from pairs.ir.block import Block, pairs_block
+from pairs.sim.lowerable import Lowerable
 
 class UndefinedSymbol():
     def __init__(self, symbol_id):
@@ -284,12 +287,30 @@ class BuildParticleIR(ast.NodeVisitor):
         op_class = OperatorClass.from_type(operand.type())
         return op_class(self.sim, operand, None, BuildParticleIR.get_unary_op(node.op))
 
+class OneBodyKernel(Lowerable):
+    def __init__(self, sim, module_name, run_on_device, profile):
+        super().__init__(sim)
+        self.block = Block(sim, [])
+        self.module_name = module_name
+        self.run_on_device = run_on_device
+        self.profile = profile
 
-def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=False, skip_first=False):
-    if sim._generate_whole_program:
-        assert not parameters, "Compute functions can't take custom parameters when generating whole program."
+    def add_statement(self, stmt):
+        self.block.add_statement(stmt)
+
+    def __iter__(self):
+        self.sim.add_statement(self)
+        self.sim.enter(self)
+        for i in ParticleFor(self.sim):
+            yield i
+        self.sim.leave()
     
+    @pairs_block
+    def lower(self):
+        self.sim.module_name(self.module_name)
+        self.sim.add_statement(self.block)
 
+def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, run_on_device=True, profile=False):
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
     #print(ast.dump(ast.parse(src, mode='exec')))
@@ -311,14 +332,15 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=F
     sim.module_name(func.__name__)
 
     if nparams == 1:
-        for i in ParticleFor(sim):
-            for _ in Filter(sim, ScalarOp.cmp(sim.particle_flags[i] & Flags.Fixed, 0)):
-                ir = BuildParticleIR(sim, symbols, parameters)
-                ir.add_symbols({params[0]: i})
-                ir.visit(tree)
+        for i in OneBodyKernel(sim, func.__name__, run_on_device=run_on_device, profile=profile):
+            ir = BuildParticleIR(sim, symbols, parameters)
+            ir.add_symbols({params[0]: i})
+            ir.visit(tree)
 
     else:
-        for interaction_data in ParticleInteraction(sim, nparams, cutoff_radius):
+        # Compute local-local and local-global interactions
+        particle_interaction = ParticleInteraction(sim, func.__name__, nparams, cutoff_radius, run_on_device=run_on_device, profile=profile)
+        for interaction_data in particle_interaction:
             # Start building IR
             ir = BuildParticleIR(sim, symbols, parameters)
             ir.add_symbols({
@@ -332,43 +354,59 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, pre_step=F
                 '__contact_point__': interaction_data.contact_point(),
                 '__contact_normal__': interaction_data.contact_normal()
             })
-
             ir.visit(tree)
 
-    if sim._generate_whole_program:
-        if pre_step:
-            sim.build_pre_step_module_with_statements(skip_first=skip_first, profile=True)
-        else:
-            sim.build_module_with_statements(skip_first=skip_first, profile=True)
-    else:
-        sim.build_user_defined_function()
+        if compute_globals:
+            # If compute_globals is enabled, global interactions and reductions become 
+            # part of the same module as local interactions
+            global_reduction = GlobalReduction(sim, func.__name__, particle_interaction)
+            
+            SortGlobals(global_reduction)           # Sort global bodies with respect to their uid
+            PackGlobals(global_reduction)           # Pack reduction properties in uid order in an intermediate buffer
+            ResetReductionProps(global_reduction)   # Reset reduction properties to be prepared for local reduction 
+            
+            # Compute local contirbutions on global bodies
+            global_local_interactions = GlobalLocalInteraction(sim, func.__name__, nparams)
+            for interaction_data in global_local_interactions:
+                ir = BuildParticleIR(sim, symbols, parameters)
+                ir.add_symbols({
+                    params[0]: interaction_data.i(),
+                    params[1]: interaction_data.j(),
+                    '__i__': interaction_data.i(),
+                    '__j__': interaction_data.j(),
+                    '__delta__': interaction_data.delta(),
+                    '__squared_distance__': interaction_data.squared_distance(),
+                    '__penetration_depth__': interaction_data.penetration_depth(),
+                    '__contact_point__': interaction_data.contact_point(),
+                    '__contact_normal__': interaction_data.contact_normal()
+                })
+                ir.visit(tree)
 
-def setup(sim, func, symbols={}):
-    src = inspect.getsource(func)
-    tree = ast.parse(src, mode='exec')
 
-    # Fetch function info
-    info = FetchParticleFuncInfo()
-    info.visit(tree)
-    params = info.params()
-    nparams = info.nparams()
+            PackGlobals(global_reduction, False)    # Pack local contributions in reduction buffer in uid order
+            ReduceGlobals(global_reduction)         # Inplace reduce local contributions over global bodies in the reduction buffer
+            UnpackGlobals(global_reduction)         # Add the reduced properties with the intermediate buffer and unpack into global bodies 
 
-    # Compute functions must have parameters
-    assert nparams == 1, "Number of parameters from setup functions must be one!"
+            # Compute global-global interactions
+            global_global_interactions = GlobalGlobalInteraction(sim, func.__name__, nparams)
+            for interaction_data in global_global_interactions:
+                ir = BuildParticleIR(sim, symbols, parameters)
+                ir.add_symbols({
+                    params[0]: interaction_data.i(),
+                    params[1]: interaction_data.j(),
+                    '__i__': interaction_data.i(),
+                    '__j__': interaction_data.j(),
+                    '__delta__': interaction_data.delta(),
+                    '__squared_distance__': interaction_data.squared_distance(),
+                    '__penetration_depth__': interaction_data.penetration_depth(),
+                    '__contact_point__': interaction_data.contact_point(),
+                    '__contact_normal__': interaction_data.contact_normal()
+                })
+                ir.visit(tree)
 
-    # Convert literal symbols
-    symbols = {symbol: Lit.cvt(sim, value) for symbol, value in symbols.items()}
-
-    sim.init_block()
-    sim.module_name(func.__name__)
-
-    for i in ParticleFor(sim):
-        ir = BuildParticleIR(sim, symbols)
-        ir.add_symbols({params[0]: i})
-        ir.visit(tree)
-
-    if sim._generate_whole_program:
-        sim.build_setup_module_with_statements()
-    else:
-        sim.build_user_defined_function()
+            
+            
+    # User defined functions are wrapped inside seperate interface modules here.
+    # The udf's have the same name as their interface module but they get implemented in the pairs::internal scope.
+    sim.build_interface_module_with_statements(run_on_device)  
     

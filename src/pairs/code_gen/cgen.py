@@ -31,8 +31,6 @@ from pairs.ir.variables import Var, DeclareVariable, Deref
 from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.ir.ret import Return
-from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.sim.timestep import Timestep
 from pairs.code_gen.printer import Printer
 from pairs.code_gen.accessor import PairsAcessor
 
@@ -45,6 +43,7 @@ class CGen:
         self.target = None
         self.print = None
         self.kernel_context = False
+        self.loop_scope = False
         self.generate_full_object_names = False
         self.ref = ref
         self.debug = debug
@@ -58,15 +57,6 @@ class CGen:
     def real_type(self):
         return Types.c_keyword(self.sim, Types.Real)
     
-    # def generate_cmake_config_file(self):
-    #     self.print = Printer("pairs_cmake_params.txt")
-    #     self.print.start()
-    #     self.print(f"PAIRS_TARGET={self.ref}")
-    #     self.print(f"GENERATE_WHOLE_PROGRAM={'ON' if self.sim._generate_whole_program else 'OFF'}")
-    #     self.print(f"USE_WALBERLA={'ON' if self.sim._partitioner == DomainPartitioners.BlockForest else 'OFF'}")
-    #     # self.print(f"COMPILE_CUDA={'ON' if self.target.is_gpu() else 'OFF'}")
-    #     self.print.end()
-
     def generate_object_reference(self, obj, device=False, index=None):
         if device and (not self.target.is_gpu() or not obj.device_flag):
             # Ideally this should never be called
@@ -150,8 +140,6 @@ class CGen:
         self.print("}")
 
     def generate_preamble(self):
-        # self.print(f"#define APPLICATION_REFERENCE \"{self.ref}\"")
-
         if self.target.is_gpu():
             self.print("#include <math_constants.h>")
              
@@ -166,15 +154,15 @@ class CGen:
         self.print("#include <stdlib.h>")
         self.print("//---")
         self.print("#include \"likwid-marker.h\"")
-        self.print("#include \"copper_fcc_lattice.hpp\"")
-        self.print("#include \"create_body.hpp\"")
-        self.print("#include \"dem_sc_grid.hpp\"")
         self.print("#include \"pairs.hpp\"")
-        self.print("#include \"read_from_file.hpp\"")
-        self.print("#include \"stats.hpp\"")
-        self.print("#include \"timing.hpp\"")
-        self.print("#include \"thermo.hpp\"")
-        self.print("#include \"vtk.hpp\"")
+        self.print("#include \"utility/copper_fcc_lattice.hpp\"")
+        self.print("#include \"utility/create_body.hpp\"")
+        self.print("#include \"utility/dem_sc_grid.hpp\"")
+        self.print("#include \"utility/read_from_file.hpp\"")
+        self.print("#include \"utility/stats.hpp\"")
+        self.print("#include \"utility/timing.hpp\"")
+        self.print("#include \"utility/thermo.hpp\"")
+        self.print("#include \"utility/vtk.hpp\"")
         self.print("")
         self.print("using namespace pairs;")
         self.print("")
@@ -184,12 +172,6 @@ class CGen:
 
         if not module.interface:
             module_params += ["PairsRuntime *pairs_runtime", "struct PairsObjects *pobj"]
-
-        if module.name=="initialize" and self.sim.create_domain_at_initialization:
-            module_params += ["int argc", "char **argv"]
-
-        if module.name=="set_domain":
-            module_params += ["int argc", "char **argv"]
 
         module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in module.parameters()]
 
@@ -203,9 +185,8 @@ class CGen:
         self.print("namespace pairs::internal {")
         self.print.add_indent(4)
 
-        # All modules except the interface ones are declared in the pairs::internal scope
-        for module in self.sim.modules() + self.sim.udf_modules():
-            assert not module.interface
+        # All internal modules are declared in the pairs::internal scope
+        for module in self.sim.modules():
             self.generate_module_header(module, definition=False)
         
         self.print.add_indent(-4)
@@ -214,7 +195,7 @@ class CGen:
         
     def generate_pairs_object_structure(self):
         self.print("")
-        externkw = "" if self.sim._generate_whole_program else "extern "
+        externkw = "extern "
         if self.target.is_gpu():
             for array in self.sim.arrays.statics():
                 if array.device_flag:
@@ -290,34 +271,6 @@ class CGen:
         self.print("};")
         self.print("")
 
-    def generate_program(self, ast_node):
-        self.generate_interfaces()
-        ext = ".cu" if self.target.is_gpu() else ".cpp"
-        self.print = Printer(self.ref + ext)
-        self.print.start()
-        self.generate_preamble()
-        self.generate_pairs_object_structure()
-        self.generate_module_decls()
-
-        self.print("namespace pairs::internal {")
-        self.print.add_indent(4)
-
-        for kernel in self.sim.kernels():
-            self.generate_kernel(kernel)
-
-        for module in self.sim.modules():
-            if module.name!='main':
-                self.generate_module(module)
-
-        self.print.add_indent(-4)
-        self.print("}")
-
-        for module in self.sim.modules():
-            if module.name=='main':
-                self.generate_main(module)
-
-        self.print.end()
-
     def generate_library(self):
         self.generate_interfaces()
         # Generate CUDA/CPP file with modules
@@ -351,9 +304,8 @@ class CGen:
         for kernel in self.sim.kernels():
             self.generate_kernel(kernel)
 
-        # All modules except the interface ones are defined in the pairs::internal scope
-        for module in self.sim.modules() + self.sim.udf_modules():
-            assert not module.interface
+        # All internal modules are defined in the pairs::internal scope
+        for module in self.sim.modules():
             self.generate_module(module)
 
         self.print.add_indent(-4)
@@ -452,42 +404,12 @@ class CGen:
             if feature_prop in module.host_references():
                 self.print(f"{type_kw} *{feature_prop.name()}_h = pobj->{feature_prop.name()};")
 
-    def generate_main(self, module):
-        assert module.name=='main'
-
-        ndims = module.sim.ndims()
-        nprops = module.sim.properties.nprops()
-        ncontactprops = module.sim.contact_properties.nprops()
-        narrays = module.sim.arrays.narrays()
-        part = DomainPartitioners.c_keyword(module.sim.partitioner())
-
-        self.generate_full_object_names = True
-        self.print("int main(int argc, char **argv) {")
-        self.print(f"    PairsRuntime *pairs_runtime = new PairsRuntime({nprops}, {ncontactprops}, {narrays}, {part});")
-        self.print(f"    struct PairsObjects *pobj = new PairsObjects();")
-
-        if module.sim._enable_profiler:
-            self.print("    LIKWID_MARKER_INIT;")
-
-        self.generate_statement(module.block)
-
-        if module.sim._enable_profiler:
-            self.print("    LIKWID_MARKER_CLOSE;")
-
-        self.print("    pairs::print_timers(pairs_runtime);")
-        self.print("    pairs::print_stats(pairs_runtime, pobj->nlocal, pobj->nghost);")
-        self.print("    delete pobj;")
-        self.print("    delete pairs_runtime;")
-        self.print("    return 0;")
-        self.print("}")
-        self.generate_full_object_names = False
-
     def generate_module(self, module):
         self.generate_module_header(module, definition=True)
         self.print.add_indent(4)
 
-        if self.debug:
-            self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
+        # if self.debug:
+        #     self.print(f"PAIRS_DEBUG(\"\\n{module.name}\\n\");")
 
         if not module.interface:
             self.generate_module_declerations(module)
@@ -603,9 +525,7 @@ class CGen:
             if ast_node.check_for_resize():
                 resize = self.generate_expression(ast_node.resize)
                 capacity = self.generate_expression(ast_node.capacity)
-                # self.print(f"printf (\" %d -- before AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
                 self.print(f"pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
-                # self.print(f"printf (\" %d -- after AtomicInc: nsend = %d -- send_capacity = %d -- resizes[0] = %d\\n\", {Printer.line_id}, {elem}, {capacity}, {resize});")
 
             else:
                 self.print(f"pairs::{prefix}atomic_add(&({elem}), {value});")
@@ -617,7 +537,10 @@ class CGen:
             self.print.add_indent(-4)
 
         if isinstance(ast_node, Continue):
-            self.print("continue;")
+            if self.loop_scope:
+                self.print("continue;")
+            else:
+                self.print("return;")
 
         # TODO: Why there are Decls for other types?
         if isinstance(ast_node, Decl):
@@ -755,7 +678,7 @@ class CGen:
                 for i in matrix_op.indexes_to_generate():
                     lhs = self.generate_expression(matrix_op.lhs, matrix_op.mem, index=i)
                     rhs = self.generate_expression(matrix_op.rhs, index=i)
-                    operator = vector_op.operator()
+                    operator = matrix_op.operator()
 
                     if operator.is_unary():
                         self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {operator.symbol()}({lhs});")
@@ -806,9 +729,7 @@ class CGen:
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}, {size}); // {array_name}")
 
             else:
-                # self.print(f"std::cout<< \"{Printer.line_id} -- before {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
                 self.print(f"pairs_runtime->copyArrayTo{ctx_suffix}({array_id}, {action}); // {array_name}")
-                # self.print(f"std::cout<< \"{Printer.line_id} -- after {array_name} copyArrayTo{ctx_suffix}({action}) === \" <<  pobj->{array_name}[0]  << \" \" << pobj->{array_name}[1]  << \" \" << pobj->{array_name}[2]  << std::endl;")
 
         if isinstance(ast_node, CopyContactProperty):
             prop_id = ast_node.contact_prop().id()
@@ -848,7 +769,9 @@ class CGen:
                 self.print("#pragma omp parallel for")
 
             self.print(f"for(int {iterator} = {lower_range}; {iterator} < {upper_range}; {iterator}++) {{")
+            self.loop_scope = True
             self.generate_statement(ast_node.block)
+            self.loop_scope = False
             self.print("}")
 
 
@@ -916,9 +839,6 @@ class CGen:
 
         if isinstance(ast_node, ModuleCall):
             module_params = ["pairs_runtime", "pobj"]
-
-            if ast_node.module.name=="init_domain":
-                module_params += ["argc", "argv"]
 
             module_params += [f"{param.name()}" for param in ast_node.module.parameters()]
 
@@ -1015,9 +935,6 @@ class CGen:
             if self.target.is_gpu() and fp.device_flag:
                 self.print(f"pairs_runtime->copyFeaturePropertyToDevice({fp.id()}); // {fp.name()}")
 
-        if isinstance(ast_node, Timestep):
-            self.generate_statement(ast_node.block)
-
         if isinstance(ast_node, ReallocProperty):
             p = ast_node.property()
             ptr_addr = self.generate_object_address(p)
@@ -1060,7 +977,9 @@ class CGen:
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)
             self.print(f"while({cond}) {{")
+            self.loop_scope = True
             self.generate_statement(ast_node.block)
+            self.loop_scope = False
             self.print("}")
 
         if isinstance(ast_node, Return):
@@ -1097,9 +1016,6 @@ class CGen:
 
             if ast_node.name().startswith("pairs::"):
                 extra_params += ["pairs_runtime"]
-
-            if ast_node.name() == "pairs_runtime->initDomain":
-                extra_params += ["&argc", "&argv"]
 
             params = ", ".join(extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
             return f"{ast_node.name()}({params})"

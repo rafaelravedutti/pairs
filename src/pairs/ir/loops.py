@@ -88,8 +88,8 @@ class For(ASTNode):
 
 
 class ParticleFor(For):
-    def __init__(self, sim, block=None, local_only=True):
-        super().__init__(sim, 0, sim.nlocal if local_only else sim.nlocal + sim.nghost, block)
+    def __init__(self, sim, block=None, local_only=True, not_kernel=False):
+        super().__init__(sim, 0, sim.nlocal if local_only else sim.nlocal + sim.nghost, block, not_kernel)
         self.local_only = local_only
 
     def __str__(self):

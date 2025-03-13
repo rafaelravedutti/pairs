@@ -15,7 +15,6 @@ namespace pairs {
 void PairsRuntime::initDomain(
     int *argc, char ***argv,
     real_t xmin, real_t ymin, real_t zmin, real_t xmax, real_t ymax, real_t zmax, 
-    bool pbcx, bool pbcy, bool pbcz, 
     bool balance_workload) {
 
     int mpi_initialized=0;
@@ -40,7 +39,7 @@ void PairsRuntime::initDomain(
     
 #ifdef USE_WALBERLA
     else if(dom_part_type == BlockForestPartitioning) {
-        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, pbcx, pbcy, pbcz, balance_workload);
+        dom_part = new BlockForest(this, xmin, xmax, ymin, ymax, zmin, zmax, balance_workload);
     } 
 #endif
 
@@ -188,12 +187,15 @@ void PairsRuntime::copyArraySliceToDevice(
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isDeviceFlagSet(array_id)) {
             if(!array.isStatic()) {
-                PAIRS_DEBUG(
-                    "Copying array %s to device (offset=%lu, n=%lu)\n",
-                    array.getName().c_str(), offset, size);
+                // PAIRS_DEBUG(
+                //     "Copying array %s to device (offset=%lu, n=%lu)\n",
+                //     array.getName().c_str(), offset, size);
+                this->getTimers()->start(TimerMarkers::DeviceTransfers);
 
                 pairs::copy_slice_to_device(
                     array.getHostPointer(), array.getDevicePointer(), offset, size);
+                
+                this->getTimers()->stop(TimerMarkers::DeviceTransfers);
             }
         }
     }
@@ -210,20 +212,22 @@ void PairsRuntime::copyArrayToDevice(Array &array, action_t action, size_t size)
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isDeviceFlagSet(array_id)) {
+            this->getTimers()->start(TimerMarkers::DeviceTransfers);
             if(array.isStatic()) {
-                PAIRS_DEBUG(
-                    "Copying static array %s to device (n=%lu)\n",
-                    array.getName().c_str(), size);
+                // PAIRS_DEBUG(
+                //     "Copying static array %s to device (n=%lu)\n",
+                //     array.getName().c_str(), size);
 
                 pairs::copy_static_symbol_to_device(
                     array.getHostPointer(), array.getDevicePointer(), size);
             } else {
-                PAIRS_DEBUG(
-                    "Copying array %s to device (n=%lu)\n",
-                    array.getName().c_str(), size);
+                // PAIRS_DEBUG(
+                //     "Copying array %s to device (n=%lu)\n",
+                //     array.getName().c_str(), size);
 
                 pairs::copy_to_device(array.getHostPointer(), array.getDevicePointer(), size);
             }
+            this->getTimers()->stop(TimerMarkers::DeviceTransfers);
         }
     }
 
@@ -240,12 +244,15 @@ void PairsRuntime::copyArraySliceToHost(Array &array, action_t action, size_t of
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isHostFlagSet(array_id)) {
             if(!array.isStatic()) {
-                PAIRS_DEBUG(
-                    "Copying array %s to host (offset=%lu, n=%lu)\n",
-                    array.getName().c_str(), offset, size);
+                // PAIRS_DEBUG(
+                //     "Copying array %s to host (offset=%lu, n=%lu)\n",
+                //     array.getName().c_str(), offset, size);
+                this->getTimers()->start(TimerMarkers::DeviceTransfers);
 
                 pairs::copy_slice_to_host(
                     array.getDevicePointer(), array.getHostPointer(), offset, size);
+                
+                this->getTimers()->stop(TimerMarkers::DeviceTransfers);
             }
         }
     }
@@ -262,16 +269,19 @@ void PairsRuntime::copyArrayToHost(Array &array, action_t action, size_t size) {
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !array_flags->isHostFlagSet(array_id)) {
+            this->getTimers()->start(TimerMarkers::DeviceTransfers);
+            
             if(array.isStatic()) {
-                PAIRS_DEBUG(
-                    "Copying static array %s to host (n=%lu)\n", array.getName().c_str(), size);
+                // PAIRS_DEBUG(
+                //     "Copying static array %s to host (n=%lu)\n", array.getName().c_str(), size);
 
                 pairs::copy_static_symbol_to_host(
                     array.getDevicePointer(), array.getHostPointer(), size);
             } else {
-                PAIRS_DEBUG("Copying array %s to host (n=%lu)\n", array.getName().c_str(), size);
+                // PAIRS_DEBUG("Copying array %s to host (n=%lu)\n", array.getName().c_str(), size);
                 pairs::copy_to_host(array.getDevicePointer(), array.getHostPointer(), size);
             }
+            this->getTimers()->stop(TimerMarkers::DeviceTransfers);
         }
     }
 
@@ -287,8 +297,10 @@ void PairsRuntime::copyPropertyToDevice(Property &prop, action_t action, size_t 
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to device (n=%lu)\n", prop.getName().c_str(), size);
+            // PAIRS_DEBUG("Copying property %s to device (n=%lu)\n", prop.getName().c_str(), size);
+            this->getTimers()->start(TimerMarkers::DeviceTransfers);
             pairs::copy_to_device(prop.getHostPointer(), prop.getDevicePointer(), size);
+            this->getTimers()->stop(TimerMarkers::DeviceTransfers);
         }
     }
 
@@ -304,8 +316,10 @@ void PairsRuntime::copyPropertyToHost(Property &prop, action_t action, size_t si
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !prop_flags->isHostFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying property %s to host (n=%lu)\n", prop.getName().c_str(), size);
+            // PAIRS_DEBUG("Copying property %s to host (n=%lu)\n", prop.getName().c_str(), size);
+            this->getTimers()->start(TimerMarkers::DeviceTransfers);
             pairs::copy_to_host(prop.getDevicePointer(), prop.getHostPointer(), size);
+            this->getTimers()->stop(TimerMarkers::DeviceTransfers);
         }
     }
 
@@ -323,11 +337,14 @@ void PairsRuntime::copyContactPropertyToDevice(
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(action == Ignore || !contact_prop_flags->isDeviceFlagSet(prop_id)) {
-            PAIRS_DEBUG("Copying contact property %s to device (n=%lu)\n",
-                contact_prop.getName().c_str(), size);
+            // PAIRS_DEBUG("Copying contact property %s to device (n=%lu)\n",
+            //     contact_prop.getName().c_str(), size);
+            this->getTimers()->start(TimerMarkers::DeviceTransfers);
 
             pairs::copy_to_device(
                 contact_prop.getHostPointer(), contact_prop.getDevicePointer(), size);
+            
+            this->getTimers()->stop(TimerMarkers::DeviceTransfers);
 
             contact_prop_flags->setDeviceFlag(prop_id);
         }
@@ -345,11 +362,12 @@ void PairsRuntime::copyContactPropertyToHost(
 
     if(action == Ignore || action == WriteAfterRead || action == ReadOnly) {
         if(!contact_prop_flags->isHostFlagSet(contact_prop.getId())) {
-            PAIRS_DEBUG("Copying contact property %s to host (n=%lu)\n",
-                contact_prop.getName().c_str(), size);
-
+            // PAIRS_DEBUG("Copying contact property %s to host (n=%lu)\n",
+            //     contact_prop.getName().c_str(), size);
+            this->getTimers()->start(TimerMarkers::DeviceTransfers);
             pairs::copy_to_host(
                 contact_prop.getDevicePointer(), contact_prop.getHostPointer(), size);
+            this->getTimers()->stop(TimerMarkers::DeviceTransfers);
 
             contact_prop_flags->setHostFlag(prop_id);
         }
@@ -363,26 +381,27 @@ void PairsRuntime::copyContactPropertyToHost(
 void PairsRuntime::copyFeaturePropertyToDevice(FeatureProperty &feature_prop) {
     const size_t n = feature_prop.getArraySize();
 
-    PAIRS_DEBUG("Copying feature property %s to device (n=%lu)\n",
-        feature_prop.getName().c_str(), n);
+    // PAIRS_DEBUG("Copying feature property %s to device (n=%lu)\n",
+    //     feature_prop.getName().c_str(), n);
+    this->getTimers()->start(TimerMarkers::DeviceTransfers);
 
     pairs::copy_static_symbol_to_device(
         feature_prop.getHostPointer(), feature_prop.getDevicePointer(), n);
+    
+    this->getTimers()->stop(TimerMarkers::DeviceTransfers);
 }
 
 void PairsRuntime::communicateSizes(int dim, const int *send_sizes, int *recv_sizes) {
     auto nsend_id = getArrayByHostPointer(send_sizes).getId();
     auto nrecv_id = getArrayByHostPointer(recv_sizes).getId();
 
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(nsend_id, ReadOnly);
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
-    this->getTimers()->stop(DeviceTransfers);
 
-    this->getTimers()->start(Communication);
+    this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
-    this->getTimers()->stop(Communication);
+    this->getTimers()->stop(TimerMarkers::MPI);
 }
 
 void PairsRuntime::communicateData(
@@ -401,7 +420,6 @@ void PairsRuntime::communicateData(
     auto nsend_id = getArrayByHostPointer(nsend).getId();
     auto nrecv_id = getArrayByHostPointer(nrecv).getId();
 
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(send_offsets_id, ReadOnly);
     copyArrayToHost(recv_offsets_id, ReadOnly);
     copyArrayToHost(nsend_id, ReadOnly);
@@ -434,17 +452,13 @@ void PairsRuntime::communicateData(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    this->getTimers()->stop(DeviceTransfers);
-
-    this->getTimers()->start(Communication);
+    this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateData(
         dim, elem_size, send_buf_ptr, send_offsets, nsend, recv_buf_ptr, recv_offsets, nrecv);
-    this->getTimers()->stop(Communication);
+    this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
-    this->getTimers()->stop(DeviceTransfers);
     #endif
 }
 
@@ -464,7 +478,6 @@ void PairsRuntime::communicateDataReverse(
     auto nsend_id = getArrayByHostPointer(nsend).getId();
     auto nrecv_id = getArrayByHostPointer(nrecv).getId();
 
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(send_offsets_id, ReadOnly);
     copyArrayToHost(recv_offsets_id, ReadOnly);
     copyArrayToHost(nsend_id, ReadOnly);
@@ -497,17 +510,13 @@ void PairsRuntime::communicateDataReverse(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    this->getTimers()->stop(DeviceTransfers);
-
-    this->getTimers()->start(Communication);
+    this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateDataReverse(
         dim, elem_size, send_buf_ptr, send_offsets, nsend, recv_buf_ptr, recv_offsets, nrecv);
-    this->getTimers()->stop(Communication);
+    this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
-    this->getTimers()->stop(DeviceTransfers);
     #endif
 }
 
@@ -527,7 +536,6 @@ void PairsRuntime::communicateAllData(
     auto nsend_id = getArrayByHostPointer(nsend).getId();
     auto nrecv_id = getArrayByHostPointer(nrecv).getId();
 
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(send_offsets_id, ReadOnly);
     copyArrayToHost(recv_offsets_id, ReadOnly);
     copyArrayToHost(nsend_id, ReadOnly);
@@ -560,17 +568,13 @@ void PairsRuntime::communicateAllData(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    this->getTimers()->stop(DeviceTransfers);
-
-    this->getTimers()->start(Communication);
+    this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateAllData(
         ndims, elem_size, send_buf_ptr, send_offsets, nsend, recv_buf_ptr, recv_offsets, nrecv);
-    this->getTimers()->stop(Communication);
+    this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * elem_size * sizeof(real_t));
-    this->getTimers()->stop(DeviceTransfers);
     #endif
 }
 
@@ -590,7 +594,6 @@ void PairsRuntime::communicateContactHistoryData(
     auto nsend_contact_id = getArrayByHostPointer(nsend_contact).getId();
     auto nrecv_contact_id = getArrayByHostPointer(nrecv_contact).getId();
 
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToHost(contact_soffsets_id, ReadOnly);
     copyArrayToHost(nsend_contact_id, ReadOnly);
 
@@ -611,9 +614,7 @@ void PairsRuntime::communicateContactHistoryData(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    this->getTimers()->stop(DeviceTransfers);
-
-    this->getTimers()->start(Communication);
+    this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, nsend_contact, nrecv_contact);
 
     contact_roffsets[dim * 2 + 0] = 0;
@@ -630,18 +631,34 @@ void PairsRuntime::communicateContactHistoryData(
         send_buf_ptr, contact_soffsets, nsend_contact,
         recv_buf_ptr, contact_roffsets, nrecv_contact);
 
-    this->getTimers()->stop(Communication);
+    this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
-    this->getTimers()->start(DeviceTransfers);
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * sizeof(real_t));
     copyArrayToDevice(contact_roffsets_id, Ignore);
-    this->getTimers()->stop(DeviceTransfers);
     #endif
 }
 
 void PairsRuntime::copyRuntimeArray(const std::string& name, void *dest, const int size) {
     this->getDomainPartitioner()->copyRuntimeArray(name, dest, size);
 }
+
+void PairsRuntime::allReduceInplaceSum(real_t *red_buffer, int num_elems){
+    real_t *buff_ptr = red_buffer;
+    auto buff_array = getArrayByHostPointer(red_buffer);
+
+    #ifdef ENABLE_CUDA_AWARE_MPI
+    buff_ptr = (real_t *) buff_array.getDevicePointer();
+    #else
+    copyArrayToHost(buff_array, Ignore, num_elems * sizeof(real_t));
+    #endif
+
+    MPI_Allreduce(MPI_IN_PLACE, buff_ptr, num_elems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+    #ifndef ENABLE_CUDA_AWARE_MPI
+    copyArrayToDevice(buff_array, Ignore, num_elems * sizeof(real_t));
+    #endif
+}
+
 
 }

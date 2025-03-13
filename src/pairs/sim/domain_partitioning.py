@@ -11,8 +11,7 @@ from pairs.sim.grid import MutableGrid
 from pairs.ir.device import CopyArray
 from pairs.ir.contexts import Contexts
 from pairs.ir.actions import Actions
-from pairs.sim.load_balancing_algorithms import LoadBalancingAlgorithms
-from pairs.ir.print import PrintCode
+
 class DimensionRanges:
     def __init__(self, sim):
         self.sim                = sim
@@ -44,10 +43,6 @@ class DimensionRanges:
 
     def reduce_sum_step_indexes(self, step, array):
        return sum([array[i] for i in self.step_indexes(step)])
-
-    def initialize(self):
-        grid_array = [self.sim.grid.min(d) for d in range(self.sim.ndims())] + [self.sim.grid.max(d) for d in range(self.sim.ndims())]
-        Call_Void(self.sim, "pairs_runtime->initDomain", grid_array)
 
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
@@ -140,48 +135,33 @@ class BlockForest:
             
         return self.reduce_step
 
-    def initialize(self):
-        grid_array = [self.sim.grid.min(d) for d in range(self.sim.ndims())] + [self.sim.grid.max(d) for d in range(self.sim.ndims())]
-
-        Call_Void(self.sim, "pairs_runtime->initDomain", 
-                  grid_array + self.sim._pbc + ([True] if self.load_balancer is not None else []))
-        
-        if self.load_balancer is not None:
-            PrintCode(self.sim, "pairs_runtime->getDomainPartitioner()->initWorkloadBalancer"
-                      f"({LoadBalancingAlgorithms.c_keyword(self.load_balancer)}, {self.regrid_min}, {self.regrid_max});")
-
-            # Call_Void(self.sim, "pairs_runtime->getDomainPartitioner()->initWorkloadBalancer", 
-            #           [self.load_balancer, self.regrid_min, self.regrid_max])
-
     def update(self):
         Call_Void(self.sim, "pairs_runtime->updateDomain", [])
         Assign(self.sim, self.rank, Call_Int(self.sim, "pairs_runtime->getDomainPartitioner()->getRank", []))
         Assign(self.sim, self.nranks, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborRanks", []))
+        Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
 
-        for _ in Filter(self.sim, ScalarOp.neq(self.nranks, 0)):
-            Assign(self.sim, self.ntotal_aabbs, Call_Int(self.sim, "pairs_runtime->getNumberOfNeighborAABBs", []))
+        for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
+            Assign(self.sim, self.nranks_capacity, self.nranks + 10)
+            self.ranks.realloc()
+            self.naabbs.realloc()
+            self.aabb_offsets.realloc()
 
-            for _ in Filter(self.sim, self.nranks_capacity < self.nranks):
-                Assign(self.sim, self.nranks_capacity, self.nranks + 10)
-                self.ranks.realloc()
-                self.naabbs.realloc()
-                self.aabb_offsets.realloc()
+        for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
+            Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
+            self.aabbs.realloc()
+        
+        CopyArray(self.sim, self.ranks, Contexts.Host, Actions.WriteOnly, self.nranks)
+        CopyArray(self.sim, self.naabbs, Contexts.Host, Actions.WriteOnly, self.nranks)
+        CopyArray(self.sim, self.aabb_offsets, Contexts.Host, Actions.WriteOnly, self.nranks)
+        CopyArray(self.sim, self.aabbs, Contexts.Host, Actions.WriteOnly, self.ntotal_aabbs * 6)
+        CopyArray(self.sim, self.subdom, Contexts.Host, Actions.WriteOnly)
 
-            for _ in Filter(self.sim, self.aabb_capacity < self.ntotal_aabbs):
-                Assign(self.sim, self.aabb_capacity, self.ntotal_aabbs + 20)
-                self.aabbs.realloc()
-            
-            CopyArray(self.sim, self.ranks, Contexts.Host, Actions.WriteOnly, self.nranks)
-            CopyArray(self.sim, self.naabbs, Contexts.Host, Actions.WriteOnly, self.nranks)
-            CopyArray(self.sim, self.aabb_offsets, Contexts.Host, Actions.WriteOnly, self.nranks)
-            CopyArray(self.sim, self.aabbs, Contexts.Host, Actions.WriteOnly, self.ntotal_aabbs * 6)
-            CopyArray(self.sim, self.subdom, Contexts.Host, Actions.WriteOnly)
-
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
-            Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['ranks', self.ranks, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['naabbs', self.naabbs, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabb_offsets', self.aabb_offsets, self.nranks])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['aabbs', self.aabbs, self.ntotal_aabbs * 6])
+        Call_Void(self.sim, "pairs_runtime->copyRuntimeArray", ['subdom', self.subdom, self.sim.ndims() * 2])
         
         if isinstance(self.sim.grid, MutableGrid):
             for d in range(self.sim.dims):
@@ -229,7 +209,7 @@ class BlockForest:
                             for _ in Filter(self.sim, full_cond):
                                 yield i, r, self.ranks[r], pbc_shifts
 
-                        for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me (cuz I'm the only rank in a dimension that has pbc)
+                        for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me
                             pbc_shifts = []
                             isghost = Lit(self.sim, 0)
 

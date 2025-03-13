@@ -22,13 +22,13 @@ namespace flags{
     constexpr int GLOBAL   = 1 << 3 ;
 }
 
-namespace shapes{
-    enum Type {
-        Sphere = 0,
-        Halfspace = 1,
-        PointMass = 2
-    };
-}
+enum Shapes {
+    Sphere = 0,
+    Halfspace = 1,
+    PointMass = 2,
+    Box = 3
+};
+
 //#ifdef USE_DOUBLE_PRECISION
 typedef double real_t;
 //#else
@@ -79,10 +79,9 @@ enum Actions {
 };
 
 enum TimerMarkers {
-    All = 0,
-    Communication = 1,
-    DeviceTransfers = 2,
-    Offset = 3
+    MPI = 0,
+    DeviceTransfers = 1,
+    Offset = 2
 };
 
 enum DomainPartitioners {
@@ -127,6 +126,7 @@ constexpr const char* getAlgorithmName(LoadBalancingAlgorithms alg) {
 #   define PAIRS_ASSERT(a)      assert(a)
 #   define PAIRS_EXCEPTION(a)
 #else
+// #   define PAIRS_DEBUG(...) {printf(__VA_ARGS__);}
 #   define PAIRS_DEBUG(...)
 #   define PAIRS_ASSERT(a)
 #   define PAIRS_EXCEPTION(a)
@@ -135,5 +135,6 @@ constexpr const char* getAlgorithmName(LoadBalancingAlgorithms alg) {
 #define PAIRS_ERROR(...)        fprintf(stderr, __VA_ARGS__)
 #define MIN(a,b)                ((a) < (b) ? (a) : (b))
 #define MAX(a,b)                ((a) > (b) ? (a) : (b))
+#define SIGN(a)                 ((a) < 0 ? -1 : 1)
 
 }
