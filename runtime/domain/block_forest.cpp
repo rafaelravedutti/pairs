@@ -13,7 +13,7 @@
 #include <blockforest/loadbalancing/weight_assignment/MetisAssignmentFunctor.h>
 #include <blockforest/loadbalancing/weight_assignment/WeightAssignmentFunctor.h>
 //---
-#include "../boundary_weights.hpp"
+#include "boundary_weights.hpp"
 #include "../pairs_common.hpp"
 #include "../devices/device.hpp"
 #include "regular_6d_stencil.hpp"

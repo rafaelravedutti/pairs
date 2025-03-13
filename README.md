@@ -109,18 +109,17 @@ In the following, we assume we have created and navigated to a build directory: 
 **Basic CMake flags:**  
 * Pass your input script to CMake using `-DINPUT_SCRIPT=path/to/script.py`  
 * Enable CUDA with `-DCOMPILE_CUDA=ON`
-* Enable support for BlockForest domain partitioning and dynamic load balancing by providing the path to waLBerla source directory `-DWALBERLA_DIR=path/to/walberla` (TODO: waLBerla as a submodule)
+* Enable waLBerla support with `-DUSE_WALBERLA=ON` for using BlockForest domain partitioning and dynamic load balancing
 
 
 ### 1. Stand-Alone P4IRS Application
 ---------------------
 To build a C++ application using P4IRS, provide the list of your source files to CMake using the `-DUSER_SOURCE_FILES` flag (semicolon-seperated).
 
-**Example**: Build the application [sd_1.cpp](examples/modular/sd_1.cpp) using [spring_dashpot.py](examples/modular/spring_dashpot.py) as the input script.  
-Note: In this example we assume waLBerla has been already cloned next to the P4IRS directory.
+**Example**: Build the application [sd_1.cpp](examples/modular/sd_1.cpp) using [spring_dashpot.py](examples/modular/spring_dashpot.py) as the input script.
 
 ```
-cmake -DINPUT_SCRIPT=../examples/modular/spring_dashpot.py -DUSER_SOURCE_FILES=../examples/modular/sd_1.cpp -DWALBERLA_DIR=../../walberla ..
+cmake -DINPUT_SCRIPT=../examples/modular/spring_dashpot.py -DUSER_SOURCE_FILES=../examples/modular/sd_1.cpp -DUSE_WALBERLA=ON ..
 ```
 Now call `make` and an **executable** is built.
 

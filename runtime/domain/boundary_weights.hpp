@@ -6,8 +6,8 @@
 #include <fstream>
 #include <sstream>
 //---
-#include "pairs.hpp"
-#include "pairs_common.hpp"
+#include "../pairs.hpp"
+#include "../pairs_common.hpp"
 
 
 namespace pairs {

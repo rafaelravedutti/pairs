@@ -45,14 +45,14 @@ file(MAKE_DIRECTORY ${GEN_INTERFACE_DIR})
 #================================================================================
 set(RUNTIME_COMMON_FILES
     runtime/pairs.cpp
-    runtime/copper_fcc_lattice.cpp
-    runtime/create_body.cpp
-    runtime/dem_sc_grid.cpp
-    runtime/read_from_file.cpp
-    runtime/stats.cpp
-    runtime/thermo.cpp
-    runtime/timing.cpp
-    runtime/vtk.cpp
+    runtime/utility/copper_fcc_lattice.cpp
+    runtime/utility/create_body.cpp
+    runtime/utility/dem_sc_grid.cpp
+    runtime/utility/read_from_file.cpp
+    runtime/utility/stats.cpp
+    runtime/utility/thermo.cpp
+    runtime/utility/timing.cpp
+    runtime/utility/vtk.cpp
     runtime/domain/regular_6d_stencil.cpp)
 
 #================================================================================
@@ -106,9 +106,9 @@ if(USE_WALBERLA)
 
     # TODO: Generate the host/device functions for computing weights
     if(COMPILE_CUDA)
-        list(APPEND RUNTIME_WALBERLA_FILES runtime/boundary_weights.cu)
+        list(APPEND RUNTIME_WALBERLA_FILES runtime/domain/boundary_weights.cu)
     else()
-        list(APPEND RUNTIME_WALBERLA_FILES runtime/boundary_weights.cpp)
+        list(APPEND RUNTIME_WALBERLA_FILES runtime/domain/boundary_weights.cpp)
     endif()
     
     target_sources(${PAIRS_TARGET} PRIVATE ${RUNTIME_WALBERLA_FILES})
