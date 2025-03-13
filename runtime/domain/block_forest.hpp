@@ -68,7 +68,7 @@ public:
 
     void updateNeighborhood();
     void updateWeights();
-    walberla::math::Vector3<int> getBlockConfig(int num_processes, int nx, int ny, int nz);
+    walberla::math::Vector3<int> getBlockConfig();
     int getInitialRefinementLevel(int num_processes);
     void setBoundingBox();
     void rebalance();

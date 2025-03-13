@@ -179,38 +179,41 @@ void BlockForest::updateWeights() {
     }
 }
 
-walberla::Vector3<int> BlockForest::getBlockConfig(int num_processes, int nx, int ny, int nz) {
-    const int bx_factor = 1;
-    const int by_factor = 1;
-    const int bz_factor = 1;
-    const int ax = nx * ny;
-    const int ay = nx * nz;
-    const int az = ny * nz;
+walberla::Vector3<int> BlockForest::getBlockConfig() {
+    real_t area[3];
+    real_t best_surf = 0.0;
+    int ndims = 3;
+    int d = 0;
+    int nranks[3] = {1, 1, 1};
 
-    int bestsurf = 2 * (ax + ay + az);
-    int x = 1;
-    int y = 1;
-    int z = 1;
-
-    for(int i = 1; i < num_processes; ++i) {
-        if(num_processes % i == 0) {
-            const int rem_yz = num_processes / i;
-
-            for(int j = 1; j < rem_yz; ++j) {
-                if(rem_yz % j == 0) {
-                    const int k = rem_yz / j;
-                    const int surf = (ax / i / j) + (ay / i / k) + (az / j / k);
-
-                    if(surf < bestsurf) {
-                        x = i, y = j, z = k;
-                        bestsurf = surf;
-                    }
-                }
-            }
+    for(int d1 = 0; d1 < ndims; d1++) {
+        for(int d2 = d1 + 1; d2 < ndims; d2++) {
+            area[d] = (this->grid_max[d1] - this->grid_min[d1]) *
+                      (this->grid_max[d2] - this->grid_min[d2]);
+            best_surf += 2.0 * area[d];
+            d++;
         }
     }
 
-    return walberla::Vector3<int>(x * bx_factor, y * by_factor, z * bz_factor);
+    for (int i = 1; i <= world_size; i++) {
+        if (world_size % i == 0) {
+            const int rem_yz = world_size / i;
+
+            for (int j = 1; j <= rem_yz; j++) {
+                if (rem_yz % j == 0) {
+                    const int k = rem_yz / j;
+                    const real_t surf = (area[0] / i / j) + (area[1] / i / k) + (area[2] / j / k);
+                    if (surf < best_surf) {
+                        nranks[0] = i;
+                        nranks[1] = j;
+                        nranks[2] = k;
+                        best_surf = surf;
+                    }
+            }
+            }
+        }
+    }
+    return walberla::Vector3<int>(nranks[0], nranks[1], nranks[2]);
 }
 
 int BlockForest::getInitialRefinementLevel(int num_processes) {
@@ -250,20 +253,14 @@ void BlockForest::initialize(int *argc, char ***argv) {
     mpiManager->useWorldComm();
     world_size = mpiManager->numProcesses();
     rank = mpiManager->rank();
-
-    walberla::math::AABB domain(
-        grid_min[0], grid_min[1], grid_min[2], grid_max[0], grid_max[1], grid_max[2]);
-
-    int gridsize[3] = {32, 32, 32};
+    
+    auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) : getBlockConfig();
     auto procs = mpiManager->numProcesses();
-    auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) :
-                                           getBlockConfig(procs, gridsize[0], gridsize[1], gridsize[2]);
-
     auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
-
+    
     // PBC's are forced to true here and sperately handled when determining ghosts 
     walberla::Vector3<bool> pbc(true, true, true);
-
+    walberla::math::AABB domain(grid_min[0], grid_min[1], grid_min[2], grid_max[0], grid_max[1], grid_max[2]);
     forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, procs, ref_level);
 
     this->info = make_shared<walberla::blockforest::InfoCollection>();
