@@ -9,6 +9,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
 option(USE_MPI                      "USE_MPI" ON)
+option(USE_WALBERLA                 "Enable waLBerla support for using BlockForest domain partitioning and dynamic load balancing" OFF)
 option(COMPILE_CUDA                 "COMPILE_CUDA" OFF)
 set(USER_SOURCE_FILES "" CACHE STRING "List of source files to compile (semicolon-separated)")
 
@@ -96,14 +97,8 @@ endif()
 #================================================================================
 # waLBerla ======================================================================
 #================================================================================
-set(WALBERLA_DIR ${WALBERLA_DIR} CACHE PATH "Path to waLBerla source directory (required only when using BlockForest partitioning).")
-
-if(WALBERLA_DIR)
-    if(EXISTS "${WALBERLA_DIR}")
-        target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
-    else()
-        message(FATAL_ERROR "Invalid WALBERLA_DIR: '${WALBERLA_DIR}' does not exist.")
-    endif()
+if(USE_WALBERLA)
+    target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
 
     set(RUNTIME_WALBERLA_FILES
         runtime/domain/block_forest.cpp
@@ -115,13 +110,14 @@ if(WALBERLA_DIR)
     else()
         list(APPEND RUNTIME_WALBERLA_FILES runtime/boundary_weights.cpp)
     endif()
-
+    
     target_sources(${PAIRS_TARGET} PRIVATE ${RUNTIME_WALBERLA_FILES})
 
-    ## Linking walberla modules
-    set(PAIRS_WALBERLA_DEPENDENCIES walberla::blockforest walberla::core walberla::pe)
-    find_package(waLBerla REQUIRED)
-    set(WALBERLA_LINK_LIBRARIES_KEYWORD PUBLIC)
+    add_subdirectory(external/walberla EXCLUDE_FROM_ALL)
+    waLBerla_import()
+
+    # Recent issue from the waLBerla side: warnings about empty CUDA_ARCHITECTURES for walberla_gpu 
+    set(PAIRS_WALBERLA_DEPENDENCIES walberla::blockforest walberla::core)
     target_link_libraries(${PAIRS_TARGET} PUBLIC ${PAIRS_WALBERLA_DEPENDENCIES})
 
     ## TODO: PAIRS_LINK_DIRS and PAIRS_LINK_LIBRARIES for walberla modules *AND* their dependencies

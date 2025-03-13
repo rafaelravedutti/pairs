@@ -255,13 +255,12 @@ void BlockForest::initialize(int *argc, char ***argv) {
     rank = mpiManager->rank();
     
     auto block_config = balance_workload ? walberla::Vector3<int>(1, 1, 1) : getBlockConfig();
-    auto procs = mpiManager->numProcesses();
-    auto ref_level = balance_workload ? getInitialRefinementLevel(procs) : 0;
+    auto ref_level = balance_workload ? getInitialRefinementLevel(world_size) : 0;
     
     // PBC's are forced to true here and sperately handled when determining ghosts 
     walberla::Vector3<bool> pbc(true, true, true);
     walberla::math::AABB domain(grid_min[0], grid_min[1], grid_min[2], grid_max[0], grid_max[1], grid_max[2]);
-    forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, procs, ref_level);
+    forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, world_size, ref_level);
 
     this->info = make_shared<walberla::blockforest::InfoCollection>();
 
