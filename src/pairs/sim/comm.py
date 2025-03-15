@@ -319,10 +319,9 @@ class DetermineGhostParticles(Lowerable):
         is_exchange = (self.spacing == 0.0) # TODO: module_params(self.spacing)
         ghost_or_exchg = "exchange" if is_exchange else "ghost"
         self.sim.module_name(f"determine_{ghost_or_exchg}_particles{self.step}")
-        self.sim.check_resize(self.comm.send_capacity, nsend)
-        #self.sim.check_resize(self.comm.send_capacity, nsend_all)
+        # self.sim.check_resize(self.comm.send_capacity, nsend)
+        self.sim.check_resize(self.comm.send_capacity, nsend_all)   # send_buffer packs data for all ranks
 
-        # PrintCode(self.sim, f"std::cout << \"resizes[0] {self.sim._module_name} ========== \" << pobj->resizes[0] << std::endl;")
         if is_exchange:
             for i in ParticleFor(self.sim):
                 Assign(self.sim, exchg_flag[i], 0)

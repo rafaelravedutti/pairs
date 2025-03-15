@@ -13,7 +13,7 @@ def simulation(
     double_prec=False,
     use_contact_history=False,
     particle_capacity=800000,
-    neighbor_capacity=100,
+    neighbor_capacity=20,
     debug=False):
 
     return Simulation(

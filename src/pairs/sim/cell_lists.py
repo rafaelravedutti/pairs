@@ -51,6 +51,11 @@ class CellLists:
         self.stencil            =   self.sim.add_array('stencil', self.nstencil_capacity, Types.Int32)
         self.particle_cell      =   self.sim.add_array('particle_cell', self.sim.particle_capacity, Types.Int32)
 
+        if sim._use_halo_cells:
+            self.halo_ncells        =   self.sim.add_var('halo_ncells', Types.Int32, 0)
+            self.halo_ncells_capacity = self.sim.add_var('halo_ncells_capacity', Types.Int32, 10000)
+            self.halo_cells         =   self.sim.add_array('halo_cells', self.halo_ncells_capacity, Types.Int32)
+
         if sim._store_neighbors_per_cell:
             self.cell_neigh_capacity = self.sim.add_var('cell_neigh_capacity', Types.Int32, 80)
             self.cell_nneighs = self.sim.add_array('cell_nneighs', [self.ncells_capacity, self.sim.max_shapes()], Types.Int32)
@@ -86,7 +91,7 @@ class BuildCellListsStencil(Lowerable):
         for dim in range(self.sim.ndims()):
             dim_min = self.cell_lists.dom_part.min(dim) - spacing[dim]
             dim_max = self.cell_lists.dom_part.max(dim) + spacing[dim]
-            Assign(self.sim, dim_ncells[dim], Ceil(self.sim, (dim_max - dim_min) / spacing[dim]) + 1)
+            Assign(self.sim, dim_ncells[dim], Ceil(self.sim, (dim_max - dim_min) / spacing[dim]))
             ntotal_cells *= dim_ncells[dim]
 
         Assign(self.sim, ncells, ntotal_cells + 1)
@@ -102,6 +107,62 @@ class BuildCellListsStencil(Lowerable):
                         Assign(self.sim, stencil[nstencil], index)
                         Assign(self.sim, nstencil, nstencil + 1)
 
+        # Halo cell generation
+        # TODO: Defer halo cells generation to dom_part
+        # ----------------------------------------------------
+        if self.sim._use_halo_cells:
+            halo_ncells_capacity = self.cell_lists.halo_ncells_capacity
+            n = self.cell_lists.halo_ncells
+            self.sim.check_resize(halo_ncells_capacity, n)
+            halo_cells = self.cell_lists.halo_cells
+            Assign(self.sim, n, 1)
+
+            # Note: We add +2 to each layer since it's possible that the outermost local layer of  
+            # master doesn't fully overlap with innermost ghost layer of neighbor, and vice versa.
+            layers_0 = self.sim.add_temp_var(0) 
+            Assign(self.sim, layers_0, Ceil(self.sim, (cutoff_radius / spacing[0])) + 2)
+            layers_1 = self.sim.add_temp_var(0)
+            Assign(self.sim, layers_1, Ceil(self.sim, (cutoff_radius / spacing[1])) + 2)
+            layers_2 = self.sim.add_temp_var(0)
+            Assign(self.sim, layers_2, Ceil(self.sim, (cutoff_radius / spacing[2])) + 2)
+
+            # TODO: Merge these loops.
+            # X faces
+            for y in For(self.sim, 0, dim_ncells[1]):
+                for z in For(self.sim, 0, dim_ncells[2]):
+                    for x in For(self.sim, 0, layers_0):
+                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                        Assign(self.sim, halo_cells[n], index + 1)
+                        Assign(self.sim, n, n+1)
+                    for x in For(self.sim, dim_ncells[0]-layers_0, dim_ncells[0]):
+                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                        Assign(self.sim, halo_cells[n], index + 1)
+                        Assign(self.sim, n, n+1)
+            
+            # Y faces (excluding X edges)
+            for x in For(self.sim, layers_0, dim_ncells[0]-layers_0):
+                for z in For(self.sim, 0, dim_ncells[2]):
+                    for y in For(self.sim, 0, layers_1):
+                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                        Assign(self.sim, halo_cells[n], index + 1)
+                        Assign(self.sim, n, n+1)
+                    for y in For(self.sim, dim_ncells[1]-layers_1, dim_ncells[1]):
+                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                        Assign(self.sim, halo_cells[n], index + 1)
+                        Assign(self.sim, n, n+1)
+            
+            # Z faces (exluding X and Y edges)
+            for x in For(self.sim, layers_0, dim_ncells[0]-layers_0):
+                for y in For(self.sim, layers_1, dim_ncells[1]-layers_1):
+                    for z in For(self.sim, 0, layers_2):
+                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                        Assign(self.sim, halo_cells[n], index + 1)
+                        Assign(self.sim, n, n+1)
+                    for z in For(self.sim, dim_ncells[2]-layers_2, dim_ncells[2]):
+                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                        Assign(self.sim, halo_cells[n], index + 1)
+                        Assign(self.sim, n, n+1)
+        
 
 class BuildCellLists(Lowerable):
     def __init__(self, sim, cell_lists):

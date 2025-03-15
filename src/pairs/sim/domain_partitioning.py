@@ -1,6 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.branches import Filter
-from pairs.ir.loops import For
+from pairs.ir.loops import For, Continue
 from pairs.ir.functions import Call_Int, Call_Void, Call
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
@@ -11,6 +11,7 @@ from pairs.sim.grid import MutableGrid
 from pairs.ir.device import CopyArray
 from pairs.ir.contexts import Contexts
 from pairs.ir.actions import Actions
+from pairs.ir.print import Print
 
 class DimensionRanges:
     def __init__(self, sim):
@@ -90,13 +91,70 @@ class DimensionRanges:
             for _ in Filter(self.sim, ScalarOp.inline(ScalarOp.cmp(self.pbc[j], 0))):
                 yield from prev_neighbor(self, j, step, position, offset, flags_to_exclude)
 
+    #### cell lists need to be rebuilt in each phase
+    #### --------------------------------------------------------------------
+    # def ghost_particles_halo_cells(self, step, position, offset=0.0):
+    #     # Particles with one of the following flags are ignored
+    #     flags_to_exclude = (Flags.Infinite | Flags.Global)
+
+    #     def next_neighbor(self, j, step, position, offset, flags_to_exclude):
+    #         particle_flags = self.sim.particle_flags
+    #         cells_to_check = self.sim.cell_lists.halo_cells
+    #         ncells_to_check = self.sim.cell_lists.halo_ncells
+    #         for nc in For(self.sim, 0, ncells_to_check):
+    #             c = self.sim.add_temp_var(0)
+    #             Assign(self.sim, c, cells_to_check[nc])
+    #             for p in For(self.sim, 0, self.sim.cell_lists.cell_sizes[c]):
+    #                 i = self.sim.cell_lists.cell_particles[c][p]
+    #                 particle_flags = self.sim.particle_flags
+
+    #                 # Don't check ghost particles if in Exchange mode
+    #                 if offset==0.0:
+    #                     for _ in Filter(self.sim, i >= self.sim.nlocal):
+    #                         Continue(self.sim)()
+
+    #                 for _ in Filter(self.sim, ScalarOp.cmp(particle_flags[i] & flags_to_exclude, 0)):
+    #                     for _ in Filter(self.sim, position[i][step] < self.subdom[j] + offset):
+    #                         pbc_shifts = [0 if d != step else self.pbc[j] for d in range(self.sim.ndims())]
+    #                         yield i, j, self.neighbor_ranks[j], pbc_shifts
+
+    #     def prev_neighbor(self, j, step, position, offset, flags_to_exclude):
+    #         particle_flags = self.sim.particle_flags
+    #         cells_to_check = self.sim.cell_lists.halo_cells
+    #         ncells_to_check = self.sim.cell_lists.halo_ncells
+    #         for nc in For(self.sim, 0, ncells_to_check):
+    #             c = self.sim.add_temp_var(0)
+    #             Assign(self.sim, c, cells_to_check[nc])
+    #             for p in For(self.sim, 0, self.sim.cell_lists.cell_sizes[c]):
+    #                 i = self.sim.cell_lists.cell_particles[c][p]
+    #                 particle_flags = self.sim.particle_flags
+                    
+    #                 # Don't check ghost particles if in Exchange mode
+    #                 if offset==0.0:
+    #                     for _ in Filter(self.sim, i >= self.sim.nlocal):
+    #                         Continue(self.sim)()
+                            
+    #                 for _ in Filter(self.sim, ScalarOp.cmp(particle_flags[i] & flags_to_exclude, 0)):
+    #                     for _ in Filter(self.sim, position[i][step] > self.subdom[j] - offset):
+    #                         pbc_shifts = [0 if d != step else self.pbc[j] for d in range(self.sim.ndims())]
+    #                         yield i, j, self.neighbor_ranks[j], pbc_shifts
+
+    #     if self.sim._pbc[step]:
+    #         yield from next_neighbor(self, step * 2 + 0, step, position, offset, flags_to_exclude)
+    #         yield from prev_neighbor(self, step * 2 + 1, step, position, offset, flags_to_exclude)
+
+    #     else:
+    #         j = step * 2 + 0
+    #         for _ in Filter(self.sim, ScalarOp.inline(ScalarOp.cmp(self.pbc[j], 0))):
+    #             yield from next_neighbor(self, j, step, position, offset, flags_to_exclude)
+
+    #         j = step * 2 + 1
+    #         for _ in Filter(self.sim, ScalarOp.inline(ScalarOp.cmp(self.pbc[j], 0))):
+    #             yield from prev_neighbor(self, j, step, position, offset, flags_to_exclude)
 
 class BlockForest:
     def __init__(self, sim):
         self.sim                = sim
-        self.load_balancer      = None
-        self.regrid_min         = None
-        self.regrid_max         = None
         self.reduce_step        = sim.add_var('reduce_step', Types.Int32)   # this var is treated as a tmp (workaround for gpu)
         self.reduce_step.force_read = True
         self.rank               = sim.add_var('rank', Types.Int32)
@@ -169,6 +227,13 @@ class BlockForest:
                 Assign(self.sim, self.sim.grid.max(d), Call(self.sim, "pairs_runtime->getDomainPartitioner()->getMax", [d], Types.Real))
 
     def ghost_particles(self, step, position, offset=0.0):
+        if self.sim._use_halo_cells:
+            # No support for adaptive blocks yet
+            yield from self.ghost_particles_halo_cells(step, position, offset)
+        else:
+            yield from self.ghost_particles_original(step, position, offset)
+
+    def ghost_particles_original(self, step, position, offset=0.0):
         ''' TODO :  If we have pbc, a sinlge particle can be a ghost particle multiple times (at different locations) for the same neighbor block,
                     so this function should have the capability to yield more than one particle for every neighbor.
                     But currently it doesn't have that capability, so we need at least 2 blocks in the dimensions that we have pbc.
@@ -231,3 +296,72 @@ class BlockForest:
                             
                             for _ in Filter(self.sim, isghost):
                                 yield i, r, self.ranks[r], pbc_shifts
+
+
+    def ghost_particles_halo_cells(self, step, position, offset=0.0):
+        # Particles with one of the following flags are ignored
+        flags_to_exclude = (Flags.Infinite | Flags.Global)
+        cells_to_check = self.sim.cell_lists.halo_cells
+        ncells_to_check = self.sim.cell_lists.halo_ncells
+        for r in self.step_indexes(0):     # for every neighbor rank
+            for nc in For(self.sim, 0, ncells_to_check):
+                c = self.sim.add_temp_var(0)
+                Assign(self.sim, c, cells_to_check[nc])
+                for p in For(self.sim, 0, self.sim.cell_lists.cell_sizes[c]):
+                    i = self.sim.cell_lists.cell_particles[c][p]
+                    particle_flags = self.sim.particle_flags
+
+                    # Skip ghost particles
+                    for _ in Filter(self.sim, i >= self.sim.nlocal):
+                        Continue(self.sim)()
+
+                    for _ in Filter(self.sim, ScalarOp.cmp(particle_flags[i] & flags_to_exclude, 0)):
+                        for aabb_id in For(self.sim, self.aabb_offsets[r], self.aabb_offsets[r] + self.naabbs[r]): # for every aabb of this neighbor
+                            for _ in Filter(self.sim, ScalarOp.neq(self.ranks[r] , self.rank)):     # if my neighobr is not my own rank
+                                full_cond = None
+                                pbc_shifts = []
+
+                                for d in range(self.sim.ndims()):
+                                    aabb_min = self.aabbs[aabb_id][d * 2 + 0]
+                                    aabb_max = self.aabbs[aabb_id][d * 2 + 1]
+                                    d_pbc = 0
+                                    d_length = self.sim.grid.length(d)
+
+                                    if self.sim._pbc[d]:
+                                        center = aabb_min + (aabb_max - aabb_min) * 0.5     # center of neighbor block
+                                        dist = position[i][d] - center                      # distance of our particle from center of neighbor
+                                        cond_pbc_neg = dist >  (d_length * 0.5)
+                                        cond_pbc_pos = dist < -(d_length * 0.5)
+
+                                        d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
+
+                                    adj_pos = position[i][d] + d_pbc * d_length 
+                                    d_cond = ScalarOp.and_op(adj_pos > aabb_min - offset, adj_pos < aabb_max + offset)
+                                    full_cond = d_cond if full_cond is None else ScalarOp.and_op(full_cond, d_cond)
+                                    pbc_shifts.append(d_pbc)
+
+                                for _ in Filter(self.sim, full_cond):
+                                    yield i, r, self.ranks[r], pbc_shifts
+
+                            for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me
+                                pbc_shifts = []
+                                isghost = Lit(self.sim, 0)
+
+                                for d in range(self.sim.ndims()):
+                                    aabb_min = self.aabbs[aabb_id][d * 2 + 0]
+                                    aabb_max = self.aabbs[aabb_id][d * 2 + 1]
+                                    center = aabb_min + (aabb_max - aabb_min) * 0.5     # center of neighbor block
+                                    dist = position[i][d] - center                      # distance of our particle from center of neighbor
+                                    d_pbc = 0
+                                    d_length = self.sim.grid.length(d)
+
+                                    if self.sim._pbc[d]:
+                                        cond_pbc_neg = dist >  (d_length*0.5 - offset)
+                                        cond_pbc_pos = dist < -(d_length*0.5 - offset)
+                                        d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
+                                        isghost = ScalarOp.or_op(isghost, d_pbc)
+
+                                    pbc_shifts.append(d_pbc)
+                                
+                                for _ in Filter(self.sim, isghost):
+                                    yield i, r, self.ranks[r], pbc_shifts

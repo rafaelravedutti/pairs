@@ -188,7 +188,7 @@ class InterfaceModules:
             PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
             
         Call_Void(self.sim, "pairs::print_timers", [])
-        Call_Void(self.sim, "pairs::log_timers", [])
+        # Call_Void(self.sim, "pairs::log_timers", [])
         Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
         PrintCode(self.sim, "delete pobj;")
         PrintCode(self.sim, "delete pairs_runtime;")

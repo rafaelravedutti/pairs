@@ -290,7 +290,7 @@ public:
         
         // TODO: Check if there is enough particle capacity for the new particles, when there is not,
         // all properties and arrays which have particle_capacity as one of their dimensions must be reallocated
-        PAIRS_ASSERT(nlocal + nrecv < particle_capacity);
+        // PAIRS_ASSERT(nlocal + nrecv < particle_capacity);
 
         for(int i = 0; i < nrecv; ++i) {
             for(auto &prop: ps->getProperties()) {

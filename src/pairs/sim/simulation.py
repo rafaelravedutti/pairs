@@ -62,6 +62,7 @@ class Simulation:
         self.grid = None
 
         # Acceleration structures
+        self._use_halo_cells = False
         self.cell_lists = None
         self._store_neighbors_per_cell = False
         self.neighbor_lists = None
@@ -259,10 +260,11 @@ class Simulation:
     def reneighbor_every(self, frequency):
         self.reneighbor_frequency = frequency
 
-    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False):
+    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False, use_halo_cells=False):
         """Add routines to build the linked-cells acceleration structure.
         Leave spacing as None so it can be set at runtime."""
         self._store_neighbors_per_cell = store_neighbors_per_cell
+        self._use_halo_cells = use_halo_cells
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 
@@ -302,13 +304,12 @@ class Simulation:
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
-    def build_interface_module_with_statements(self, run_on_device=False):
+    def build_interface_module_with_statements(self):
         """Build a user-defined Module that will be callable seperately as part of the interface"""
         Module(self, name=self._module_name,
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
-                run_on_device=run_on_device,
                 interface=True)
         
     def capture_statements(self, capture=True):

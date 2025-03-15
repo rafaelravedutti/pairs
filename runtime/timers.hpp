@@ -92,7 +92,8 @@ public:
         // Modules
         for (size_t i = TimerMarkers::Offset; i < time_counters.size(); ++i) {
             const std::string& counterName = counter_names[i];
-            if(counterName.find("INTERFACE_MODULES::") == 0) {
+            // if(counterName.find("INTERFACE_MODULES::") == 0) {
+            if(counterName.length() > 0) {
                 std::cout << std::left << std::setw(80) << counter_names[i]
                         << std::left << std::setw(15) << std::fixed << std::setprecision(2) << time_counters[i]
                         << std::left << std::setw(15) << call_counters[i]
@@ -108,10 +109,20 @@ public:
                     << "\n";
         }
 
+        computeCategories();
+        
+        // Categories
+        for (const auto& cs : categorySums) {;
+            std::cout << std::left << std::setw(80) << cs.first
+                    << std::left << std::setw(15) << std::fixed << std::setprecision(2) << cs.second
+                    << std::left << std::setw(15) << 1
+                    << "\n";
+        }
         std::cout << "--------------------------------------------------------------------------------------------------------\n";
     }
 
     void computeCategories() {
+        categorySums.clear();
         for (size_t i = 0; i < time_counters.size(); ++i) {
             const std::string& counterName = counter_names[i];
             TimeType counterValue = time_counters[i];

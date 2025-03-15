@@ -31,6 +31,7 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));
     auto velocities = ps->getAsVectorProperty(ps->getPropertyByName("linear_velocity"));
     int nparticles = ps->getTrackedVariableAsInteger("nlocal");
+    int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
 
     const double xmin = 0.0;
     const double ymin = 0.0;
@@ -60,6 +61,11 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
 
         if(ps->getDomainPartitioner()->isWithinSubdomain(point[0], point[1], point[2])) {
             real_t rad = pdiam * 0.5;
+            if(nparticles >= particle_capacity) {
+                std::cerr << "Number of particles exceeded capacity (" << particle_capacity << ") in rank " << ps->getDomainPartitioner()->getRank() << std::endl;
+                // TODO: resize properties, and all arrays that have particle_capacity as a dimension
+                exit(-1);
+            }
             uids(nparticles) = UniqueID::create(ps);
             radius(nparticles) = rad;
             masses(nparticles) = ((4.0 / 3.0) * M_PI) * rad * rad * rad * particle_density;

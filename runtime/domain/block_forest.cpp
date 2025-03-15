@@ -60,7 +60,7 @@ void BlockForest::updateNeighborhood() {
             auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
             // TODO: Make PBCs work with runtime load balancing
-            // if(neighbor_rank != me) {
+            if(neighbor_rank != me) {
                 const walberla::BlockID& neighbor_id = block->getNeighborId(neigh);
                 walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
                 auto begin = blocks_pushed[neighbor_rank].begin();
@@ -70,7 +70,7 @@ void BlockForest::updateNeighborhood() {
                     neighborhood[neighbor_rank].push_back(neighbor_aabb);
                     blocks_pushed[neighbor_rank].push_back(neighbor_id);
                 }
-            // }
+            }
         }
     }
 
@@ -265,9 +265,9 @@ void BlockForest::initialize(int *argc, char ***argv) {
     this->info = make_shared<walberla::blockforest::InfoCollection>();
 
     if (rank==0) {
+        std::cout << "Domain Partitioner: BlockForest" << std::endl;
         std::cout << "Domain: " << domain << std::endl;
-        std::cout << "PBC: " << pbc << std::endl;
-        std::cout << "Block config: " << block_config  << std::endl;
+        std::cout << "Configuration: " << block_config  << std::endl;
         std::cout << "Initial refinement level: " << ref_level << std::endl;
         std::cout << "Dynamic load balancing: " << (balance_workload ? "True" : "False") << std::endl;
     }

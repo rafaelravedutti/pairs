@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
 
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
-    pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 30, 30, 30, false, false, false, true); 
+    pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 30, 30, 30, true); 
     pairs_runtime->getDomainPartitioner()->initWorkloadBalancer(pairs::Hilbert, 100, 800);
 
     pairs::create_halfspace(pairs_runtime, 0,0,0,       1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     
     // Use the diameter of small particles to set up the cell list
     double lcw = radius * 2;
-    pairs_sim->setup_sim(lcw, lcw, lcw, lcw);
+    pairs_sim->setup_cells(lcw, lcw, lcw, lcw);
     pairs_sim->update_mass_and_inertia();
     pairs_sim->communicate(0);
 
