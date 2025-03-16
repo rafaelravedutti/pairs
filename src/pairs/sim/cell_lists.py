@@ -125,44 +125,19 @@ class BuildCellListsStencil(Lowerable):
             Assign(self.sim, layers_1, Ceil(self.sim, (cutoff_radius / spacing[1])) + 2)
             layers_2 = self.sim.add_temp_var(0)
             Assign(self.sim, layers_2, Ceil(self.sim, (cutoff_radius / spacing[2])) + 2)
-
-            # TODO: Merge these loops.
-            # X faces
-            for y in For(self.sim, 0, dim_ncells[1]):
-                for z in For(self.sim, 0, dim_ncells[2]):
-                    for x in For(self.sim, 0, layers_0):
-                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
-                        Assign(self.sim, halo_cells[n], index + 1)
-                        Assign(self.sim, n, n+1)
-                    for x in For(self.sim, dim_ncells[0]-layers_0, dim_ncells[0]):
-                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
-                        Assign(self.sim, halo_cells[n], index + 1)
-                        Assign(self.sim, n, n+1)
-            
-            # Y faces (excluding X edges)
-            for x in For(self.sim, layers_0, dim_ncells[0]-layers_0):
-                for z in For(self.sim, 0, dim_ncells[2]):
-                    for y in For(self.sim, 0, layers_1):
-                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
-                        Assign(self.sim, halo_cells[n], index + 1)
-                        Assign(self.sim, n, n+1)
-                    for y in For(self.sim, dim_ncells[1]-layers_1, dim_ncells[1]):
-                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
-                        Assign(self.sim, halo_cells[n], index + 1)
-                        Assign(self.sim, n, n+1)
-            
-            # Z faces (exluding X and Y edges)
-            for x in For(self.sim, layers_0, dim_ncells[0]-layers_0):
-                for y in For(self.sim, layers_1, dim_ncells[1]-layers_1):
-                    for z in For(self.sim, 0, layers_2):
-                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
-                        Assign(self.sim, halo_cells[n], index + 1)
-                        Assign(self.sim, n, n+1)
-                    for z in For(self.sim, dim_ncells[2]-layers_2, dim_ncells[2]):
-                        index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
-                        Assign(self.sim, halo_cells[n], index + 1)
-                        Assign(self.sim, n, n+1)
         
+            for x in For(self.sim, 0, dim_ncells[0]):
+                for y in For(self.sim, 0, dim_ncells[1]):
+                    for z in For(self.sim, 0, dim_ncells[2]):
+                        cond0 = ScalarOp.or_op(x<layers_0, x>=(dim_ncells[0]-layers_0)) 
+                        cond1 = ScalarOp.or_op(y<layers_1, y>=(dim_ncells[1]-layers_1)) 
+                        cond2 = ScalarOp.or_op(z<layers_2, z>=(dim_ncells[2]-layers_2)) 
+                        fullcond = ScalarOp.or_op(ScalarOp.or_op(cond0, cond1), cond2) 
+                        for _ in Filter(self.sim, fullcond):
+                            index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                            Assign(self.sim, halo_cells[n], index + 1)
+                            Assign(self.sim, n, n+1)
+
 
 class BuildCellLists(Lowerable):
     def __init__(self, sim, cell_lists):
@@ -183,7 +158,7 @@ class BuildCellLists(Lowerable):
         positions = self.sim.position()
 
         self.sim.module_name("build_cell_lists")
-        self.sim.check_resize(cell_capacity, cell_sizes)
+        # self.sim.check_resize(cell_capacity, cell_sizes)  # TODO: Check resize for 2D arrays
 
         for c in For(self.sim, 0, ncells):
             Assign(self.sim, cell_sizes[c], 0)

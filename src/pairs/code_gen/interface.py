@@ -88,6 +88,7 @@ class InterfaceModules:
         # This update assumes all particles have been created exactly in the rank that contains them 
         self.sim.add_statement(UpdateDomain(self.sim))  
         self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))
+        self.sim.add_statement(self.sim.update_cells_procedures)
         
     @pairs_interface_block
     def update_domain(self):
