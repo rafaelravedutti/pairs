@@ -42,7 +42,7 @@ class CellLists:
         self.nstencil_capacity  =   self.sim.add_var('nstencil_capacity', Types.Int32, 27)
         self.ncells             =   self.sim.add_var('ncells', Types.Int32, 1)
         self.ncells_capacity    =   self.sim.add_var('ncells_capacity', Types.Int32, 100000)
-        self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 64)
+        self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 16)
         self.dim_ncells         =   self.sim.add_array('dim_cells', self.sim.ndims(), Types.Int32)
         self.shapes_buffer      =   self.sim.add_array('shapes_buffer', self.sim.max_shapes(), Types.Int32)
         self.cell_particles     =   self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Types.Int32)
