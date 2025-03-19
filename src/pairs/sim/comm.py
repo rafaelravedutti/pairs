@@ -36,10 +36,12 @@ class Comm:
         self.recv_buffer      = sim.add_array('recv_buffer', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
         self.recv_map         = sim.add_array('recv_map', [self.recv_capacity], Types.Int32)
         self.recv_mult        = sim.add_array('recv_mult', [self.recv_capacity, sim.ndims()], Types.Int32)
-        self.nsend_contact    = sim.add_array('nsend_contact', [dom_part.nranks_capacity], Types.Int32)
-        self.nrecv_contact    = sim.add_array('nrecv_contact', [dom_part.nranks_capacity], Types.Int32)
-        self.contact_soffsets = sim.add_array('contact_soffsets', [dom_part.nranks_capacity], Types.Int32)
-        self.contact_roffsets = sim.add_array('contact_roffsets', [dom_part.nranks_capacity], Types.Int32)
+        
+        if self.sim._use_contact_history:
+            self.nsend_contact    = sim.add_array('nsend_contact', [dom_part.nranks_capacity], Types.Int32)
+            self.nrecv_contact    = sim.add_array('nrecv_contact', [dom_part.nranks_capacity], Types.Int32)
+            self.contact_soffsets = sim.add_array('contact_soffsets', [dom_part.nranks_capacity], Types.Int32)
+            self.contact_roffsets = sim.add_array('contact_roffsets', [dom_part.nranks_capacity], Types.Int32)
         
         if self.sim.properties.reduction_props():
             self.nsend_reverse            = sim.add_array('nsend_reverse', [dom_part.nranks_capacity], Types.Int32)
@@ -138,10 +140,12 @@ class Exchange(Lowerable):
                     Assign(self.comm.sim, self.comm.nrecv[j], 0)
                     Assign(self.comm.sim, self.comm.send_offsets[j], 0)
                     Assign(self.comm.sim, self.comm.recv_offsets[j], 0)
-                    Assign(self.comm.sim, self.comm.nsend_contact[j], 0)
-                    Assign(self.comm.sim, self.comm.nrecv_contact[j], 0)
-                    Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
-                    Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
+
+                    if self.sim._use_contact_history:
+                        Assign(self.comm.sim, self.comm.nsend_contact[j], 0)
+                        Assign(self.comm.sim, self.comm.nrecv_contact[j], 0)
+                        Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
+                        Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
 
             if self.sim._target.is_gpu():
                 CopyArray(self.comm.sim, self.comm.nsend, Contexts.Device, Actions.Ignore)
