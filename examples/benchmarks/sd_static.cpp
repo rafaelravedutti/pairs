@@ -1,22 +1,8 @@
 #include <iostream>
 #include <memory>
-
-#include "spring_dashpot.hpp"
 #include <chrono>
 
-void set_feature_properties(std::shared_ptr<PairsAccessor> &ac){
-    ac->setTypeStiffness(0,0, 1e6);
-    ac->syncTypeStiffness();
-
-    ac->setTypeDampingNorm(0,0, 300);
-    ac->syncTypeDampingNorm();
-
-    ac->setTypeFriction(0,0, 1.2);
-    ac->syncTypeFriction();
-
-    ac->setTypeDampingTan(0,0, 300);
-    ac->syncTypeDampingTan();
-}
+#include "spring_dashpot.hpp"
 
 int main(int argc, char **argv) {
     if(argc!=5){
@@ -30,16 +16,13 @@ int main(int argc, char **argv) {
     auto pairs_sim = std::make_shared<PairsSimulation>();
     pairs_sim->initialize();
 
-    auto ac = std::make_shared<PairsAccessor>(pairs_sim.get());
-    set_feature_properties(ac);     // Arbitray properties (all forces cancel out due to PBC in all dims)
-
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, domain_size[0], domain_size[1], domain_size[2], false);
 
     double particle_spacing = 1.0;
 
-    // Particle overlap is required for force calculation
+    // Particle overlap is required for force calculation (but forces remain zero since stiffnesses are zero by default)
     double peneration_depth = 0.01;  
     double diameter = particle_spacing + peneration_depth;
     
@@ -99,8 +82,8 @@ int main(int argc, char **argv) {
         std::cout << "PUPS: " << pups << std::endl;
     }
     
-    // if (rank==1) pairs::vtk_write_data(pairs_runtime, "output/ghost_spheres", pairs_sim->nlocal(), pairs_sim->size(), 0);
-    // if (rank==2) pairs::vtk_write_data(pairs_runtime, "output/ghost_spheres", pairs_sim->nlocal(), pairs_sim->size(), 0);
+    pairs::vtk_write_data(pairs_runtime, "output/local_spheres", 0, pairs_sim->nlocal(), 0);
+    pairs::vtk_write_data(pairs_runtime, "output/ghost_spheres", pairs_sim->nlocal(), pairs_sim->size(), 0);
     
     pairs_sim->end();
 }

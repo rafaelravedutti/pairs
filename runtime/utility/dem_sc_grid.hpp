@@ -54,6 +54,10 @@ private:
 
 bool point_within_aabb(double point[], double aabb[]);
 
-int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double spacing, double diameter, double min_diameter, double max_diameter, double initial_velocity, double particle_density, int ntypes);
+int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, 
+    double spacing, 
+    double diameter, double min_diameter, double max_diameter, 
+    double initial_velocity, double particle_density, int ntypes,
+    bool lower_triangular=false);
 
 }
