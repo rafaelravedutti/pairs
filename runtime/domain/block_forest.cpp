@@ -260,14 +260,6 @@ void BlockForest::setBoundingBox() {
             else{
                 aabb_union.merge(aabb);
             }
-
-            if(rank==15){
-                vtk_write_aabb(this->ps, "output/non_empty_aabbs_", block_idx, 
-                    aabb.xMin(), aabb.xMax(), 
-                    aabb.yMin(), aabb.yMax(), 
-                    aabb.zMin(), aabb.zMax());
-            }
-
         }
         ++block_idx;
     }
