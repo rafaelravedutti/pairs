@@ -34,14 +34,17 @@ int main(int argc, char **argv) {
                                         diameter, diameter, diameter,
                                         initial_velocity, density, 1);
     
+    pairs_sim->update_mass_and_inertia(); 
     
     // Cell width is here smaller than sphere diameter only for convenience to have everything aligned on a grid, but this 
     // doesn't affect the interactions computed. All spheres are on cell centers and are in contact with 6 neighbors. 
     double cell_width = particle_spacing;
-    pairs_sim->setup_cells(cell_width, cell_width, cell_width, cell_width);
+
+    pairs_sim->setCellWidth(cell_width, cell_width, cell_width);
+    pairs_sim->setInteractionRadius(cell_width);
+    pairs_sim->updateDomain();
     
     // Inertia update is required for euler updates to be valid (but particles remain stationary)
-    pairs_sim->update_mass_and_inertia(); 
     double dt = 0.001;  // Arbitrary
     
     int rank = pairs_sim->rank();
@@ -59,10 +62,9 @@ int main(int argc, char **argv) {
 
     for (int t=0; t<num_timesteps; ++t){
         if ((t%print_interval==0) && rank==0) std::cout << "Timestep: " << t << std::endl;
-        pairs_sim->communicate(t);
-        pairs_sim->update_cells(t);
         pairs_sim->spring_dashpot();
         pairs_sim->euler(dt);
+        pairs_sim->reneighbor();
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -81,6 +83,8 @@ int main(int argc, char **argv) {
         double pups = global_nparticles * num_timesteps / total_runtime;    // particle updates per second
         std::cout << "PUPS: " << pups << std::endl;
     }
+
+    pairs::log_timers(pairs_runtime);
     
     // pairs::vtk_write_data(pairs_runtime, "output/local_spheres", 0, pairs_sim->nlocal(), 0);
     // pairs::vtk_write_data(pairs_runtime, "output/ghost_spheres", pairs_sim->nlocal(), pairs_sim->size(), 0);

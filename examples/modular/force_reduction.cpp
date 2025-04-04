@@ -15,9 +15,11 @@ int main(int argc, char **argv) {
     // Create bodies
     pairs::id_t pUid = pairs::create_sphere(pairs_runtime, 0.0499,   0.0499,   0.07,   0.5, 0.5, 0 ,   1000, 0.0045, 0, 0);
     
-    // setup_cells after creating all bodies
-    pairs_sim->setup_cells();
     pairs_sim->update_mass_and_inertia();
+    
+    // updateDomain after creating all bodies
+    pairs_sim->updateDomain();
+    ac->update();
 
     // Track particle
     //-------------------------------------------------------------------------------------------
@@ -30,11 +32,6 @@ int main(int argc, char **argv) {
     if (pUid != ac->getInvalidUid()){
         std::cout<< "Particle " << pUid << " will be tracked by rank " << pairs_sim->rank() << std::endl;
     }
-
-    // Communicate particles (exchange/ghost)
-    //-------------------------------------------------------------------------------------------
-    pairs_sim->communicate(0);
-    ac->update();
         
     // Helper lambdas for demo
     //-------------------------------------------------------------------------------------------
@@ -91,16 +88,14 @@ int main(int argc, char **argv) {
         
         // Do computations
         //-------------------------------------------------------------------------------------------
-        pairs_sim->update_cells(t); 
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot();
         pairs_sim->euler(5e-5);        
         //-------------------------------------------------------------------------------------------
 
-        std::cout << "---- reverse_comm and reduce ----" << std::endl;
-        // reverse_comm() communicates data from ghost particles back to their owner ranks using
-        // information from the previous time that communicate() was called 
-        pairs_sim->reverse_comm();  
+        std::cout << "Reverse communicate and reduce." << std::endl;
+        // Communicate ghost particle data back to their owner ranks and reduce
+        pairs_sim->reverseCommunicate();  
 
         // Get the reduced force on the owner rank
         //-------------------------------------------------------------------------------------------
@@ -115,9 +110,9 @@ int main(int argc, char **argv) {
                         << force_sum[0] << ", " << force_sum[1] << ", " << force_sum[2] << ")" <<  std::endl;
         }
         
-        // Usual communication 
+        // Forward communication 
         //-------------------------------------------------------------------------------------------
-        pairs_sim->communicate(t);
+        pairs_sim->reneighbor();
         ac->update();
     }
 

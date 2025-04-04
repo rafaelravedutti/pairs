@@ -31,11 +31,13 @@ int main(int argc, char **argv) {
     MPI_Allreduce(MPI_IN_PLACE, &pUid, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 
     auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
-
-    pairs_sim->setup_sim(0.1, 0.1, 0.1, 0.1);
+    
     pairs_sim->update_mass_and_inertia();
 
-    pairs_sim->communicate(0);
+    pairs_sim->setCellWidth(0.1, 0.1, 0.1);
+    pairs_sim->setInteractionRadius(0.1);
+    pairs_sim->updateDomain();
+    
 
     int num_timesteps = 2000;
     int vtk_freq = 20;
@@ -57,7 +59,6 @@ int main(int argc, char **argv) {
 
         // Calculate forces
         //-------------------------------------------------------------------------------------------
-        pairs_sim->update_cells(t);
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 
 
@@ -85,7 +86,7 @@ int main(int argc, char **argv) {
 
         // Communicate
         //-------------------------------------------------------------------------------------------
-        pairs_sim->communicate(t);
+        pairs_sim->reneighbor();
 
         pairs::vtk_write_data(pairs_runtime, "output/sd_3_CPU_local", 0, ac->nlocal(), t, vtk_freq);
         pairs::vtk_write_data(pairs_runtime, "output/sd_3_CPU_ghost", ac->nlocal(), ac->size(), t, vtk_freq);

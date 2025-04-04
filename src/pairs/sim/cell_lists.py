@@ -6,7 +6,7 @@ from pairs.ir.atomic import AtomicAdd
 from pairs.ir.block import pairs_device_block, pairs_host_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
-from pairs.ir.loops import For, ParticleFor, While
+from pairs.ir.loops import For, ParticleFor, While, Break
 from pairs.ir.math import Ceil
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
@@ -108,7 +108,6 @@ class BuildCellListsStencil(Lowerable):
                         Assign(self.sim, nstencil, nstencil + 1)
 
         # Halo cell generation
-        # TODO: Defer halo cells generation to dom_part
         # ----------------------------------------------------
         if self.sim._use_halo_cells:
             halo_ncells_capacity = self.cell_lists.halo_ncells_capacity
@@ -117,26 +116,21 @@ class BuildCellListsStencil(Lowerable):
             halo_cells = self.cell_lists.halo_cells
             Assign(self.sim, n, 1)
 
-            # Note: We add +2 to each layer since it's possible that the outermost local layer of  
-            # master doesn't fully overlap with innermost ghost layer of neighbor, and vice versa.
-            layers_0 = self.sim.add_temp_var(0) 
-            Assign(self.sim, layers_0, Ceil(self.sim, (cutoff_radius / spacing[0])) + 2)
-            layers_1 = self.sim.add_temp_var(0)
-            Assign(self.sim, layers_1, Ceil(self.sim, (cutoff_radius / spacing[1])) + 2)
-            layers_2 = self.sim.add_temp_var(0)
-            Assign(self.sim, layers_2, Ceil(self.sim, (cutoff_radius / spacing[2])) + 2)
+            # Note: We add one layer to each side of the border since it's possible that the outermost local 
+            # layer of master doesn't fully overlap with innermost ghost layer of neighbor, and vice versa.
+            layers = [self.sim.add_temp_var(0) for _ in range(self.sim.ndims())]
+            for d in range(self.sim.ndims()):
+                Assign(self.sim, layers[d], Ceil(self.sim, (cutoff_radius / spacing[d])))
         
             for x in For(self.sim, 0, dim_ncells[0]):
                 for y in For(self.sim, 0, dim_ncells[1]):
                     for z in For(self.sim, 0, dim_ncells[2]):
-                        cond0 = ScalarOp.or_op(x<layers_0, x>=(dim_ncells[0]-layers_0)) 
-                        cond1 = ScalarOp.or_op(y<layers_1, y>=(dim_ncells[1]-layers_1)) 
-                        cond2 = ScalarOp.or_op(z<layers_2, z>=(dim_ncells[2]-layers_2)) 
-                        fullcond = ScalarOp.or_op(ScalarOp.or_op(cond0, cond1), cond2) 
-                        for _ in Filter(self.sim, fullcond):
-                            index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
-                            Assign(self.sim, halo_cells[n], index + 1)
-                            Assign(self.sim, n, n+1)
+                        for is_halo in self.cell_lists.dom_part.halo_condition(x, y, z, spacing, layers):
+                            for _ in Filter(self.sim, is_halo):
+                                index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                                Assign(self.sim, halo_cells[n], index + 1)
+                                Assign(self.sim, n, n+1)
+                                Break(self.sim)()   # Go to next cell
 
 
 class BuildCellLists(Lowerable):
@@ -197,6 +191,8 @@ class PartitionCellLists(Lowerable):
         cell_particles = self.cell_lists.cell_particles
         shapes_buffer = self.cell_lists.shapes_buffer
 
+        # for p in ParticleFor(self.sim, local_only=False):
+        #     cell = particle_cell[p]
         for cell in For(self.sim, 0, self.cell_lists.ncells):
             start = self.sim.add_temp_var(0)
             end = self.sim.add_temp_var(0)

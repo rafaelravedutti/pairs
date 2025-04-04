@@ -60,11 +60,13 @@ int main(int argc, char **argv) {
     pairs::create_sphere(pairs_runtime, 15, 20, 15,     0, 4, 0,                50, 4, 0,       pairs::flags::GLOBAL);
     pairs::create_sphere(pairs_runtime, 15, 25, 4,      0, 0, 0,                50, 4, 0,       pairs::flags::GLOBAL | pairs::flags::FIXED); 
     
-    // Use the diameter of small particles to set up the cell list
-    double lcw = radius * 2;
-    pairs_sim->setup_cells(lcw, lcw, lcw, lcw);
     pairs_sim->update_mass_and_inertia();
-    pairs_sim->communicate(0);
+    
+    // Use the diameter of small particles to set up the cell list
+    double cell_width = radius * 2;
+    pairs_sim->setCellWidth(cell_width, cell_width, cell_width);
+    pairs_sim->setInteractionRadius(cell_width);
+    pairs_sim->updateDomain();
 
     int num_timesteps = 20000; 
     int vtk_freq = 100;
@@ -76,20 +78,20 @@ int main(int argc, char **argv) {
     for (int t=0; t<num_timesteps; ++t){
         if ((t % vtk_freq==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
         
-        if (t % rebalance_freq == 0){ 
-            pairs_sim->update_domain();
-        }
-        
-        pairs_sim->update_cells(t); 
-
         pairs_sim->gravity(); 
         
         // All global and local interactions are contained within the 'spring_dashpot' module
         // You have the option to call spring_dashpot before or after 'gravity' or any other force-update module
         pairs_sim->spring_dashpot();     
 
-        pairs_sim->euler(dt); 
-        pairs_sim->communicate(t);
+        pairs_sim->euler(dt);
+
+        if (t % rebalance_freq == 0){ 
+            pairs_sim->updateDomain();
+        }
+        else {
+            pairs_sim->reneighbor();
+        }
         
         if (t % vtk_freq==0){
             pairs::vtk_with_rotation(pairs_runtime, pairs::Shapes::Box, "output/local_boxes", 0, pairs_sim->nlocal(), t);

@@ -58,11 +58,14 @@ int main(int argc, char **argv) {
     double sphere_spacing = 0.4;
     pairs::dem_sc_grid(pairs_runtime, 10, 10, 15,  sphere_spacing, diameter_min, diameter_min, diameter_max,    2,      100,    2);
     
-    double lcw = diameter_max * 1.01;       // Linked-cell width
+    double cell_width = diameter_max;
     double interaction_radius = diameter_max;
-    pairs_sim->setup_cells(lcw, lcw, lcw, interaction_radius);
 
     pairs_sim->update_mass_and_inertia();
+
+    pairs_sim->setCellWidth(cell_width, cell_width, cell_width);
+    pairs_sim->setInteractionRadius(interaction_radius);
+    pairs_sim->updateDomain();
 
     int num_timesteps = 4000;
     int vtk_freq = 20;
@@ -70,22 +73,21 @@ int main(int argc, char **argv) {
     double dt = 1e-3;
 
     pairs::vtk_write_subdom(pairs_runtime, "output/subdom_init", 0);
-
     
     for (int t=0; t<num_timesteps; ++t){
         if ((t % vtk_freq==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
         
-        if (t % rebalance_freq == 0){ 
-            pairs_sim->update_domain();
-        }
-        
-        pairs_sim->update_cells(t); 
         
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 
         pairs_sim->euler(dt); 
         
-        pairs_sim->communicate(t);
+        if (t % rebalance_freq == 0){ 
+            pairs_sim->updateDomain();
+        }
+        else {
+            pairs_sim->reneighbor();
+        }
 
         if (t % vtk_freq==0){
             pairs::vtk_write_subdom(pairs_runtime, "output/subdom", t);

@@ -260,11 +260,12 @@ class Simulation:
     def reneighbor_every(self, frequency):
         self.reneighbor_frequency = frequency
 
-    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False, use_halo_cells=False):
+    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False, use_halo_cells=False, optimize_halo_paddings=False):
         """Add routines to build the linked-cells acceleration structure.
         Leave spacing as None so it can be set at runtime."""
         self._store_neighbors_per_cell = store_neighbors_per_cell
         self._use_halo_cells = use_halo_cells
+        self._optimize_halo_paddings = optimize_halo_paddings
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 

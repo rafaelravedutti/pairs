@@ -28,20 +28,19 @@ class GlobalLocalInteraction(ParticleInteraction):
             Assign(self.sim, first_cell_bytes, self.cell_lists.cell_capacity * Sizeof(self.sim, Types.Int32))
             CopyArray(self.sim, self.cell_lists.cell_sizes, Contexts.Host, Actions.ReadOnly, first_cell_bytes)
         
-        for ishape in range(self.maxs):
+        for ishape in range(self.maxs): # shape of globals
             if self.include_shape(ishape):
-                # Loop over the global cell
-                for p in For(self.sim, 0, self.cell_lists.cell_sizes[0]):
-                    i = self.cell_lists.cell_particles[0][p]
-                    # TODO: Skip if the bounding box of the global body doesn't intersect the subdom of this rank
-                    for _ in Filter(self.sim, ScalarOp.and_op(
-                        ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
-                        self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global))):
-                        for jshape in range(self.maxs):
-                            if self.include_interaction(ishape, jshape):
-                                # Globals are presenet in all ranks so they should not interact with ghosts
-                                # TODO: Make this loop the kernel candiate and reduce forces on the global body
-                                for j in ParticleFor(self.sim):
+                for jshape in range(self.maxs): # shape of locals
+                    if self.include_interaction(ishape, jshape):
+                        # Globals are presenet in all ranks so they should not interact with ghosts
+                        for j in ParticleFor(self.sim):
+                            # Loop over the global cell
+                            for p in For(self.sim, 0, self.cell_lists.cell_sizes[0]):
+                                i = self.cell_lists.cell_particles[0][p]
+                                # TODO: Skip if the bounding box of the global body doesn't intersect the subdom of this rank
+                                for _ in Filter(self.sim, ScalarOp.and_op(
+                                    ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
+                                    self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global))):
                                     # Here we make make sure not to interact with other global bodies, otherwise
                                     # their contributions will get reduced again over all ranks
                                     for _ in Filter(self.sim, ScalarOp.and_op(

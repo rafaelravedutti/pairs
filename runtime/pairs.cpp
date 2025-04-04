@@ -399,6 +399,8 @@ void PairsRuntime::communicateSizes(int dim, const int *send_sizes, int *recv_si
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
 
+    // MPI_Barrier(MPI_COMM_WORLD);
+
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
     this->getTimers()->stop(TimerMarkers::MPI);
@@ -413,8 +415,6 @@ void PairsRuntime::communicateData(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -447,10 +447,14 @@ void PairsRuntime::communicateData(
         }
     }
     
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    // MPI_Barrier(MPI_COMM_WORLD);
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateData(
@@ -471,8 +475,6 @@ void PairsRuntime::communicateDataReverse(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -505,10 +507,14 @@ void PairsRuntime::communicateDataReverse(
         }
     }
 
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    // MPI_Barrier(MPI_COMM_WORLD);
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateDataReverse(
@@ -529,8 +535,6 @@ void PairsRuntime::communicateAllData(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -563,10 +567,14 @@ void PairsRuntime::communicateAllData(
         }
     }
 
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    // MPI_Barrier(MPI_COMM_WORLD);
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateAllData(
@@ -587,12 +595,8 @@ void PairsRuntime::communicateContactHistoryData(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto contact_soffsets_id = getArrayByHostPointer(contact_soffsets).getId();
-    auto contact_roffsets_id = getArrayByHostPointer(contact_roffsets).getId();
     auto nsend_contact_id = getArrayByHostPointer(nsend_contact).getId();
-    auto nrecv_contact_id = getArrayByHostPointer(nrecv_contact).getId();
 
     copyArrayToHost(contact_soffsets_id, ReadOnly);
     copyArrayToHost(nsend_contact_id, ReadOnly);
@@ -609,10 +613,14 @@ void PairsRuntime::communicateContactHistoryData(
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
     #else
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    // MPI_Barrier(MPI_COMM_WORLD);
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, nsend_contact, nrecv_contact);
@@ -634,6 +642,7 @@ void PairsRuntime::communicateContactHistoryData(
     this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
+    auto contact_roffsets_id = getArrayByHostPointer(contact_roffsets).getId();
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * sizeof(real_t));
     copyArrayToDevice(contact_roffsets_id, Ignore);
     #endif
@@ -653,7 +662,11 @@ void PairsRuntime::allReduceInplaceSum(real_t *red_buffer, int num_elems){
     copyArrayToHost(buff_array, Ignore, num_elems * sizeof(real_t));
     #endif
 
+    // MPI_Barrier(MPI_COMM_WORLD);
+    
+    this->getTimers()->start(TimerMarkers::MPI);
     MPI_Allreduce(MPI_IN_PLACE, buff_ptr, num_elems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
     copyArrayToDevice(buff_array, Ignore, num_elems * sizeof(real_t));

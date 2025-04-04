@@ -64,11 +64,13 @@ int main(int argc, char **argv) {
     MPI_Allreduce(MPI_IN_PLACE, &pUid, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 
     auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
-
-    pairs_sim->setup_cells(0.1, 0.1, 0.1, 0.1);
+    
     pairs_sim->update_mass_and_inertia();
 
-    pairs_sim->communicate(0);
+    pairs_sim->setCellWidth(0.1, 0.1, 0.1);
+    pairs_sim->setInteractionRadius(0.1);
+    pairs_sim->updateDomain();
+
     // PairsAccessor requires an update when particles are communicated 
     ac->update();
 
@@ -104,7 +106,6 @@ int main(int argc, char **argv) {
 
         // Calculate forces
         //-------------------------------------------------------------------------------------------
-        pairs_sim->update_cells(t);
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 
 
@@ -138,10 +139,10 @@ int main(int argc, char **argv) {
         //-------------------------------------------------------------------------------------------
         pairs_sim->euler(dt);
 
-        // Communicate
+        // Reneighbor
         //-------------------------------------------------------------------------------------------
-        pairs_sim->communicate(t);
-        // PairsAccessor requires an update when particles are communicated
+        pairs_sim->reneighbor();
+        // PairsAccessor requires an update when particles are reneighbored
         ac->update();
 
         pairs::vtk_write_data(pairs_runtime, "output/dem_sd_local", 0, ac->nlocal(), t, vtk_freq);

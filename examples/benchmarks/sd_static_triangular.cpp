@@ -15,7 +15,7 @@ void print_global_stats(std::string name, Type value, MPI_Datatype mpi_type, MPI
 
     if(rank == 0){
         std::sort(all_values.begin(), all_values.end());
-        Type sum = std::accumulate(all_values.begin(), all_values.end(), 0.0);
+        Type sum = std::accumulate(all_values.begin(), all_values.end(), Type());
         double avg = static_cast<double>(sum)/world_size;
 
         // Standard deviation ------------------
@@ -28,9 +28,9 @@ void print_global_stats(std::string name, Type value, MPI_Datatype mpi_type, MPI
         // Median ------------------------------
         double median = 0.0;
         if(world_size%2 == 0){
-            median = (all_values[world_size/2 - 1] + all_values[world_size/2]) / 2.0;   
+            median = static_cast<double>(all_values[world_size/2 - 1] + all_values[world_size/2]) / 2.0;   
         } else{
-            median = all_values[world_size/2];
+            median = static_cast<double>(all_values[world_size/2]);
         }
 
         std::cout << "-----------------------------------" << std::endl;
@@ -90,37 +90,47 @@ int main(int argc, char **argv) {
     
     double initial_velocity = 0.0;  // Stationary 
     double density = 1000;          // Arbitrary
-    double lower_tirangular = true;
+    bool lower_tirangular = true;
     
     pairs::dem_sc_grid(pairs_runtime,   domain_size[0], domain_size[1], domain_size[2],
                                         particle_spacing, 
                                         diameter, diameter, diameter,
                                         initial_velocity, density, 1, lower_tirangular);
     
-    double cell_width = diameter;
-    pairs_sim->setup_cells(cell_width, cell_width, cell_width, cell_width);
-
     // Inertia update is required for euler updates to be valid (but particles remain stationary)
     pairs_sim->update_mass_and_inertia(); 
+
+    double cell_width = diameter;
+    pairs_sim->setCellWidth(cell_width, cell_width, cell_width);
+    pairs_sim->setInteractionRadius(cell_width);
+
     double dt = 0.001;  // Arbitrary
-    int print_interval = (num_timesteps >= 5) ? (num_timesteps / 5) : 1;
+    uint64_t print_interval = (num_timesteps >= 5) ? (num_timesteps / 5) : 1;
     
-    // Update domain so stats become available (does rebalancing if rebalance is ture)
-    pairs_sim->update_domain();
+    // Rebalance
+    pairs_sim->updateDomain();
 
     // Stats
     // ------------------------------------------------------------------------------
     int rank = pairs_sim->rank();
     int world_size = pairs_runtime->getDomainPartitioner()->getWorldSize();
 
-    int num_neigh_ranks = pairs_runtime->getDomainPartitioner()->getNumberOfNeighborRanks();
+    int num_local_aabbs = pairs_runtime->getDomainPartitioner()->getNumberOfLocalAABBs();
     int num_neigh_aabbs = pairs_runtime->getDomainPartitioner()->getNumberOfNeighborAABBs();
+    int num_neigh_ranks = pairs_runtime->getDomainPartitioner()->getNumberOfNeighborRanks();
     uint64_t nlocal = pairs_sim->nlocal();
     uint64_t nghost = pairs_sim->nghost();
-    print_global_stats("NUM_NEIGH_RANKS", num_neigh_ranks, MPI_INT, MPI_COMM_WORLD);
-    print_global_stats("NUM_NEIGH_AABBS", num_neigh_aabbs, MPI_INT, MPI_COMM_WORLD);
+
+    std::cout << "rank (" << rank << "): \t nlocal = " << nlocal << " nghost = " << nghost << 
+         " local_aabbs = " << num_local_aabbs << 
+         " neigh_aabbs = " << num_neigh_aabbs << 
+         " neigh_ranks = " << num_neigh_ranks << std::endl;
+
     print_global_stats("NLOCAL", nlocal, MPI_UINT64_T, MPI_COMM_WORLD);
     print_global_stats("NGHOST", nghost, MPI_UINT64_T, MPI_COMM_WORLD);
+    print_global_stats("NUM_LOCAL_AABBS", num_local_aabbs, MPI_INT, MPI_COMM_WORLD);
+    print_global_stats("NUM_NEIGH_AABBS", num_neigh_aabbs, MPI_INT, MPI_COMM_WORLD);
+    print_global_stats("NUM_NEIGH_RANKS", num_neigh_ranks, MPI_INT, MPI_COMM_WORLD);
 
     if(rank==0){
         std::cout << "NUM_PROC: " << world_size << std::endl;
@@ -133,12 +143,11 @@ int main(int argc, char **argv) {
     MPI_Barrier(MPI_COMM_WORLD);
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (int t=0; t<num_timesteps; ++t){
+    for (uint64_t t=0; t<num_timesteps; ++t){
         if ((t%print_interval==0) && rank==0) std::cout << "Timestep: " << t << std::endl;
-        pairs_sim->communicate(t);
-        pairs_sim->update_cells(t);
         pairs_sim->spring_dashpot();
         pairs_sim->euler(dt);
+        pairs_sim->reneighbor();
     }
 
     auto end = std::chrono::high_resolution_clock::now();
@@ -152,13 +161,14 @@ int main(int argc, char **argv) {
         std::cout << "TOTAL_RUNTIME: " << total_runtime << std::endl;
         std::cout << "GLOBAL_NPARTICLES: " << global_nparticles << std::endl;
         
-        double pups = global_nparticles * num_timesteps / total_runtime;    // particle updates per second
+        double pups = static_cast<double>(global_nparticles * num_timesteps) / total_runtime;    // particle updates per second
         std::cout << "PUPS: " << pups << std::endl;
     }
     
     // pairs::vtk_write_subdom(pairs_runtime, "output/sd_subdom", 0);
     // pairs::vtk_write_data(pairs_runtime, "output/sd_local", 0, pairs_sim->nlocal(), 0);
     // pairs::vtk_write_data(pairs_runtime, "output/sd_ghost", pairs_sim->nlocal(), pairs_sim->size(), 0);
+    pairs::log_timers(pairs_runtime);
 
     pairs_sim->end();
 }

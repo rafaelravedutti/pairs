@@ -7,6 +7,58 @@
 namespace pairs {
 
 
+void vtk_write_halo_cells(PairsRuntime *ps, const char *filename, int timestep, 
+        int nhalo_cells, int *halo_cells, int *dim_cells, double *spacing, double *subdom){
+
+    // if(ts%20 == 0)
+    // vtk_write_halo_cells(pairs_runtime, "output/halo_cells", ts, 
+    //     pobj->halo_ncells, pobj->halo_cells, pobj->dim_cells, pobj->spacing, pobj->subdom);
+
+    std::ostringstream filename_oss;
+
+    filename_oss << filename << "_";
+    if(ps->getDomainPartitioner()->getWorldSize() > 1) {
+        filename_oss << "r" << ps->getDomainPartitioner()->getRank() << "_";
+    }
+
+    filename_oss << timestep << ".vtk";
+    std::ofstream out_file(filename_oss.str());
+
+    if(out_file.is_open()) {
+        out_file << "# vtk DataFile Version 2.0\n";
+        out_file << "Halo cells\n";
+        out_file << "ASCII\n";
+        out_file << "DATASET POLYDATA\n";
+        out_file << "POINTS " << nhalo_cells-1 << " double\n";
+
+        out_file << std::fixed << std::setprecision(6);
+        int halo_idx = 1;
+        for(int i = 0; i < dim_cells[0]; i++) {
+            for(int j = 0; j < dim_cells[1]; j++) {
+                for(int k = 0; k < dim_cells[2]; k++) {
+                    int flat_idx = i*dim_cells[1]*dim_cells[2] + j*dim_cells[2] + k + 1;
+                    if(halo_cells[halo_idx] == flat_idx){
+                        // Cell centers:
+                        out_file << (i-0.5)*spacing[0] + subdom[0] << " ";
+                        out_file << (j-0.5)*spacing[1] + subdom[2] << " ";
+                        out_file << (k-0.5)*spacing[2] + subdom[4] << "\n";
+                        ++halo_idx;
+                    }
+                }
+            }
+        }
+
+        out_file << "\n\n";
+        out_file.close();
+    }
+    else {
+        std::cerr << "Failed to open " << filename_oss.str() << std::endl;
+        exit(-1);
+    }
+
+}
+
+
 void vtk_with_rotation(
     PairsRuntime *ps, Shapes shape, const char *filename, int start, int end, int timestep, int frequency) {
 

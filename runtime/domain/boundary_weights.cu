@@ -105,4 +105,70 @@ void compute_boundary_weights(
     *comm_weight = 0;
 }
 
+__global__ void determine_non_empty_aabbs_kernel(int num_aabbs, real_t *aabbs, int *non_empty_aabbs, 
+                                            int nlocal, int particle_capacity, real_t *position_ptr, int *flags_ptr){
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    for(int i=idx; i<nlocal; i+=stride) {
+        if (pairs_cuda_interface::get_flags(flags_ptr, i) & (pairs::flags::INFINITE | pairs::flags::GLOBAL)) {
+            continue;
+        }
+
+        real_t pos_x = pairs_cuda_interface::get_position(position_ptr, i, 0, particle_capacity);
+        real_t pos_y = pairs_cuda_interface::get_position(position_ptr, i, 1, particle_capacity);
+        real_t pos_z = pairs_cuda_interface::get_position(position_ptr, i, 2, particle_capacity);
+        for(int n = 0; n < num_aabbs; ++n){
+            if( pos_x >= aabbs[n*6 + 0] && pos_x < aabbs[n*6 + 1] &&
+                pos_y >= aabbs[n*6 + 2] && pos_y < aabbs[n*6 + 3] &&
+                pos_z >= aabbs[n*6 + 4] && pos_z < aabbs[n*6 + 5]) {
+                    non_empty_aabbs[n] = true;
+                    break;
+            }
+        }
+    }
+}
+
+void determine_non_empty_aabbs(PairsRuntime *ps, int num_aabbs, real_t *aabbs, int *non_empty_aabbs){  
+    const int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
+    const int nlocal = ps->getTrackedVariableAsInteger("nlocal");
+    
+    if (nlocal==0){
+        return;
+    }
+    else{
+        if (num_aabbs==1){
+            non_empty_aabbs[0] = 1;
+            return;
+        }
+    }
+    
+    auto position_prop = ps->getPropertyByName("position");
+    auto flags_prop = ps->getPropertyByName("flags");
+
+    real_t *position_ptr = static_cast<real_t *>(position_prop.getDevicePointer());
+    int *flags_ptr = static_cast<int *>(flags_prop.getDevicePointer());
+
+    ps->copyPropertyToDevice(position_prop.getId(), ReadOnly);
+    ps->copyPropertyToDevice(flags_prop.getId(), ReadOnly);
+
+    size_t aabbs_size = num_aabbs * 6 * sizeof(real_t);
+    size_t non_empty_aabbs_size = num_aabbs * sizeof(int);
+
+    real_t *aabbs_d = (real_t *) device_alloc(aabbs_size);
+    CUDA_ASSERT(cudaMemcpy(aabbs_d, aabbs, aabbs_size, cudaMemcpyHostToDevice));
+
+    int *non_empty_aabbs_d = (int *) device_alloc(non_empty_aabbs_size);
+    CUDA_ASSERT(cudaMemset(non_empty_aabbs_d, 0, non_empty_aabbs_size));
+
+    const int tpb = 64;
+    const int nblocks = (nlocal + tpb -1) / tpb;
+
+    determine_non_empty_aabbs_kernel<<< nblocks, tpb >>>(num_aabbs, aabbs_d, non_empty_aabbs_d, 
+        nlocal, particle_capacity, position_ptr, flags_ptr);
+
+    CUDA_ASSERT(cudaPeekAtLastError());
+    CUDA_ASSERT(cudaDeviceSynchronize());
+    CUDA_ASSERT(cudaMemcpy(non_empty_aabbs, non_empty_aabbs_d, non_empty_aabbs_size, cudaMemcpyDeviceToHost));
+}
+
 }

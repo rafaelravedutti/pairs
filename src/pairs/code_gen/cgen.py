@@ -15,7 +15,7 @@ from pairs.ir.functions import Call
 from pairs.ir.kernel import KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
-from pairs.ir.loops import For, Iter, While, Continue
+from pairs.ir.loops import For, Iter, While, Continue, Break
 from pairs.ir.quaternions import Quaternion, QuaternionAccess, QuaternionOp
 from pairs.ir.math import MathFunction
 from pairs.ir.matrices import Matrix, MatrixAccess, MatrixOp
@@ -539,6 +539,12 @@ class CGen:
         if isinstance(ast_node, Continue):
             if self.loop_scope:
                 self.print("continue;")
+            else:
+                self.print("return;")
+
+        if isinstance(ast_node, Break):
+            if self.loop_scope:
+                self.print("break;")
             else:
                 self.print("return;")
 

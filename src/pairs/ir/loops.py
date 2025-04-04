@@ -133,3 +133,13 @@ class Continue(ASTNode):
 
     def __call__(self):
         self.sim.add_statement(self)
+
+class Break(ASTNode):
+    def __init__(self, sim):
+        super().__init__(sim)
+
+    def __str__(self):
+        return f"Break<>"
+
+    def __call__(self):
+        self.sim.add_statement(self)

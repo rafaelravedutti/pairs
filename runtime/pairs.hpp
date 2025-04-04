@@ -326,8 +326,6 @@ public:
     template<typename Domain_T>
     void useDomain(const std::shared_ptr<Domain_T> &domain_ptr);
 
-    void updateDomain() { dom_part->update(); }
-
     DomainPartitioner *getDomainPartitioner() { return dom_part; }
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
 

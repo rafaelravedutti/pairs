@@ -86,7 +86,7 @@ psim.add_feature_property('type', 'friction', pairs.real())
 # psim.set_domain_partitioner(pairs.regular_domain_partitioner())
 psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([True, True, True])
-psim.build_cell_lists(use_halo_cells=False)
+psim.build_cell_lists(use_halo_cells=False, optimize_halo_paddings=False)
 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
 psim.compute(spring_dashpot, profile=False)

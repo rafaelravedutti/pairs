@@ -78,7 +78,7 @@ public:
         ss << "\n\n";
 
         std::string output = ss.str();
-        MPI_File_write_ordered(file, output.c_str(), output.size(), MPI_CHAR, MPI_STATUS_IGNORE);
+        MPI_File_write_ordered(file, output.c_str(), (int)(output.size()), MPI_CHAR, MPI_STATUS_IGNORE);
         MPI_File_close(&file);
     }
 

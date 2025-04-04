@@ -423,6 +423,20 @@ class ParticleInteraction(Lowerable):
         self.sim.module_name(f"{self.module_name}_local_interactions")
         if self.nbody == 2:
             neighbor_lists = None if self.use_cell_lists else self.sim.neighbor_lists
+            # for ishape in range(self.maxs):
+            #     if self.include_shape(ishape):
+            #         for jshape in range(self.maxs):
+            #             if self.include_interaction(ishape, jshape):
+            #                 # A kernel for each ishape
+            #                 for i in ParticleFor(self.sim):
+            #                     for _ in Filter(self.sim, ScalarOp.and_op(
+            #                         ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
+            #                         ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
+            #                                 # Inner loops for each jshaped neighbor
+            #                                 for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+            #                                     j = neigh.particle_index()
+            #                                     self.compute_interaction(i, j, ishape, jshape)
+
             for ishape in range(self.maxs):
                 if self.include_shape(ishape):
                     # A kernel for each ishape

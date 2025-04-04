@@ -163,7 +163,7 @@ public:
     }
 
     void serializeImpl(Block *const block, const BlockDataID&, mpi::SendBuffer& buffer, const uint_t child, bool check_child) {
-        auto ptr = buffer.allocate<uint_t>();
+        auto ptr = buffer.allocate<int>();
         double aabb_check[6];
 
         if(check_child) {
@@ -275,21 +275,21 @@ public:
         ps->setTrackedVariableAsInteger("nlocal", nlocal - nserialized);
         ps->setTrackedVariableAsInteger("nghost", 0);
         
-        *ptr = (uint_t) nserialized;
+        *ptr = (int) nserialized;
     }
 
     void deserializeImpl(IBlock *const, const BlockDataID&, mpi::RecvBuffer& buffer) {
         int nlocal = ps->getTrackedVariableAsInteger("nlocal");
-        int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
         real_t real_tmp;
         int int_tmp;
-        uint_t nrecv;
+        int nrecv;
         uint64_t uint64_tmp;
 
         buffer >> nrecv;
         
         // TODO: Check if there is enough particle capacity for the new particles, when there is not,
         // all properties and arrays which have particle_capacity as one of their dimensions must be reallocated
+        // int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
         // PAIRS_ASSERT(nlocal + nrecv < particle_capacity);
 
         for(int i = 0; i < nrecv; ++i) {
