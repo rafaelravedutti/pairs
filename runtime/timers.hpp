@@ -36,7 +36,8 @@ public:
     void writeToFile(int rank, int world_size){
         std::string filename = "timers_" + std::to_string(world_size) + ".txt";
         if (rank==0) std::cout << "Writing timers log to: " << filename << std::endl;
-
+        std::remove(filename.c_str());
+        
         MPI_File file;
         MPI_File_open(MPI_COMM_WORLD, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file);
 

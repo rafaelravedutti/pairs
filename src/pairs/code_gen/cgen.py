@@ -43,7 +43,7 @@ class CGen:
         self.target = None
         self.print = None
         self.kernel_context = False
-        self.loop_scope = False
+        self.loop_depth = False
         self.generate_full_object_names = False
         self.ref = ref
         self.debug = debug
@@ -537,13 +537,13 @@ class CGen:
             self.print.add_indent(-4)
 
         if isinstance(ast_node, Continue):
-            if self.loop_scope:
+            if self.loop_depth:
                 self.print("continue;")
             else:
                 self.print("return;")
 
         if isinstance(ast_node, Break):
-            if self.loop_scope:
+            if self.loop_depth:
                 self.print("break;")
             else:
                 self.print("return;")
@@ -775,9 +775,10 @@ class CGen:
                 self.print("#pragma omp parallel for")
 
             self.print(f"for(int {iterator} = {lower_range}; {iterator} < {upper_range}; {iterator}++) {{")
-            self.loop_scope = True
+            parent_loop_scope = self.loop_depth
+            self.loop_depth = True
             self.generate_statement(ast_node.block)
-            self.loop_scope = False
+            self.loop_depth = parent_loop_scope
             self.print("}")
 
 
@@ -983,9 +984,10 @@ class CGen:
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)
             self.print(f"while({cond}) {{")
-            self.loop_scope = True
+            parent_loop_scope = self.loop_depth
+            self.loop_depth = True
             self.generate_statement(ast_node.block)
-            self.loop_scope = False
+            self.loop_depth = parent_loop_scope
             self.print("}")
 
         if isinstance(ast_node, Return):

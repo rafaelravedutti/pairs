@@ -331,6 +331,9 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
     sim.init_block()
     sim.module_name(func.__name__)
 
+    if profile:
+        sim.enable_profiler()
+        
     if nparams == 1:
         for i in OneBodyKernel(sim, func.__name__, run_on_device=run_on_device, profile=profile):
             ir = BuildParticleIR(sim, symbols, parameters)
