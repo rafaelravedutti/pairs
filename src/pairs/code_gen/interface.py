@@ -34,12 +34,6 @@ class InterfaceModules:
         self.refreshGhosts() 
         self.reverseCommunicate() 
         self.resetVolatiles()
-
-        if self.sim._use_contact_history:
-            if self.neighbor_lists:
-                self.buildContactHistory(self.sim.reneighbor_frequency)
-            self.resetContactHistory()
-
         self.rank()
         self.nlocal()
         self.nghost()
@@ -126,7 +120,8 @@ class InterfaceModules:
     @pairs_interface_block
     def reneighbor(self):
         self.sim.module_name('reneighbor')
-        reneighboring_procedures = Block.from_list(self.sim, [
+
+        reneighboring_procedures = [
             Exchange(self.sim._comm),
             Borders(self.sim._comm),
             # Note: DomainUpdateLocal must happen after exchange since local particles must be contained in AABBs
@@ -134,8 +129,16 @@ class InterfaceModules:
             BuildCellListsStencil(self.sim, self.sim.cell_lists),
             self.sim.update_cells_procedures,
             ResetVolatileProperties(self.sim)
-        ])
-        self.sim.add_statement(reneighboring_procedures)
+        ]
+
+        if self.sim._use_contact_history:
+            reneighboring_procedures += [
+                BuildContactHistory(self.sim, self.sim._contact_history, self.sim.cell_lists),
+                ResetContactHistoryUsageStatus(self.sim, self.sim._contact_history),
+                ClearUnusedContactHistory(self.sim, self.sim._contact_history)
+            ]
+        
+        self.sim.add_statement(Block.from_list(self.sim, reneighboring_procedures))
 
     @pairs_interface_block
     def refreshGhosts(self):
@@ -152,25 +155,6 @@ class InterfaceModules:
         self.sim.module_name('resetVolatiles')
         self.sim.add_statement(ResetVolatileProperties(self.sim))
     
-    @pairs_interface_block
-    def buildContactHistory(self, reneighbor_frequency=1):
-        self.sim.module_name('buildContactHistory')
-        timestep = Parameter(self.sim, f'timestep', Types.Int32)
-        cond = ScalarOp.inline(ScalarOp.or_op(
-            ScalarOp.cmp((timestep + 1) % reneighbor_frequency, 0),
-            ScalarOp.cmp(timestep, 0)
-            ))
-        
-        self.sim.add_statement(
-            Filter(self.sim, cond,
-                   BuildContactHistory(self.sim, self.sim._contact_history, self.sim.cell_lists)))
-
-    @pairs_interface_block
-    def resetContactHistory(self):
-        self.sim.module_name('resetContactHistory')
-        self.sim.add_statement(ResetContactHistoryUsageStatus(self.sim, self.sim._contact_history))
-        self.sim.add_statement(ClearUnusedContactHistory(self.sim, self.sim._contact_history))
-
     @pairs_interface_block
     def rank(self):
         self.sim.module_name('rank')

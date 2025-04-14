@@ -47,8 +47,8 @@ class NeighborFor:
         self.particle = particle
         self.cell_lists = cell_lists
         self.neighbor_lists = neighbor_lists
-        # self.shapes = range(sim.max_shapes()) if shapes is None else shapes
-        self.shapes = [shapes]
+        self.shapes = range(sim.max_shapes()) if shapes is None else [shapes]
+        # self.shapes = [shapes]
 
     def __str__(self):
         return f"NeighborFor<{self.particle}>"

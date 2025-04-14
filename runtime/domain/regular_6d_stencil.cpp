@@ -89,8 +89,8 @@ void Regular6DStencil::initialize(int *argc, char ***argv) {
     this->setBoundingBox();
     if (rank==0) {
         std::cout << "Domain Partitioner: Regular-6D" << std::endl;
-        std::cout << "Domain: [ <"  << subdom_min[0] << "," << subdom_min[1] << "," << subdom_min[2] << ">, <"
-                                    << subdom_max[0] << "," << subdom_max[1] << "," << subdom_max[2] << "> ]"<< std::endl;
+        std::cout << "Domain: [ <"  << grid_min[0] << "," << grid_min[1] << "," << grid_min[2] << ">, <"
+                                    << grid_max[0] << "," << grid_max[1] << "," << grid_max[2] << "> ]"<< std::endl;
         std::cout << "Configuration: <" << nranks[0] << "," <<  nranks[1] << "," << nranks[2] << ">" <<std::endl;
     }
 }
