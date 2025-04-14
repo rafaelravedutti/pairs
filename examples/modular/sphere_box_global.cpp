@@ -4,7 +4,7 @@
 
 #include "sphere_box_global.hpp"
 
-// cmake -DINPUT_SCRIPT=../examples/modular/sphere_box_global.py -DWALBERLA_DIR=../../walberla -DBUILD_APP=ON -DUSER_SOURCE_FILES=../examples/modular/sphere_box_global.cpp -DCOMPILE_CUDA=ON ..
+// cmake -DINPUT_SCRIPT=../examples/modular/sphere_box_global.py DUSER_SOURCE_FILES=../examples/modular/sphere_box_global.cpp -DUSE_WALBERLA=ON -DCOMPILE_CUDA=ON ..
 
 void set_feature_properties(std::shared_ptr<PairsAccessor> &ac){
     ac->setTypeStiffness(0,0, 1e6);

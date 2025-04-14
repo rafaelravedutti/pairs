@@ -9,6 +9,7 @@ from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.ir.vectors import Vector
 from pairs.ir.print import Print
+from pairs.ir.atomic import AtomicInc
 from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
 from pairs.sim.shapes import Shapes
@@ -374,7 +375,7 @@ class ParticleInteraction(Lowerable):
         self.sim.leave()
         self.active_block = None
 
-    def apply_reductions(self, i, ishape, jshape):
+    def apply_reductions(self, i, ishape, jshape, atomic=False):
         prop_reductions = {}
         for app in self.apply_list[ishape*self.maxs + jshape]:
             prop = app.prop()
@@ -385,9 +386,18 @@ class ParticleInteraction(Lowerable):
                 prop_reductions[prop] = prop_reductions[prop] + reduction
 
         for prop, reduction in prop_reductions.items():
-            Assign(self.sim, prop[i], prop[i] + reduction)
+            if atomic:
+                if Types.is_scalar(prop.type()):
+                    AtomicInc(self.sim, prop[i], reduction)
+                    
+                else:
+                    for d in range(Types.number_of_elements(self.sim, prop.type())):
+                        AtomicInc(self.sim, prop[i][d], reduction[d])
 
-    def compute_interaction(self, i, j, ishape, jshape):
+            else:
+                Assign(self.sim, prop[i], prop[i] + reduction)
+
+    def compute_interaction(self, i, j, ishape, jshape, atomic=False):
         interaction_data = self.interactions_data[ishape*self.maxs + jshape]
         interaction_data.i().assign(i)
         interaction_data.j().assign(j)
@@ -416,7 +426,7 @@ class ParticleInteraction(Lowerable):
 
         # The i-j block is executed only if the cutoff_condition of the i-j interaction is met
         self.sim.add_statement(Filter(self.sim, interaction_data.cutoff_condition, self.blocks[ishape*self.maxs + jshape]))
-        self.apply_reductions(i, ishape, jshape)
+        self.apply_reductions(i, ishape, jshape, atomic)
 
     @pairs_block
     def lower(self):

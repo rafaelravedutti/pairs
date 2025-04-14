@@ -23,11 +23,6 @@ class GlobalLocalInteraction(ParticleInteraction):
     @pairs_device_block
     def lower(self):
         self.sim.module_name(f"{self.module_name}_global_local_interactions")
-        if self.sim._target.is_gpu():
-            first_cell_bytes = self.sim.add_temp_var(0)
-            Assign(self.sim, first_cell_bytes, self.cell_lists.cell_capacity * Sizeof(self.sim, Types.Int32))
-            CopyArray(self.sim, self.cell_lists.cell_sizes, Contexts.Host, Actions.ReadOnly, first_cell_bytes)
-        
         for ishape in range(self.maxs): # shape of globals
             if self.include_shape(ishape):
                 for jshape in range(self.maxs): # shape of locals
@@ -47,7 +42,7 @@ class GlobalLocalInteraction(ParticleInteraction):
                                         ScalarOp.cmp(self.sim.particle_shape[j], self.sim.get_shape_id(jshape)),
                                         ScalarOp.not_op(self.sim.particle_flags[j] & (Flags.Infinite | Flags.Global)))):
                                         for _ in Filter(self.sim, ScalarOp.neq(i, j)):
-                                            self.compute_interaction(i, j, ishape, jshape)
+                                            self.compute_interaction(i, j, ishape, jshape, atomic=True)
 
 
 class GlobalGlobalInteraction(ParticleInteraction):
