@@ -108,7 +108,6 @@ int main(int argc, char **argv) {
     auto start = std::chrono::high_resolution_clock::now();
 
     for (int t=0; t<num_timesteps; ++t){
-        if ((t % vtk_freq==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
         ac->syncUid(PairsAccessor::Host);
         
         // Change bottom plate position
