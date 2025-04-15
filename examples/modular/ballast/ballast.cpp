@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     pairs_sim->update_mass_and_inertia();
     pairs_sim->updateDomain();
 
-    int num_timesteps = 5; 
+    int num_timesteps = 500000; 
     int vtk_freq = 5000;
     double dt = 1e-5;
     set_feature_properties(ac);
