@@ -42,7 +42,7 @@ class PairsAcessor:
         self.sync_ctx_enum()
         self.update()
         self.constructor()
-        # self.destructor()
+        self.end()
 
         for p in self.sim.properties:
             if (p.type()==Types.Vector) or (Types.is_scalar(p.type())):
@@ -178,9 +178,9 @@ class PairsAcessor:
 
         self.print("")
 
-    def destructor(self):
+    def end(self):
+        self.print(f"{self.host_attr} void end(){{")
         if self.target.is_gpu():
-            self.print(f"{self.host_attr}~PairsAccessor(){{")
             self.print.add_indent(4)
 
             for p in self.sim.properties:
@@ -188,13 +188,13 @@ class PairsAcessor:
                 tkw = Types.c_keyword(self.sim, Types.Boolean)
                 self.print(f"cudaFree(dp_h->{pname}_device_flag_d);")
 
-            self.print(f"delete hp;")
-            self.print(f"delete dp_h;")
             self.print(f"cudaFree(dp_d);")
+            self.print(f"delete dp_h;")
+            self.print(f"delete hp;")
 
             self.print.add_indent(-4)
-            self.print("}")
-            self.print("")
+        self.print("}")
+        self.print("")
 
     def ifdef_else(self, ifdef, func1, args1, func2, args2):
         self.print.add_indent(4)

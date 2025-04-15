@@ -1,6 +1,6 @@
 from pairs.ir.assign import Assign
 from pairs.ir.branches import Filter
-from pairs.ir.loops import For, Continue
+from pairs.ir.loops import For, Continue, Break
 from pairs.ir.functions import Call_Int, Call_Void, Call
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
@@ -371,6 +371,7 @@ class BlockForest:
         '''
         # Particles with one of the following flags are ignored
         flags_to_exclude = (Flags.Infinite | Flags.Global)
+        early_skipping = False
 
         for r in self.step_indexes(0):     # for every neighbor rank
             for _ in Filter(self.sim, self.has_non_empty_aabb_in_neighborhood_of_rank[r]):
@@ -378,6 +379,33 @@ class BlockForest:
                     particle_flags = self.sim.particle_flags
 
                     for _ in Filter(self.sim, ScalarOp.cmp(particle_flags[i] & flags_to_exclude, 0)):
+
+                        # ---------------------------------------------------------------------
+                        # [EXPERIMENTAL]
+                        # If particle is inside one of the previously determined non-empty local blocks, it gets skipped.
+                        # else it gets checked with all neighbors
+                        # Extreme case in regular partitioning: 
+                        # (Particle checks position in one local aabb and avoids 26 neighbor checks)
+                        if early_skipping:
+                            skip_particle = self.sim.add_temp_var(0)
+                            for aabb_id in For(self.sim, 0, self.num_local_aabbs):
+                                for _ in Filter(self.sim, self.non_empty_local_aabbs[aabb_id]):
+                                    full_cond = None
+                                    for d in range(self.sim.ndims()):
+                                        aabb_min = self.local_aabbs[aabb_id][d * 2 + 0]
+                                        aabb_max = self.local_aabbs[aabb_id][d * 2 + 1]
+                                        pos = position[i][d]
+                                        d_cond = ScalarOp.and_op(pos >= aabb_min + offset, pos < aabb_max - offset)
+                                        full_cond = d_cond if full_cond is None else ScalarOp.and_op(full_cond, d_cond)
+                                    
+                                    for _ in Filter(self.sim, full_cond):
+                                        Assign(self.sim, skip_particle, 1)
+                                        Break(self.sim)()
+
+                            for _ in Filter(self.sim, skip_particle):
+                                Continue(self.sim)()                            
+                        # #---------------------------------------------------------------------
+
                         for aabb_id in For(self.sim, self.aabb_offsets[r], self.aabb_offsets[r] + self.num_neigh_aabbs[r]): # for every aabb of this neighbor
                             for _ in Filter(self.sim, ScalarOp.neq(self.ranks[r] , self.rank)):     # if my neighobr is not my own rank
                                 full_cond = None
@@ -392,13 +420,13 @@ class BlockForest:
                                     if self.sim._pbc[d]:
                                         center = aabb_min + (aabb_max - aabb_min) * 0.5     # center of neighbor block
                                         dist = position[i][d] - center                      # distance of our particle from center of neighbor
-                                        cond_pbc_neg = dist >  (d_length * 0.5)
+                                        cond_pbc_neg = dist >=  (d_length * 0.5)
                                         cond_pbc_pos = dist < -(d_length * 0.5)
 
                                         d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
 
                                     adj_pos = position[i][d] + d_pbc * d_length 
-                                    d_cond = ScalarOp.and_op(adj_pos > aabb_min - offset, adj_pos < aabb_max + offset)
+                                    d_cond = ScalarOp.and_op(adj_pos >= aabb_min - offset, adj_pos < aabb_max + offset)
                                     full_cond = d_cond if full_cond is None else ScalarOp.and_op(full_cond, d_cond)
                                     pbc_shifts.append(d_pbc)
 
@@ -407,7 +435,7 @@ class BlockForest:
 
                             for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me
                                 pbc_shifts = []
-                                isghost = Lit(self.sim, 0)
+                                isghost = self.sim.add_temp_var(0)
 
                                 for d in range(self.sim.ndims()):
                                     aabb_min = self.neigh_aabbs[aabb_id][d * 2 + 0]
@@ -418,7 +446,7 @@ class BlockForest:
                                     d_length = self.sim.grid.length(d)
 
                                     if self.sim._pbc[d]:
-                                        cond_pbc_neg = dist >  (d_length*0.5 - offset)
+                                        cond_pbc_neg = dist >=  (d_length*0.5 - offset)
                                         cond_pbc_pos = dist < -(d_length*0.5 - offset)
                                         d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
                                         isghost = ScalarOp.or_op(isghost, d_pbc)
@@ -462,13 +490,13 @@ class BlockForest:
                                         if self.sim._pbc[d]:
                                             center = aabb_min + (aabb_max - aabb_min) * 0.5     # center of neighbor block
                                             dist = position[i][d] - center                      # distance of our particle from center of neighbor
-                                            cond_pbc_neg = dist >  (d_length * 0.5)
+                                            cond_pbc_neg = dist >=  (d_length * 0.5)
                                             cond_pbc_pos = dist < -(d_length * 0.5)
 
                                             d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
 
                                         adj_pos = position[i][d] + d_pbc * d_length 
-                                        d_cond = ScalarOp.and_op(adj_pos > aabb_min - offset, adj_pos < aabb_max + offset)
+                                        d_cond = ScalarOp.and_op(adj_pos >= aabb_min - offset, adj_pos < aabb_max + offset)
                                         full_cond = d_cond if full_cond is None else ScalarOp.and_op(full_cond, d_cond)
                                         pbc_shifts.append(d_pbc)
 
@@ -477,7 +505,7 @@ class BlockForest:
 
                                 for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me
                                     pbc_shifts = []
-                                    isghost = Lit(self.sim, 0)
+                                    isghost = self.sim.add_temp_var(0)
 
                                     for d in range(self.sim.ndims()):
                                         aabb_min = self.neigh_aabbs[aabb_id][d * 2 + 0]
@@ -488,7 +516,7 @@ class BlockForest:
                                         d_length = self.sim.grid.length(d)
 
                                         if self.sim._pbc[d]:
-                                            cond_pbc_neg = dist >  (d_length*0.5 - offset)
+                                            cond_pbc_neg = dist >=  (d_length*0.5 - offset)
                                             cond_pbc_pos = dist < -(d_length*0.5 - offset)
                                             d_pbc = Select(self.sim, cond_pbc_neg, -1, Select(self.sim, cond_pbc_pos, 1, 0))
                                             isghost = ScalarOp.or_op(isghost, d_pbc)

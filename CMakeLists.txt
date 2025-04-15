@@ -5,7 +5,9 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug, Release, etc.)" FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+# set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math -S -fverbose-asm")
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native")
+
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
 option(USE_MPI                      "USE_MPI" ON)
