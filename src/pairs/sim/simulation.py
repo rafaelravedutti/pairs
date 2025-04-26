@@ -93,6 +93,7 @@ class Simulation:
         # Domain partitioning
         self._dom_part = None
         self._partitioner = None
+        self._use_walberla = False
         self._comm = None
 
         # Contact history
@@ -122,6 +123,7 @@ class Simulation:
 
         elif partitioner == DomainPartitioners.BlockForest:
             self._dom_part = BlockForest(self)
+            self._use_walberla = True
 
         else:
             raise Exception("Invalid domain partitioner.")

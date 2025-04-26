@@ -147,6 +147,9 @@ class CGen:
             self.print("#define PAIRS_TARGET_OPENMP")
             self.print("#include <omp.h>")
 
+        if self.sim._use_walberla:
+            self.print("#define USE_WALBERLA")
+            
         self.print("#include <limits.h>")
         self.print("#include <math.h>")
         self.print("#include <stdbool.h>")

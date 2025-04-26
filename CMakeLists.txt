@@ -64,7 +64,6 @@ set(PAIRS_TARGET "pairs")
 
 # PAIRS dependencies 
 set(PAIRS_LINK_LIBRARIES)
-set(PAIRS_LINK_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 set(PAIRS_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 
 # The target can either be an executable or a static library
@@ -72,7 +71,9 @@ if(USER_SOURCE_FILES)
     add_executable(${PAIRS_TARGET} ${RUNTIME_COMMON_FILES})
 else()
     add_library(${PAIRS_TARGET} STATIC ${RUNTIME_COMMON_FILES})
-    list(APPEND PAIRS_LINK_LIBRARIES ${PAIRS_TARGET})
+
+    # TODO: Get the location with $<TARGET_FILE> generator expression (at build time)
+    list(APPEND PAIRS_LINK_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/lib${PAIRS_TARGET}.a")
 endif()
 
 # Include P4IRS 'runtime' dir
@@ -119,12 +120,18 @@ if(USE_WALBERLA)
     waLBerla_import()
 
     # Recent issue from the waLBerla side: warnings about empty CUDA_ARCHITECTURES for walberla_gpu 
-    set(PAIRS_WALBERLA_DEPENDENCIES walberla::blockforest walberla::core)
-    target_link_libraries(${PAIRS_TARGET} PUBLIC ${PAIRS_WALBERLA_DEPENDENCIES})
+    target_link_libraries(${PAIRS_TARGET} PUBLIC 
+        walberla::blockforest 
+        walberla::domain_decomposition 
+        walberla::core 
+        stdc++fs
+    )
 
-    ## TODO: PAIRS_LINK_DIRS and PAIRS_LINK_LIBRARIES for walberla modules *AND* their dependencies
-    ## This implemention only works if the consumer of the library is itself a walberla app (made within the build system of walberla)
-    list(APPEND PAIRS_LINK_LIBRARIES ${PAIRS_WALBERLA_DEPENDENCIES})
+    # TODO: Get the location with $<TARGET_FILE> generator expression (at build time)
+    list(APPEND PAIRS_LINK_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/blockforest/libwalberla_blockforest.a)
+    list(APPEND PAIRS_LINK_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/domain_decomposition/libwalberla_domain_decomposition.a)
+    list(APPEND PAIRS_LINK_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/core/libwalberla_core.a)
+    list(APPEND PAIRS_LINK_LIBRARIES stdc++fs)
 endif()
 
 #================================================================================
