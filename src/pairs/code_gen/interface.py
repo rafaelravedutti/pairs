@@ -123,9 +123,11 @@ class InterfaceModules:
 
         reneighboring_procedures = [
             Exchange(self.sim._comm),
-            Borders(self.sim._comm),
-            # Note: DomainUpdateLocal must happen after exchange since local particles must be contained in AABBs
+            # Note: DomainUpdateLocal must happen after exchange since local particles must be contained in AABBs.
+            #       And it must happen before Borders since newly received particles need to be included, so they become ghosts
+            #       for their previous neighbor
             DomainUpdateLocal(self.sim),    
+            Borders(self.sim._comm),
             BuildCellListsStencil(self.sim, self.sim.cell_lists),
             self.sim.update_cells_procedures,
             ResetVolatileProperties(self.sim)
