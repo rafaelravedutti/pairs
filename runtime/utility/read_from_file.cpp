@@ -139,7 +139,7 @@ void write_spheres(PairsRuntime *pr, const char *filename){
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
-void read_spheres(PairsRuntime *pr, const char *filename){
+void read_spheres(PairsRuntime *pr, const char *filename, std::array<double, 3> offset){
     int n = pr->getTrackedVariableAsInteger("nlocal");
     auto shapes = pr->getAsIntegerProperty(pr->getPropertyByName("shape"));
     auto flags = pr->getAsIntegerProperty(pr->getPropertyByName("flags"));
@@ -168,16 +168,20 @@ void read_spheres(PairsRuntime *pr, const char *filename){
         double mass;
         in_stream >> shape >> flag >> type >> x >> y >> z >> radius >> mass;
 
+        double shifted_posx = x + offset[0];
+        double shifted_posy = y + offset[1];
+        double shifted_posz = z + offset[2];
+
         if(shape == Shapes::Sphere){
-            bool within_subdom = pr->getDomainPartitioner()->isWithinSubdomain(x, y, z);
+            bool within_subdom = pr->getDomainPartitioner()->isWithinSubdomain(shifted_posx, shifted_posy, shifted_posz);
             if(within_subdom || (flag & (flags::INFINITE | flags::GLOBAL))){
                 shapes(n) = shape;
                 flags(n) = flag;
                 types(n) = type;
                 uids(n) = (flag & (flags::INFINITE |flags::GLOBAL)) ? UniqueID::createGlobal(pr) : UniqueID::create(pr);
-                positions(n,0) = x;
-                positions(n,1) = y;
-                positions(n,2) = z;
+                positions(n,0) = shifted_posx;
+                positions(n,1) = shifted_posy;
+                positions(n,2) = shifted_posz;
                 radii(n) = radius;
                 masses(n) = mass;
                 ++n;

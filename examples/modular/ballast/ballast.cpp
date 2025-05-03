@@ -33,17 +33,26 @@ void set_feature_properties(std::shared_ptr<PairsAccessor> &ac){
     ac->syncTypeDampingTan();
 }
 
+void print_usage(){
+    std::cerr << "Required args: num_beds_x num_beds_y num_timesteps" << std::endl;
+    exit(-1);
+}
+
 int main(int argc, char **argv) {
+    if (argc<4) print_usage();
+
     auto pairs_sim = std::make_shared<PairsSimulation>();
     pairs_sim->initialize();
     auto ac = std::make_shared<PairsAccessor>(pairs_sim.get());
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     // ===================================================================================================
-    // Domain
+    // Domain 
     // ===================================================================================================
-    double domain_size[3] = {1.5, 1.0, 0.8};
-    pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, domain_size[0], domain_size[1], domain_size[2], false); 
+    int nbeds[2] = {std::stoi(argv[1]), std::stoi(argv[2])};
+    double bed_size[3] = {1.5, 1.0, 0.65};
+    double domain_size[3] = {bed_size[0]*nbeds[0], bed_size[1]*nbeds[1], bed_size[2]};
+    pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, domain_size[0], domain_size[1], domain_size[2], false);
 
     // ===================================================================================================
     // Spheres
@@ -61,7 +70,14 @@ int main(int argc, char **argv) {
 
     // Settled bed with box in place
     // ------------------------------------------------------------------
-    pairs::read_spheres(pairs_runtime, "../examples/modular/ballast/spheres_bed_with_box.txt");
+    for(int i=0; i<nbeds[0]; ++i){
+        for(int j=0; j<nbeds[1]; ++j){
+            pairs::read_spheres(pairs_runtime, 
+                "../examples/modular/ballast/spheres_bed_with_box.txt", 
+                {i*bed_size[0], j*bed_size[1], 0.0});
+
+        }
+    }
 
     // ===================================================================================================
     // Box (sleeper)
@@ -70,10 +86,21 @@ int main(int argc, char **argv) {
     double box_density = 8000;
     double box_size[3] = {0.4, 0.3, 0.15};
     double box_pos[3] = {0.779191, 0.497293, 0.484325};
-    auto box_uid = pairs::create_box(pairs_runtime, box_pos[0], box_pos[1], box_pos[2],
-                                        0, 0, 0, 
-                                        box_size[0], box_size[1], box_size[2],  
-                                        box_density, 1, pairs::flags::GLOBAL); 
+    int num_boxes = nbeds[0] * nbeds[1];
+    pairs::id_t box_uid[num_boxes];
+    for(int i=0; i<nbeds[0]; ++i){
+        for(int j=0; j<nbeds[1]; ++j){
+            box_uid[i*nbeds[1] + j] = pairs::create_box(pairs_runtime, 
+                box_pos[0] + i*bed_size[0], 
+                box_pos[1] + j*bed_size[1], 
+                box_pos[2],
+                0, 0, 0, 
+                box_size[0], box_size[1], box_size[2],  
+                box_density, 1, pairs::flags::GLOBAL); 
+        }
+    }
+
+    pairs::Vector3<double> external_force(100, 0, 0);
 
     // ===================================================================================================
     // Halfspace (bottom plate)
@@ -92,7 +119,7 @@ int main(int argc, char **argv) {
     pairs_sim->update_mass_and_inertia();
     pairs_sim->updateDomain();
 
-    int num_timesteps = 500000; 
+    int num_timesteps = std::stoi(argv[3]); 
     int vtk_freq = 5000;
     double dt = 1e-5;
     set_feature_properties(ac);
@@ -127,14 +154,15 @@ int main(int argc, char **argv) {
 
         // Apply external force to Box
         // ------------------------------------------------------------------
-        auto box_idx = ac->uidToIdxLocal(box_uid);
-        ac->syncForce(PairsAccessor::Host);
-        ac->syncTorque(PairsAccessor::Host);
-        pairs::Vector3<double> external_force(500, 0, 0);
-        ac->setForce(box_idx, ac->getForce(box_idx) + external_force);
-        ac->setTorque(box_idx, {0.0, 0.0, 0.0});    // Reset torque to prevent rotation
-        ac->syncForce(PairsAccessor::Host);
-        ac->syncTorque(PairsAccessor::Host);
+        for(int i=0; i<num_boxes; ++i){
+            auto box_idx = ac->uidToIdxLocal(box_uid[i]);
+            ac->syncForce(PairsAccessor::Host);
+            ac->syncTorque(PairsAccessor::Host);
+            ac->setForce(box_idx, ac->getForce(box_idx) + external_force);
+            ac->setTorque(box_idx, {0.0, 0.0, 0.0});    // Reset torque to prevent rotation
+            ac->syncForce(PairsAccessor::Host);
+            ac->syncTorque(PairsAccessor::Host);
+        }
 
         // Update positions and reneighbor
         // ------------------------------------------------------------------
@@ -147,9 +175,15 @@ int main(int argc, char **argv) {
             pairs::vtk_write_data(pairs_runtime, "output/local_spheres", 0, pairs_sim->nlocal(), t);
 
             if(rank==0){
+                auto runtime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count();
+                std::cout << "Timestep: " << t << " - Time = " << dt*t << " - Runtime = " << runtime << std::endl;
                 ac->syncPosition(PairsAccessor::Host);
-                std::cout << "Timestep: " << t << " - Time = " << dt*t << " - Box position = " << ac->getPosition(box_idx) << std::endl;
+                for(int i=0; i<num_boxes; ++i){
+                    auto box_idx = ac->uidToIdxLocal(box_uid[i]);
+                    std::cout << "\t Box (" << i << ") position = " << ac->getPosition(box_idx) << std::endl;
+                }
                 pairs::vtk_with_rotation(pairs_runtime, pairs::Shapes::Box, "output/local_boxes", 0, pairs_sim->nlocal(), t);
+                
             }
         }
     }
@@ -172,12 +206,15 @@ int main(int argc, char **argv) {
         std::cout << "PUPS: " << pups << std::endl;
 
         ac->syncUid(PairsAccessor::Host);
-        auto plate_idx = ac->uidToIdxLocal(plate_uid);
-        auto box_idx = ac->uidToIdxLocal(box_uid);
+        for(int i=0; i<num_boxes; ++i){
+            auto box_idx = ac->uidToIdxLocal(box_uid[i]);
+            std::cout << "box (" << i << ") final position = " << ac->getPosition(box_idx) << std::endl;
+        }
 
-        std::cout << "box final position = " << ac->getPosition(box_idx) << std::endl;
+        auto plate_idx = ac->uidToIdxLocal(plate_uid);
         std::cout << "plate final position = " << ac->getPosition(plate_idx) << std::endl;
     }
+    pairs::log_timers(pairs_runtime);
 
     ac->end();
     pairs_sim->end();

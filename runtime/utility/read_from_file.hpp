@@ -14,7 +14,7 @@ namespace pairs {
 void write_boxes(PairsRuntime *pr, const char *filename);
 void read_boxes(PairsRuntime *pr, const char *filename);
 void write_spheres(PairsRuntime *pr, const char *filename);
-void read_spheres(PairsRuntime *pr, const char *filename);
+void read_spheres(PairsRuntime *pr, const char *filename, std::array<double, 3> offset = {0.0, 0.0, 0.0});
 
 void read_grid_data(PairsRuntime *ps, const char *filename, real_t *grid_buffer);
 
