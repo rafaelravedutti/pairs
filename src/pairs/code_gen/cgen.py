@@ -690,9 +690,9 @@ class CGen:
                     operator = matrix_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const {self.real_type()} {matrix_op.name()}_{i} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const {self.real_type()} {matrix_op.name()}_{i} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, Vector):
                 vector = ast_node.elem

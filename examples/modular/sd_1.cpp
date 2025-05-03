@@ -12,12 +12,12 @@ int main(int argc, char **argv) {
 
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1); 
 
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
     pairs::create_sphere(pairs_runtime, 0.6, 0.6, 0.7,      -2, -2, 0,  1000, 0.05, 0, 0);
     pairs::create_sphere(pairs_runtime, 0.4, 0.4, 0.68,    2, 2, 0,    1000, 0.05, 0, 0);
 

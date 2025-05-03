@@ -428,6 +428,9 @@ void PairsRuntime::communicateData(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -488,6 +491,9 @@ void PairsRuntime::communicateDataReverse(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -548,6 +554,9 @@ void PairsRuntime::communicateAllData(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -612,6 +621,9 @@ void PairsRuntime::communicateContactHistoryData(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
     auto send_buf_id = send_buf_array.getId();
     auto recv_buf_id = recv_buf_array.getId();
@@ -658,6 +670,9 @@ void PairsRuntime::allReduceInplaceSum(real_t *red_buffer, int num_elems){
 
     #ifdef ENABLE_CUDA_AWARE_MPI
     buff_ptr = (real_t *) buff_array.getDevicePointer();
+    auto buf_id = buff_array.getId();
+    array_flags->setDeviceFlag(buf_id);
+    array_flags->clearHostFlag(buf_id);
     #else
     copyArrayToHost(buff_array, Ignore, num_elems * sizeof(real_t));
     #endif

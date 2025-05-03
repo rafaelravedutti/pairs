@@ -13,7 +13,7 @@ from pairs.ir.types import Types
 from pairs.mapping.keywords import Keywords
 from pairs.sim.flags import Flags
 from pairs.sim.interaction import ParticleInteraction
-from pairs.sim.global_interaction import  GlobalLocalInteraction, GlobalGlobalInteraction, GlobalReduction, SortGlobals, PackGlobals, ResetReductionProps, ReduceGlobals, UnpackGlobals
+from pairs.sim.global_interaction import  GlobalLocalInteraction, GlobalGlobalInteraction, GlobalReduction, DetermineGlobalsToCompute, SortGlobals, PackGlobals, ResetReductionProps, ReduceGlobals, UnpackGlobals
 from pairs.ir.module import Module
 from pairs.ir.block import Block, pairs_block
 from pairs.sim.lowerable import Lowerable
@@ -363,13 +363,20 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
             # If compute_globals is enabled, global interactions and reductions become 
             # part of the same module as local interactions
             global_reduction = GlobalReduction(sim, func.__name__, particle_interaction)
-            
+
+            Assign(sim, global_reduction.nglobal_red, 0)
+            Assign(sim, global_reduction.min_idx, 0)
+            Assign(sim, global_reduction.min_uid, 0)
             SortGlobals(global_reduction)           # Sort global bodies with respect to their uid
+            
             PackGlobals(global_reduction)           # Pack reduction properties in uid order in an intermediate buffer
             ResetReductionProps(global_reduction)   # Reset reduction properties to be prepared for local reduction 
+
+            Assign(sim, global_reduction.nglobal_computed, 0)
+            DetermineGlobalsToCompute(global_reduction)      # Determine global bodies that intersect with the current process
             
             # Compute local contirbutions on global bodies
-            global_local_interactions = GlobalLocalInteraction(sim, func.__name__, nparams)
+            global_local_interactions = GlobalLocalInteraction(sim, func.__name__, nparams, global_reduction)
             for interaction_data in global_local_interactions:
                 ir = BuildParticleIR(sim, symbols, parameters)
                 ir.add_symbols({

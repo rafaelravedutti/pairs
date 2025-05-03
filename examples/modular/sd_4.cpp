@@ -46,12 +46,12 @@ int main(int argc, char **argv) {
 
     pairs_runtime->getDomainPartitioner()->initWorkloadBalancer(pairs::Hilbert, 100, 1000);
 
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 20,20,20,  -1, 0, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 20,20,20,  0, -1, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 20,20,20,  0, 0, -1,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 20,20,20,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 20,20,20,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 20,20,20,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
 
     double diameter_min = 0.3;
     double diameter_max = 0.3;
@@ -71,6 +71,23 @@ int main(int argc, char **argv) {
     int vtk_freq = 20;
     int rebalance_freq = 200;
     double dt = 1e-3;
+
+
+    // Stats
+    // ------------------------------------------------------------------------------
+    int rank = pairs_sim->rank();
+    int world_size = pairs_runtime->getDomainPartitioner()->getWorldSize();
+
+    int num_local_aabbs = pairs_runtime->getDomainPartitioner()->getNumberOfLocalAABBs();
+    int num_neigh_aabbs = pairs_runtime->getDomainPartitioner()->getNumberOfNeighborAABBs();
+    int num_neigh_ranks = pairs_runtime->getDomainPartitioner()->getNumberOfNeighborRanks();
+    uint64_t nlocal = pairs_sim->nlocal();
+    uint64_t nghost = pairs_sim->nghost();
+
+    std::cout << "rank (" << rank << "): \t nlocal = " << nlocal << " nghost = " << nghost << 
+         " local_aabbs = " << num_local_aabbs << 
+         " neigh_aabbs = " << num_neigh_aabbs << 
+         " neigh_ranks = " << num_neigh_ranks << std::endl;
 
     pairs::vtk_write_subdom(pairs_runtime, "output/subdom_init", 0);
     
@@ -96,5 +113,8 @@ int main(int argc, char **argv) {
         }
     }
 
+    pairs::log_timers(pairs_runtime);
+    
+    ac->end();
     pairs_sim->end();
 }

@@ -18,12 +18,12 @@ int main(int argc, char **argv) {
     auto pairs_runtime = pairs_sim->getPairsRuntime();
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1);
 
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
 
     pairs::id_t pUid = pairs::create_sphere(pairs_runtime ,0.6, 0.6, 0.7,      0, 0, 0,  1000, 0.05, 0, 0);
     pairs::create_sphere(pairs_runtime, 0.4, 0.4, 0.76,    2, 2, 0,    1000, 0.05, 0, 0);

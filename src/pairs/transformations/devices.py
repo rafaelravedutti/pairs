@@ -103,7 +103,7 @@ class AddDeviceKernels(Mutator):
     def mutate_For(self, ast_node):
         if ast_node.is_kernel_candidate() and self._device_module:
             kernel = self.create_kernel(ast_node.sim, ast_node.iterator, ast_node.max, ast_node.block)
-            ast_node = KernelLaunch(ast_node.sim, kernel, ast_node.iterator, ast_node.min, ast_node.max)
+            ast_node = KernelLaunch(ast_node.sim, kernel, ast_node.iterator, ast_node.min, ast_node.max, ast_node.serial)
 
         else:
             ast_node.block = self.mutate(ast_node.block)

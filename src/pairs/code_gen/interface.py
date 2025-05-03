@@ -116,7 +116,6 @@ class InterfaceModules:
         # Reset volatile includes the new locals
         self.sim.add_statement(ResetVolatileProperties(self.sim))  
 
-
     @pairs_interface_block
     def reneighbor(self):
         self.sim.module_name('reneighbor')

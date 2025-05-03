@@ -11,14 +11,16 @@ from pairs.ir.actions import Actions
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.functions import Call_Void
 from pairs.ir.cast import Cast
+from pairs.ir.atomic import AtomicInc
 from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
 from pairs.sim.interaction import ParticleInteraction
 
 
 class GlobalLocalInteraction(ParticleInteraction):
-    def __init__(self, sim, module_name, nbody, cutoff_radius=None, use_cell_lists=False):
+    def __init__(self, sim, module_name, nbody, global_reduction, cutoff_radius=None, use_cell_lists=False):
         super().__init__(sim, module_name, nbody, cutoff_radius, use_cell_lists)
+        self.global_reduction = global_reduction
 
     @pairs_device_block
     def lower(self):
@@ -27,22 +29,18 @@ class GlobalLocalInteraction(ParticleInteraction):
             if self.include_shape(ishape):
                 for jshape in range(self.maxs): # shape of locals
                     if self.include_interaction(ishape, jshape):
-                        # Globals are presenet in all ranks so they should not interact with ghosts
-                        for j in ParticleFor(self.sim):
-                            # Loop over the global cell
-                            for p in For(self.sim, 0, self.cell_lists.cell_sizes[0]):
-                                i = self.cell_lists.cell_particles[0][p]
-                                # TODO: Skip if the bounding box of the global body doesn't intersect the subdom of this rank
+                        # Loop over global bodies that must be computed
+                        for p in For(self.sim, 0, self.global_reduction.nglobal_computed, not_kernel=True):
+                            i = self.global_reduction.globals_computed[p]
+                            # Globals are presenet in all ranks so they should not interact with ghosts
+                            for j in ParticleFor(self.sim):
+                                # Here we make make sure not to interact with other global bodies, otherwise
+                                # their contributions will get reduced again over all ranks
                                 for _ in Filter(self.sim, ScalarOp.and_op(
-                                    ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
-                                    self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global))):
-                                    # Here we make make sure not to interact with other global bodies, otherwise
-                                    # their contributions will get reduced again over all ranks
-                                    for _ in Filter(self.sim, ScalarOp.and_op(
-                                        ScalarOp.cmp(self.sim.particle_shape[j], self.sim.get_shape_id(jshape)),
-                                        ScalarOp.not_op(self.sim.particle_flags[j] & (Flags.Infinite | Flags.Global)))):
-                                        for _ in Filter(self.sim, ScalarOp.neq(i, j)):
-                                            self.compute_interaction(i, j, ishape, jshape, atomic=True)
+                                    ScalarOp.cmp(self.sim.particle_shape[j], self.sim.get_shape_id(jshape)),
+                                    ScalarOp.not_op(self.sim.particle_flags[j] & (Flags.Infinite | Flags.Global)))):
+                                    for _ in Filter(self.sim, ScalarOp.neq(i, j)):
+                                        self.compute_interaction(i, j, ishape, jshape, atomic=True)
 
 
 class GlobalGlobalInteraction(ParticleInteraction):
@@ -64,7 +62,7 @@ class GlobalGlobalInteraction(ParticleInteraction):
                     i = self.cell_lists.cell_particles[0][p]
                     for _ in Filter(self.sim, ScalarOp.and_op(
                         ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
-                        self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global))):
+                        self.sim.particle_flags[i] & Flags.Global)):
                         for jshape in range(self.maxs):
                             if self.include_interaction(ishape, jshape):
                                 # Loop over the global cell
@@ -77,12 +75,15 @@ class GlobalGlobalInteraction(ParticleInteraction):
                                         for _ in Filter(self.sim, ScalarOp.neq(i, j)):
                                             self.compute_interaction(i, j, ishape, jshape)
 
+
 class GlobalReduction:
     def __init__(self, sim, module_name, particle_interaction):
         self.sim = sim
         self.module_name            = module_name
         self.particle_interaction   = particle_interaction
         self.nglobal_red            = sim.add_var('nglobal_red', Types.Int32)               # Number of global particles that need reduction
+        self.min_uid                = sim.add_var('min_uid', Types.UInt64)
+        self.min_idx                = sim.add_var('min_idx', Types.Int32)
         self.nglobal_capacity       = sim.add_var('nglobal_capacity', Types.Int32, 64)
         self.global_elem_capacity   = sim.add_var('global_elem_capacity', Types.Int32, 100)
         self.red_buffer             = sim.add_array('red_buffer', [self.nglobal_capacity, self.global_elem_capacity], Types.Real, arr_sync=False) 
@@ -90,6 +91,8 @@ class GlobalReduction:
         self.sorted_idx             = sim.add_array('sorted_idx', [self.nglobal_capacity], Types.Int32, arr_sync=False)
         self.unsorted_idx           = sim.add_array('unsorted_idx', [self.nglobal_capacity], Types.Int32, arr_sync=False)
         self.removed_idx            = sim.add_array('removed_idx', [self.nglobal_capacity], Types.Boolean, arr_sync=False)
+        self.nglobal_computed       = sim.add_var('nglobal_computed', Types.Int32)
+        self.globals_computed       = sim.add_array('globals_computed', [self.nglobal_capacity], Types.Int32, arr_sync=False)
 
         self.red_props = set()
         for ishape in range(self.sim.max_shapes()):
@@ -99,18 +102,36 @@ class GlobalReduction:
                         self.red_props.add(app.prop())
 
     def global_particles(self):
-        for p in For(self.sim, 0, self.sim.cell_lists.cell_sizes[0]):
+        for p in For(self.sim, 0, self.sim.cell_lists.cell_sizes[0], serial=True):
             i = self.sim.cell_lists.cell_particles[0][p]
             for ishape in range(self.sim.max_shapes()):
                 if self.particle_interaction.include_shape(ishape):
                     for _ in Filter(self.sim, ScalarOp.and_op(
                         ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
-                        self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global))):
-                        yield i
+                        self.sim.particle_flags[i] & Flags.Global)):
+                        yield ishape, i
 
     def get_elems_per_particle(self):
         return sum([Types.number_of_elements(self.sim, p.type()) for p in self.red_props])
     
+
+class DetermineGlobalsToCompute(Lowerable):
+    def __init__(self, global_reduction):
+        super().__init__(global_reduction.sim)
+        self.global_reduction = global_reduction
+        self.sim.add_statement(self)
+
+    @pairs_device_block
+    def lower(self):
+        self.sim.module_name(f"{self.global_reduction.module_name}_determine_globals_to_compute")
+        n = self.global_reduction.nglobal_computed
+        globals_computed = self.global_reduction.globals_computed
+        
+        for ishape, i in self.global_reduction.global_particles():
+            for _ in Filter(self.sim, self.global_reduction.particle_interaction.intersects_subdom(ishape, i)):
+                Assign(self.sim, globals_computed[n], i)
+                Assign(self.sim, n, n+1)
+
 
 class SortGlobals(Lowerable):
     def __init__(self, global_reduction):
@@ -118,7 +139,7 @@ class SortGlobals(Lowerable):
         self.global_reduction = global_reduction
         self.sim.add_statement(self)
 
-    @pairs_host_block
+    @pairs_device_block
     def lower(self):
         self.sim.module_name(f"{self.global_reduction.module_name}_sort_globals")
         nglobal_capacity    = self.global_reduction.nglobal_capacity
@@ -126,23 +147,28 @@ class SortGlobals(Lowerable):
         unsorted_idx        = self.global_reduction.unsorted_idx
         sorted_idx          = self.global_reduction.sorted_idx
         removed_idx         = self.global_reduction.removed_idx
+        min_uid             = self.global_reduction.min_uid
+        min_idx             = self.global_reduction.min_idx
         uid                 = self.sim.particle_uid
         self.sim.check_resize(nglobal_capacity, nglobal_red)
 
-        Assign(self.sim, nglobal_red, 0)
-        for i in self.global_reduction.global_particles():
+        # The two kernels below are serialized on device to avoid unnecessary device transfers 
+        # NOTE: The number of global bodies is very small so serializing on device pays off.
+
+        for _, i in self.global_reduction.global_particles():
             Assign(self.sim, unsorted_idx[nglobal_red], i)
             Assign(self.sim, sorted_idx[nglobal_red], 0)
             Assign(self.sim, removed_idx[nglobal_red], 0)
-            Assign(self.sim, nglobal_red, nglobal_red +1)
-
-        min_uid = self.sim.add_temp_var(0, Types.UInt64)
-        min_idx = self.sim.add_temp_var(0)
+            AtomicInc(self.sim, nglobal_red, 1)
 
         # Here we sort indices of global bodies with respect to their uid's.
         # The sorted uid's will be in identical order on all ranks. This ensures that the
         # reduced properties are mapped correctly to each global body during inplace reduction.
-        for i in For(self.sim, 0, nglobal_red):
+        for i in For(self.sim, 0, nglobal_red, serial=True):
+            # FIXME: nglobal_red is readonly in this kernel. But it's a resize variable above.
+            # The line below enforces it to be passed by pointer since it's a device variable.
+            AtomicInc(self.sim, nglobal_red, 0) 
+
             Assign(self.sim, min_uid, -1)   # TODO: Lit max: UINT64_MAX
             Assign(self.sim, min_idx, 0)
             for j in For(self.sim, 0, nglobal_red):

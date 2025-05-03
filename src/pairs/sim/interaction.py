@@ -428,6 +428,37 @@ class ParticleInteraction(Lowerable):
         self.sim.add_statement(Filter(self.sim, interaction_data.cutoff_condition, self.blocks[ishape*self.maxs + jshape]))
         self.apply_reductions(i, ishape, jshape, atomic)
 
+    def intersects_subdom(self, ishape, i):
+        ishape_id = self.sim.get_shape_id(ishape)
+
+        position = self.sim.position()
+        rotation_matrix = self.sim.property('rotation_matrix')
+        rm = [Abs(self.sim, rotation_matrix[i][d]) for d in range(self.sim.ndims() ** 2)]
+
+        if ishape_id == Shapes.Sphere:
+            radius = self.sim.property('radius')
+            aabb_max = position[i] + radius[i]
+            aabb_min = position[i] - radius[i]
+
+        if ishape_id == Shapes.Box:
+            edge_length = self.sim.property('edge_length')
+            l = edge_length[i] * 0.5
+            bound = Vector(self.sim, [  
+                rm[0]*l[0] + rm[1]*l[1] + rm[2]*l[2], 
+                rm[3]*l[0] + rm[4]*l[1] + rm[5]*l[2],
+                rm[6]*l[0] + rm[7]*l[1] + rm[8]*l[2]])
+            aabb_max = position[i] + bound
+            aabb_min = position[i] - bound
+
+        intersects = None
+        for dim in range(self.sim.ndims()):
+            dom_min = self.cell_lists.dom_part.min(dim)
+            dom_max = self.cell_lists.dom_part.max(dim)
+            d_cond = ScalarOp.and_op(aabb_min[dim] < dom_max, aabb_max[dim] >= dom_min)
+            intersects = d_cond if intersects is None else ScalarOp.and_op(intersects, d_cond)
+
+        return intersects
+
     @pairs_block
     def lower(self):
         self.sim.module_name(f"{self.module_name}_local_interactions")

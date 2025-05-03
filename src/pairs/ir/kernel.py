@@ -215,16 +215,16 @@ class Kernel(ASTNode):
 
 
 class KernelLaunch(ASTNode):
-    def __init__(self, sim, kernel, iterator, range_min, range_max):
+    def __init__(self, sim, kernel, iterator, range_min, range_max, serial=False):
         assert isinstance(kernel, Kernel), "KernelLaunch(): given parameter is not of type Kernel!"
         super().__init__(sim)
         self._kernel = kernel
         self._iterator = iterator
         self._range_min = range_min
         self._range_max = range_max
-        self._threads_per_block = Lit.cvt(sim, 32)
+        self._threads_per_block = Lit.cvt(sim, 1) if serial else Lit.cvt(sim, 32)
         self._nelems = (range_max - range_min) 
-        self._nblocks = (self._nelems + self._threads_per_block - 1) / self._threads_per_block
+        self._nblocks = Lit.cvt(sim, 1) if serial else (self._nelems + self._threads_per_block - 1) / self._threads_per_block
 
     @property
     def kernel(self):
