@@ -53,7 +53,7 @@ class For(ASTNode):
         super().__init__(sim)
         self.iterator = Iter(sim, self)
         self.min = Lit.cvt(sim, range_min)
-        self.max = Lit.cvt(sim, range_max)
+        self.max = ScalarOp.inline(Lit.cvt(sim, range_max))
         self.block = Block(sim, []) if block is None else block
         self.kernel = None
         self._kernel_candidate = False

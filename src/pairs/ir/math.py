@@ -31,18 +31,7 @@ class MathFunction(ASTTerm):
         return "undefined"
 
     def inline_recursively(self):
-        method_name = "inline_recursively"
         self.inlined = True
-
-        if hasattr(self.cond, method_name) and callable(getattr(self.cond, method_name)):
-            self.cond.inline_recursively()
-
-        if hasattr(self.expr_if, method_name) and callable(getattr(self.expr_if, method_name)):
-            self.expr_if.inline_recursively()
-
-        if hasattr(self.expr_else, method_name) and callable(getattr(self.expr_else, method_name)):
-            self.expr_else.inline_recursively()
-
         return self
 
     def add_terminal(self, terminal):
