@@ -4,6 +4,21 @@
 
 #include "spring_dashpot.hpp"
 
+void randomaize_indices(PairsAccessor ac){
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(0, ac.nlocal() - 1);
+
+    ac.syncPosition(PairsAccessor::Host);
+    for (int i=0; i<ac.nlocal(); ++i){
+        int j = dist(gen);
+        auto tmp = ac.getPosition(i);
+        ac.setPosition(i, ac.getPosition(j));
+        ac.setPosition(j, tmp);
+    }
+    ac.syncPosition(PairsAccessor::Host);
+}
+
 int main(int argc, char **argv) {
     if(argc!=5){
         std::cerr << "4 args are required: Domain size (i.e. number of particles) in x,y,z and #timesteps." << std::endl;
@@ -15,6 +30,8 @@ int main(int argc, char **argv) {
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
     pairs_sim->initialize();
+    
+    PairsAccessor ac(pairs_sim.get());
 
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
@@ -44,6 +61,9 @@ int main(int argc, char **argv) {
     pairs_sim->setInteractionRadius(cell_width);
     pairs_sim->updateDomain();
     
+    randomaize_indices(ac);
+    pairs_sim->reneighbor();
+
     // Inertia update is required for euler updates to be valid (but particles remain stationary)
     double dt = 0.001;  // Arbitrary
     
@@ -89,5 +109,6 @@ int main(int argc, char **argv) {
     // pairs::vtk_write_data(pairs_runtime, "output/local_spheres", 0, pairs_sim->nlocal(), 0);
     // pairs::vtk_write_data(pairs_runtime, "output/ghost_spheres", pairs_sim->nlocal(), pairs_sim->size(), 0);
     
+    ac.end();
     pairs_sim->end();
 }

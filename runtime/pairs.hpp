@@ -2,6 +2,7 @@
 #include <cmath>
 #include <memory>
 #include <vector>
+#include <array>
 //---
 #include "allocate.hpp"
 #include "array.hpp"

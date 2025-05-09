@@ -4,6 +4,21 @@
 
 #include "spring_dashpot_no_pbc.hpp"
 
+void randomaize_indices(PairsAccessor ac){
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dist(0, ac.nlocal() - 1);
+
+    ac.syncPosition(PairsAccessor::Host);
+    for (int i=0; i<ac.nlocal(); ++i){
+        int j = dist(gen);
+        auto tmp = ac.getPosition(i);
+        ac.setPosition(i, ac.getPosition(j));
+        ac.setPosition(j, tmp);
+    }
+    ac.syncPosition(PairsAccessor::Host);
+}
+
 template<typename Type>
 void print_global_stats(std::string name, Type value, MPI_Datatype mpi_type, MPI_Comm comm){
     int rank, world_size;
@@ -60,8 +75,10 @@ int main(int argc, char **argv) {
     auto pairs_sim = std::make_shared<PairsSimulation>();
     pairs_sim->initialize();
 
+    PairsAccessor ac(pairs_sim.get());
+    
     auto pairs_runtime = pairs_sim->getPairsRuntime();
-
+    
     bool load_balanced = (std::stoi(argv[5]) != 0);
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, domain_size[0], domain_size[1], domain_size[2], load_balanced);
 
@@ -109,6 +126,9 @@ int main(int argc, char **argv) {
     
     // Rebalance
     pairs_sim->updateDomain();
+
+    randomaize_indices(ac);
+    pairs_sim->reneighbor();
 
     // Stats
     // ------------------------------------------------------------------------------
