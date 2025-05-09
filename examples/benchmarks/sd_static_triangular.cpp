@@ -190,5 +190,6 @@ int main(int argc, char **argv) {
     // pairs::vtk_write_data(pairs_runtime, "output/sd_ghost", pairs_sim->nlocal(), pairs_sim->size(), 0);
     pairs::log_timers(pairs_runtime);
 
+    ac.end();
     pairs_sim->end();
 }

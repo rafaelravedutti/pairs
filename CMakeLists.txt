@@ -6,7 +6,8 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math -S -fverbose-asm")
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
+# set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
