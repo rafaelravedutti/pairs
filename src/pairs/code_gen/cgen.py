@@ -176,7 +176,9 @@ class CGen:
         if not module.interface:
             module_params += ["PairsRuntime *pairs_runtime", "struct PairsObjects *pobj"]
 
-        module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in module.parameters()]
+        
+        sorted_params = sorted(module.parameters(), key=lambda param: (param.order is None, param.order))
+        module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in sorted_params]
 
         print_params = ", ".join(module_params)
         ending = "{" if definition else ";"
@@ -1025,10 +1027,14 @@ class CGen:
         if isinstance(ast_node, Call):
             extra_params = []
 
-            if ast_node.name().startswith("pairs::"):
+            if ast_node.name().startswith("pairs::") or  ast_node.name().startswith("UniqueID::"):
                 extra_params += ["pairs_runtime"]
 
             params = ", ".join(extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
+
+            if ast_node.name()=="pairs_runtime->iAllReduceInplaceSum" or ast_node.name()=="pairs_runtime->waitIAllReduceInplaceSum" :
+                params += ", request_i_all_reduce"
+
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):

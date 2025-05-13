@@ -3,11 +3,17 @@ from pairs.ir.functions import Call_Void, Call, Call_Int
 from pairs.ir.parameters import Parameter
 from pairs.ir.ret import Return
 from pairs.ir.scalars import ScalarOp
+from pairs.ir.types import Types
+from pairs.ir.branches import Filter, Branch
+from pairs.ir.select import Select
+from pairs.ir.atomic import AtomicInc
+from pairs.ir.properties import ReallocProperty
+from pairs.ir.print import PrintCode
+from pairs.ir.assign import Assign
+from pairs.sim.flags import Flags
 from pairs.sim.domain import DomainRebalance, DomainUpdateLocal, DomainUpdateNeighborhood
 from pairs.sim.cell_lists import BuildCellListsStencil
 from pairs.sim.comm import Synchronize, Borders, Exchange, ReverseComm
-from pairs.ir.types import Types
-from pairs.ir.branches import Filter, Branch
 from pairs.sim.cell_lists import BuildCellLists, BuildCellListsStencil, PartitionCellLists, BuildCellNeighborLists
 from pairs.sim.neighbor_lists import BuildNeighborLists
 from pairs.sim.variables import DeclareVariables 
@@ -17,8 +23,6 @@ from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
 from pairs.sim.grid import MutableGrid
 from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.ir.print import PrintCode
-from pairs.ir.assign import Assign
 from pairs.sim.contact_history import BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 
 class InterfaceModules:
@@ -39,6 +43,7 @@ class InterfaceModules:
         self.nghost()
         self.size()
         self.end()      
+        self.create_object()
 
     @pairs_interface_block
     def initialize(self):
@@ -106,12 +111,18 @@ class InterfaceModules:
         # Rebuild stencil since subdom sizes have changed. Also may use non-empty AABBs to create halo cells
         self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists)) 
 
+        if self.sim._use_halo_cells:
+            self.sim.add_statement(BuildCellLists(self, self.cell_lists))   
+            self.sim.add_statement(Borders(self.sim._comm))
+
+        else: 
+            # Exchange is not needed since all locals are contained in thier owners after deserialization
+            # But ghosts must be recreated after rebalancing (optionally uses the halo cells)
+            self.sim.add_statement(Borders(self.sim._comm))
+
         # Populate cells with local and ghost particles
         self.sim.add_statement(self.sim.update_cells_procedures)   
 
-        # Exchange is not needed all locals are contained in thier owners after deserialization
-        # But ghosts must be recreated after rebalancing (optionally uses the halo cells)
-        self.sim.add_statement(Borders(self.sim._comm))
 
         # Reset volatile includes the new locals
         self.sim.add_statement(ResetVolatileProperties(self.sim))  
@@ -188,3 +199,45 @@ class InterfaceModules:
         Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
         PrintCode(self.sim, "delete pobj;")
         PrintCode(self.sim, "delete pairs_runtime;")
+
+    @pairs_interface_block
+    def create_object(self):
+        self.sim.module_name('createObject')
+        idx = self.sim.add_temp_var(-1)
+        position = self.sim.position()
+
+        pos = []
+        ndims = self.sim.ndims()
+        for d in range(ndims):
+            pos.append(Parameter(self.sim, f'pos_dim_{d}', Types.Real, d))
+        shape = Parameter(self.sim, 'shape', Types.Int32, ndims)
+        flags = Parameter(self.sim, 'flags', Types.Int32, ndims + 1)
+
+        is_local = Call(self.sim, "pairs_runtime->getDomainPartitioner()->isWithinSubdomain", pos, Types.Boolean)
+        is_global = flags & ( Flags.Infinite | Flags.Global)
+        
+        for _ in Filter(self.sim, ScalarOp.or_op(is_local, is_global)):
+            Assign(self.sim, idx, self.sim.nlocal)
+            for _ in Filter(self.sim, self.sim.particle_capacity <= idx):
+                Assign(self.sim, self.sim.particle_capacity, idx * 2)
+                for arr in self.sim.particle_capacity.bonded_arrays():
+                    arr.realloc()
+                for p in self.sim.properties.all():
+                    sizes = [self.sim.particle_capacity] if Types.is_scalar(p.type()) else \
+                            [self.sim.particle_capacity, Types.number_of_elements(self.sim, p.type())]
+                    ReallocProperty(self.sim, p, sizes)
+
+            for d in range(ndims):
+                Assign(self.sim, position[idx][d], pos[d])
+
+            Assign(self.sim, self.sim.particle_shape[idx], shape)
+            Assign(self.sim, self.sim.particle_flags[idx], flags)
+            
+            Assign(self.sim, self.sim.particle_uid[idx], 
+                        Select(self.sim, is_global, 
+                                Call(self.sim, "UniqueID::createGlobal", [], Types.UInt64),  
+                                Call(self.sim, "UniqueID::create", [], Types.UInt64)))
+            
+            AtomicInc(self.sim, self.sim.nlocal, 1)
+        
+        Return(self.sim, idx)

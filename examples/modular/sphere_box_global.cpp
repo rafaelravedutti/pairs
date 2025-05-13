@@ -44,22 +44,47 @@ int main(int argc, char **argv) {
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 30, 30, 30, true); 
     pairs_runtime->getDomainPartitioner()->initWorkloadBalancer(pairs::Hilbert, 100, 800);
 
-    pairs::create_halfspace(pairs_runtime, 0,0,0,       1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,       0, 1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,       0, 0, 1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 30,30,30,    -1, 0, 0,   0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 30,30,30,    0, -1, 0,   0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 30,30,30,    0, 0, -1,   0, pairs::flags::INFINITE | pairs::flags::FIXED); 
+
+    int idx = -1;
+    idx = pairs_sim->createObject(0, 0, 0, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac->setNormal(idx, {1, 0, 0});
+    idx = pairs_sim->createObject(0, 0, 0, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac->setNormal(idx, {0, 1, 0});
+    idx = pairs_sim->createObject(0, 0, 0, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac->setNormal(idx, {0, 0, 1});
+    idx = pairs_sim->createObject(30, 30, 30, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac->setNormal(idx, {-1, 0, 0});
+    idx = pairs_sim->createObject(30, 30, 30, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac->setNormal(idx, {0, -1, 0});
+    idx = pairs_sim->createObject(30, 30, 30, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac->setNormal(idx, {0, 0, -1});
 
     double radius = 0.5;
     // Create a bed of small particles
     pairs::dem_sc_grid(pairs_runtime, 30, 20, 5,  radius*2 , radius*2 , radius*2, radius*2,    2,      250,    2);
 
     // Create 3 global bodies, one of which is fixed
-    pairs::create_box(pairs_runtime,    12, 12, 13.5,   0, 0, 0,    15, 2, 13,  20,    0,       pairs::flags::GLOBAL); 
-    pairs::create_sphere(pairs_runtime, 15, 20, 15,     0, 4, 0,                50, 4, 0,       pairs::flags::GLOBAL);
-    pairs::create_sphere(pairs_runtime, 15, 25, 4,      0, 0, 0,                50, 4, 0,       pairs::flags::GLOBAL | pairs::flags::FIXED); 
-    
+    int box_idx = pairs_sim->createObject(12, 12, 13.5, pairs::Shapes::Box, pairs::flags::GLOBAL);
+    ac->setEdgeLength(box_idx, {15, 2, 13});
+    ac->setMass(box_idx, 15*2*13*20.0);
+
+    int sp1_idx = pairs_sim->createObject(15, 20, 15, pairs::Shapes::Sphere, pairs::flags::GLOBAL);
+    ac->setLinearVelocity(sp1_idx, {0, 4, 0});
+    ac->setRadius(sp1_idx, 4);
+    ac->setMass(sp1_idx, ((4.0 / 3.0) * M_PI) * 64 * 50);
+ 
+    int sp2_idx = pairs_sim->createObject(15, 25, 4, pairs::Shapes::Sphere, pairs::flags::GLOBAL | pairs::flags::FIXED);
+    ac->setRadius(sp2_idx, 4);
+    ac->setMass(sp2_idx, ((4.0 / 3.0) * M_PI) * 64 * 50);
+
+    // Create 1 extra local sphere
+    int sp3_idx = pairs_sim->createObject(25, 25, 25, pairs::Shapes::Sphere, 0);
+    if(sp3_idx != ac->getInvalidIdx()){
+        ac->setLinearVelocity(sp3_idx, {-5, -7, 0});
+        ac->setRadius(sp3_idx, radius);
+        ac->setMass(sp3_idx, ((4.0 / 3.0) * M_PI) * radius * radius * radius * 50);
+    }
+
     pairs_sim->update_mass_and_inertia();
     
     // Use the diameter of small particles to set up the cell list
