@@ -14,12 +14,12 @@ int main(int argc, char **argv) {
     double dom_size = 0.1;
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, dom_size, dom_size, dom_size); 
 
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, 13);
-    pairs::create_halfspace(pairs_runtime, dom_size, dom_size, dom_size,  -1, 0, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, dom_size, dom_size, dom_size,  0, -1, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, dom_size, dom_size, dom_size,  0, 0, -1,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, dom_size, dom_size, dom_size,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, dom_size, dom_size, dom_size,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, dom_size, dom_size, dom_size,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
     
     double density = 2550;
     double diameter = 0.0029; 
@@ -49,7 +49,8 @@ int main(int argc, char **argv) {
         if ((t%500==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
 
         pairs_sim->gravity(); 
-        pairs_sim->linear_spring_dashpot(collision_time, dt); 
+        // pairs_sim->spring_dashpot(collision_time);          // Without contact history
+        pairs_sim->linear_spring_dashpot(collision_time, dt);   // With contact history
         pairs_sim->euler(dt); 
         pairs_sim->reneighbor();
 

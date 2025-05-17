@@ -18,6 +18,8 @@ int main(int argc, char **argv) {
     pairs_sim->update_mass_and_inertia();
     
     // updateDomain after creating all bodies
+    pairs_sim->setCellWidth(0.01, 0.01, 0.01);
+    pairs_sim->setInteractionRadius(0.01);
     pairs_sim->updateDomain();
     ac->update();
 

@@ -54,10 +54,8 @@ file_name_without_extension = os.path.splitext(file_name)[0]
 
 psim = pairs.simulation(
     file_name_without_extension,
-    [pairs.sphere(), pairs.halfspace()],
     double_prec=True,
     particle_capacity=1000000,
-    neighbor_capacity=20,
     debug=True)
 
 
@@ -71,25 +69,32 @@ else:
     print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
 gravity_SI = 9.81
-diameter = 100      # required for linkedCellWidth. TODO: set linkedCellWidth at runtime
-linkedCellWidth = 1.01 * diameter
 ntypes = 2
 
+# Add position property
 psim.add_position('position')
-psim.add_property('mass', pairs.real())
-psim.add_property('linear_velocity', pairs.vector())
-psim.add_property('angular_velocity', pairs.vector())
-psim.add_property('force', pairs.vector(), volatile=True)
-psim.add_property('torque', pairs.vector(), volatile=True)
-psim.add_property('radius', pairs.real())
-psim.add_property('normal', pairs.vector())
-psim.add_property('inv_inertia', pairs.matrix())
-psim.add_property('rotation_matrix', pairs.matrix())
-psim.add_property('rotation', pairs.quaternion())
+
+# Add shapes and define their geometric properties (required internally for contact detection)
+psim.add_shape(pairs.sphere('radius'))
+psim.add_shape(pairs.halfspace('normal'))
+
+# Add properties
+#-------------------------------------------------------------------------------------------------
+psim.add_property('radius',             pairs.real(),       pairs.on_reneighbor()) # Required by spheres as defined above
+psim.add_property('normal',             pairs.vector(),     pairs.on_reneighbor()) # Required by halfspaces as defined above
+psim.add_property('mass',               pairs.real(),       pairs.on_reneighbor())
+psim.add_property('inv_inertia',        pairs.matrix(),     pairs.on_reneighbor())
+psim.add_property('rotation_matrix',    pairs.matrix(),     pairs.always())
+psim.add_property('rotation',           pairs.quaternion(), pairs.always())
+psim.add_property('linear_velocity',    pairs.vector(),     pairs.always())
+psim.add_property('angular_velocity',   pairs.vector(),     pairs.always())
+psim.add_property('force',              pairs.vector(),     pairs.never())
+psim.add_property('torque',             pairs.vector(),     pairs.never())
 
 # Properties that get reduced during reverse communication
-psim.add_property('hydrodynamic_force', pairs.vector(), reduce=True)
-psim.add_property('hydrodynamic_torque', pairs.vector(), reduce=True)
+psim.add_property('hydrodynamic_force', pairs.vector(),     pairs.on_reduction())
+psim.add_property('hydrodynamic_torque', pairs.vector(),    pairs.on_reduction())
+#-------------------------------------------------------------------------------------------------
 
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'stiffness', pairs.real(), [3000 for i in range(ntypes * ntypes)])
@@ -99,12 +104,12 @@ psim.add_feature_property('type', 'friction', pairs.real())
 
 psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
-psim.build_cell_lists(linkedCellWidth)
+psim.build_cell_lists()
 
 # The order of user-defined functions is not important here since 
 # they are not used by other subroutines and are only callable individually 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
-psim.compute(spring_dashpot, linkedCellWidth)
+psim.compute(spring_dashpot)
 psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
 psim.compute(euler, parameters={'dt': pairs.real()})
 

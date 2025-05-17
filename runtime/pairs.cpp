@@ -688,5 +688,31 @@ void PairsRuntime::allReduceInplaceSum(real_t *red_buffer, int num_elems){
     #endif
 }
 
+void PairsRuntime::iAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request){
+    real_t *buff_ptr = red_buffer;
+    auto buff_array = getArrayByHostPointer(red_buffer);
+
+    // MPI_Iallreduce is not CUDA-aware, so array must be copied to host
+    copyArrayToHost(buff_array, Ignore, num_elems * sizeof(real_t));
+    this->getTimers()->start(TimerMarkers::MPI);
+
+    MPI_Iallreduce(MPI_IN_PLACE, buff_ptr, num_elems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD, &request);
+    // int ready;
+    // MPI_Test(&request, &ready, MPI_STATUS_IGNORE);
+    this->getTimers()->stop(TimerMarkers::MPI);
+    // if(ready){
+    //     std::cout << "ready" << std::endl;
+    // }
+}
+
+void PairsRuntime::waitIAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request){
+    auto buff_array = getArrayByHostPointer(red_buffer);
+
+    this->getTimers()->start(TimerMarkers::MPI);
+    MPI_Wait(&request, MPI_STATUS_IGNORE);
+    this->getTimers()->stop(TimerMarkers::MPI);
+    
+    copyArrayToDevice(buff_array, Ignore, num_elems * sizeof(real_t));
+}
 
 }

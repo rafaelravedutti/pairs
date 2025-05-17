@@ -12,6 +12,7 @@ from pairs.ir.sizeof import Sizeof
 from pairs.ir.functions import Call_Void
 from pairs.ir.cast import Cast
 from pairs.ir.atomic import AtomicInc
+from pairs.ir.print import PrintCode
 from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
 from pairs.sim.interaction import ParticleInteraction
@@ -77,7 +78,7 @@ class GlobalGlobalInteraction(ParticleInteraction):
 
 
 class GlobalReduction:
-    def __init__(self, sim, module_name, particle_interaction):
+    def __init__(self, sim, module_name, particle_interaction, non_blocking=False):
         self.sim = sim
         self.module_name            = module_name
         self.particle_interaction   = particle_interaction
@@ -93,8 +94,10 @@ class GlobalReduction:
         self.removed_idx            = sim.add_array('removed_idx', [self.nglobal_capacity], Types.Boolean, arr_sync=False)
         self.nglobal_computed       = sim.add_var('nglobal_computed', Types.Int32)
         self.globals_computed       = sim.add_array('globals_computed', [self.nglobal_capacity], Types.Int32, arr_sync=False)
-
+        self.non_blocking           = non_blocking
         self.red_props = set()
+
+    def get_reduction_props(self):
         for ishape in range(self.sim.max_shapes()):
             for jshape in range(self.sim.max_shapes()):
                 if self.particle_interaction.include_interaction(ishape, jshape):
@@ -239,7 +242,25 @@ class ReduceGlobals(Lowerable):
     @pairs_inline
     def lower(self):
         nelems_total = self.global_reduction.nglobal_red * self.global_reduction.get_elems_per_particle() 
-        Call_Void( self.sim, "pairs_runtime->allReduceInplaceSum", [self.global_reduction.red_buffer, nelems_total])
+
+        if self.global_reduction.non_blocking:
+            PrintCode( self.sim, "MPI_Request request_i_all_reduce;")
+            Call_Void( self.sim, "pairs_runtime->iAllReduceInplaceSum", [self.global_reduction.red_buffer, nelems_total])
+        else:
+            Call_Void( self.sim, "pairs_runtime->allReduceInplaceSum", [self.global_reduction.red_buffer, nelems_total])
+
+
+class WaitReduceGlobals(Lowerable):
+    def __init__(self, global_reduction):
+        super().__init__(global_reduction.sim)
+        self.global_reduction = global_reduction
+        self.sim.add_statement(self)
+        
+    @pairs_inline
+    def lower(self):
+        if self.global_reduction.non_blocking:
+            nelems_total = self.global_reduction.nglobal_red * self.global_reduction.get_elems_per_particle() 
+            Call_Void( self.sim, "pairs_runtime->waitIAllReduceInplaceSum", [self.global_reduction.red_buffer, nelems_total])
 
 
 class UnpackGlobals(Lowerable):

@@ -55,10 +55,8 @@ file_name_without_extension = os.path.splitext(file_name)[0]
 
 psim = pairs.simulation(
     file_name_without_extension,
-    [pairs.sphere(), pairs.halfspace()],
     double_prec=True,
     particle_capacity=1000000,
-    neighbor_capacity=20,
     debug=True)
 
 
@@ -71,17 +69,26 @@ elif target == 'cpu':
 else:
     print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
+# Add position property
 psim.add_position('position')
-psim.add_property('mass', pairs.real())
-psim.add_property('linear_velocity', pairs.vector())
-psim.add_property('angular_velocity', pairs.vector())
-psim.add_property('force', pairs.vector(), volatile=True)
-psim.add_property('torque', pairs.vector(), volatile=True)
-psim.add_property('radius', pairs.real())
-psim.add_property('normal', pairs.vector())
-psim.add_property('inv_inertia', pairs.matrix())
-psim.add_property('rotation_matrix', pairs.matrix())
-psim.add_property('rotation', pairs.quaternion())
+
+# Add shapes and define their geometric properties (required internally for contact detection)
+psim.add_shape(pairs.sphere('radius'))
+psim.add_shape(pairs.halfspace('normal'))
+
+# Add properties
+#-------------------------------------------------------------------------------------------------
+psim.add_property('radius',             pairs.real(),       pairs.on_reneighbor()) # Required by spheres as defined above
+psim.add_property('normal',             pairs.vector(),     pairs.on_reneighbor()) # Required by halfspaces as defined above
+psim.add_property('mass',               pairs.real(),       pairs.on_reneighbor())
+psim.add_property('inv_inertia',        pairs.matrix(),     pairs.on_reneighbor())
+psim.add_property('rotation_matrix',    pairs.matrix(),     pairs.always())
+psim.add_property('rotation',           pairs.quaternion(), pairs.always())
+psim.add_property('linear_velocity',    pairs.vector(),     pairs.always())
+psim.add_property('angular_velocity',   pairs.vector(),     pairs.always())
+psim.add_property('force',              pairs.vector(),     pairs.never())
+psim.add_property('torque',             pairs.vector(),     pairs.never())
+#-------------------------------------------------------------------------------------------------
 
 ntypes = 2
 psim.add_feature('type', ntypes)

@@ -355,6 +355,8 @@ public:
     int getNumberOfNeighborAABBs() { return this->getDomainPartitioner()->getNumberOfNeighborAABBs(); }
 
     void allReduceInplaceSum(real_t *red_buffer, int num_elems);
+    void iAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request);
+    void waitIAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request);
 
     // Device functions
     void sync() { device_synchronize(); }

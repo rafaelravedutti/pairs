@@ -63,9 +63,9 @@ class CellLists:
 
 
 class BuildCellListsStencil(Lowerable):
-    def __init__(self, sim, cell_lists):
+    def __init__(self, sim):
         super().__init__(sim)
-        self.cell_lists = cell_lists
+        self.cell_lists = sim.cell_lists
 
     @pairs_host_block
     def lower(self):

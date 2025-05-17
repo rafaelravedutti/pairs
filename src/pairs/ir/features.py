@@ -7,6 +7,7 @@ from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
 from pairs.ir.operator_class import OperatorClass
 from pairs.ir.types import Types
+from pairs.ir.sync_modes import SyncModes
 
 
 class Features:
@@ -14,8 +15,8 @@ class Features:
         self.sim = sim
         self.features = []
 
-    def add(self, f_name, f_nkinds):
-        f = Feature(self.sim, f_name, f_nkinds)
+    def add(self, f_name, f_nkinds, f_sync_mode):
+        f = Feature(self.sim, f_name, f_nkinds, f_sync_mode)
         self.features.append(f)
         return f
 
@@ -36,11 +37,11 @@ class Features:
 class Feature(ASTNode):
     last_feature_id = 0
 
-    def __init__(self, sim, name, nkinds):
+    def __init__(self, sim, name, nkinds, sync_mode):
         super().__init__(sim)
         self.feature_id = Feature.last_feature_id
         self.feature_name = name
-        self.feature_prop = self.sim.add_property(self.feature_name, Types.Int32)
+        self.feature_prop = self.sim.add_property(self.feature_name, Types.Int32, sync_mode)
         self.feature_nkinds = nkinds
         Feature.last_feature_id += 1
 

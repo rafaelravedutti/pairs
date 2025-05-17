@@ -98,7 +98,7 @@ class InterfaceModules:
         self.sim.add_statement(DomainUpdateNeighborhood(self.sim)) 
 
         # Local particles must be contained in their owners before rebalancing, otherwise they may get lost
-        self.sim.add_statement(Exchange(self.sim._comm))
+        self.sim.add_statement(Exchange(self.sim))
 
         # Here AABBs assigned to each rank may change if rebalancing is enabled
         self.sim.add_statement(DomainRebalance(self.sim)) 
@@ -109,16 +109,16 @@ class InterfaceModules:
         self.sim.add_statement(DomainUpdateLocal(self.sim))      
 
         # Rebuild stencil since subdom sizes have changed. Also may use non-empty AABBs to create halo cells
-        self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists)) 
+        self.sim.add_statement(BuildCellListsStencil(self.sim)) 
 
         if self.sim._use_halo_cells:
             self.sim.add_statement(BuildCellLists(self, self.cell_lists))   
-            self.sim.add_statement(Borders(self.sim._comm))
+            self.sim.add_statement(Borders(self.sim))
 
         else: 
             # Exchange is not needed since all locals are contained in thier owners after deserialization
             # But ghosts must be recreated after rebalancing (optionally uses the halo cells)
-            self.sim.add_statement(Borders(self.sim._comm))
+            self.sim.add_statement(Borders(self.sim))
 
         # Populate cells with local and ghost particles
         self.sim.add_statement(self.sim.update_cells_procedures)   
@@ -132,13 +132,13 @@ class InterfaceModules:
         self.sim.module_name('reneighbor')
 
         reneighboring_procedures = [
-            Exchange(self.sim._comm),
+            Exchange(self.sim),
             # Note: DomainUpdateLocal must happen after exchange since local particles must be contained in AABBs.
             #       And it must happen before Borders since newly received particles need to be included, so they become ghosts
             #       for their previous neighbor
             DomainUpdateLocal(self.sim),    
-            Borders(self.sim._comm),
-            BuildCellListsStencil(self.sim, self.sim.cell_lists),
+            Borders(self.sim),
+            BuildCellListsStencil(self.sim),
             self.sim.update_cells_procedures,
             ResetVolatileProperties(self.sim)
         ]
@@ -150,21 +150,21 @@ class InterfaceModules:
                 ClearUnusedContactHistory(self.sim, self.sim._contact_history)
             ]
         
-        self.sim.add_statement(Block.from_list(self.sim, reneighboring_procedures))
+        self.sim.add_statement(reneighboring_procedures)
 
     @pairs_interface_block
     def refreshGhosts(self):
         self.sim.module_name('refreshGhosts')
-        self.sim.add_statement(Synchronize(self.sim._comm))
+        self.sim.add_statement(Synchronize(self.sim))
 
     @pairs_interface_block
     def reverseCommunicate(self):
         self.sim.module_name('reverseCommunicate')
-        self.sim.add_statement(ReverseComm(self.sim._comm, reduce=True))
+        self.sim.add_statement(ReverseComm(self.sim, reduce=True))
     
     @pairs_interface_block
     def resetVolatiles(self):
-        self.sim.module_name('resetVolatiles')
+        self.sim.module_name('resetVolatileProperties')
         self.sim.add_statement(ResetVolatileProperties(self.sim))
     
     @pairs_interface_block
@@ -203,41 +203,64 @@ class InterfaceModules:
     @pairs_interface_block
     def create_object(self):
         self.sim.module_name('createObject')
-        idx = self.sim.add_temp_var(-1)
-        position = self.sim.position()
 
+        # Initialize idx with an invalid value
+        idx = self.sim.add_temp_var(-1)
+
+        # Define function parameters (position coordinates, shape and flags)
         pos = []
         ndims = self.sim.ndims()
         for d in range(ndims):
             pos.append(Parameter(self.sim, f'pos_dim_{d}', Types.Real, d))
+
         shape = Parameter(self.sim, 'shape', Types.Int32, ndims)
         flags = Parameter(self.sim, 'flags', Types.Int32, ndims + 1)
 
+        # Check if the provided position is within this subdomain (i.e. particle is local)
         is_local = Call(self.sim, "pairs_runtime->getDomainPartitioner()->isWithinSubdomain", pos, Types.Boolean)
-        is_global = flags & ( Flags.Infinite | Flags.Global)
         
+        # Check if global or infinite flag is set for the provided flag
+        is_global = flags & (Flags.Global | Flags.Infinite)
+        
+        # If the particle is local or global
         for _ in Filter(self.sim, ScalarOp.or_op(is_local, is_global)):
+            # Set idx to the current nlocal
             Assign(self.sim, idx, self.sim.nlocal)
+
+            # If idx exceeds particle capacity
             for _ in Filter(self.sim, self.sim.particle_capacity <= idx):
+                # Resize capacity 
                 Assign(self.sim, self.sim.particle_capacity, idx * 2)
-                for arr in self.sim.particle_capacity.bonded_arrays():
-                    arr.realloc()
+
+                # Reallocate properties
                 for p in self.sim.properties.all():
                     sizes = [self.sim.particle_capacity] if Types.is_scalar(p.type()) else \
                             [self.sim.particle_capacity, Types.number_of_elements(self.sim, p.type())]
                     ReallocProperty(self.sim, p, sizes)
 
-            for d in range(ndims):
-                Assign(self.sim, position[idx][d], pos[d])
+                # Reallocate arrays bonded to this capacity
+                for arr in self.sim.particle_capacity.bonded_arrays():
+                    arr.realloc()
 
+            # Set particle position
+            for d in range(ndims):
+                Assign(self.sim, self.sim.particle_position[idx][d], pos[d])
+            
+            # Set particle shape
             Assign(self.sim, self.sim.particle_shape[idx], shape)
+
+            # Set particle flags
             Assign(self.sim, self.sim.particle_flags[idx], flags)
             
+            # Set particle UID
+            # (creates a global UID or a local UID of type uint64_t according to the flags provided)
             Assign(self.sim, self.sim.particle_uid[idx], 
                         Select(self.sim, is_global, 
                                 Call(self.sim, "UniqueID::createGlobal", [], Types.UInt64),  
                                 Call(self.sim, "UniqueID::create", [], Types.UInt64)))
             
-            AtomicInc(self.sim, self.sim.nlocal, 1)
+            # Increment nlocal
+            Assign(self.sim, self.sim.nlocal, self.sim.nlocal + 1)
         
+        # Return the idx
         Return(self.sim, idx)

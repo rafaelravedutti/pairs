@@ -8,6 +8,7 @@ from pairs.ir.operator_class import OperatorClass
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
+from pairs.ir.sync_modes import SyncModes
 
 
 class Properties:
@@ -16,8 +17,8 @@ class Properties:
         self.props = []
         self.defs = {}
 
-    def add(self, p_name, p_type, p_value, p_volatile, p_layout=Layouts.AoS, p_reduce=False):
-        p = Property(self.sim, p_name, p_type, p_value, p_volatile, p_layout, p_reduce)
+    def add(self, p_name, p_type, p_sync_mode, p_value, p_layout=Layouts.AoS):
+        p = Property(self.sim, p_name, p_type, p_sync_mode, p_value, p_layout)
         self.props.append(p)
         self.defs[p_name] = p_value
         return p
@@ -29,7 +30,7 @@ class Properties:
         return self.props
     
     def reduction_props(self):
-        return [p for p in self.props if p.reduce is True]
+        return [p for p in self.props if p.sync_mode==SyncModes.ON_REDUCTION]
 
     def volatiles(self):
         return [p for p in self.props if p.volatile is True]
@@ -54,15 +55,15 @@ class Properties:
 class Property(ASTNode):
     last_prop_id = 0
 
-    def __init__(self, sim, name, dtype, default, volatile, layout=Layouts.AoS, reduce=False):
+    def __init__(self, sim, name, dtype, sync_mode, default, layout=Layouts.AoS):
         super().__init__(sim)
         self.prop_id = Property.last_prop_id
         self.prop_name = name
         self.prop_type = dtype
+        self.sync_mode = sync_mode
         self.prop_layout = layout
         self.default_value = default
-        self.volatile = volatile
-        self.reduce = reduce
+        self.volatile = sync_mode==SyncModes.NEVER or sync_mode==SyncModes.ON_REDUCTION
         self.device_flag = False
         Property.last_prop_id += 1
 

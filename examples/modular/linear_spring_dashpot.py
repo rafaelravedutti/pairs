@@ -15,6 +15,34 @@ def update_mass_and_inertia(i):
         inv_inertia[i] = 0.0
 
 
+def spring_dashpot(i, j):
+    delta_ij = -penetration_depth(i, j)
+    skip_when(delta_ij < 0.0)
+    
+    velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point(i, j) - position[i])
+    velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point(i, j) - position[j])
+    
+    rel_vel = -(velocity_wf_i - velocity_wf_j)
+    rel_vel_n = dot(rel_vel, contact_normal(i, j))
+    rel_vel_t = rel_vel - rel_vel_n * contact_normal(i, j)
+
+    meff = 1.0 / ((1.0 / mass[i]) + (1.0 / mass[j]))
+    stiffness_norm = meff * (pi * pi + lnDryResCoeff * lnDryResCoeff) / \
+                     (collisionTime_SI * collisionTime_SI)
+    damping_norm = -2.0 * meff * lnDryResCoeff / collisionTime_SI
+    damping_tan = sqrt(kappa) * damping_norm
+
+    fNabs = stiffness_norm * delta_ij + damping_norm * rel_vel_n
+    fN = fNabs * contact_normal(i, j)
+
+    fTabs = min(damping_tan * length(rel_vel_t), friction_dynamic[i, j] * fNabs)
+    fT = fTabs * normalized(rel_vel_t)
+
+    partial_force = fN + fT
+    apply(force, partial_force)
+    apply(torque, cross(contact_point(i, j) - position, partial_force))
+
+
 def linear_spring_dashpot(i, j):
     delta_ij = -penetration_depth(i, j)
     skip_when(delta_ij < 0.0)
@@ -32,7 +60,7 @@ def linear_spring_dashpot(i, j):
     rel_vel = -(velocity_wf_i - velocity_wf_j)
     rel_vel_n = dot(rel_vel, contact_normal(i, j)) * contact_normal(i, j)
     rel_vel_t = rel_vel - rel_vel_n
-    fN = stiffness_norm * delta_ij * contact_normal(i, j) + damping_norm * rel_vel_n;
+    fN = stiffness_norm * delta_ij * contact_normal(i, j) + damping_norm * rel_vel_n
 
     tan_spring_disp = tangential_spring_displacement[i, j]
     impact_vel_magnitude = impact_velocity_magnitude[i, j]
@@ -108,7 +136,6 @@ frictionDynamic = frictionCoefficient
 
 psim = pairs.simulation(
     "linear_spring_dashpot",
-    [pairs.sphere(), pairs.halfspace()],
     double_prec=True,
     use_contact_history=True,
     particle_capacity=1000000,
@@ -120,17 +147,26 @@ else:
     psim.target(pairs.target_cpu())
     #psim.target(pairs.target_cpu(parallel=True))
 
+# Add position property
 psim.add_position('position')
-psim.add_property('mass', pairs.real())
-psim.add_property('linear_velocity', pairs.vector())
-psim.add_property('angular_velocity', pairs.vector())
-psim.add_property('force', pairs.vector(), volatile=True)
-psim.add_property('torque', pairs.vector(), volatile=True)
-psim.add_property('radius', pairs.real())
-psim.add_property('normal', pairs.vector())
-psim.add_property('inv_inertia', pairs.matrix())
-psim.add_property('rotation_matrix', pairs.matrix())
-psim.add_property('rotation_quat', pairs.quaternion())
+
+# Add shapes and define their geometric properties (required internally for contact detection)
+psim.add_shape(pairs.sphere('radius'))
+psim.add_shape(pairs.halfspace('normal'))
+
+# Add properties
+#-------------------------------------------------------------------------------------------------
+psim.add_property('radius',             pairs.real(),       pairs.on_reneighbor()) # Required by spheres as defined above
+psim.add_property('normal',             pairs.vector(),     pairs.on_reneighbor()) # Required by halfspaces as defined above
+psim.add_property('mass',               pairs.real(),       pairs.on_reneighbor())
+psim.add_property('inv_inertia',        pairs.matrix(),     pairs.on_reneighbor())
+psim.add_property('rotation_matrix',    pairs.matrix(),     pairs.always())
+psim.add_property('rotation',           pairs.quaternion(), pairs.always())
+psim.add_property('linear_velocity',    pairs.vector(),     pairs.always())
+psim.add_property('angular_velocity',   pairs.vector(),     pairs.always())
+psim.add_property('force',              pairs.vector(),     pairs.never())
+psim.add_property('torque',             pairs.vector(),     pairs.never())
+#-------------------------------------------------------------------------------------------------
 
 psim.add_feature('type', ntypes)
 psim.add_feature_property('type', 'friction_static', pairs.real(), [frictionStatic for i in range(ntypes * ntypes)])
@@ -141,12 +177,19 @@ psim.add_contact_property('tangential_spring_displacement', pairs.vector(), [0.0
 psim.add_contact_property('impact_velocity_magnitude', pairs.real(), 0.0)
 
 psim.set_domain_partitioner(pairs.regular_domain_partitioner())
+# psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
 psim.build_cell_lists()
 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
 
 psim.compute(gravity, symbols={'gravity_SI': gravity_SI})
+
+psim.compute(spring_dashpot,
+             parameters={'collisionTime_SI': pairs.real()},
+             symbols={'pi': math.pi,
+                      'kappa': kappa,
+                      'lnDryResCoeff': lnDryResCoeff})
 
 psim.compute(linear_spring_dashpot,
              parameters={'dt': pairs.real(),'collisionTime_SI': pairs.real()},

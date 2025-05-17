@@ -8,11 +8,11 @@ from pairs.ir.math import Sqrt, Abs, Min, Sign
 from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.ir.vectors import Vector
-from pairs.ir.print import Print
+from pairs.ir.print import Print, PrintCode
 from pairs.ir.atomic import AtomicInc
 from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
-from pairs.sim.shapes import Shapes
+from pairs.sim.shapes import Shapes, Sphere, Halfspace, Box, Clump
 
 
 class Neighbor(ASTTerm):
@@ -184,8 +184,8 @@ class InteractionData:
 
     def sphere_halfspace(self, i, j):
         position = self.sim.position()
-        radius = self.sim.property('radius')
-        normal = self.sim.property('normal')
+        radius = self.sim.property(self.sim.shape_obj(Sphere).radius)
+        normal = self.sim.property(self.sim.shape_obj(Halfspace).normal)
 
         d = normal[j][0] * position[j][0] + \
             normal[j][1] * position[j][1] + \
@@ -207,7 +207,7 @@ class InteractionData:
 
     def sphere_sphere(self, i, j):
         position = self.sim.position()
-        radius = self.sim.property('radius')
+        radius = self.sim.property(self.sim.shape_obj(Sphere).radius)
         delta = position[i] - position[j]
         squared_distance = delta.x() * delta.x() + \
                         delta.y() * delta.y() + \
@@ -230,9 +230,9 @@ class InteractionData:
         s = i   # Sphere
         b = j   # Box
         position = self.sim.position()
-        edge_length = self.sim.property('edge_length')
-        rotation_matrix = self.sim.property('rotation_matrix')
-        radius = self.sim.property('radius')
+        radius = self.sim.property(self.sim.shape_obj(Sphere).radius)
+        edge_length = self.sim.property(self.sim.shape_obj(Box).edge_length)
+        rotation_matrix = self.sim.property(self.sim.shape_obj(Box).rotation_matrix)
         
         l = edge_length[b] * 0.5
         rm = rotation_matrix[b]

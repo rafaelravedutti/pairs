@@ -13,6 +13,7 @@ from pairs.ir.print import Print, PrintCode
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
+from pairs.ir.sync_modes import SyncModes
 from pairs.sim.lowerable import Lowerable
 
 
@@ -53,16 +54,15 @@ class Comm:
 
 
 class Synchronize(Lowerable):
-    def __init__(self, comm):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim):
+        self.sim = sim
+        self.comm = sim._comm
 
     @pairs_inline
     def lower(self):
         # Every property that is not constant across timesteps and have neighbor accesses during any
         # interaction kernel (i.e. property[j] in force calculation kernel)
-        prop_names = ['position', 'linear_velocity', 'angular_velocity']
-        prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
+        prop_list = [p for p in self.sim.properties if p.sync_mode==SyncModes.ALWAYS]
 
         PackAllGhostParticles(self.comm, prop_list)
         CommunicateAllData(self.comm, prop_list)
@@ -70,28 +70,16 @@ class Synchronize(Lowerable):
 
 
 class Borders(Lowerable):
-    def __init__(self, comm):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim):
+        self.sim = sim
+        self.comm = sim._comm
 
     @pairs_inline
     def lower(self):
         # Every property that has neighbor accesses during any interaction kernel (i.e. property[j]
         # exists in any force calculation kernel)
-        # We ignore normal because there should be no ghost half-spaces
-        prop_names = [
-            'flags',
-            'uid',
-            'type',
-            'mass',
-            'radius',
-            'position',
-            'linear_velocity',
-            'angular_velocity',
-            'shape'
-        ]
-
-        prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
+        # prop_list = [p for p in self.sim.properties if p.sync_mode==SyncModes.ALWAYS or p.sync_mode==SyncModes.ON_RENEIGHBOR]
+        prop_list = self.sim.properties.non_volatiles()
 
         Assign(self.sim, self.comm.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
@@ -121,14 +109,15 @@ class Borders(Lowerable):
 
 
 class Exchange(Lowerable):
-    def __init__(self, comm):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim):
+        self.sim = sim
+        self.comm = sim._comm
 
     @pairs_inline
     def lower(self):
         # Every property except volatiles
         prop_list = self.sim.properties.non_volatiles()
+        # prop_list = [p for p in self.sim.properties if p.sync_mode==SyncModes.ALWAYS or p.sync_mode==SyncModes.ON_RENEIGHBOR]
 
         for step in range(self.comm.dom_part.number_of_steps()):
             Assign(self.comm.sim, self.comm.nsend_all, 0)
@@ -182,9 +171,9 @@ class Exchange(Lowerable):
 
 
 class ReverseComm(Lowerable):
-    def __init__(self, comm, reduce=False):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim, reduce=False):
+        self.sim = sim
+        self.comm = sim._comm
         self.reduce = reduce
 
     @pairs_inline
