@@ -18,9 +18,9 @@ from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
 from pairs.sim.grid import Grid3D
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
+from pairs.sim.particle_lists import ParticleLists, BuildShapePartitions
 from pairs.transformations import Transformations
 from pairs.code_gen.interface import InterfaceModules
-
 
 class Simulation:
     """P4IRS Simulation class, this class is the center of kernel simulations which contains all
@@ -66,6 +66,7 @@ class Simulation:
         self.cell_lists = None
         self._store_neighbors_per_cell = False
         self.neighbor_lists = None
+        self.particle_lists = None
         self.update_cells_procedures = Block(self, [])
 
         # Context information used to partially build the program AST
@@ -277,7 +278,7 @@ class Simulation:
         self.reneighbor_frequency = frequency
 
     def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False, use_halo_cells=False, optimize_halo_paddings=False):
-        """Add routines to build the linked-cells acceleration structure.
+        """Add routines to build the cell-lists acceleration structure.
         Leave spacing as None so it can be set at runtime."""
         self._store_neighbors_per_cell = store_neighbors_per_cell
         self._use_halo_cells = use_halo_cells
@@ -390,9 +391,12 @@ class Simulation:
         self._compute_thermo = every
 
     def create_update_cells_block(self):
+        self.particle_lists = ParticleLists(self)
+
         subroutines = [
             BuildCellLists(self, self.cell_lists),
-            PartitionCellLists(self, self.cell_lists)
+            PartitionCellLists(self, self.cell_lists),
+            BuildShapePartitions(self, self.particle_lists, self.cell_lists)
         ]
 
         # Add routine to build neighbor-lists per cell

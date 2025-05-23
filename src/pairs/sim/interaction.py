@@ -133,7 +133,7 @@ class NeighborFor:
 
 
 class InteractionData:
-    def __init__(self, sim, shape):
+    def __init__(self, sim):
         self.sim = sim
         self._i = sim.add_symbol(Types.Int32)
         self._j = sim.add_symbol(Types.Int32)
@@ -142,7 +142,6 @@ class InteractionData:
         self._penetration_depth = sim.add_symbol(Types.Real)
         self._contact_point = sim.add_symbol(Types.Vector)
         self._contact_normal = sim.add_symbol(Types.Vector)
-        self._shape = shape
         self.contact_threshold = 0.0
         self.cutoff_condition = None
 
@@ -166,9 +165,6 @@ class InteractionData:
 
     def contact_normal(self):
         return self._contact_normal
-
-    def shape(self):
-        return self._shape
     
     def pointmass_pointmass(self, i, j, cutoff_radius):
         position = self.sim.position()
@@ -538,15 +534,15 @@ class ParticleInteraction(Lowerable):
     def include_interaction(self, ishape, jshape):
         id_i = self.sim.get_shape_id(ishape)
         id_j = self.sim.get_shape_id(jshape)
-        return  (id_i == Shapes.PointMass and id_j == Shapes.PointMass) or \
-                (id_i == Shapes.Sphere and id_j == Shapes.Sphere) or \
-                (id_i == Shapes.Sphere and id_j == Shapes.Halfspace) or \
-                (id_i == Shapes.Sphere and id_j == Shapes.Box) or \
-                (id_i == Shapes.Sphere and id_j == Shapes.Clump) or \
-                (id_i == Shapes.Box and id_j == Shapes.Sphere) or \
-                (id_i == Shapes.Clump and id_j == Shapes.Sphere) or \
-                (id_i == Shapes.Clump and id_j == Shapes.Clump) or \
-                (id_i == Shapes.Clump and id_j == Shapes.Halfspace)
+        return  (id_i == Shapes.PointMass   and id_j == Shapes.PointMass)   or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Sphere)      or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Halfspace)   or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Box)         or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Clump)       or \
+                (id_i == Shapes.Box         and id_j == Shapes.Sphere)      or \
+                (id_i == Shapes.Clump       and id_j == Shapes.Sphere)      or \
+                (id_i == Shapes.Clump       and id_j == Shapes.Clump)       or \
+                (id_i == Shapes.Clump       and id_j == Shapes.Halfspace)
                     
     # Included kernels
     def include_shape(self, ishape):
@@ -555,6 +551,9 @@ class ParticleInteraction(Lowerable):
                 (id_i == Shapes.Sphere) or \
                 (id_i == Shapes.Box) or \
                 (id_i == Shapes.Clump)
+    
+    def interaction_id(self, ishape, jshape):
+        return  ishape*self.maxs + jshape
 
     def __iter__(self):
         self.sim.add_statement(self)
@@ -564,11 +563,11 @@ class ParticleInteraction(Lowerable):
         for ishape in range(self.sim.max_shapes()):
             for jshape in range(self.sim.max_shapes()):
                 if self.include_interaction(ishape, jshape):
-                    apply_list_id = ishape*self.maxs + jshape
-                    self.sim.use_apply_list(self.apply_list[apply_list_id])
-                    self.active_block = self.blocks[ishape*self.maxs + jshape]
-                    self.interactions_data[ishape*self.maxs + jshape] = InteractionData(self.sim, ishape*self.maxs + jshape)
-                    yield self.interactions_data[ishape*self.maxs + jshape]
+                    interaction_id = self.interaction_id(ishape, jshape)
+                    self.sim.use_apply_list(self.apply_list[interaction_id])
+                    self.active_block = self.blocks[interaction_id]
+                    self.interactions_data[interaction_id] = InteractionData(self.sim)
+                    yield self.interactions_data[interaction_id]
                     self.sim.release_apply_list()
 
         self.sim.leave()
@@ -576,7 +575,7 @@ class ParticleInteraction(Lowerable):
 
     def apply_reductions(self, i, ishape, jshape, atomic=False):
         prop_reductions = {}
-        for app in self.apply_list[ishape*self.maxs + jshape]:
+        for app in self.apply_list[self.interaction_id(ishape, jshape)]:
             prop = app.prop()
             reduction = app.reduction_variable()
             if prop not in prop_reductions:
@@ -597,7 +596,8 @@ class ParticleInteraction(Lowerable):
                 Assign(self.sim, prop[i], prop[i] + reduction)
 
     def compute_interaction(self, i, j, ishape, jshape, atomic=False):
-        interaction_data = self.interactions_data[ishape*self.maxs + jshape]
+        interaction_id = self.interaction_id(ishape, jshape)
+        interaction_data = self.interactions_data[interaction_id]
         interaction_data.i().assign(i)
         interaction_data.j().assign(j)
         ishape_id = self.sim.get_shape_id(ishape)
@@ -632,11 +632,11 @@ class ParticleInteraction(Lowerable):
 
         # Apply reductions for this i-j interaction:
         # -------------------------------------------------------------
-        for app in self.apply_list[ishape*self.maxs + jshape]:
+        for app in self.apply_list[interaction_id]:
             app.add_reduction_variable()
 
         # The i-j block is executed only if the cutoff_condition of the i-j interaction is met
-        self.sim.add_statement(Filter(self.sim, interaction_data.cutoff_condition, self.blocks[ishape*self.maxs + jshape]))
+        self.sim.add_statement(Filter(self.sim, interaction_data.cutoff_condition, self.blocks[interaction_id]))
         self.apply_reductions(i, ishape, jshape, atomic)
 
     def intersects_subdom(self, ishape, i):
@@ -689,19 +689,38 @@ class ParticleInteraction(Lowerable):
             #                                     j = neigh.particle_index()
             #                                     self.compute_interaction(i, j, ishape, jshape)
 
+            #############################################################################
+            # Without outer loop partitioning
+            #############################################################################
+            # for ishape in range(self.maxs):
+            #     if self.include_shape(ishape):
+            #         # A kernel for each ishape
+            #         for i in ParticleFor(self.sim):
+            #             for _ in Filter(self.sim, ScalarOp.and_op(
+            #                 ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
+            #                 ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
+            #                 for jshape in range(self.maxs):
+            #                     if self.include_interaction(ishape, jshape):
+            #                         # Inner loops for each jshaped neighbor
+            #                         for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+            #                             j = neigh.particle_index()
+            #                             self.compute_interaction(i, j, ishape, jshape)
+
+
+            #############################################################################
+            # With outer loop partitioning
+            #############################################################################
             for ishape in range(self.maxs):
                 if self.include_shape(ishape):
-                    # A kernel for each ishape
-                    for i in ParticleFor(self.sim):
-                        for _ in Filter(self.sim, ScalarOp.and_op(
-                            ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
-                            ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
-                            for jshape in range(self.maxs):
-                                if self.include_interaction(ishape, jshape):
-                                    # Inner loops for each jshaped neighbor
-                                    for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
-                                        j = neigh.particle_index()
-                                        self.compute_interaction(i, j, ishape, jshape)
-
+                    start = sum([self.sim.particle_lists.shape_nparticles[s] for s in range(ishape)], 0)
+                    end = self.sim.particle_lists.shape_nparticles[ishape]
+                    for n in For(self.sim, start, end):
+                        i = self.sim.particle_lists.shape_partitioned_idx[n]
+                        for jshape in range(self.maxs):
+                            if self.include_interaction(ishape, jshape):
+                                # Inner loops for each jshaped neighbor
+                                for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+                                    j = neigh.particle_index()
+                                    self.compute_interaction(i, j, ishape, jshape)
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")

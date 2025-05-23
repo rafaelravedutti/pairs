@@ -25,7 +25,7 @@ class Keywords:
 
     def __call__(self, keyword, args):
         method = self.get_method(f"keyword_{keyword}")
-        assert method is not None, "Invalid keyword: {keyword}"
+        assert method is not None, f"Invalid keyword: {keyword}"
         return method(args)
 
     def exists(self, keyword):
