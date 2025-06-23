@@ -2,6 +2,7 @@
 #include <memory>
 #include <chrono>
 
+#include "print_stats.hpp"
 #include "spring_dashpot.hpp"
 
 void randomaize_indices(PairsAccessor ac){
@@ -19,14 +20,54 @@ void randomaize_indices(PairsAccessor ac){
     ac.syncPosition(PairsAccessor::Host);
 }
 
+double run_sim(std::shared_ptr<PairsSimulation> &pairs_sim, double dt, uint64_t num_timesteps, bool profile=false){
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto pairs_runtime = pairs_sim->getPairsRuntime();
+    int print_interval = (num_timesteps >= 5) ? (num_timesteps / 5) : 1;
+    int rank = pairs_sim->rank();
+
+    if(profile){
+        if(rank==0) std::cout << "Running sim with profiling enabled..." << std::endl;
+        pairs_runtime->getTimers()->enable();
+        pairs_runtime->getTimers()->enableMPIBarrier();
+    }
+    else{
+        if(rank==0) std::cout << "Running sim without profiling..." << std::endl;
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (int t=0; t<num_timesteps; ++t){
+        if ((t%print_interval==0) && rank==0) std::cout << "Timestep: " << t << std::endl;
+        pairs_sim->spring_dashpot();
+        pairs_sim->euler(dt);
+        pairs_sim->reneighbor();
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration<double>(end - start);
+    double total_runtime = duration.count(); // seconds
+    
+    if(profile){
+        pairs::log_timers(pairs_runtime);
+        pairs_runtime->getTimers()->disable();
+        pairs_runtime->getTimers()->disableMPIBarrier();
+    }
+
+    return total_runtime;
+}
+
 int main(int argc, char **argv) {
-    if(argc!=5){
-        std::cerr << "4 args are required: Domain size (i.e. number of particles) in x,y,z and #timesteps." << std::endl;
+    if(argc!=6){
+        std::cerr << "5 args are required: profile(bool), Domain size (i.e. number of particles) in x,y,z and #timesteps." << std::endl;
         exit(-1);
     }
 
-    double domain_size[3] = {std::stod(argv[1]), std::stod(argv[2]), std::stod(argv[3])};
-    uint64_t num_timesteps = std::stoull(argv[4]);    
+    bool profile = (std::stoi(argv[1]) != 0);
+    double domain_size[3] = {std::stod(argv[2]), std::stod(argv[3]), std::stod(argv[4])};
+    uint64_t num_timesteps = std::stoull(argv[5]);    
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
     pairs_sim->initialize();
@@ -67,44 +108,54 @@ int main(int argc, char **argv) {
     // Inertia update is required for euler updates to be valid (but particles remain stationary)
     double dt = 0.001;  // Arbitrary
     
+    // Stats
+    // ------------------------------------------------------------------------------
     int rank = pairs_sim->rank();
-    if(rank==0) std::cout << "NUM_PROC: " << pairs_runtime->getDomainPartitioner()->getWorldSize() << std::endl;
-    if(rank==0) std::cout << "NUM_NEIGH_AABBS: " << pairs_runtime->getDomainPartitioner()->getNumberOfNeighborAABBs() << std::endl;
-    if(rank==0) std::cout << "NUM_TIMESTEPS: " << num_timesteps << std::endl;
-    int print_interval = (num_timesteps >= 5) ? (num_timesteps / 5) : 1;
+    int world_size = pairs_runtime->getDomainPartitioner()->getWorldSize();
+
+    int num_local_aabbs = pairs_runtime->getDomainPartitioner()->getNumberOfLocalAABBs();
+    int num_neigh_aabbs = pairs_runtime->getDomainPartitioner()->getNumberOfNeighborAABBs();
+    int num_neigh_ranks = pairs_runtime->getDomainPartitioner()->getNumberOfNeighborRanks();
+    uint64_t nlocal = pairs_sim->nlocal();
+    uint64_t nghost = pairs_sim->nghost();
+
+    std::cout << "rank (" << rank << "): \t nlocal = " << nlocal << " nghost = " << nghost << 
+         " local_aabbs = " << num_local_aabbs << 
+         " neigh_aabbs = " << num_neigh_aabbs << 
+         " neigh_ranks = " << num_neigh_ranks << std::endl;
+
+    print_global_stats("NLOCAL", nlocal, MPI_UINT64_T, MPI_COMM_WORLD);
+    print_global_stats("NGHOST", nghost, MPI_UINT64_T, MPI_COMM_WORLD);
+    print_global_stats("NUM_LOCAL_AABBS", num_local_aabbs, MPI_INT, MPI_COMM_WORLD);
+    print_global_stats("NUM_NEIGH_AABBS", num_neigh_aabbs, MPI_INT, MPI_COMM_WORLD);
+    print_global_stats("NUM_NEIGH_RANKS", num_neigh_ranks, MPI_INT, MPI_COMM_WORLD);
+
+    if(rank==0){
+        std::cout << "NUM_PROC: " << world_size << std::endl;
+        std::cout << "NUM_TIMESTEPS: " << num_timesteps << std::endl;
+    }
 
     // pairs::vtk_write_subdom(pairs_runtime, "output/subdom_init", pairs_runtime->getDomainPartitioner()->getWorldSize());
     
-
+    // Run simulation without timers (and no MPI barriers) to get the total runtime  
     // ------------------------------------------------------------------------------
-    MPI_Barrier(MPI_COMM_WORLD);
-    auto start = std::chrono::high_resolution_clock::now();
-
-    for (int t=0; t<num_timesteps; ++t){
-        if ((t%print_interval==0) && rank==0) std::cout << "Timestep: " << t << std::endl;
-        pairs_sim->spring_dashpot();
-        pairs_sim->euler(dt);
-        pairs_sim->reneighbor();
-    }
-
-    auto end = std::chrono::high_resolution_clock::now();
-    // ------------------------------------------------------------------------------
-    
-    
-    uint64_t nlocal = pairs_sim->nlocal();
+    double total_runtime = run_sim(pairs_sim, dt, num_timesteps);
+      
     uint64_t global_nparticles;
     MPI_Reduce(&nlocal, &global_nparticles, 1, MPI_UINT64_T, MPI_SUM, 0, MPI_COMM_WORLD);
     if(rank==0) {
-        auto duration = std::chrono::duration<double>(end - start);
-        double total_runtime = duration.count(); // seconds
         std::cout << "TOTAL_RUNTIME: " << total_runtime << std::endl;
         std::cout << "GLOBAL_NPARTICLES: " << global_nparticles << std::endl;
         
         double pups = global_nparticles * num_timesteps / total_runtime;    // particle updates per second
         std::cout << "PUPS: " << pups << std::endl;
+        std::cout << "PUPPS: " << pups / world_size << std::endl;
     }
 
-    pairs::log_timers(pairs_runtime);
+
+    // Run simulation with timers (and MPI barriers) to get detailed runtimes for all kernels
+    // ------------------------------------------------------------------------------
+    if(profile) run_sim(pairs_sim, dt, num_timesteps, true);
     
     // pairs::vtk_write_data(pairs_runtime, "output/local_spheres", 0, pairs_sim->nlocal(), 0);
     // pairs::vtk_write_data(pairs_runtime, "output/ghost_spheres", pairs_sim->nlocal(), pairs_sim->size(), 0);

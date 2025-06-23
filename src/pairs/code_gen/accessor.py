@@ -77,10 +77,6 @@ class PairsAcessor:
         self.print("struct DeviceProps{")
         self.print.add_indent(4)
 
-        self.print("int nlocal;")
-        self.print("int nghost;")
-        self.print("")
-
         self.print("//Property device pointers")
         for p in self.sim.properties:
             pname = p.name()
@@ -96,6 +92,10 @@ class PairsAcessor:
 
         self.print("")
         self.print("//Feature properties have no flags on device since they can't be modified on device")
+
+        self.print("")
+        self.print("int nlocal;")
+        self.print("int nghost;")
 
         self.print.add_indent(-4)
         self.print("};")   

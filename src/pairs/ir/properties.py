@@ -199,6 +199,19 @@ class ReallocProperty(ASTNode):
         return self.sizes_list
 
 
+class RemoveProperty(ASTNode):
+    def __init__(self, sim, prop):
+        super().__init__(sim)
+        self.prop = prop
+        self.sim.add_statement(self)
+
+    def __str__(self):
+        return f"RemoveProperty<{self.prop.name()}>"
+
+    def property(self):
+        return self.prop
+
+
 class ContactProperties:
     def __init__(self, sim):
         self.sim = sim

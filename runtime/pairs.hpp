@@ -102,6 +102,7 @@ public:
     Array &getArrayByName(std::string name);
     Array &getArrayByHostPointer(const void *h_ptr);
     void addArray(Array array);
+    void removeArray(array_t id);
 
     template<typename T_ptr>
     void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size);
@@ -150,6 +151,7 @@ public:
     Property &getProperty(property_t id);
     Property &getPropertyByName(std::string name);
     void addProperty(Property prop);
+    void removeProperty(property_t id);
 
     template<typename T_ptr>
     void addProperty(

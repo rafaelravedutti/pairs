@@ -2,7 +2,7 @@ import math
 from pairs.ir.actions import Actions
 from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd, AtomicInc
-from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray
+from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray, RemoveArray
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
@@ -22,7 +22,7 @@ from pairs.ir.matrices import Matrix, MatrixAccess, MatrixOp
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
 from pairs.ir.particle_attributes import ParticleAttributeList
-from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty, ContactProperty, ContactPropertyAccess, RegisterContactProperty
+from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty, RemoveProperty, ContactProperty, ContactPropertyAccess, RegisterContactProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
@@ -954,12 +954,20 @@ class CGen:
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
             self.print(f"pairs_runtime->reallocProperty({p.id()}, {ptr_addr}, {d_ptr_addr}, {sizes});")
 
+        if isinstance(ast_node, RemoveProperty):
+            p = ast_node.property()
+            self.print(f"pairs_runtime->removeProperty({p.id()});")
+
         if isinstance(ast_node, ReallocArray):
             a = ast_node.array()
             size = self.generate_expression(ast_node.size())
             ptr_addr = self.generate_object_address(a)
             d_ptr_addr = self.generate_object_address(a, device=True)
             self.print(f"pairs_runtime->reallocArray({a.id()}, {ptr_addr}, {d_ptr_addr}, {size});")
+
+        if isinstance(ast_node, RemoveArray):
+            a = ast_node.array()
+            self.print(f"pairs_runtime->removeArray({a.id()});")
 
         if isinstance(ast_node, DeclareVariable):
             var_name = ast_node.var.name()

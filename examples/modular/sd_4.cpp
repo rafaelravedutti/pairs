@@ -40,23 +40,23 @@ int main(int argc, char **argv) {
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     pairs_runtime->initDomain(&argc, &argv, 
-                    0, 0, 0, 20, 20, 20,    // Domain bounds
+                    0, 0, 0, 40, 40, 40,    // Domain bounds
                     true                    // Enable dynamic load balancing (does initial refinement on a <1,1,1> blockforest)
                 ); 
 
-    pairs_runtime->getDomainPartitioner()->initWorkloadBalancer(pairs::Hilbert, 100, 1000);
+    pairs_runtime->getDomainPartitioner()->initWorkloadBalancer(pairs::Hilbert, 100, 12000);
 
     pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
     pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
     pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 20,20,20,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 20,20,20,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 20,20,20,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 40,40,40,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 40,40,40,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 40,40,40,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
 
     double diameter_min = 0.3;
     double diameter_max = 0.3;
     double sphere_spacing = 0.4;
-    pairs::dem_sc_grid(pairs_runtime, 10, 10, 15,  sphere_spacing, diameter_min, diameter_min, diameter_max,    2,      100,    2);
+    pairs::dem_sc_grid(pairs_runtime, 20, 20, 30,  sphere_spacing, diameter_min, diameter_min, diameter_max,    2,      100,    2);
     
     double cell_width = diameter_max;
     double interaction_radius = diameter_max;
@@ -67,9 +67,9 @@ int main(int argc, char **argv) {
     pairs_sim->setInteractionRadius(interaction_radius);
     pairs_sim->updateDomain();
 
-    int num_timesteps = 4000;
+    int num_timesteps = 5000;
     int vtk_freq = 20;
-    int rebalance_freq = 200;
+    int rebalance_freq = 500;
     double dt = 1e-3;
 
 
@@ -94,6 +94,8 @@ int main(int argc, char **argv) {
     for (int t=0; t<num_timesteps; ++t){
         if ((t % vtk_freq==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
         
+        MPI_Barrier(MPI_COMM_WORLD);
+        auto start = std::chrono::high_resolution_clock::now();
         
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 
@@ -105,6 +107,13 @@ int main(int argc, char **argv) {
         else {
             pairs_sim->reneighbor();
         }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        auto duration = std::chrono::duration<double>(end - start);
+        double step_runtime = duration.count(); // seconds
+        // if(pairs_sim->rank()==0) std::cout << "STEP_RUNTIME: " << step_runtime << std::endl;
 
         if (t % vtk_freq==0){
             pairs::vtk_write_subdom(pairs_runtime, "output/subdom", t);

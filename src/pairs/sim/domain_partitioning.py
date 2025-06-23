@@ -432,6 +432,7 @@ class BlockForest:
 
                                 for _ in Filter(self.sim, full_cond):
                                     yield i, r, self.ranks[r], pbc_shifts
+                                    Break(self.sim)()
 
                             for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me
                                 pbc_shifts = []
@@ -455,6 +456,7 @@ class BlockForest:
                                 
                                 for _ in Filter(self.sim, isghost):
                                     yield i, r, self.ranks[r], pbc_shifts
+                                    Break(self.sim)()
 
 
     def ghost_particles_halo_cells(self, step, position, offset=0.0):
@@ -502,6 +504,7 @@ class BlockForest:
 
                                     for _ in Filter(self.sim, full_cond):
                                         yield i, r, self.ranks[r], pbc_shifts
+                                        Break(self.sim)()
 
                                 for _ in Filter(self.sim, ScalarOp.cmp(self.ranks[r] , self.rank)):     # if my neighbor is me
                                     pbc_shifts = []
@@ -525,3 +528,4 @@ class BlockForest:
                                     
                                     for _ in Filter(self.sim, isghost):
                                         yield i, r, self.ranks[r], pbc_shifts
+                                        Break(self.sim)()

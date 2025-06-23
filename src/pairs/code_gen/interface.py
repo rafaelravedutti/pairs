@@ -7,7 +7,8 @@ from pairs.ir.types import Types
 from pairs.ir.branches import Filter, Branch
 from pairs.ir.select import Select
 from pairs.ir.atomic import AtomicInc
-from pairs.ir.properties import ReallocProperty
+from pairs.ir.arrays import RemoveArray
+from pairs.ir.properties import ReallocProperty, RemoveProperty
 from pairs.ir.print import PrintCode
 from pairs.ir.assign import Assign
 from pairs.sim.flags import Flags
@@ -190,6 +191,12 @@ class InterfaceModules:
     @pairs_interface_block
     def end(self):
         self.sim.module_name('end')
+
+        for p in self.sim.properties.all():
+            RemoveProperty(self.sim, p)
+
+        for p in self.sim.arrays.all():
+            RemoveArray(self.sim, p)
 
         if self.sim._enable_profiler:
             PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")

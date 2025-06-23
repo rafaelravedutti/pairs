@@ -60,6 +60,28 @@ void PairsRuntime::addArray(Array array) {
     arrays.push_back(array);
 }
 
+void PairsRuntime::removeArray(array_t id) {
+    auto it = std::find_if(arrays.begin(),
+                           arrays.end(),
+                           [id](const Array &a) { return a.getId() == id; });
+
+    PAIRS_ASSERT(it != arrays.end());
+
+    if(it->isStatic()) return;
+    void *h_ptr = it->getHostPointer();
+    void *d_ptr = it->getDevicePointer();
+
+    if(h_ptr) {
+        pairs::host_free(h_ptr);
+    }
+
+    if(d_ptr) {
+        pairs::device_free(d_ptr);
+    }
+
+    arrays.erase(it);
+}
+
 Array &PairsRuntime::getArray(array_t id) {
     auto a = std::find_if(
         arrays.begin(),
@@ -97,6 +119,27 @@ void PairsRuntime::addProperty(Property prop) {
         }) == std::end(properties));
 
     properties.push_back(prop);
+}
+
+void PairsRuntime::removeProperty(property_t id) {
+    auto it = std::find_if(properties.begin(),
+                           properties.end(),
+                           [id](const Property &p) { return p.getId() == id; });
+
+    PAIRS_ASSERT(it != properties.end());
+
+    void *h_ptr = it->getHostPointer();
+    void *d_ptr = it->getDevicePointer();
+
+    if(h_ptr) {
+        pairs::host_free(h_ptr);
+    }
+
+    if(d_ptr) {
+        pairs::device_free(d_ptr);
+    }
+
+    properties.erase(it);
 }
 
 Property &PairsRuntime::getProperty(property_t id) {
@@ -399,7 +442,7 @@ void PairsRuntime::communicateSizes(int dim, const int *send_sizes, int *recv_si
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
@@ -457,7 +500,7 @@ void PairsRuntime::communicateData(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateData(
@@ -520,7 +563,7 @@ void PairsRuntime::communicateDataReverse(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateDataReverse(
@@ -583,7 +626,7 @@ void PairsRuntime::communicateAllData(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateAllData(
@@ -632,7 +675,7 @@ void PairsRuntime::communicateContactHistoryData(
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, nsend_contact, nrecv_contact);
@@ -677,7 +720,7 @@ void PairsRuntime::allReduceInplaceSum(real_t *red_buffer, int num_elems){
     copyArrayToHost(buff_array, Ignore, num_elems * sizeof(real_t));
     #endif
 
-    // MPI_Barrier(MPI_COMM_WORLD);
+    this->getTimers()->barrier();
     
     this->getTimers()->start(TimerMarkers::MPI);
     MPI_Allreduce(MPI_IN_PLACE, buff_ptr, num_elems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);

@@ -16,6 +16,12 @@ class Timers {
 public:
     Timers(TimeType _factor) : time_factor(_factor) {}
     ~Timers() {}
+    
+    void enable() { enabled = true; }
+    void disable() { enabled = false; }
+    void enableMPIBarrier() { barrier_enabled = true; }
+    void disableMPIBarrier() { barrier_enabled = false; }
+    void barrier() { if(barrier_enabled) MPI_Barrier(MPI_COMM_WORLD); }
 
     void add(size_t id, std::string name) {
         counter_names.resize(id + 1);
@@ -25,9 +31,14 @@ public:
         counter_names[id] = name;
     }
 
-    void start(size_t id) { clocks[id] = std::chrono::high_resolution_clock::now(); ++call_counters[id];}
+    void start(size_t id) { 
+        if(!enabled) return;
+        clocks[id] = std::chrono::high_resolution_clock::now(); 
+        ++call_counters[id];
+    }
 
     void stop(size_t id) {
+        if(!enabled) return;
         auto current_clock = std::chrono::high_resolution_clock::now();
         time_counters[id] += static_cast<TimeType>(
             std::chrono::duration_cast<TimeUnit>(current_clock - clocks[id]).count()) * time_factor;
@@ -154,6 +165,8 @@ private:
     std::unordered_map<std::string, TimeType> categorySums;
     std::vector<std::chrono::high_resolution_clock::time_point> clocks;
     TimeType time_factor;
+    bool enabled = false;
+    bool barrier_enabled = false;
 };
 
 }
