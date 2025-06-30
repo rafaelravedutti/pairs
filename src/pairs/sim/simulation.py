@@ -393,11 +393,11 @@ class Simulation:
     def create_update_cells_block(self):
         self.particle_lists = ParticleLists(self)
 
-        subroutines = [
-            BuildCellLists(self, self.cell_lists),
-            PartitionCellLists(self, self.cell_lists),
-            BuildShapePartitions(self, self.particle_lists, self.cell_lists)
-        ]
+        subroutines = [ BuildCellLists(self, self.cell_lists), 
+                       PartitionCellLists(self, self.cell_lists)]
+
+        if self.max_shapes()>1:
+            subroutines.append(BuildShapePartitions(self, self.particle_lists, self.cell_lists))
 
         # Add routine to build neighbor-lists per cell
         if self._store_neighbors_per_cell:

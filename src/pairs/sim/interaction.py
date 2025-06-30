@@ -692,35 +692,42 @@ class ParticleInteraction(Lowerable):
             #############################################################################
             # Without outer loop partitioning
             #############################################################################
-            # for ishape in range(self.maxs):
-            #     if self.include_shape(ishape):
-            #         # A kernel for each ishape
-            #         for i in ParticleFor(self.sim):
-            #             for _ in Filter(self.sim, ScalarOp.and_op(
-            #                 ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
-            #                 ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
-            #                 for jshape in range(self.maxs):
-            #                     if self.include_interaction(ishape, jshape):
-            #                         # Inner loops for each jshaped neighbor
-            #                         for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
-            #                             j = neigh.particle_index()
-            #                             self.compute_interaction(i, j, ishape, jshape)
+            if self.maxs<=1:
+                for ishape in range(self.maxs):
+                    if self.include_shape(ishape):
+                        # A kernel for each ishape
+                        for i in ParticleFor(self.sim):
+                            for _ in Filter(self.sim, ScalarOp.and_op(
+                                ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
+                                ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
+                                for jshape in range(self.maxs):
+                                    if self.include_interaction(ishape, jshape):
+                                        # Inner loops for each jshaped neighbor
+                                        for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+                                            j = neigh.particle_index()
+                                            self.compute_interaction(i, j, ishape, jshape)
 
 
             #############################################################################
             # With outer loop partitioning
             #############################################################################
-            for ishape in range(self.maxs):
-                if self.include_shape(ishape):
-                    start = sum([self.sim.particle_lists.shape_nparticles[s] for s in range(ishape)], 0)
-                    end = self.sim.particle_lists.shape_nparticles[ishape]
-                    for n in For(self.sim, start, end):
-                        i = self.sim.particle_lists.shape_partitioned_idx[n]
-                        for jshape in range(self.maxs):
-                            if self.include_interaction(ishape, jshape):
-                                # Inner loops for each jshaped neighbor
-                                for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
-                                    j = neigh.particle_index()
-                                    self.compute_interaction(i, j, ishape, jshape)
+            else:
+                for ishape in range(self.maxs):
+                    if self.include_shape(ishape):
+                        start = sum([self.sim.particle_lists.shape_nparticles[s] for s in range(ishape)], 0)
+                        end = self.sim.particle_lists.shape_nparticles[ishape]
+                        for n in For(self.sim, start, end):
+                            i = self.sim.particle_lists.shape_partitioned_idx[n]
+                            for _ in Filter(self.sim, ScalarOp.not_op(
+                                self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global))):        
+                                for jshape in range(self.maxs):
+                                    if self.include_interaction(ishape, jshape):
+                                        # Inner loops for each jshaped neighbor
+                                        for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+                                            j = neigh.particle_index()
+                                            self.compute_interaction(i, j, ishape, jshape)
+
+
+
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")

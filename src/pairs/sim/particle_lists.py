@@ -26,6 +26,7 @@ class BuildShapePartitions(Lowerable):
         self.particle_lists = particle_lists
         self.cell_lists = cell_lists
 
+    # TODO: Implement this module for device
     @pairs_host_block
     def lower(self):
         self.sim.module_name("build_shape_partitions")
@@ -36,10 +37,7 @@ class BuildShapePartitions(Lowerable):
         idx = self.sim.add_temp_var(0)
         for shape in For(self.sim, 0, self.sim.max_shapes()):
             for i in For(self.sim, 0, self.sim.nlocal):
-                for _ in Filter(self.sim, ScalarOp.and_op(
-                            ScalarOp.cmp(self.sim.particle_shape[i], shapes_buffer[shape]),
-                            ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
-
+                for _ in Filter(self.sim, ScalarOp.cmp(self.sim.particle_shape[i], shapes_buffer[shape])):
                     Assign(self.sim, shape_partitioned_idx[idx], i)
                     Assign(self.sim, idx, idx + 1)
 

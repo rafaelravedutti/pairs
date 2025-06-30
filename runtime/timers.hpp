@@ -17,7 +17,7 @@ public:
     Timers(TimeType _factor) : time_factor(_factor) {}
     ~Timers() {}
     
-    void enable() { enabled = true; }
+    void enable() { enabled = true; print_results=true;}
     void disable() { enabled = false; }
     void enableMPIBarrier() { barrier_enabled = true; }
     void disableMPIBarrier() { barrier_enabled = false; }
@@ -45,6 +45,8 @@ public:
     }
 
     void writeToFile(int rank, int world_size){
+        if(!print_results) return;
+        
         std::string filename = "timers_" + std::to_string(world_size) + ".txt";
         if (rank==0) std::cout << "Writing timers log to: " << filename << std::endl;
         std::remove(filename.c_str());
@@ -95,6 +97,8 @@ public:
     }
 
     void print(){
+        if(!print_results) return;
+
         std::cout << "--------------------------------------------------------------------------------------------------------\n";
         std::cout << std::left << std::setw(80) << "Timer (MPI rank: 0)"
             << std::left << std::setw(15) << "Total [ms]"
@@ -165,6 +169,7 @@ private:
     std::unordered_map<std::string, TimeType> categorySums;
     std::vector<std::chrono::high_resolution_clock::time_point> clocks;
     TimeType time_factor;
+    bool print_results = false;
     bool enabled = false;
     bool barrier_enabled = false;
 };
