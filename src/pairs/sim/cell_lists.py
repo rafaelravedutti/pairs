@@ -6,7 +6,7 @@ from pairs.ir.atomic import AtomicAdd
 from pairs.ir.block import pairs_device_block, pairs_host_block
 from pairs.ir.branches import Branch, Filter
 from pairs.ir.cast import Cast
-from pairs.ir.loops import For, ParticleFor, While
+from pairs.ir.loops import For, ParticleFor, While, Break
 from pairs.ir.math import Ceil
 from pairs.ir.scalars import ScalarOp
 from pairs.ir.select import Select
@@ -42,7 +42,7 @@ class CellLists:
         self.nstencil_capacity  =   self.sim.add_var('nstencil_capacity', Types.Int32, 27)
         self.ncells             =   self.sim.add_var('ncells', Types.Int32, 1)
         self.ncells_capacity    =   self.sim.add_var('ncells_capacity', Types.Int32, 100000)
-        self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 64)
+        self.cell_capacity      =   self.sim.add_var('cell_capacity', Types.Int32, 16)
         self.dim_ncells         =   self.sim.add_array('dim_cells', self.sim.ndims(), Types.Int32)
         self.shapes_buffer      =   self.sim.add_array('shapes_buffer', self.sim.max_shapes(), Types.Int32)
         self.cell_particles     =   self.sim.add_array('cell_particles', [self.ncells_capacity, self.cell_capacity], Types.Int32)
@@ -51,6 +51,11 @@ class CellLists:
         self.stencil            =   self.sim.add_array('stencil', self.nstencil_capacity, Types.Int32)
         self.particle_cell      =   self.sim.add_array('particle_cell', self.sim.particle_capacity, Types.Int32)
 
+        if sim._use_halo_cells:
+            self.halo_ncells        =   self.sim.add_var('halo_ncells', Types.Int32, 0)
+            self.halo_ncells_capacity = self.sim.add_var('halo_ncells_capacity', Types.Int32, 10000)
+            self.halo_cells         =   self.sim.add_array('halo_cells', self.halo_ncells_capacity, Types.Int32)
+
         if sim._store_neighbors_per_cell:
             self.cell_neigh_capacity = self.sim.add_var('cell_neigh_capacity', Types.Int32, 80)
             self.cell_nneighs = self.sim.add_array('cell_nneighs', [self.ncells_capacity, self.sim.max_shapes()], Types.Int32)
@@ -58,9 +63,9 @@ class CellLists:
 
 
 class BuildCellListsStencil(Lowerable):
-    def __init__(self, sim, cell_lists):
+    def __init__(self, sim):
         super().__init__(sim)
-        self.cell_lists = cell_lists
+        self.cell_lists = sim.cell_lists
 
     @pairs_host_block
     def lower(self):
@@ -86,7 +91,7 @@ class BuildCellListsStencil(Lowerable):
         for dim in range(self.sim.ndims()):
             dim_min = self.cell_lists.dom_part.min(dim) - spacing[dim]
             dim_max = self.cell_lists.dom_part.max(dim) + spacing[dim]
-            Assign(self.sim, dim_ncells[dim], Ceil(self.sim, (dim_max - dim_min) / spacing[dim]) + 1)
+            Assign(self.sim, dim_ncells[dim], Ceil(self.sim, (dim_max - dim_min) / spacing[dim]))
             ntotal_cells *= dim_ncells[dim]
 
         Assign(self.sim, ncells, ntotal_cells + 1)
@@ -101,6 +106,31 @@ class BuildCellListsStencil(Lowerable):
                     if dim == self.sim.ndims() - 1:
                         Assign(self.sim, stencil[nstencil], index)
                         Assign(self.sim, nstencil, nstencil + 1)
+
+        # Halo cell generation
+        # ----------------------------------------------------
+        if self.sim._use_halo_cells:
+            halo_ncells_capacity = self.cell_lists.halo_ncells_capacity
+            n = self.cell_lists.halo_ncells
+            self.sim.check_resize(halo_ncells_capacity, n)
+            halo_cells = self.cell_lists.halo_cells
+            Assign(self.sim, n, 1)
+
+            # Note: We add one layer to each side of the border since it's possible that the outermost local 
+            # layer of master doesn't fully overlap with innermost ghost layer of neighbor, and vice versa.
+            layers = [self.sim.add_temp_var(0) for _ in range(self.sim.ndims())]
+            for d in range(self.sim.ndims()):
+                Assign(self.sim, layers[d], Ceil(self.sim, (cutoff_radius / spacing[d])))
+        
+            for x in For(self.sim, 0, dim_ncells[0]):
+                for y in For(self.sim, 0, dim_ncells[1]):
+                    for z in For(self.sim, 0, dim_ncells[2]):
+                        for is_halo in self.cell_lists.dom_part.halo_condition(x, y, z, spacing, layers):
+                            for _ in Filter(self.sim, is_halo):
+                                index = x*dim_ncells[1]*dim_ncells[2] + y*dim_ncells[2] + z
+                                Assign(self.sim, halo_cells[n], index + 1)
+                                Assign(self.sim, n, n+1)
+                                Break(self.sim)()   # Go to next cell
 
 
 class BuildCellLists(Lowerable):
@@ -122,7 +152,7 @@ class BuildCellLists(Lowerable):
         positions = self.sim.position()
 
         self.sim.module_name("build_cell_lists")
-        self.sim.check_resize(cell_capacity, cell_sizes)
+        # self.sim.check_resize(cell_capacity, cell_sizes)  # TODO: Check resize for 2D arrays
 
         for c in For(self.sim, 0, ncells):
             Assign(self.sim, cell_sizes[c], 0)
@@ -161,6 +191,8 @@ class PartitionCellLists(Lowerable):
         cell_particles = self.cell_lists.cell_particles
         shapes_buffer = self.cell_lists.shapes_buffer
 
+        # for p in ParticleFor(self.sim, local_only=False):
+        #     cell = particle_cell[p]
         for cell in For(self.sim, 0, self.cell_lists.ncells):
             start = self.sim.add_temp_var(0)
             end = self.sim.add_temp_var(0)
@@ -200,7 +232,7 @@ class BuildCellNeighborLists(Lowerable):
         cell_nneighs = self.cell_lists.cell_nneighs
         cell_neighbors = self.cell_lists.cell_neighbors
         self.sim.module_name("build_cell_neighbor_lists")
-        self.sim.check_resize(self.cell_lists.cell_neigh_capacity, cell_nneighs)
+        # self.sim.check_resize(self.cell_lists.cell_neigh_capacity, cell_nneighs)   # TODO: Check resize for 2D arrays
 
         for cell in For(self.sim, 0, ncells):
             for shape in range(self.sim.max_shapes()):

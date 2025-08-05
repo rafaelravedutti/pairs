@@ -1,12 +1,14 @@
+import sys
 from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
 from pairs.ir.features import Features, FeatureProperties
 from pairs.ir.kernel import Kernel
 from pairs.ir.layouts import Layouts
 from pairs.ir.module import Module
-from pairs.ir.properties import Properties, ContactProperties
+from pairs.ir.properties import Properties, ContactProperties, SyncModes
 from pairs.ir.symbols import Symbol
 from pairs.ir.types import Types
+from pairs.sim.shapes import Shapes
 from pairs.ir.variables import Variables
 #from pairs.graph.graphviz import ASTGraph
 from pairs.mapping.funcs import compute
@@ -17,9 +19,10 @@ from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.domain_partitioning import BlockForest, DimensionRanges
 from pairs.sim.grid import Grid3D
 from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
+from pairs.sim.particle_lists import ParticleLists, BuildShapePartitions
 from pairs.transformations import Transformations
 from pairs.code_gen.interface import InterfaceModules
-
+from pairs.code_gen.target import Target
 
 class Simulation:
     """P4IRS Simulation class, this class is the center of kernel simulations which contains all
@@ -27,7 +30,6 @@ class Simulation:
     def __init__(
         self,
         code_gen,
-        shapes,
         dims=3,
         double_prec=False,
         use_contact_history=False,
@@ -39,7 +41,7 @@ class Simulation:
         self.code_gen.assign_simulation(self)
 
         # Data structures to be generated
-        self.position_prop = None
+        self.particle_position = None
         self.properties = Properties(self)
         self.vars = Variables(self)
         self.arrays = Arrays(self)
@@ -54,17 +56,19 @@ class Simulation:
         self.nlocal = self.add_var('nlocal', Types.Int32, runtime=True)
         self.nghost = self.add_var('nghost', Types.Int32, runtime=True)
         self.resizes = self.add_array('resizes', 3, Types.Int32, arr_sync=False)
-        self.particle_uid = self.add_property('uid', Types.UInt64, 0)
-        self.particle_shape = self.add_property('shape', Types.Int32, 0)
-        self.particle_flags = self.add_property('flags', Types.Int32, 0)
+        self.particle_uid = self.add_property('uid', Types.UInt64, SyncModes.ON_RENEIGHBOR, 0)
+        self.particle_shape = self.add_property('shape', Types.Int32, SyncModes.ON_RENEIGHBOR, 0)
+        self.particle_flags = self.add_property('flags', Types.Int32, SyncModes.ON_RENEIGHBOR, 0)
 
         # Grid for the simulation
         self.grid = None
 
         # Acceleration structures
+        self._use_halo_cells = False
         self.cell_lists = None
         self._store_neighbors_per_cell = False
         self.neighbor_lists = None
+        self.particle_lists = None
         self.update_cells_procedures = Block(self, [])
 
         # Context information used to partially build the program AST
@@ -92,6 +96,7 @@ class Simulation:
         # Domain partitioning
         self._dom_part = None
         self._partitioner = None
+        self._use_walberla = False
         self._comm = None
 
         # Contact history
@@ -106,11 +111,25 @@ class Simulation:
         self.rebalance_frequency = 0            # Re-balance frequency for dynamic load balancing
         self._target = None                     # Hardware target info
         self._pbc = [True for _ in range(dims)] # PBC flags for each dimension
-        self._shapes = shapes                   # List of shapes used in the simulation
+        self._shapes = []                       # List of shape ID's used in the simulation
+        self._shape_objs = []                   # List of shape objects
         self._compute_half = False              # Compute half of interactions (Newton 3D Law)
         self._apply_list = None                 # Context elements when using apply() directive
         self._enable_profiler = False           # Enable/disable profiler
         self._compute_thermo = 0                # Compute thermo information
+        self.get_target_from_arg()
+
+    def get_target_from_arg(self):
+        assert len(sys.argv) == 2 , "Exactly one argument to the input script expected." 
+        # NOTE: Currently only CPU/GPU is specified by CMake, thus only one argumet is expected here.
+        # In the future, other features such as OpenMP should also be handled by CMake during compilation and added here.
+        target = sys.argv[1]
+        if target == 'gpu':
+            self.target(Target(Target.Backend_CUDA, Target.Feature_GPU))
+        elif target == 'cpu':
+            self.target(Target(Target.Backend_CPP, Target.Feature_CPU))
+        else:
+            print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
     def set_domain_partitioner(self, partitioner):
         """Selects domain-partitioner used and create its object for this simulation instance"""
@@ -121,6 +140,7 @@ class Simulation:
 
         elif partitioner == DomainPartitioners.BlockForest:
             self._dom_part = BlockForest(self)
+            self._use_walberla = True
 
         else:
             raise Exception("Invalid domain partitioner.")
@@ -182,18 +202,31 @@ class Simulation:
         assert len(pbc_config) == self.dims, "PBC must be specified for each dimension."
         self._pbc = pbc_config
 
-    def add_property(self, prop_name, prop_type, value=0.0, volatile=False, reduce=False):
-        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        return self.properties.add(prop_name, prop_type, value, volatile, p_reduce=reduce)
+    def add_shape(self, shape_obj):
+        shape_id = Shapes.id(shape_obj)
+        assert shape_id not in self._shapes, f"Shape already defined: {Shapes.name(shape_id)}"
+        self._shapes.append(shape_id)
+        self._shape_objs.append(shape_obj)
 
-    def add_position(self, prop_name, value=[0.0, 0.0, 0.0], volatile=False, layout=Layouts.AoS):
-        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
-        self.position_prop = self.properties.add(prop_name, Types.Vector, value, volatile, layout)
-        return self.position_prop
+    def shape_obj(self, shape_type):
+        for shape_obj in self._shape_objs:
+            if isinstance(shape_obj, shape_type):
+                return shape_obj
+            
+        raise Exception(f"The shape type {shape_type.__name__} is not added to simulation!")
 
-    def add_feature(self, feature_name, nkinds):
+    def add_property(self, prop_name, prop_type, sync_mode=SyncModes.ALWAYS, value=0.0):
+        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
+        return self.properties.add(prop_name, prop_type, sync_mode, value)
+
+    def add_position(self, prop_name, value=[0.0, 0.0, 0.0], layout=Layouts.AoS):
+        assert self.property(prop_name) is None, f"Property already defined: {prop_name}"
+        self.particle_position = self.properties.add(prop_name, Types.Vector, SyncModes.ALWAYS, value, layout)
+        return self.particle_position
+
+    def add_feature(self, feature_name, nkinds, sync_mode=SyncModes.ON_RENEIGHBOR):
         assert self.feature(feature_name) is None, f"Feature already defined: {feature_name}"
-        return self.features.add(feature_name, nkinds)
+        return self.features.add(feature_name, nkinds, sync_mode)
 
     def add_feature_property(self, feature_name, prop_name, prop_type, prop_data=None):
         feature = self.feature(feature_name)
@@ -217,7 +250,7 @@ class Simulation:
         return self.properties.find(prop_name)
 
     def position(self):
-        return self.position_prop
+        return self.particle_position
 
     def feature(self, feature_name):
         return self.features.find(feature_name)
@@ -259,10 +292,12 @@ class Simulation:
     def reneighbor_every(self, frequency):
         self.reneighbor_frequency = frequency
 
-    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False):
-        """Add routines to build the linked-cells acceleration structure.
+    def build_cell_lists(self, spacing=None, store_neighbors_per_cell=False, use_halo_cells=False, optimize_halo_paddings=False):
+        """Add routines to build the cell-lists acceleration structure.
         Leave spacing as None so it can be set at runtime."""
         self._store_neighbors_per_cell = store_neighbors_per_cell
+        self._use_halo_cells = use_halo_cells
+        self._optimize_halo_paddings = optimize_halo_paddings
         self.cell_lists = CellLists(self, self._dom_part, spacing, spacing)
         return self.cell_lists
 
@@ -277,8 +312,8 @@ class Simulation:
         self.neighbor_lists = NeighborLists(self, self.cell_lists)
         return self.neighbor_lists
 
-    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, run_on_device=True, profile=False):
-        return compute(self, func, cutoff_radius, symbols, parameters, compute_globals, run_on_device, profile)
+    def compute(self, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, non_blocking_globals=False, run_on_device=True, profile=False):
+        return compute(self, func, cutoff_radius, symbols, parameters, compute_globals, non_blocking_globals, run_on_device, profile)
 
     def init_block(self):
         """Initialize new block in this simulation instance"""
@@ -302,13 +337,12 @@ class Simulation:
         else:
             raise Exception("Two sizes assigned to same capacity!")
 
-    def build_interface_module_with_statements(self, run_on_device=False):
+    def build_interface_module_with_statements(self):
         """Build a user-defined Module that will be callable seperately as part of the interface"""
         Module(self, name=self._module_name,
                 block=Block(self, self._block),
                 resizes_to_check=self._resizes_to_check,
                 check_properties_resize=self._check_properties_resize,
-                run_on_device=run_on_device,
                 interface=True)
         
     def capture_statements(self, capture=True):
@@ -372,10 +406,13 @@ class Simulation:
         self._compute_thermo = every
 
     def create_update_cells_block(self):
-        subroutines = [
-            BuildCellLists(self, self.cell_lists),
-            PartitionCellLists(self, self.cell_lists)
-        ]
+        self.particle_lists = ParticleLists(self)
+
+        subroutines = [ BuildCellLists(self, self.cell_lists), 
+                       PartitionCellLists(self, self.cell_lists)]
+
+        if self.max_shapes()>1:
+            subroutines.append(BuildShapePartitions(self, self.particle_lists, self.cell_lists))
 
         # Add routine to build neighbor-lists per cell
         if self._store_neighbors_per_cell:

@@ -16,7 +16,7 @@ def update_mass_and_inertia(i):
 
 def spring_dashpot(i, j):
     delta_ij = -penetration_depth(i, j)
-    skip_when(delta_ij < 0.0)
+    skip_when(delta_ij < 0.0)     
     
     velocity_wf_i = linear_velocity[i] + cross(angular_velocity[i], contact_point(i, j) - position[i])
     velocity_wf_j = linear_velocity[j] + cross(angular_velocity[j], contact_point(i, j) - position[j])
@@ -36,6 +36,7 @@ def spring_dashpot(i, j):
     apply(torque, cross(contact_point(i, j) - position, partial_force))
 
 def euler(i):
+    skip_when(is_fixed(i) or is_infinite(i))
     inv_mass = 1.0 / mass[i]
     position[i] +=  0.5 * inv_mass * force[i] * dt * dt + linear_velocity[i] * dt
     linear_velocity[i] += inv_mass * force[i] * dt
@@ -45,9 +46,6 @@ def euler(i):
     rotation_matrix[i] = quaternion_to_rotation_matrix(rotation[i])
     angular_velocity[i] += wdot * dt
 
-def gravity(i):
-    force[i][2] -= force[i][2] - mass[i] * gravity_SI
-
 
 file_name = os.path.basename(__file__)
 file_name_without_extension = os.path.splitext(file_name)[0]
@@ -55,53 +53,42 @@ file_name_without_extension = os.path.splitext(file_name)[0]
 psim = pairs.simulation(
     file_name_without_extension,
     double_prec=True,
-    particle_capacity=1000000,
+    particle_capacity=10000000,
     debug=True)
-
-gravity_SI = 9.81
-ntypes = 2
 
 # Add position property
 psim.add_position('position')
 
 # Add shapes and define their geometric properties (required internally for contact detection)
 psim.add_shape(pairs.sphere('radius'))
-psim.add_shape(pairs.halfspace('normal'))
 
 # Add properties
 #-------------------------------------------------------------------------------------------------
-psim.add_property('radius',             pairs.real(),       pairs.on_reneighbor()) # Required by spheres as defined above
-psim.add_property('normal',             pairs.vector(),     pairs.on_reneighbor()) # Required by halfspaces as defined above
-psim.add_property('mass',               pairs.real(),       pairs.on_reneighbor())
-psim.add_property('inv_inertia',        pairs.matrix(),     pairs.on_reneighbor())
+psim.add_property('radius',         pairs.real(),       pairs.on_reneighbor()) # Required by spheres as defined above
+psim.add_property('mass',           pairs.real(),       pairs.on_reneighbor())
+psim.add_property('inv_inertia',    pairs.matrix(),     pairs.on_reneighbor())
 psim.add_property('rotation_matrix',    pairs.matrix(),     pairs.always())
 psim.add_property('rotation',           pairs.quaternion(), pairs.always())
 psim.add_property('linear_velocity',    pairs.vector(),     pairs.always())
 psim.add_property('angular_velocity',   pairs.vector(),     pairs.always())
 psim.add_property('force',              pairs.vector(),     pairs.never())
 psim.add_property('torque',             pairs.vector(),     pairs.never())
-
-# Properties that get reduced during reverse communication
-psim.add_property('hydrodynamic_force', pairs.vector(),     pairs.on_reduction())
-psim.add_property('hydrodynamic_torque', pairs.vector(),    pairs.on_reduction())
 #-------------------------------------------------------------------------------------------------
 
+ntypes = 1
 psim.add_feature('type', ntypes)
-psim.add_feature_property('type', 'stiffness', pairs.real(), [3000 for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_norm', pairs.real(), [10.0 for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'stiffness', pairs.real())
+psim.add_feature_property('type', 'damping_norm', pairs.real())
 psim.add_feature_property('type', 'damping_tan', pairs.real())
 psim.add_feature_property('type', 'friction', pairs.real())
 
-psim.set_domain_partitioner(pairs.block_forest())
 # psim.set_domain_partitioner(pairs.regular_domain_partitioner())
+psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
-psim.build_cell_lists()
+psim.build_cell_lists(use_halo_cells=False, optimize_halo_paddings=False)
 
-# The order of user-defined functions is not important here since 
-# they are not used by other subroutines and are only callable individually 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
-psim.compute(spring_dashpot)
-psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
+psim.compute(spring_dashpot, profile=False)
 psim.compute(euler, parameters={'dt': pairs.real()})
 
 psim.generate()

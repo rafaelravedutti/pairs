@@ -10,7 +10,7 @@ from pairs.ir.mutator import Mutator
 from pairs.ir.properties import ReallocProperty
 from pairs.ir.types import Types
 from pairs.ir.print import Print
-from pairs.ir.variables import Var, Deref
+from pairs.ir.variables import Var, Deref, DeclareVariable
 from functools import reduce
 import operator
 
@@ -83,8 +83,12 @@ class AddResizeLogic(Mutator):
                 resizes = list(self.module_resizes[module].keys())
                 capacities = list(self.module_resizes[module].values())
                 resize_id = resizes[capacities.index(match_capacity)]
-                return Branch(ast_node.sim, src + 1 >= match_capacity,
-                              blk_if=Block(ast_node.sim, Assign(ast_node.sim, ast_node.sim.resizes[resize_id], src)),
+                resize = ast_node.sim.resizes[resize_id]
+                return Branch(ast_node.sim, src >= match_capacity,
+                              blk_if=Block(ast_node.sim, 
+                                           Branch(ast_node.sim, ScalarOp.cmp(resize, 0),
+                                                   blk_if=Block(ast_node.sim, Assign(ast_node.sim, resize, match_capacity)),
+                                                   blk_else=Block(ast_node.sim, Assign(ast_node.sim, resize, resize + (src - dest))))),
                               blk_else=Block(ast_node.sim, ast_node))
 
         return ast_node
@@ -167,8 +171,6 @@ class ReplaceModulesByCalls(Mutator):
 
     def mutate_Module(self, ast_node):
         ast_node._block = self.mutate(ast_node._block)
-        if ast_node.name == 'main':
-            return ast_node
 
         sim = ast_node.sim
         call = ModuleCall(sim, ast_node)
@@ -180,7 +182,12 @@ class ReplaceModulesByCalls(Mutator):
             branch_cond = None
 
             for resize_id, capacity in self.module_resizes[ast_node].items():
+                checked_size = ast_node._resizes_to_check[capacity]
+                original_size = sim.add_temp_var(0)
+                init_stmts.append(DeclareVariable(sim, original_size))
+                init_stmts.append(Assign(sim, original_size, checked_size))     # Get a temp backup of the original value
                 init_stmts.append(Assign(sim, sim.resizes[resize_id], 1))
+                reset_stmts.append(Assign(sim, checked_size, original_size))    # Reset size to the original value 
                 reset_stmts.append(Assign(sim, sim.resizes[resize_id], 0))
                 cond = ScalarOp.inline(sim.resizes[resize_id] > 0)
                 branch_cond = cond if branch_cond is None else ScalarOp.or_op(cond, branch_cond)
@@ -199,7 +206,6 @@ class ReplaceModulesByCalls(Mutator):
                         [Assign(sim, capacity, self.grow_fn(sim.resizes[resize_id]))] +
                         [a.realloc() for a in capacity.bonded_arrays()] +
                         props_realloc)))
-
-            return Block(sim, init_stmts + [While(sim, branch_cond, Block(sim, reset_stmts + [call] + resize_stmts))])
+            return  Block(sim, init_stmts + [While(sim, branch_cond, Block(sim, reset_stmts + [call] + resize_stmts))])
 
         return call

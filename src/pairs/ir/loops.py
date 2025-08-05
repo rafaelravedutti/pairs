@@ -49,15 +49,16 @@ class Iter(ASTTerm):
 
 
 class For(ASTNode):
-    def __init__(self, sim, range_min, range_max, block=None, not_kernel=False):
+    def __init__(self, sim, range_min, range_max, block=None, not_kernel=False, serial=False):
         super().__init__(sim)
         self.iterator = Iter(sim, self)
         self.min = Lit.cvt(sim, range_min)
-        self.max = Lit.cvt(sim, range_max)
+        self.max = ScalarOp.inline(Lit.cvt(sim, range_max))
         self.block = Block(sim, []) if block is None else block
         self.kernel = None
         self._kernel_candidate = False
         self.not_kernel = not_kernel
+        self.serial = serial
 
     def __str__(self):
         return f"For<{self.iterator}, {self.min} ... {self.max}>"
@@ -130,6 +131,16 @@ class Continue(ASTNode):
 
     def __str__(self):
         return f"Continue<>"
+
+    def __call__(self):
+        self.sim.add_statement(self)
+
+class Break(ASTNode):
+    def __init__(self, sim):
+        super().__init__(sim)
+
+    def __str__(self):
+        return f"Break<>"
 
     def __call__(self):
         self.sim.add_statement(self)

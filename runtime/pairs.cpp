@@ -60,6 +60,28 @@ void PairsRuntime::addArray(Array array) {
     arrays.push_back(array);
 }
 
+void PairsRuntime::removeArray(array_t id) {
+    auto it = std::find_if(arrays.begin(),
+                           arrays.end(),
+                           [id](const Array &a) { return a.getId() == id; });
+
+    PAIRS_ASSERT(it != arrays.end());
+
+    if(it->isStatic()) return;
+    void *h_ptr = it->getHostPointer();
+    void *d_ptr = it->getDevicePointer();
+
+    if(h_ptr) {
+        pairs::host_free(h_ptr);
+    }
+
+    if(d_ptr) {
+        pairs::device_free(d_ptr);
+    }
+
+    arrays.erase(it);
+}
+
 Array &PairsRuntime::getArray(array_t id) {
     auto a = std::find_if(
         arrays.begin(),
@@ -97,6 +119,27 @@ void PairsRuntime::addProperty(Property prop) {
         }) == std::end(properties));
 
     properties.push_back(prop);
+}
+
+void PairsRuntime::removeProperty(property_t id) {
+    auto it = std::find_if(properties.begin(),
+                           properties.end(),
+                           [id](const Property &p) { return p.getId() == id; });
+
+    PAIRS_ASSERT(it != properties.end());
+
+    void *h_ptr = it->getHostPointer();
+    void *d_ptr = it->getDevicePointer();
+
+    if(h_ptr) {
+        pairs::host_free(h_ptr);
+    }
+
+    if(d_ptr) {
+        pairs::device_free(d_ptr);
+    }
+
+    properties.erase(it);
 }
 
 Property &PairsRuntime::getProperty(property_t id) {
@@ -399,6 +442,8 @@ void PairsRuntime::communicateSizes(int dim, const int *send_sizes, int *recv_si
     array_flags->setHostFlag(nrecv_id);
     array_flags->clearDeviceFlag(nrecv_id);
 
+    this->getTimers()->barrier();
+
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, send_sizes, recv_sizes);
     this->getTimers()->stop(TimerMarkers::MPI);
@@ -413,8 +458,6 @@ void PairsRuntime::communicateData(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -428,6 +471,9 @@ void PairsRuntime::communicateData(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -447,10 +493,14 @@ void PairsRuntime::communicateData(
         }
     }
     
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateData(
@@ -471,8 +521,6 @@ void PairsRuntime::communicateDataReverse(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -486,6 +534,9 @@ void PairsRuntime::communicateDataReverse(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -505,10 +556,14 @@ void PairsRuntime::communicateDataReverse(
         }
     }
 
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateDataReverse(
@@ -529,8 +584,6 @@ void PairsRuntime::communicateAllData(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto send_offsets_id = getArrayByHostPointer(send_offsets).getId();
     auto recv_offsets_id = getArrayByHostPointer(recv_offsets).getId();
     auto nsend_id = getArrayByHostPointer(nsend).getId();
@@ -544,6 +597,9 @@ void PairsRuntime::communicateAllData(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
     int nsend_all = 0;
     int nrecv_all = 0;
@@ -563,10 +619,14 @@ void PairsRuntime::communicateAllData(
         }
     }
 
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * elem_size * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateAllData(
@@ -587,12 +647,8 @@ void PairsRuntime::communicateContactHistoryData(
     real_t *recv_buf_ptr = recv_buf;
     auto send_buf_array = getArrayByHostPointer(send_buf);
     auto recv_buf_array = getArrayByHostPointer(recv_buf);
-    auto send_buf_id = send_buf_array.getId();
-    auto recv_buf_id = recv_buf_array.getId();
     auto contact_soffsets_id = getArrayByHostPointer(contact_soffsets).getId();
-    auto contact_roffsets_id = getArrayByHostPointer(contact_roffsets).getId();
     auto nsend_contact_id = getArrayByHostPointer(nsend_contact).getId();
-    auto nrecv_contact_id = getArrayByHostPointer(nrecv_contact).getId();
 
     copyArrayToHost(contact_soffsets_id, ReadOnly);
     copyArrayToHost(nsend_contact_id, ReadOnly);
@@ -608,11 +664,18 @@ void PairsRuntime::communicateContactHistoryData(
     #ifdef ENABLE_CUDA_AWARE_MPI
     send_buf_ptr = (real_t *) send_buf_array.getDevicePointer();
     recv_buf_ptr = (real_t *) recv_buf_array.getDevicePointer();
+    auto recv_buf_id = recv_buf_array.getId();
+    array_flags->setDeviceFlag(recv_buf_id);
+    array_flags->clearHostFlag(recv_buf_id);
     #else
+    auto send_buf_id = send_buf_array.getId();
+    auto recv_buf_id = recv_buf_array.getId();
     copyArrayToHost(send_buf_id, Ignore, nsend_all * sizeof(real_t));
     array_flags->setHostFlag(recv_buf_id);
     array_flags->clearDeviceFlag(recv_buf_id);
     #endif
+
+    this->getTimers()->barrier();
 
     this->getTimers()->start(TimerMarkers::MPI);
     this->getDomainPartitioner()->communicateSizes(dim, nsend_contact, nrecv_contact);
@@ -634,6 +697,7 @@ void PairsRuntime::communicateContactHistoryData(
     this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
+    auto contact_roffsets_id = getArrayByHostPointer(contact_roffsets).getId();
     copyArrayToDevice(recv_buf_id, Ignore, nrecv_all * sizeof(real_t));
     copyArrayToDevice(contact_roffsets_id, Ignore);
     #endif
@@ -649,16 +713,49 @@ void PairsRuntime::allReduceInplaceSum(real_t *red_buffer, int num_elems){
 
     #ifdef ENABLE_CUDA_AWARE_MPI
     buff_ptr = (real_t *) buff_array.getDevicePointer();
+    auto buf_id = buff_array.getId();
+    array_flags->setDeviceFlag(buf_id);
+    array_flags->clearHostFlag(buf_id);
     #else
     copyArrayToHost(buff_array, Ignore, num_elems * sizeof(real_t));
     #endif
 
+    this->getTimers()->barrier();
+    
+    this->getTimers()->start(TimerMarkers::MPI);
     MPI_Allreduce(MPI_IN_PLACE, buff_ptr, num_elems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    this->getTimers()->stop(TimerMarkers::MPI);
 
     #ifndef ENABLE_CUDA_AWARE_MPI
     copyArrayToDevice(buff_array, Ignore, num_elems * sizeof(real_t));
     #endif
 }
 
+void PairsRuntime::iAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request){
+    real_t *buff_ptr = red_buffer;
+    auto buff_array = getArrayByHostPointer(red_buffer);
+
+    // MPI_Iallreduce is not CUDA-aware, so array must be copied to host
+    copyArrayToHost(buff_array, Ignore, num_elems * sizeof(real_t));
+    this->getTimers()->start(TimerMarkers::MPI);
+
+    MPI_Iallreduce(MPI_IN_PLACE, buff_ptr, num_elems, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD, &request);
+    // int ready;
+    // MPI_Test(&request, &ready, MPI_STATUS_IGNORE);
+    this->getTimers()->stop(TimerMarkers::MPI);
+    // if(ready){
+    //     std::cout << "ready" << std::endl;
+    // }
+}
+
+void PairsRuntime::waitIAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request){
+    auto buff_array = getArrayByHostPointer(red_buffer);
+
+    this->getTimers()->start(TimerMarkers::MPI);
+    MPI_Wait(&request, MPI_STATUS_IGNORE);
+    this->getTimers()->stop(TimerMarkers::MPI);
+    
+    copyArrayToDevice(buff_array, Ignore, num_elems * sizeof(real_t));
+}
 
 }

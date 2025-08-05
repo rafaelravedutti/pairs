@@ -9,7 +9,6 @@
 int main(int argc, char **argv) {
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
-    pairs_sim->initialize();
 
     // Create forest
     // -------------------------------------------------------------------------------
@@ -33,17 +32,20 @@ int main(int argc, char **argv) {
     auto pairs_runtime = pairs_sim->getPairsRuntime();
     pairs_runtime->useDomain(forest);
 
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, 13);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, 13);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
+    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
     pairs::create_sphere(pairs_runtime, 0.6, 0.6, 0.7,      -2, -2, 0,  1000, 0.05, 0, 0);
     pairs::create_sphere(pairs_runtime, 0.4, 0.4, 0.68,    2, 2, 0,    1000, 0.05, 0, 0);
 
-    pairs_sim->setup_cells(0.1, 0.1, 0.1, 0.1);
     pairs_sim->update_mass_and_inertia();
+
+    pairs_sim->setCellWidth(0.1, 0.1, 0.1);
+    pairs_sim->setInteractionRadius(0.1);
+    pairs_sim->updateDomain();
 
     int num_timesteps = 2000;
     int vtk_freq = 20;
@@ -52,17 +54,13 @@ int main(int argc, char **argv) {
     for (int t=0; t<num_timesteps; ++t){
         if ((t%500==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
 
-        pairs_sim->communicate(t);
-        
-        pairs_sim->update_cells(t); 
-
         pairs_sim->gravity(); 
         pairs_sim->spring_dashpot(); 
         pairs_sim->euler(dt); 
+        pairs_sim->reneighbor();
 
         pairs::vtk_write_data(pairs_runtime, "output/sd_2_local", 0, pairs_sim->nlocal(), t, vtk_freq);
         pairs::vtk_write_data(pairs_runtime, "output/sd_2_ghost", pairs_sim->nlocal(), pairs_sim->size(), t, vtk_freq);
     }
 
-    pairs_sim->end();
 }

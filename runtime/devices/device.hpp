@@ -63,12 +63,17 @@ inline __host__ real_t host_atomic_add(real_t *addr, real_t val) {
 #endif
 
 inline __host__ int host_atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
-    const int add_res = *addr + val;
-    if(add_res >= capacity) {
-        *resize = add_res;
-        return *addr;
+    if(*resize==0){     // If we haven't reached cap for addr before
+        const int add_res = *addr + val;
+        if(add_res >= capacity){    // Check if addr is going to exceed cap
+            *resize = add_res;      // Make resize the new cap
+            return *addr;           // Return addr unchanged
+        }
     }
-
+    else if (*resize>0){    // If we have reached cap for addr before, resize is the new cap
+        *resize += val;     // Increase cap
+        return *addr;       // Return addr unchanged
+    }
     return host_atomic_add(addr, val);
 }
 

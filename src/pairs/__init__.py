@@ -1,32 +1,33 @@
 from pairs.ir.types import Types
+from pairs.ir.sync_modes import SyncModes
 from pairs.code_gen.cgen import CGen
 from pairs.code_gen.target import Target
 from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.sim.shapes import Shapes
+from pairs.sim.shapes import Sphere, Halfspace, PointMass, Box, Clump
 from pairs.sim.simulation import Simulation
 
 
 def simulation(
     ref,
-    shapes,
     dims=3,
     double_prec=False,
     use_contact_history=False,
     particle_capacity=800000,
-    neighbor_capacity=100,
+    neighbor_capacity=20,
     debug=False):
 
     return Simulation(
-        CGen(ref, debug), shapes, dims, double_prec, use_contact_history, particle_capacity, neighbor_capacity)
+        CGen(ref, debug), 
+        dims, 
+        double_prec, 
+        use_contact_history, 
+        particle_capacity, 
+        neighbor_capacity)
 
-def target_cpu(parallel=False):
-    if parallel:
-        return Target(Target.Backend_CPP, [Target.Feature_CPU, Target.Feature_OpenMP])
 
-    return Target(Target.Backend_CPP, Target.Feature_CPU)
-
-def target_gpu():
-    return Target(Target.Backend_CUDA, Target.Feature_GPU)
+# ======================================================================
+# Types
+# ======================================================================
 
 def int32():
     return Types.Int32
@@ -49,17 +50,44 @@ def matrix():
 def quaternion():
     return Types.Quaternion
 
+# ======================================================================
+# SyncModes
+# ======================================================================
+
+def always():
+    return SyncModes.ALWAYS
+
+def never():
+    return SyncModes.NEVER
+
+def on_reneighbor():
+    return SyncModes.ON_RENEIGHBOR
+
+def on_reduction():
+    return SyncModes.ON_REDUCTION
+
+# ======================================================================
+# Shapes
+# ======================================================================
+
 def point_mass():
-    return Shapes.PointMass
+    return PointMass()
 
-def sphere():
-    return Shapes.Sphere
+def sphere(radius):
+    return Sphere(radius)
 
-def box():
-    return Shapes.Box
+def halfspace(normal):
+    return Halfspace(normal)
 
-def halfspace():
-    return Shapes.Halfspace
+def box(edge_length, rotation_matrix):
+    return Box(edge_length, rotation_matrix)
+
+def clump(local_positions, local_radii, rotation_matrix):
+    return Clump(local_positions, local_radii, rotation_matrix)
+
+# ======================================================================
+# DomainPartitioners
+# ======================================================================
 
 def regular_domain_partitioner():
     return DomainPartitioners.Regular

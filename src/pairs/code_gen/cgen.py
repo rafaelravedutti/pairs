@@ -2,7 +2,7 @@ import math
 from pairs.ir.actions import Actions
 from pairs.ir.assign import Assign
 from pairs.ir.atomic import AtomicAdd, AtomicInc
-from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray
+from pairs.ir.arrays import Array, ArrayAccess, DeclareStaticArray, RegisterArray, ReallocArray, RemoveArray
 from pairs.ir.block import Block
 from pairs.ir.branches import Branch
 from pairs.ir.cast import Cast
@@ -15,14 +15,14 @@ from pairs.ir.functions import Call
 from pairs.ir.kernel import KernelLaunch
 from pairs.ir.layouts import Layouts
 from pairs.ir.lit import Lit
-from pairs.ir.loops import For, Iter, While, Continue
+from pairs.ir.loops import For, Iter, While, Continue, Break
 from pairs.ir.quaternions import Quaternion, QuaternionAccess, QuaternionOp
 from pairs.ir.math import MathFunction
 from pairs.ir.matrices import Matrix, MatrixAccess, MatrixOp
 from pairs.ir.memory import Malloc, Realloc
 from pairs.ir.module import ModuleCall
 from pairs.ir.particle_attributes import ParticleAttributeList
-from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty, ContactProperty, ContactPropertyAccess, RegisterContactProperty
+from pairs.ir.properties import Property, PropertyAccess, RegisterProperty, ReallocProperty, RemoveProperty, ContactProperty, ContactPropertyAccess, RegisterContactProperty
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
@@ -32,7 +32,7 @@ from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.ir.ret import Return
 from pairs.code_gen.printer import Printer
-from pairs.code_gen.accessor import PairsAcessor
+from pairs.code_gen.particle_accessor import ParticleAccessor
 
 
 class CGen:
@@ -43,7 +43,7 @@ class CGen:
         self.target = None
         self.print = None
         self.kernel_context = False
-        self.loop_scope = False
+        self.loop_depth = False
         self.generate_full_object_names = False
         self.ref = ref
         self.debug = debug
@@ -147,6 +147,9 @@ class CGen:
             self.print("#define PAIRS_TARGET_OPENMP")
             self.print("#include <omp.h>")
 
+        if self.sim._use_walberla:
+            self.print("#define USE_WALBERLA")
+            
         self.print("#include <limits.h>")
         self.print("#include <math.h>")
         self.print("#include <stdbool.h>")
@@ -173,11 +176,14 @@ class CGen:
         if not module.interface:
             module_params += ["PairsRuntime *pairs_runtime", "struct PairsObjects *pobj"]
 
-        module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in module.parameters()]
+        
+        sorted_params = sorted(module.parameters(), key=lambda param: (param.order is None, param.order))
+        module_params += [f"{Types.c_keyword(self.sim, param.type())} {param.name()}" for param in sorted_params]
 
         print_params = ", ".join(module_params)
         ending = "{" if definition else ";"
-        tkw = Types.c_keyword(self.sim, module.return_type)
+        # No type for special members like constructor, desctructor, etc.
+        tkw = '' if 'PairsSimulation' in module.name else Types.c_keyword(self.sim, module.return_type)
         self.print(f"{tkw} {module.name}({print_params}){ending}")
 
     def generate_module_decls(self):
@@ -327,7 +333,7 @@ class CGen:
         self.print("private:")
         self.print("    PairsRuntime *pairs_runtime;")
         self.print("    struct PairsObjects *pobj;")
-        self.print("    friend class PairsAccessor;")
+        self.print("    friend class ParticleAccessor;")
         self.print("")
         self.print("public:")
         self.print.add_indent(4)
@@ -343,7 +349,7 @@ class CGen:
         self.print.add_indent(-4)
         self.print("};")
 
-        PairsAcessor(self).generate()
+        ParticleAccessor(self).generate()
         
         self.print.end()
         self.generate_full_object_names = False
@@ -537,8 +543,14 @@ class CGen:
             self.print.add_indent(-4)
 
         if isinstance(ast_node, Continue):
-            if self.loop_scope:
+            if self.loop_depth:
                 self.print("continue;")
+            else:
+                self.print("return;")
+
+        if isinstance(ast_node, Break):
+            if self.loop_depth:
+                self.print("break;")
             else:
                 self.print("return;")
 
@@ -681,9 +693,9 @@ class CGen:
                     operator = matrix_op.operator()
 
                     if operator.is_unary():
-                        self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {operator.symbol()}({lhs});")
+                        self.print(f"const {self.real_type()} {matrix_op.name()}_{i} = {operator.symbol()}({lhs});")
                     else:
-                        self.print(f"const {self.real_type()} {matrix_op.name()}_{dim} = {lhs} {operator.symbol()} {rhs};")
+                        self.print(f"const {self.real_type()} {matrix_op.name()}_{i} = {lhs} {operator.symbol()} {rhs};")
 
             if isinstance(ast_node.elem, Vector):
                 vector = ast_node.elem
@@ -769,9 +781,10 @@ class CGen:
                 self.print("#pragma omp parallel for")
 
             self.print(f"for(int {iterator} = {lower_range}; {iterator} < {upper_range}; {iterator}++) {{")
-            self.loop_scope = True
+            parent_loop_scope = self.loop_depth
+            self.loop_depth = True
             self.generate_statement(ast_node.block)
-            self.loop_scope = False
+            self.loop_depth = parent_loop_scope
             self.print("}")
 
 
@@ -942,12 +955,20 @@ class CGen:
             sizes = ", ".join([str(self.generate_expression(ScalarOp.inline(size))) for size in ast_node.sizes()])
             self.print(f"pairs_runtime->reallocProperty({p.id()}, {ptr_addr}, {d_ptr_addr}, {sizes});")
 
+        if isinstance(ast_node, RemoveProperty):
+            p = ast_node.property()
+            self.print(f"pairs_runtime->removeProperty({p.id()});")
+
         if isinstance(ast_node, ReallocArray):
             a = ast_node.array()
             size = self.generate_expression(ast_node.size())
             ptr_addr = self.generate_object_address(a)
             d_ptr_addr = self.generate_object_address(a, device=True)
             self.print(f"pairs_runtime->reallocArray({a.id()}, {ptr_addr}, {d_ptr_addr}, {size});")
+
+        if isinstance(ast_node, RemoveArray):
+            a = ast_node.array()
+            self.print(f"pairs_runtime->removeArray({a.id()});")
 
         if isinstance(ast_node, DeclareVariable):
             var_name = ast_node.var.name()
@@ -977,9 +998,10 @@ class CGen:
         if isinstance(ast_node, While):
             cond = self.generate_expression(ast_node.cond)
             self.print(f"while({cond}) {{")
-            self.loop_scope = True
+            parent_loop_scope = self.loop_depth
+            self.loop_depth = True
             self.generate_statement(ast_node.block)
-            self.loop_scope = False
+            self.loop_depth = parent_loop_scope
             self.print("}")
 
         if isinstance(ast_node, Return):
@@ -1014,10 +1036,14 @@ class CGen:
         if isinstance(ast_node, Call):
             extra_params = []
 
-            if ast_node.name().startswith("pairs::"):
+            if ast_node.name().startswith("pairs::") or  ast_node.name().startswith("UniqueID::"):
                 extra_params += ["pairs_runtime"]
 
             params = ", ".join(extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])
+
+            if ast_node.name()=="pairs_runtime->iAllReduceInplaceSum" or ast_node.name()=="pairs_runtime->waitIAllReduceInplaceSum" :
+                params += ", request_i_all_reduce"
+
             return f"{ast_node.name()}({params})"
 
         if isinstance(ast_node, Cast):

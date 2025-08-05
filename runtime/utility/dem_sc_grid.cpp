@@ -21,7 +21,10 @@ bool point_within_aabb(double point[], double aabb[]) {
            point[2] >= aabb[2] && point[2] < aabb[5];
 }
 
-int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double spacing, double diameter, double min_diameter, double max_diameter, double initial_velocity, double particle_density, int ntypes) {
+int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, 
+    double spacing, double diameter, double min_diameter, double max_diameter, 
+    double initial_velocity, double particle_density, int ntypes, bool lower_triangular) {
+        
     auto uids = ps->getAsUInt64Property(ps->getPropertyByName("uid"));
     auto shapes = ps->getAsIntegerProperty(ps->getPropertyByName("shape"));
     auto types = ps->getAsIntegerProperty(ps->getPropertyByName("type"));
@@ -31,6 +34,7 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
     auto positions = ps->getAsVectorProperty(ps->getPropertyByName("position"));
     auto velocities = ps->getAsVectorProperty(ps->getPropertyByName("linear_velocity"));
     int nparticles = ps->getTrackedVariableAsInteger("nlocal");
+    int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
 
     const double xmin = 0.0;
     const double ymin = 0.0;
@@ -55,14 +59,62 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
     point[1] = ref_point[1] + j * spacing;
     point[2] = ref_point[2] + k * spacing;
 
+
+    // EXPERIMENTAL: 3-sphre Clumps
+    // ================================================================================================================
+    // real_t * local_positions = static_cast<real_t *>((ps->getArrayByName("local_positions")).getHostPointer());
+    // real_t * local_radius = static_cast<real_t *>((ps->getArrayByName("local_radius")).getHostPointer());
+
+    // // double pos0[3] = {0, 0, -local_radius[1]};
+    // // double pos1[3] = {0, 0, local_radius[0]};
+    
+    // double r = 0.05;
+    // local_radius[0] = r;
+    // local_radius[1] = r;
+    // local_radius[2] = r;
+    // double sq3 = r * sqrt(3.0)/3.0;
+    // double pos0[3] = {-r,   -sq3,   0};
+    // double pos1[3] = {r,    -sq3,    0};
+    // double pos2[3] = {0,    2*sq3,  0};
+
+    // local_positions[3*0 + 0] = pos0[0]; 
+    // local_positions[3*0 + 1] = pos0[1]; 
+    // local_positions[3*0 + 2] = pos0[2]; 
+
+    // local_positions[3*1 + 0] = pos1[0]; 
+    // local_positions[3*1 + 1] = pos1[1]; 
+    // local_positions[3*1 + 2] = pos1[2]; 
+
+    // local_positions[3*2 + 0] = pos2[0]; 
+    // local_positions[3*2 + 1] = pos2[1]; 
+    // local_positions[3*2 + 2] = pos2[2]; 
+
+    // double total_mass = 4.0 / 3.0 * M_PI * local_radius[0] * local_radius[0] * local_radius[0] * particle_density;
+    // total_mass += 4.0 / 3.0 * M_PI * local_radius[1] * local_radius[1] * local_radius[1] * particle_density;
+    // total_mass += 4.0 / 3.0 * M_PI * local_radius[2] * local_radius[2] * local_radius[2] * particle_density;
+    // std::cout << "total mass ============ " << total_mass << std::endl;
+
+    // ================================================================================================================
+
+
+
+
     while(point_within_aabb(point, gen_domain)) {
         auto pdiam = realRandom<real_t>(min_diameter, max_diameter);
 
-        if(ps->getDomainPartitioner()->isWithinSubdomain(point[0], point[1], point[2])) {
+        if(ps->getDomainPartitioner()->isWithinSubdomain(point[0], point[1], point[2]) &&
+            
+            // If lower_triangular is true, only particles below the diagonal are accepted (in the x-z planes) 
+            (lower_triangular ? ((point[2] <= (-zmax/xmax*point[0]+zmax))) : true)) {
+
             real_t rad = pdiam * 0.5;
+            if(nparticles >= particle_capacity) {
+                std::cerr << "Number of particles exceeded capacity (" << particle_capacity << ") in rank " << ps->getDomainPartitioner()->getRank() << std::endl;
+                // TODO: resize properties, and all arrays that have particle_capacity as a dimension
+                exit(-1);
+            }
             uids(nparticles) = UniqueID::create(ps);
             radius(nparticles) = rad;
-            masses(nparticles) = ((4.0 / 3.0) * M_PI) * rad * rad * rad * particle_density;
             positions(nparticles, 0) = point[0];
             positions(nparticles, 1) = point[1];
             positions(nparticles, 2) = point[2];
@@ -72,6 +124,11 @@ int dem_sc_grid(PairsRuntime *ps, double xmax, double ymax, double zmax, double 
             types(nparticles) = rand() % ntypes;
             flags(nparticles) = 0;
             shapes(nparticles) = Shapes::Sphere;
+            masses(nparticles) = ((4.0 / 3.0) * M_PI) * rad * rad * rad * particle_density;
+            
+            // flags(nparticles) = flags::FIXED;
+            // shapes(nparticles) = Shapes::Clump;
+            // masses(nparticles) = total_mass;
 
             /*
             std::cout << uid(nparticles) << "," << types(nparticles) << "," << masses(nparticles) << "," << radius(nparticles) << ","

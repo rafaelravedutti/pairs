@@ -15,7 +15,7 @@ from pairs.sim.lowerable import FinalLowerable, Lowerable
 
 class Apply(Lowerable):
     def __init__(self, sim, prop, expr, i, j):
-        assert isinstance(prop, Property), "Apply(): Destination must of Property type."
+        assert isinstance(prop, Property), "Apply(): Destination must be of Property type."
         assert prop.type() == expr.type(), "Apply(): Property and expression must be of same type."
         assert sim.current_apply_list() is not None, "Apply(): Not used within particle interaction."
         super().__init__(sim)

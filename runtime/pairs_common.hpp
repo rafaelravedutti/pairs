@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cstdint>
 #include <mpi.h>
 
 #pragma once
@@ -26,7 +27,8 @@ enum Shapes {
     Sphere = 0,
     Halfspace = 1,
     PointMass = 2,
-    Box = 3
+    Box = 3,
+    Clump = 4
 };
 
 //#ifdef USE_DOUBLE_PRECISION

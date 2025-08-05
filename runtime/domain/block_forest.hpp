@@ -31,17 +31,21 @@ class PairsRuntime;
 
 class BlockForest : public DomainPartitioner {
 private:
+    PairsRuntime *ps;
     std::shared_ptr<walberla::mpi::MPIManager> mpiManager;
     std::shared_ptr<walberla::blockforest::BlockForest> forest;
     std::shared_ptr<walberla::blockforest::InfoCollection> info;
     std::vector<int> ranks;
-    std::vector<int> naabbs;
+    std::vector<double> local_aabbs;
+    std::vector<int> has_non_empty_aabb_in_neighborhood_of_rank;
+    std::vector<int> non_empty_local_aabbs;
+    std::vector<int> num_neigh_aabbs;
     std::vector<int> aabb_offsets;
-    std::vector<double> aabbs;
-    PairsRuntime *ps;
+    std::vector<double> neigh_aabbs;
     real_t *subdom;
-    int world_size, rank, nranks, total_aabbs;
+    int world_size, rank, num_neigh_ranks, total_num_neigh_aabbs, num_local_aabbs;
     bool balance_workload = false;
+    bool is_neighborhood_up_to_date = false;
 
 public:
     BlockForest(
@@ -57,21 +61,22 @@ public:
     void initialize(int *argc, char ***argv);
     void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax);
 
-    void update();
+    void updateLocal();
+    void updateNeighborhood();
+    void rebalance();
     void finalize();
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }
-    int getNumberOfNeighborRanks() { return this->nranks; }
-    int getNumberOfNeighborAABBs() { return this->total_aabbs; }
+    int getNumberOfNeighborRanks() { return this->num_neigh_ranks; }
+    int getNumberOfNeighborAABBs() { return this->total_num_neigh_aabbs; }
+    int getNumberOfLocalAABBs() { return this->num_local_aabbs; }
     double getSubdomMin(int dim) const { return subdom[2*dim + 0];}
     double getSubdomMax(int dim) const { return subdom[2*dim + 1];}
 
-    void updateNeighborhood();
     void updateWeights();
     walberla::math::Vector3<int> getBlockConfig();
     int getInitialRefinementLevel(int num_processes);
     void setBoundingBox();
-    void rebalance();
 
     int isWithinSubdomain(real_t x, real_t y, real_t z);
     void copyRuntimeArray(const std::string& name, void *dest, const int size);

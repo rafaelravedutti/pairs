@@ -43,10 +43,13 @@ public:
     virtual double getSubdomMax(int dim) const = 0;
     virtual void initialize(int *argc, char ***argv) = 0;
     virtual void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) = 0;
-    virtual void update() = 0;
+    virtual void updateLocal() = 0;
+    virtual void updateNeighborhood() = 0;
+    virtual void rebalance() = 0;
     virtual int getWorldSize() const = 0;
     virtual int getRank() const = 0;
     virtual int getNumberOfNeighborAABBs() = 0;
+    virtual int getNumberOfLocalAABBs() = 0;
     virtual int getNumberOfNeighborRanks() = 0;
     virtual int isWithinSubdomain(real_t x, real_t y, real_t z) = 0;
     virtual void copyRuntimeArray(const std::string& name, void *dest, const int size) = 0;

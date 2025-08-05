@@ -2,7 +2,7 @@ import math
 import pairs
 import sys
 import os
-
+        
 def update_mass_and_inertia(i):
     rotation_matrix[i] = diagonal_matrix(1.0)
     rotation[i] = default_quaternion()
@@ -10,9 +10,16 @@ def update_mass_and_inertia(i):
     if is_sphere(i):
         inv_inertia[i] = inversed(diagonal_matrix(0.4 * mass[i] * radius[i] * radius[i]))
 
-    else:
+    elif is_box(i):
+        inv_inertia[i] = inversed(diagonal_matrix (
+            edge_length[i][1]*edge_length[i][1] + edge_length[i][2]*edge_length[i][2],
+            edge_length[i][0]*edge_length[i][0] + edge_length[i][2]*edge_length[i][2],
+            edge_length[i][0]*edge_length[i][0] + edge_length[i][1]*edge_length[i][1]) * (mass[i] / 12.0))
+
+    elif is_halfspace(i):
         mass[i] = infinity
         inv_inertia[i] = 0.0
+
 
 def spring_dashpot(i, j):
     delta_ij = -penetration_depth(i, j)
@@ -25,17 +32,18 @@ def spring_dashpot(i, j):
     rel_vel_n = dot(rel_vel, contact_normal(i, j))
     rel_vel_t = rel_vel - rel_vel_n * contact_normal(i, j)
 
-    fNabs = stiffness[i,j] * delta_ij + damping_norm[i,j] * rel_vel_n
+    fNabs = stiffness[i,j] * delta_ij + max(damping_norm[i,j] * rel_vel_n, 0.0)
     fN = fNabs * contact_normal(i, j)
 
     fTabs = min(damping_tan[i,j] * length(rel_vel_t), friction[i, j] * fNabs)
-    fT = fTabs * normalized(rel_vel_t)
+    fT =  fTabs * normalized(rel_vel_t)
 
     partial_force = fN + fT
     apply(force, partial_force)
-    apply(torque, cross(contact_point(i, j) - position, partial_force))
+    apply(torque, cross(contact_point(i, j) - position[i], partial_force))
 
 def euler(i):
+    skip_when(is_fixed(i) or is_infinite(i))
     inv_mass = 1.0 / mass[i]
     position[i] +=  0.5 * inv_mass * force[i] * dt * dt + linear_velocity[i] * dt
     linear_velocity[i] += inv_mass * force[i] * dt
@@ -46,7 +54,7 @@ def euler(i):
     angular_velocity[i] += wdot * dt
 
 def gravity(i):
-    force[i][2] -= force[i][2] - mass[i] * gravity_SI
+    force[i][2] -= mass[i] * gravity_SI
 
 
 file_name = os.path.basename(__file__)
@@ -58,8 +66,15 @@ psim = pairs.simulation(
     particle_capacity=1000000,
     debug=True)
 
-gravity_SI = 9.81
-ntypes = 2
+
+target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
+
+if target == 'gpu':
+    psim.target(pairs.target_gpu())
+elif target == 'cpu':
+    psim.target(pairs.target_cpu())
+else:
+    print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
 # Add position property
 psim.add_position('position')
@@ -67,42 +82,46 @@ psim.add_position('position')
 # Add shapes and define their geometric properties (required internally for contact detection)
 psim.add_shape(pairs.sphere('radius'))
 psim.add_shape(pairs.halfspace('normal'))
+psim.add_shape(pairs.box('edge_length', 'rotation_matrix'))
 
 # Add properties
 #-------------------------------------------------------------------------------------------------
-psim.add_property('radius',             pairs.real(),       pairs.on_reneighbor()) # Required by spheres as defined above
-psim.add_property('normal',             pairs.vector(),     pairs.on_reneighbor()) # Required by halfspaces as defined above
-psim.add_property('mass',               pairs.real(),       pairs.on_reneighbor())
-psim.add_property('inv_inertia',        pairs.matrix(),     pairs.on_reneighbor())
+psim.add_property('radius',         pairs.real(),       pairs.on_reneighbor()) # Required by spheres as defined above
+psim.add_property('edge_length',    pairs.vector(),     pairs.on_reneighbor()) # Required by boxes as defined above
+psim.add_property('normal',         pairs.vector(),     pairs.on_reneighbor()) # Required by halfspaces as defined above
+psim.add_property('mass',           pairs.real(),       pairs.on_reneighbor())
+psim.add_property('inv_inertia',    pairs.matrix(),     pairs.on_reneighbor())
+ 
+# 'rotation_matrix' is required by boxes as defined above (but also by spheres during time integration)
 psim.add_property('rotation_matrix',    pairs.matrix(),     pairs.always())
 psim.add_property('rotation',           pairs.quaternion(), pairs.always())
 psim.add_property('linear_velocity',    pairs.vector(),     pairs.always())
 psim.add_property('angular_velocity',   pairs.vector(),     pairs.always())
 psim.add_property('force',              pairs.vector(),     pairs.never())
 psim.add_property('torque',             pairs.vector(),     pairs.never())
-
-# Properties that get reduced during reverse communication
-psim.add_property('hydrodynamic_force', pairs.vector(),     pairs.on_reduction())
-psim.add_property('hydrodynamic_torque', pairs.vector(),    pairs.on_reduction())
 #-------------------------------------------------------------------------------------------------
 
+ntypes = 2
 psim.add_feature('type', ntypes)
-psim.add_feature_property('type', 'stiffness', pairs.real(), [3000 for i in range(ntypes * ntypes)])
-psim.add_feature_property('type', 'damping_norm', pairs.real(), [10.0 for i in range(ntypes * ntypes)])
+psim.add_feature_property('type', 'stiffness', pairs.real())
+psim.add_feature_property('type', 'damping_norm', pairs.real())
 psim.add_feature_property('type', 'damping_tan', pairs.real())
 psim.add_feature_property('type', 'friction', pairs.real())
 
-psim.set_domain_partitioner(pairs.block_forest())
+# psim.set_domain_partitioner(pairs.block_forest())
 # psim.set_domain_partitioner(pairs.regular_domain_partitioner())
-psim.pbc([False, False, False])
+psim.set_domain_partitioner(pairs.regular_domain_partitioner_xy())
+psim.pbc([True, True, False])
 psim.build_cell_lists()
 
-# The order of user-defined functions is not important here since 
-# they are not used by other subroutines and are only callable individually 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
-psim.compute(spring_dashpot)
-psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
+
+# 'compute_globals' enables computation of forces on global bodies
+psim.compute(spring_dashpot, compute_globals=True)
 psim.compute(euler, parameters={'dt': pairs.real()})
+
+gravity_SI = 9.81
+psim.compute(gravity, symbols={'gravity_SI': gravity_SI })
 
 psim.generate()
 

@@ -13,6 +13,7 @@ from pairs.ir.print import Print, PrintCode
 from pairs.ir.select import Select
 from pairs.ir.sizeof import Sizeof
 from pairs.ir.types import Types
+from pairs.ir.sync_modes import SyncModes
 from pairs.sim.lowerable import Lowerable
 
 
@@ -21,8 +22,8 @@ class Comm:
         self.sim              = sim
         self.dom_part         = dom_part
         self.nsend_all        = sim.add_var('nsend_all', Types.Int32)
-        self.send_capacity    = sim.add_var('send_capacity', Types.Int32, 200000)
-        self.recv_capacity    = sim.add_var('recv_capacity', Types.Int32, 200000)
+        self.send_capacity    = sim.add_var('send_capacity', Types.Int32, 1000000)
+        self.recv_capacity    = sim.add_var('recv_capacity', Types.Int32, 1000000)
         self.elem_capacity    = sim.add_var('elem_capacity', Types.Int32, 100)
         self.nsend            = sim.add_array('nsend', [dom_part.nranks_capacity], Types.Int32)
         self.send_offsets     = sim.add_array('send_offsets', [dom_part.nranks_capacity], Types.Int32)
@@ -36,10 +37,12 @@ class Comm:
         self.recv_buffer      = sim.add_array('recv_buffer', [self.recv_capacity, self.elem_capacity], Types.Real, arr_sync=False)
         self.recv_map         = sim.add_array('recv_map', [self.recv_capacity], Types.Int32)
         self.recv_mult        = sim.add_array('recv_mult', [self.recv_capacity, sim.ndims()], Types.Int32)
-        self.nsend_contact    = sim.add_array('nsend_contact', [dom_part.nranks_capacity], Types.Int32)
-        self.nrecv_contact    = sim.add_array('nrecv_contact', [dom_part.nranks_capacity], Types.Int32)
-        self.contact_soffsets = sim.add_array('contact_soffsets', [dom_part.nranks_capacity], Types.Int32)
-        self.contact_roffsets = sim.add_array('contact_roffsets', [dom_part.nranks_capacity], Types.Int32)
+        
+        if self.sim._use_contact_history:
+            self.nsend_contact    = sim.add_array('nsend_contact', [dom_part.nranks_capacity], Types.Int32)
+            self.nrecv_contact    = sim.add_array('nrecv_contact', [dom_part.nranks_capacity], Types.Int32)
+            self.contact_soffsets = sim.add_array('contact_soffsets', [dom_part.nranks_capacity], Types.Int32)
+            self.contact_roffsets = sim.add_array('contact_roffsets', [dom_part.nranks_capacity], Types.Int32)
         
         if self.sim.properties.reduction_props():
             self.nsend_reverse            = sim.add_array('nsend_reverse', [dom_part.nranks_capacity], Types.Int32)
@@ -51,16 +54,15 @@ class Comm:
 
 
 class Synchronize(Lowerable):
-    def __init__(self, comm):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim):
+        self.sim = sim
+        self.comm = sim._comm
 
     @pairs_inline
     def lower(self):
         # Every property that is not constant across timesteps and have neighbor accesses during any
         # interaction kernel (i.e. property[j] in force calculation kernel)
-        prop_names = ['position', 'linear_velocity', 'angular_velocity']
-        prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
+        prop_list = [p for p in self.sim.properties if p.sync_mode==SyncModes.ALWAYS]
 
         PackAllGhostParticles(self.comm, prop_list)
         CommunicateAllData(self.comm, prop_list)
@@ -68,28 +70,16 @@ class Synchronize(Lowerable):
 
 
 class Borders(Lowerable):
-    def __init__(self, comm):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim):
+        self.sim = sim
+        self.comm = sim._comm
 
     @pairs_inline
     def lower(self):
         # Every property that has neighbor accesses during any interaction kernel (i.e. property[j]
         # exists in any force calculation kernel)
-        # We ignore normal because there should be no ghost half-spaces
-        prop_names = [
-            'flags',
-            'uid',
-            'type',
-            'mass',
-            'radius',
-            'position',
-            'linear_velocity',
-            'angular_velocity',
-            'shape'
-        ]
-
-        prop_list = [self.sim.property(p) for p in prop_names if self.sim.property(p) is not None]
+        # prop_list = [p for p in self.sim.properties if p.sync_mode==SyncModes.ALWAYS or p.sync_mode==SyncModes.ON_RENEIGHBOR]
+        prop_list = self.sim.properties.non_volatiles()
 
         Assign(self.sim, self.comm.nsend_all, 0)
         Assign(self.sim, self.sim.nghost, 0)
@@ -119,14 +109,15 @@ class Borders(Lowerable):
 
 
 class Exchange(Lowerable):
-    def __init__(self, comm):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim):
+        self.sim = sim
+        self.comm = sim._comm
 
     @pairs_inline
     def lower(self):
         # Every property except volatiles
         prop_list = self.sim.properties.non_volatiles()
+        # prop_list = [p for p in self.sim.properties if p.sync_mode==SyncModes.ALWAYS or p.sync_mode==SyncModes.ON_RENEIGHBOR]
 
         for step in range(self.comm.dom_part.number_of_steps()):
             Assign(self.comm.sim, self.comm.nsend_all, 0)
@@ -138,10 +129,12 @@ class Exchange(Lowerable):
                     Assign(self.comm.sim, self.comm.nrecv[j], 0)
                     Assign(self.comm.sim, self.comm.send_offsets[j], 0)
                     Assign(self.comm.sim, self.comm.recv_offsets[j], 0)
-                    Assign(self.comm.sim, self.comm.nsend_contact[j], 0)
-                    Assign(self.comm.sim, self.comm.nrecv_contact[j], 0)
-                    Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
-                    Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
+
+                    if self.sim._use_contact_history:
+                        Assign(self.comm.sim, self.comm.nsend_contact[j], 0)
+                        Assign(self.comm.sim, self.comm.nrecv_contact[j], 0)
+                        Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
+                        Assign(self.comm.sim, self.comm.contact_soffsets[j], 0)
 
             if self.sim._target.is_gpu():
                 CopyArray(self.comm.sim, self.comm.nsend, Contexts.Device, Actions.Ignore)
@@ -178,9 +171,9 @@ class Exchange(Lowerable):
 
 
 class ReverseComm(Lowerable):
-    def __init__(self, comm, reduce=False):
-        self.sim = comm.sim
-        self.comm = comm
+    def __init__(self, sim, reduce=False):
+        self.sim = sim
+        self.comm = sim._comm
         self.reduce = reduce
 
     @pairs_inline
@@ -319,10 +312,9 @@ class DetermineGhostParticles(Lowerable):
         is_exchange = (self.spacing == 0.0) # TODO: module_params(self.spacing)
         ghost_or_exchg = "exchange" if is_exchange else "ghost"
         self.sim.module_name(f"determine_{ghost_or_exchg}_particles{self.step}")
-        self.sim.check_resize(self.comm.send_capacity, nsend)
-        #self.sim.check_resize(self.comm.send_capacity, nsend_all)
+        # self.sim.check_resize(self.comm.send_capacity, nsend)
+        self.sim.check_resize(self.comm.send_capacity, nsend_all)   # send_buffer packs data for all ranks
 
-        # PrintCode(self.sim, f"std::cout << \"resizes[0] {self.sim._module_name} ========== \" << pobj->resizes[0] << std::endl;")
         if is_exchange:
             for i in ParticleFor(self.sim):
                 Assign(self.sim, exchg_flag[i], 0)

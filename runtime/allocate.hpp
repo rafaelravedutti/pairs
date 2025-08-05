@@ -44,4 +44,10 @@ inline void *host_realloc(void *ptr, size_t new_bytesize, size_t old_bytesize) {
     return newarray;
 }
 
+inline void host_free(void* ptr) {
+    if (ptr != nullptr) {
+        free(ptr);
+    }
+}
+
 }

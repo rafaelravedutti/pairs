@@ -40,7 +40,34 @@ void compute_boundary_weights(
     //       And neighbor blocks are going to change after rebalancing.
     // const int nghost = ps->getTrackedVariableAsInteger("nghost");
     *comm_weight = 0;
+}
 
+void determine_non_empty_aabbs(PairsRuntime *ps, int num_aabbs, real_t *aabbs, int *non_empty_aabbs){
+    const int particle_capacity = ps->getTrackedVariableAsInteger("particle_capacity");
+    const int nlocal = ps->getTrackedVariableAsInteger("nlocal");
+    auto position_prop = ps->getPropertyByName("position");
+    auto flags_prop = ps->getPropertyByName("flags");
+
+    real_t *position_ptr = static_cast<real_t *>(position_prop.getHostPointer());
+    int *flags_ptr = static_cast<int *>(flags_prop.getHostPointer());
+
+    for(int i = 0; i < nlocal; ++i) {
+        if (pairs_host_interface::get_flags(flags_ptr, i) & (pairs::flags::INFINITE | pairs::flags::GLOBAL)) {
+            continue;
+        }
+
+        real_t pos_x = pairs_host_interface::get_position(position_ptr, i, 0, particle_capacity);
+        real_t pos_y = pairs_host_interface::get_position(position_ptr, i, 1, particle_capacity);
+        real_t pos_z = pairs_host_interface::get_position(position_ptr, i, 2, particle_capacity);
+        for(int n = 0; n < num_aabbs; ++n){
+            if( pos_x >= aabbs[n*6 + 0] && pos_x < aabbs[n*6 + 1] &&
+                pos_y >= aabbs[n*6 + 2] && pos_y < aabbs[n*6 + 3] &&
+                pos_z >= aabbs[n*6 + 4] && pos_z < aabbs[n*6 + 5]) {
+                    non_empty_aabbs[n] = true;
+                    break;
+            }
+        }
+    }
 }
 
 }

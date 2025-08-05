@@ -51,14 +51,17 @@ public:
     void setConfig();
     void setBoundingBox();
     void initialize(int *argc, char ***argv);
-    void initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax);
-    void update();
+    void initWorkloadBalancer(LoadBalancingAlgorithms, size_t, size_t) {}
+    void updateLocal() {}
+    void updateNeighborhood() {}
+    void rebalance() {}
     void finalize();
 
     int getWorldSize() const { return world_size; }
     int getRank() const { return rank; }
     int getNumberOfNeighborRanks() { return 6; }
     int getNumberOfNeighborAABBs() { return 6; }
+    int getNumberOfLocalAABBs() { return 1; }
     double getSubdomMin(int dim) const { return subdom_min[dim];}
     double getSubdomMax(int dim) const { return subdom_max[dim];}
 

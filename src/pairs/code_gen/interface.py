@@ -3,11 +3,18 @@ from pairs.ir.functions import Call_Void, Call, Call_Int
 from pairs.ir.parameters import Parameter
 from pairs.ir.ret import Return
 from pairs.ir.scalars import ScalarOp
-from pairs.sim.domain import UpdateDomain
-from pairs.sim.cell_lists import BuildCellListsStencil
-from pairs.sim.comm import Synchronize, Borders, Exchange, ReverseComm
 from pairs.ir.types import Types
 from pairs.ir.branches import Filter, Branch
+from pairs.ir.select import Select
+from pairs.ir.atomic import AtomicInc
+from pairs.ir.arrays import RemoveArray
+from pairs.ir.properties import ReallocProperty, RemoveProperty
+from pairs.ir.print import PrintCode
+from pairs.ir.assign import Assign
+from pairs.sim.flags import Flags
+from pairs.sim.domain import DomainRebalance, DomainUpdateLocal, DomainUpdateNeighborhood
+from pairs.sim.cell_lists import BuildCellListsStencil
+from pairs.sim.comm import Synchronize, Borders, Exchange, ReverseComm
 from pairs.sim.cell_lists import BuildCellLists, BuildCellListsStencil, PartitionCellLists, BuildCellNeighborLists
 from pairs.sim.neighbor_lists import BuildNeighborLists
 from pairs.sim.variables import DeclareVariables 
@@ -17,8 +24,6 @@ from pairs.sim.features import AllocateFeatureProperties
 from pairs.sim.instrumentation import RegisterMarkers, RegisterTimers
 from pairs.sim.grid import MutableGrid
 from pairs.sim.domain_partitioners import DomainPartitioners
-from pairs.ir.print import PrintCode
-from pairs.ir.assign import Assign
 from pairs.sim.contact_history import BuildContactHistory, ClearUnusedContactHistory, ResetContactHistoryUsageStatus
 
 class InterfaceModules:
@@ -26,28 +31,24 @@ class InterfaceModules:
         self.sim = sim
 
     def create_all(self):
-        self.initialize()
-        self.setup_cells()
-        self.update_domain()
-        self.update_cells(self.sim.reneighbor_frequency) 
-        self.communicate(self.sim.reneighbor_frequency)
-        self.reverse_comm() 
-        self.reset_volatiles()
-
-        if self.sim._use_contact_history:
-            if self.neighbor_lists:
-                self.build_contact_history(self.sim.reneighbor_frequency)
-            self.reset_contact_history()
-
+        self.constructor()
+        self.destructor()      
+        self.setCellWidth()
+        self.setInteractionRadius()
+        self.updateDomain()
+        self.reneighbor()
+        self.refreshGhosts() 
+        self.reduceGhosts() 
+        self.resetVolatiles()
         self.rank()
         self.nlocal()
         self.nghost()
         self.size()
-        self.end()      
+        self.create_object()
 
     @pairs_interface_block
-    def initialize(self):
-        self.sim.module_name('initialize')
+    def constructor(self):
+        self.sim.module_name('PairsSimulation')
         nprops = self.sim.properties.nprops()
         ncontactprops = self.sim.contact_properties.nprops()
         narrays = self.sim.arrays.narrays()
@@ -75,91 +76,117 @@ class InterfaceModules:
         self.sim.add_statement(inits)
 
     @pairs_interface_block
-    def setup_cells(self):
-        self.sim.module_name('setup_cells')
-        
+    def destructor(self):
+        self.sim.module_name('~PairsSimulation')
+
+        for p in self.sim.properties.all():
+            RemoveProperty(self.sim, p)
+
+        for p in self.sim.arrays.all():
+            RemoveArray(self.sim, p)
+
+        if self.sim._enable_profiler:
+            PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
+            
+        Call_Void(self.sim, "pairs::print_timers", [])
+        # Call_Void(self.sim, "pairs::log_timers", [])
+        Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
+        PrintCode(self.sim, "delete pobj;")
+        PrintCode(self.sim, "delete pairs_runtime;")
+
+    @pairs_interface_block
+    def setCellWidth(self):
+        self.sim.module_name('setCellWidth')
         if self.sim.cell_lists.runtime_spacing:
             for d in range(self.sim.dims):
-                Assign(self.sim, self.sim.cell_lists.spacing[d], Parameter(self.sim, f'cell_spacing_d{d}', Types.Real))
+                Assign(self.sim, self.sim.cell_lists.spacing[d], Parameter(self.sim, f'cell_width_dim_{d}', Types.Real))
 
+    @pairs_interface_block
+    def setInteractionRadius(self):
+        self.sim.module_name('setInteractionRadius')
         if self.sim.cell_lists.runtime_cutoff_radius:
             Assign(self.sim, self.sim.cell_lists.cutoff_radius, Parameter(self.sim, 'cutoff_radius', Types.Real))
+        
+    @pairs_interface_block
+    def updateDomain(self):
+        ''' This function is required to be called only once after all particles have been created.
+        If rebalancing is enabled, the domain is rebalanced everytime this function is called.
+        If rebalancing is disabled, calling this function has the same effect as calling 'reneighbor'. 
+        '''
+        self.sim.module_name('updateDomain')
 
-        # This update assumes all particles have been created exactly in the rank that contains them 
-        self.sim.add_statement(UpdateDomain(self.sim))  
-        self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))
-        
+        self.sim.add_statement(DomainUpdateNeighborhood(self.sim)) 
+
+        # Local particles must be contained in their owners before rebalancing, otherwise they may get lost
+        self.sim.add_statement(Exchange(self.sim))
+
+        # Here AABBs assigned to each rank may change if rebalancing is enabled
+        self.sim.add_statement(DomainRebalance(self.sim)) 
+
+        # This is a cheap update to crop the subdom and find local non-empty AABBs
+        # Note: All local particles are strictly contained within AABBs. Therefore, 
+        # no padding is needed to find non-empty AABBs
+        self.sim.add_statement(DomainUpdateLocal(self.sim))      
+
+        # Rebuild stencil since subdom sizes have changed. Also may use non-empty AABBs to create halo cells
+        self.sim.add_statement(BuildCellListsStencil(self.sim)) 
+
+        if self.sim._use_halo_cells:
+            self.sim.add_statement(BuildCellLists(self, self.cell_lists))   
+            self.sim.add_statement(Borders(self.sim))
+
+        else: 
+            # Exchange is not needed since all locals are contained in thier owners after deserialization
+            # But ghosts must be recreated after rebalancing (optionally uses the halo cells)
+            self.sim.add_statement(Borders(self.sim))
+
+        # Populate cells with local and ghost particles
+        self.sim.add_statement(self.sim.update_cells_procedures)   
+
+
+        # Reset volatile includes the new locals
+        self.sim.add_statement(ResetVolatileProperties(self.sim))  
+
     @pairs_interface_block
-    def update_domain(self):
-        self.sim.module_name('update_domain')
-        self.sim.add_statement(Exchange(self.sim._comm))    # Local particles must be contained in their owners before domain update
-        self.sim.add_statement(UpdateDomain(self.sim))
-        # Exchange is not needed after update since all locals are contained in thier owners
-        self.sim.add_statement(Borders(self.sim._comm))     # Ghosts must be recreated after update
-        self.sim.add_statement(ResetVolatileProperties(self.sim))   # Reset volatile includes the new locals
-        self.sim.add_statement(BuildCellListsStencil(self.sim, self.sim.cell_lists))    # Rebuild stencil since subdom sizes have changed
-        self.sim.add_statement(self.sim.update_cells_procedures)
+    def reneighbor(self):
+        self.sim.module_name('reneighbor')
+
+        reneighboring_procedures = [
+            Exchange(self.sim),
+            # Note: DomainUpdateLocal must happen after exchange since local particles must be contained in AABBs.
+            #       And it must happen before Borders since newly received particles need to be included, so they become ghosts
+            #       for their previous neighbor
+            DomainUpdateLocal(self.sim),    
+            Borders(self.sim),
+            BuildCellListsStencil(self.sim),
+            self.sim.update_cells_procedures,
+            ResetVolatileProperties(self.sim)
+        ]
+
+        if self.sim._use_contact_history:
+            reneighboring_procedures += [
+                BuildContactHistory(self.sim, self.sim._contact_history, self.sim.cell_lists),
+                ResetContactHistoryUsageStatus(self.sim, self.sim._contact_history),
+                ClearUnusedContactHistory(self.sim, self.sim._contact_history)
+            ]
         
+        self.sim.add_statement(reneighboring_procedures)
+
     @pairs_interface_block
-    def reset_volatiles(self):
-        self.sim.module_name('reset_volatiles')
+    def refreshGhosts(self):
+        self.sim.module_name('refreshGhosts')
+        self.sim.add_statement(Synchronize(self.sim))
+
+    @pairs_interface_block
+    def reduceGhosts(self):
+        self.sim.module_name('reduceGhosts')
+        self.sim.add_statement(ReverseComm(self.sim, reduce=True))
+    
+    @pairs_interface_block
+    def resetVolatiles(self):
+        self.sim.module_name('resetVolatileProperties')
         self.sim.add_statement(ResetVolatileProperties(self.sim))
     
-    @pairs_interface_block
-    def update_cells(self, reneighbor_frequency=1):
-        self.sim.module_name('update_cells')
-        timestep = Parameter(self.sim, f'timestep', Types.Int32)
-        cond = ScalarOp.inline(ScalarOp.or_op(
-            ScalarOp.cmp((timestep + 1) % reneighbor_frequency, 0),
-            ScalarOp.cmp(timestep, 0)
-            ))
-
-        self.sim.add_statement(Filter(self.sim, cond, self.sim.update_cells_procedures))
-
-    @pairs_interface_block
-    def communicate(self, reneighbor_frequency=1):
-        self.sim.module_name('communicate')
-        timestep = Parameter(self.sim, f'timestep', Types.Int32)
-        cond = ScalarOp.inline(ScalarOp.or_op(
-            ScalarOp.cmp((timestep + 1) % reneighbor_frequency, 0),
-            ScalarOp.cmp(timestep, 0)
-            ))
-        
-        exchange = Filter(self.sim, cond, Exchange(self.sim._comm))
-        border_sync = Branch(self.sim, cond, 
-                             blk_if = Borders(self.sim._comm), 
-                             blk_else = Synchronize(self.sim._comm))
-        
-        self.sim.add_statement(exchange)
-        self.sim.add_statement(border_sync)
-        
-        # TODO: Maybe remove this from here, but volatiles must always be reset after exchange
-        self.sim.add_statement(Filter(self.sim, cond, Block(self.sim, ResetVolatileProperties(self.sim))))   
-
-    @pairs_interface_block
-    def reverse_comm(self):
-        self.sim.module_name('reverse_comm')
-        self.sim.add_statement(ReverseComm(self.sim._comm, reduce=True))
-    
-    @pairs_interface_block
-    def build_contact_history(self, reneighbor_frequency=1):
-        self.sim.module_name('build_contact_history')
-        timestep = Parameter(self.sim, f'timestep', Types.Int32)
-        cond = ScalarOp.inline(ScalarOp.or_op(
-            ScalarOp.cmp((timestep + 1) % reneighbor_frequency, 0),
-            ScalarOp.cmp(timestep, 0)
-            ))
-        
-        self.sim.add_statement(
-            Filter(self.sim, cond,
-                   BuildContactHistory(self.sim, self.sim._contact_history, self.sim.cell_lists)))
-
-    @pairs_interface_block
-    def reset_contact_history(self):
-        self.sim.module_name('reset_contact_history')
-        self.sim.add_statement(ResetContactHistoryUsageStatus(self.sim, self.sim._contact_history))
-        self.sim.add_statement(ClearUnusedContactHistory(self.sim, self.sim._contact_history))
-
     @pairs_interface_block
     def rank(self):
         self.sim.module_name('rank')
@@ -181,14 +208,66 @@ class InterfaceModules:
         Return(self.sim, ScalarOp.inline(self.sim.nlocal + self.sim.nghost))
 
     @pairs_interface_block
-    def end(self):
-        self.sim.module_name('end')
+    def create_object(self):
+        self.sim.module_name('createObject')
 
-        if self.sim._enable_profiler:
-            PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
+        # Initialize idx with an invalid value
+        idx = self.sim.add_temp_var(-1)
+
+        # Define function parameters (position coordinates, shape and flags)
+        pos = []
+        ndims = self.sim.ndims()
+        for d in range(ndims):
+            pos.append(Parameter(self.sim, f'pos_dim_{d}', Types.Real, d))
+
+        shape = Parameter(self.sim, 'shape', Types.Int32, ndims)
+        flags = Parameter(self.sim, 'flags', Types.Int32, ndims + 1)
+
+        # Check if the provided position is within this subdomain (i.e. particle is local)
+        is_local = Call(self.sim, "pairs_runtime->getDomainPartitioner()->isWithinSubdomain", pos, Types.Boolean)
+        
+        # Check if global or infinite flag is set for the provided flag
+        is_global = flags & (Flags.Global | Flags.Infinite)
+        
+        # If the particle is local or global
+        for _ in Filter(self.sim, ScalarOp.or_op(is_local, is_global)):
+            # Set idx to the current nlocal
+            Assign(self.sim, idx, self.sim.nlocal)
+
+            # If idx exceeds particle capacity
+            for _ in Filter(self.sim, self.sim.particle_capacity <= idx):
+                # Resize capacity 
+                Assign(self.sim, self.sim.particle_capacity, idx * 2)
+
+                # Reallocate properties
+                for p in self.sim.properties.all():
+                    sizes = [self.sim.particle_capacity] if Types.is_scalar(p.type()) else \
+                            [self.sim.particle_capacity, Types.number_of_elements(self.sim, p.type())]
+                    ReallocProperty(self.sim, p, sizes)
+
+                # Reallocate arrays bonded to this capacity
+                for arr in self.sim.particle_capacity.bonded_arrays():
+                    arr.realloc()
+
+            # Set particle position
+            for d in range(ndims):
+                Assign(self.sim, self.sim.particle_position[idx][d], pos[d])
             
-        Call_Void(self.sim, "pairs::print_timers", [])
-        Call_Void(self.sim, "pairs::log_timers", [])
-        Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
-        PrintCode(self.sim, "delete pobj;")
-        PrintCode(self.sim, "delete pairs_runtime;")
+            # Set particle shape
+            Assign(self.sim, self.sim.particle_shape[idx], shape)
+
+            # Set particle flags
+            Assign(self.sim, self.sim.particle_flags[idx], flags)
+            
+            # Set particle UID
+            # (creates a global UID or a local UID of type uint64_t according to the flags provided)
+            Assign(self.sim, self.sim.particle_uid[idx], 
+                        Select(self.sim, is_global, 
+                                Call(self.sim, "UniqueID::createGlobal", [], Types.UInt64),  
+                                Call(self.sim, "UniqueID::create", [], Types.UInt64)))
+            
+            # Increment nlocal
+            Assign(self.sim, self.sim.nlocal, self.sim.nlocal + 1)
+        
+        # Return the idx
+        Return(self.sim, idx)

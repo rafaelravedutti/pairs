@@ -8,10 +8,11 @@ from pairs.ir.math import Sqrt, Abs, Min, Sign
 from pairs.ir.select import Select
 from pairs.ir.types import Types
 from pairs.ir.vectors import Vector
-from pairs.ir.print import Print
+from pairs.ir.print import Print, PrintCode
+from pairs.ir.atomic import AtomicInc
 from pairs.sim.flags import Flags
 from pairs.sim.lowerable import Lowerable
-from pairs.sim.shapes import Shapes
+from pairs.sim.shapes import Shapes, Sphere, Halfspace, Box, Clump
 
 
 class Neighbor(ASTTerm):
@@ -47,8 +48,8 @@ class NeighborFor:
         self.particle = particle
         self.cell_lists = cell_lists
         self.neighbor_lists = neighbor_lists
-        # self.shapes = range(sim.max_shapes()) if shapes is None else shapes
-        self.shapes = [shapes]
+        self.shapes = range(sim.max_shapes()) if shapes is None else [shapes]
+        # self.shapes = [shapes]
 
     def __str__(self):
         return f"NeighborFor<{self.particle}>"
@@ -132,7 +133,7 @@ class NeighborFor:
 
 
 class InteractionData:
-    def __init__(self, sim, shape):
+    def __init__(self, sim):
         self.sim = sim
         self._i = sim.add_symbol(Types.Int32)
         self._j = sim.add_symbol(Types.Int32)
@@ -141,7 +142,6 @@ class InteractionData:
         self._penetration_depth = sim.add_symbol(Types.Real)
         self._contact_point = sim.add_symbol(Types.Vector)
         self._contact_normal = sim.add_symbol(Types.Vector)
-        self._shape = shape
         self.contact_threshold = 0.0
         self.cutoff_condition = None
 
@@ -165,9 +165,6 @@ class InteractionData:
 
     def contact_normal(self):
         return self._contact_normal
-
-    def shape(self):
-        return self._shape
     
     def pointmass_pointmass(self, i, j, cutoff_radius):
         position = self.sim.position()
@@ -183,8 +180,8 @@ class InteractionData:
 
     def sphere_halfspace(self, i, j):
         position = self.sim.position()
-        radius = self.sim.property('radius')
-        normal = self.sim.property('normal')
+        radius = self.sim.property(self.sim.shape_obj(Sphere).radius)
+        normal = self.sim.property(self.sim.shape_obj(Halfspace).normal)
 
         d = normal[j][0] * position[j][0] + \
             normal[j][1] * position[j][1] + \
@@ -206,7 +203,7 @@ class InteractionData:
 
     def sphere_sphere(self, i, j):
         position = self.sim.position()
-        radius = self.sim.property('radius')
+        radius = self.sim.property(self.sim.shape_obj(Sphere).radius)
         delta = position[i] - position[j]
         squared_distance = delta.x() * delta.x() + \
                         delta.y() * delta.y() + \
@@ -225,13 +222,207 @@ class InteractionData:
         self.contact_point().assign(contact_point)
         self.contact_normal().assign(contact_normal)
 
+    ###########################################################################################
+    # Clump interactions (EXPERIMENTAL)
+    ###########################################################################################
+
+    def sphere_clump(self, i, j, s_relative=True):
+        position = self.sim.position()
+        radius = self.sim.property(self.sim.shape_obj(Sphere).radius)
+        local_positions = self.sim.array(self.sim.shape_obj(Clump).local_positions)
+        local_radius = self.sim.array(self.sim.shape_obj(Clump).local_radii)
+        rotation_matrix = self.sim.property(self.sim.shape_obj(Clump).rotation_matrix)
+        
+        rm = rotation_matrix[j]
+        contact_points = []
+        contact_normals = []
+        penetration_depths = []
+        nb = 3      # 3-sphere clump
+
+        for n in range(nb):
+            pglobal = Vector(self.sim, [    rm[0]*local_positions[3*n + 0] + rm[1]*local_positions[3*n + 1] + rm[2]*local_positions[3*n + 2], 
+                                            rm[3]*local_positions[3*n + 0] + rm[4]*local_positions[3*n + 1] + rm[5]*local_positions[3*n + 2],
+                                            rm[6]*local_positions[3*n + 0] + rm[7]*local_positions[3*n + 1] + rm[8]*local_positions[3*n + 2]])
+            
+            pos = pglobal + position[j]  # global pos
+
+            delta = position[i] - pos
+            squared_distance =  delta.x() * delta.x() + \
+                                delta.y() * delta.y() + \
+                                delta.z() * delta.z()
+            distance = Sqrt(self.sim, squared_distance)
+            pd = distance - radius[i] - local_radius[n]
+            cn = delta * (1.0 / distance)
+            k = local_radius[n] + 0.5 * pd
+            cp = pos + cn * k
+            contact_points.append(cp)
+            contact_normals.append(cn)
+            penetration_depths.append(pd)
+
+        cp_weighted_sum = self.sim.add_temp_var([0.0, 0.0, 0.0])
+        cn_weighted_sum = self.sim.add_temp_var([0.0, 0.0, 0.0])
+        pd_total = self.sim.add_temp_var(0.0)
+
+        for n in range(nb):
+            for _ in Filter(self.sim, penetration_depths[n] < self.contact_threshold):
+                Assign(self.sim, cp_weighted_sum, cp_weighted_sum + contact_points[n]*penetration_depths[n])
+                Assign(self.sim, cn_weighted_sum, cn_weighted_sum + contact_normals[n]*penetration_depths[n])
+                Assign(self.sim, pd_total, pd_total + penetration_depths[n])
+        
+        self.cutoff_condition = pd_total < self.contact_threshold
+
+        contact_point = cp_weighted_sum * (1.0 / pd_total)
+        cn_sq = cn_weighted_sum[0] * cn_weighted_sum[0] + \
+                cn_weighted_sum[1] * cn_weighted_sum[1] + \
+                cn_weighted_sum[2] * cn_weighted_sum[2]
+        
+        cn_norm = Sqrt(self.sim, cn_sq)
+        effective_pd = -cn_norm
+        contact_normal = cn_weighted_sum * (1.0 / effective_pd)
+
+        self.penetration_depth().assign(effective_pd)
+        self.contact_point().assign(contact_point)
+        self.contact_normal().assign(contact_normal if s_relative else -contact_normal)
+
+
+    def clump_clump(self, i, j):
+        position = self.sim.position()
+        local_positions = self.sim.array(self.sim.shape_obj(Clump).local_positions)
+        local_radius = self.sim.array(self.sim.shape_obj(Clump).local_radii)
+        rotation_matrix = self.sim.property(self.sim.shape_obj(Clump).rotation_matrix)
+
+        rmi = rotation_matrix[i]
+        rmj = rotation_matrix[j]
+        contact_points = []
+        contact_normals = []
+        penetration_depths = []
+        nb = 3
+
+        for ni in range(nb):
+            pglobali = Vector(self.sim, [    
+                rmi[0]*local_positions[3*ni + 0] + rmi[1]*local_positions[3*ni + 1] + rmi[2]*local_positions[3*ni + 2], 
+                rmi[3]*local_positions[3*ni + 0] + rmi[4]*local_positions[3*ni + 1] + rmi[5]*local_positions[3*ni + 2],
+                rmi[6]*local_positions[3*ni + 0] + rmi[7]*local_positions[3*ni + 1] + rmi[8]*local_positions[3*ni + 2]])
+            posi = pglobali + position[i]  # global pos
+
+            for nj in range(nb):
+                pglobalj = Vector(self.sim, [    
+                    rmj[0]*local_positions[3*nj + 0] + rmj[1]*local_positions[3*nj + 1] + rmj[2]*local_positions[3*nj + 2], 
+                    rmj[3]*local_positions[3*nj + 0] + rmj[4]*local_positions[3*nj + 1] + rmj[5]*local_positions[3*nj + 2],
+                    rmj[6]*local_positions[3*nj + 0] + rmj[7]*local_positions[3*nj + 1] + rmj[8]*local_positions[3*nj + 2]])
+                
+                posj = pglobalj + position[j]  # global pos
+                
+                delta = posi - posj
+                squared_distance =  delta.x() * delta.x() + \
+                                    delta.y() * delta.y() + \
+                                    delta.z() * delta.z()
+                distance = Sqrt(self.sim, squared_distance)
+                pd = distance - local_radius[ni] - local_radius[nj]
+                cn = delta * (1.0 / distance)
+                k = local_radius[nj] + 0.5 * pd
+                cp = posj + cn * k
+                contact_points.append(cp)
+                contact_normals.append(cn)
+                penetration_depths.append(pd)
+
+        cp_weighted_sum = self.sim.add_temp_var([0.0, 0.0, 0.0])
+        cn_weighted_sum = self.sim.add_temp_var([0.0, 0.0, 0.0])
+        pd_total = self.sim.add_temp_var(0.0)
+
+        for n in range(nb*nb):
+            for _ in Filter(self.sim, penetration_depths[n] < self.contact_threshold):
+                Assign(self.sim, cp_weighted_sum, cp_weighted_sum + contact_points[n]*penetration_depths[n])
+                Assign(self.sim, cn_weighted_sum, cn_weighted_sum + contact_normals[n]*penetration_depths[n])
+                Assign(self.sim, pd_total, pd_total + penetration_depths[n])
+        
+        self.cutoff_condition = pd_total < self.contact_threshold
+
+        contact_point = cp_weighted_sum * (1.0 / pd_total)
+        cn_sq = cn_weighted_sum[0] * cn_weighted_sum[0] + \
+                cn_weighted_sum[1] * cn_weighted_sum[1] + \
+                cn_weighted_sum[2] * cn_weighted_sum[2]
+        
+        cn_norm = Sqrt(self.sim, cn_sq)
+        effective_pd = -cn_norm
+        contact_normal = cn_weighted_sum * (1.0 / effective_pd)
+
+        self.penetration_depth().assign(effective_pd)
+        self.contact_point().assign(contact_point)
+        self.contact_normal().assign(contact_normal)
+
+
+    def clump_halfspace(self, i, j):
+        position = self.sim.position()
+        normal = self.sim.property(self.sim.shape_obj(Halfspace).normal)
+        local_positions = self.sim.array(self.sim.shape_obj(Clump).local_positions)
+        local_radius = self.sim.array(self.sim.shape_obj(Clump).local_radii)
+        rotation_matrix = self.sim.property(self.sim.shape_obj(Clump).rotation_matrix)
+        
+        rm = rotation_matrix[i]
+        contact_points = []
+        contact_normals = []
+        penetration_depths = []
+        nb = 3
+
+        for n in range(nb):
+            pglobal = Vector(self.sim, [
+                rm[0]*local_positions[3*n + 0] + rm[1]*local_positions[3*n + 1] + rm[2]*local_positions[3*n + 2], 
+                rm[3]*local_positions[3*n + 0] + rm[4]*local_positions[3*n + 1] + rm[5]*local_positions[3*n + 2],
+                rm[6]*local_positions[3*n + 0] + rm[7]*local_positions[3*n + 1] + rm[8]*local_positions[3*n + 2]])
+            
+            pos = pglobal + position[i]  # global pos
+                    
+            d = normal[j][0] * position[j][0] + \
+                normal[j][1] * position[j][1] + \
+                normal[j][2] * position[j][2]
+
+            k = normal[j][0] * pos[0] + \
+                normal[j][1] * pos[1] + \
+                normal[j][2] * pos[2]
+
+            pd = k - local_radius[n] - d
+            tmp = local_radius[n] + pd
+            penetration_depths.append(pd)
+            contact_normals.append(normal[j])
+            contact_points.append(pos - Vector(self.sim, [tmp, tmp, tmp]) * normal[j])
+        
+        cp_weighted_sum = self.sim.add_temp_var([0.0, 0.0, 0.0])
+        cn_weighted_sum = self.sim.add_temp_var([0.0, 0.0, 0.0])
+        pd_total = self.sim.add_temp_var(0.0)
+
+        for n in range(nb):
+            for _ in Filter(self.sim, penetration_depths[n] < self.contact_threshold):
+                Assign(self.sim, cp_weighted_sum, cp_weighted_sum + contact_points[n]*penetration_depths[n])
+                Assign(self.sim, cn_weighted_sum, cn_weighted_sum + contact_normals[n]*penetration_depths[n])
+                Assign(self.sim, pd_total, pd_total + penetration_depths[n])
+        
+        self.cutoff_condition = pd_total < self.contact_threshold
+
+        contact_point = cp_weighted_sum * (1.0 / pd_total)
+        cn_sq = cn_weighted_sum[0] * cn_weighted_sum[0] + \
+                cn_weighted_sum[1] * cn_weighted_sum[1] + \
+                cn_weighted_sum[2] * cn_weighted_sum[2]
+        
+        cn_norm = Sqrt(self.sim, cn_sq)
+        effective_pd = -cn_norm
+        contact_normal = cn_weighted_sum * (1.0 / effective_pd)
+
+        self.penetration_depth().assign(effective_pd)
+        self.contact_point().assign(contact_point)
+        self.contact_normal().assign(contact_normal)
+
+    ###########################################################################################
+    # End of Clump interactions
+    ###########################################################################################
+
     def sphere_box(self, i, j, s_relative=True):
         s = i   # Sphere
         b = j   # Box
         position = self.sim.position()
-        edge_length = self.sim.property('edge_length')
-        rotation_matrix = self.sim.property('rotation_matrix')
-        radius = self.sim.property('radius')
+        radius = self.sim.property(self.sim.shape_obj(Sphere).radius)
+        edge_length = self.sim.property(self.sim.shape_obj(Box).edge_length)
+        rotation_matrix = self.sim.property(self.sim.shape_obj(Box).rotation_matrix)
         
         l = edge_length[b] * 0.5
         rm = rotation_matrix[b]
@@ -343,18 +534,26 @@ class ParticleInteraction(Lowerable):
     def include_interaction(self, ishape, jshape):
         id_i = self.sim.get_shape_id(ishape)
         id_j = self.sim.get_shape_id(jshape)
-        return  (id_i == Shapes.PointMass and id_j == Shapes.PointMass) or \
-                (id_i == Shapes.Sphere and id_j == Shapes.Sphere) or \
-                (id_i == Shapes.Sphere and id_j == Shapes.Halfspace) or \
-                (id_i == Shapes.Sphere and id_j == Shapes.Box) or \
-                (id_i == Shapes.Box and id_j == Shapes.Sphere)                     
+        return  (id_i == Shapes.PointMass   and id_j == Shapes.PointMass)   or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Sphere)      or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Halfspace)   or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Box)         or \
+                (id_i == Shapes.Sphere      and id_j == Shapes.Clump)       or \
+                (id_i == Shapes.Box         and id_j == Shapes.Sphere)      or \
+                (id_i == Shapes.Clump       and id_j == Shapes.Sphere)      or \
+                (id_i == Shapes.Clump       and id_j == Shapes.Clump)       or \
+                (id_i == Shapes.Clump       and id_j == Shapes.Halfspace)
                     
     # Included kernels
     def include_shape(self, ishape):
         id_i = self.sim.get_shape_id(ishape)
         return  (id_i == Shapes.PointMass) or \
                 (id_i == Shapes.Sphere) or \
-                (id_i == Shapes.Box)
+                (id_i == Shapes.Box) or \
+                (id_i == Shapes.Clump)
+    
+    def interaction_id(self, ishape, jshape):
+        return  ishape*self.maxs + jshape
 
     def __iter__(self):
         self.sim.add_statement(self)
@@ -364,19 +563,19 @@ class ParticleInteraction(Lowerable):
         for ishape in range(self.sim.max_shapes()):
             for jshape in range(self.sim.max_shapes()):
                 if self.include_interaction(ishape, jshape):
-                    apply_list_id = ishape*self.maxs + jshape
-                    self.sim.use_apply_list(self.apply_list[apply_list_id])
-                    self.active_block = self.blocks[ishape*self.maxs + jshape]
-                    self.interactions_data[ishape*self.maxs + jshape] = InteractionData(self.sim, ishape*self.maxs + jshape)
-                    yield self.interactions_data[ishape*self.maxs + jshape]
+                    interaction_id = self.interaction_id(ishape, jshape)
+                    self.sim.use_apply_list(self.apply_list[interaction_id])
+                    self.active_block = self.blocks[interaction_id]
+                    self.interactions_data[interaction_id] = InteractionData(self.sim)
+                    yield self.interactions_data[interaction_id]
                     self.sim.release_apply_list()
 
         self.sim.leave()
         self.active_block = None
 
-    def apply_reductions(self, i, ishape, jshape):
+    def apply_reductions(self, i, ishape, jshape, atomic=False):
         prop_reductions = {}
-        for app in self.apply_list[ishape*self.maxs + jshape]:
+        for app in self.apply_list[self.interaction_id(ishape, jshape)]:
             prop = app.prop()
             reduction = app.reduction_variable()
             if prop not in prop_reductions:
@@ -385,10 +584,20 @@ class ParticleInteraction(Lowerable):
                 prop_reductions[prop] = prop_reductions[prop] + reduction
 
         for prop, reduction in prop_reductions.items():
-            Assign(self.sim, prop[i], prop[i] + reduction)
+            if atomic:
+                if Types.is_scalar(prop.type()):
+                    AtomicInc(self.sim, prop[i], reduction)
+                    
+                else:
+                    for d in range(Types.number_of_elements(self.sim, prop.type())):
+                        AtomicInc(self.sim, prop[i][d], reduction[d])
 
-    def compute_interaction(self, i, j, ishape, jshape):
-        interaction_data = self.interactions_data[ishape*self.maxs + jshape]
+            else:
+                Assign(self.sim, prop[i], prop[i] + reduction)
+
+    def compute_interaction(self, i, j, ishape, jshape, atomic=False):
+        interaction_id = self.interaction_id(ishape, jshape)
+        interaction_data = self.interactions_data[interaction_id]
         interaction_data.i().assign(i)
         interaction_data.j().assign(j)
         ishape_id = self.sim.get_shape_id(ishape)
@@ -405,37 +614,120 @@ class ParticleInteraction(Lowerable):
 
         if ishape_id == Shapes.Sphere and jshape_id == Shapes.Box:
             interaction_data.sphere_box(i, j)
+        
+        if ishape_id == Shapes.Sphere and jshape_id == Shapes.Clump:
+            interaction_data.sphere_clump(i, j)
             
         if ishape_id == Shapes.Box and jshape_id == Shapes.Sphere:
             interaction_data.sphere_box(j, i, False)
 
+        if ishape_id == Shapes.Clump and jshape_id == Shapes.Sphere:
+            interaction_data.sphere_clump(j, i, False)
+
+        if ishape_id == Shapes.Clump and jshape_id == Shapes.Clump:
+            interaction_data.clump_clump(i, j)
+
+        if ishape_id == Shapes.Clump and jshape_id == Shapes.Halfspace:
+            interaction_data.clump_halfspace(i, j)
+
         # Apply reductions for this i-j interaction:
         # -------------------------------------------------------------
-        for app in self.apply_list[ishape*self.maxs + jshape]:
+        for app in self.apply_list[interaction_id]:
             app.add_reduction_variable()
 
         # The i-j block is executed only if the cutoff_condition of the i-j interaction is met
-        self.sim.add_statement(Filter(self.sim, interaction_data.cutoff_condition, self.blocks[ishape*self.maxs + jshape]))
-        self.apply_reductions(i, ishape, jshape)
+        self.sim.add_statement(Filter(self.sim, interaction_data.cutoff_condition, self.blocks[interaction_id]))
+        self.apply_reductions(i, ishape, jshape, atomic)
+
+    def intersects_subdom(self, ishape, i):
+        ishape_id = self.sim.get_shape_id(ishape)
+
+        position = self.sim.position()
+        rotation_matrix = self.sim.property('rotation_matrix')
+        rm = [Abs(self.sim, rotation_matrix[i][d]) for d in range(self.sim.ndims() ** 2)]
+
+        if ishape_id == Shapes.Sphere:
+            radius = self.sim.property('radius')
+            aabb_max = position[i] + radius[i]
+            aabb_min = position[i] - radius[i]
+
+        if ishape_id == Shapes.Box:
+            edge_length = self.sim.property('edge_length')
+            l = edge_length[i] * 0.5
+            bound = Vector(self.sim, [  
+                rm[0]*l[0] + rm[1]*l[1] + rm[2]*l[2], 
+                rm[3]*l[0] + rm[4]*l[1] + rm[5]*l[2],
+                rm[6]*l[0] + rm[7]*l[1] + rm[8]*l[2]])
+            aabb_max = position[i] + bound
+            aabb_min = position[i] - bound
+
+        intersects = None
+        for dim in range(self.sim.ndims()):
+            dom_min = self.cell_lists.dom_part.min(dim)
+            dom_max = self.cell_lists.dom_part.max(dim)
+            d_cond = ScalarOp.and_op(aabb_min[dim] < dom_max, aabb_max[dim] >= dom_min)
+            intersects = d_cond if intersects is None else ScalarOp.and_op(intersects, d_cond)
+
+        return intersects
 
     @pairs_block
     def lower(self):
         self.sim.module_name(f"{self.module_name}_local_interactions")
         if self.nbody == 2:
             neighbor_lists = None if self.use_cell_lists else self.sim.neighbor_lists
-            for ishape in range(self.maxs):
-                if self.include_shape(ishape):
-                    # A kernel for each ishape
-                    for i in ParticleFor(self.sim):
-                        for _ in Filter(self.sim, ScalarOp.and_op(
-                            ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
-                            ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
-                            for jshape in range(self.maxs):
-                                if self.include_interaction(ishape, jshape):
-                                    # Inner loops for each jshaped neighbor
-                                    for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
-                                        j = neigh.particle_index()
-                                        self.compute_interaction(i, j, ishape, jshape)
+            # for ishape in range(self.maxs):
+            #     if self.include_shape(ishape):
+            #         for jshape in range(self.maxs):
+            #             if self.include_interaction(ishape, jshape):
+            #                 # A kernel for each ishape
+            #                 for i in ParticleFor(self.sim):
+            #                     for _ in Filter(self.sim, ScalarOp.and_op(
+            #                         ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
+            #                         ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
+            #                                 # Inner loops for each jshaped neighbor
+            #                                 for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+            #                                     j = neigh.particle_index()
+            #                                     self.compute_interaction(i, j, ishape, jshape)
+
+            #############################################################################
+            # Without outer loop partitioning
+            #############################################################################
+            if self.maxs<=1:
+                for ishape in range(self.maxs):
+                    if self.include_shape(ishape):
+                        # A kernel for each ishape
+                        for i in ParticleFor(self.sim):
+                            for _ in Filter(self.sim, ScalarOp.and_op(
+                                ScalarOp.cmp(self.sim.particle_shape[i], self.sim.get_shape_id(ishape)),
+                                ScalarOp.not_op(self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global)))):
+                                for jshape in range(self.maxs):
+                                    if self.include_interaction(ishape, jshape):
+                                        # Inner loops for each jshaped neighbor
+                                        for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+                                            j = neigh.particle_index()
+                                            self.compute_interaction(i, j, ishape, jshape)
+
+
+            #############################################################################
+            # With outer loop partitioning
+            #############################################################################
+            else:
+                for ishape in range(self.maxs):
+                    if self.include_shape(ishape):
+                        start = sum([self.sim.particle_lists.shape_nparticles[s] for s in range(ishape)], 0)
+                        end = self.sim.particle_lists.shape_nparticles[ishape]
+                        for n in For(self.sim, start, end):
+                            i = self.sim.particle_lists.shape_partitioned_idx[n]
+                            for _ in Filter(self.sim, ScalarOp.not_op(
+                                self.sim.particle_flags[i] & (Flags.Infinite | Flags.Global))):        
+                                for jshape in range(self.maxs):
+                                    if self.include_interaction(ishape, jshape):
+                                        # Inner loops for each jshaped neighbor
+                                        for neigh in NeighborFor(self.sim, i, self.cell_lists, neighbor_lists, jshape):
+                                            j = neigh.particle_index()
+                                            self.compute_interaction(i, j, ishape, jshape)
+
+
 
         else:
             raise Exception("Interactions among more than two particles are currently not supported.")

@@ -31,79 +31,87 @@ BlockForest::BlockForest(
 }
 
 BlockForest::BlockForest(PairsRuntime *ps_, const std::shared_ptr<walberla::blockforest::BlockForest> &bf) :
-        forest(bf),
         DomainPartitioner(bf->getDomain().xMin(), bf->getDomain().xMax(),
                         bf->getDomain().yMin(), bf->getDomain().yMax(),
-                        bf->getDomain().zMin(), bf->getDomain().zMax()), 
-        ps(ps_) {
+                        bf->getDomain().zMin(), bf->getDomain().zMax()),
+        ps(ps_), forest(bf)
+
+         {
             subdom = new real_t[ndims * 2];
             mpiManager = walberla::mpi::MPIManager::instance();
             world_size = mpiManager->numProcesses();
             rank = mpiManager->rank();
             this->info = make_shared<walberla::blockforest::InfoCollection>();
+            this->updateNeighborhood();
 }
 
 void BlockForest::updateNeighborhood() {
     std::map<int, std::vector<walberla::math::AABB>> neighborhood;
     std::map<int, std::vector<walberla::BlockID>> blocks_pushed;
     auto me = mpiManager->rank();
-    this->nranks = 0;
-    this->total_aabbs = 0;
+    this->num_neigh_ranks = 0;
+    this->total_num_neigh_aabbs = 0;
 
     ranks.clear();
-    naabbs.clear();
+    num_neigh_aabbs.clear();
     aabb_offsets.clear();
-    aabbs.clear();
+    neigh_aabbs.clear();
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
         for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
             auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
 
             // TODO: Make PBCs work with runtime load balancing
-            // if(neighbor_rank != me) {
+            if(neighbor_rank != me) {
                 const walberla::BlockID& neighbor_id = block->getNeighborId(neigh);
                 walberla::math::AABB neighbor_aabb = block->getNeighborAABB(neigh);
                 auto begin = blocks_pushed[neighbor_rank].begin();
                 auto end = blocks_pushed[neighbor_rank].end();
-                
+
                 if(find_if(begin, end, [neighbor_id](const auto &bp) { return bp == neighbor_id; }) == end) {
                     neighborhood[neighbor_rank].push_back(neighbor_aabb);
                     blocks_pushed[neighbor_rank].push_back(neighbor_id);
                 }
-            // }
+            }
         }
     }
 
     for(auto& nbh: neighborhood) {
-        auto rank = nbh.first;
+        auto neigh_rank = nbh.first;
         auto aabb_list = nbh.second;
-        ranks.push_back((int) rank);
-        aabb_offsets.push_back(this->total_aabbs);
-        naabbs.push_back((int) aabb_list.size());
+        ranks.push_back((int) neigh_rank);
+        aabb_offsets.push_back(this->total_num_neigh_aabbs);
+        num_neigh_aabbs.push_back((int) aabb_list.size());
 
         for(auto &aabb: aabb_list) {
-            aabbs.push_back(aabb.xMin());
-            aabbs.push_back(aabb.xMax());
-            aabbs.push_back(aabb.yMin());
-            aabbs.push_back(aabb.yMax());
-            aabbs.push_back(aabb.zMin());
-            aabbs.push_back(aabb.zMax());
-            this->total_aabbs++;
+            neigh_aabbs.push_back(aabb.xMin());
+            neigh_aabbs.push_back(aabb.xMax());
+            neigh_aabbs.push_back(aabb.yMin());
+            neigh_aabbs.push_back(aabb.yMax());
+            neigh_aabbs.push_back(aabb.zMin());
+            neigh_aabbs.push_back(aabb.zMax());
+            this->total_num_neigh_aabbs++;
         }
 
-        this->nranks++;
+        this->num_neigh_ranks++;
     }
+
+    this->is_neighborhood_up_to_date = true;
 }
 
 void BlockForest::copyRuntimeArray(const std::string& name, void *dest, const int size) {
-    void *src = name.compare("ranks") == 0          ? static_cast<void *>(ranks.data()) :
-                name.compare("naabbs") == 0         ? static_cast<void *>(naabbs.data()) :
-                name.compare("aabb_offsets") == 0   ? static_cast<void *>(aabb_offsets.data()) :
-                name.compare("aabbs") == 0          ? static_cast<void *>(aabbs.data()) :
-                name.compare("subdom") == 0         ? static_cast<void *>(subdom) : nullptr;
+    void *src = name.compare("ranks") == 0              ? static_cast<void *>(ranks.data()) :
+                name.compare("num_neigh_aabbs") == 0    ? static_cast<void *>(num_neigh_aabbs.data()) :
+                name.compare("aabb_offsets") == 0       ? static_cast<void *>(aabb_offsets.data()) :
+                name.compare("neigh_aabbs") == 0        ? static_cast<void *>(neigh_aabbs.data()) :
+                name.compare("local_aabbs") == 0        ? static_cast<void *>(local_aabbs.data()) :
+                name.compare("non_empty_local_aabbs") == 0 ? static_cast<void *>(non_empty_local_aabbs.data()) :
+                name.compare("has_non_empty_aabb_in_neighborhood_of_rank") == 0 
+                    ? static_cast<void *>(has_non_empty_aabb_in_neighborhood_of_rank.data()) :
+                name.compare("subdom") == 0             ? static_cast<void *>(subdom) : nullptr;
 
     PAIRS_ASSERT(src != nullptr);
-    bool is_real = (name.compare("aabbs") == 0) || (name.compare("subdom") == 0);
+    bool is_real = (name.compare("neigh_aabbs") == 0) || (name.compare("subdom") == 0)  || (name.compare("local_aabbs") == 0);
     int tsize = is_real ? sizeof(real_t) : sizeof(int);
     std::memcpy(dest, src, size * tsize);
 }
@@ -113,7 +121,7 @@ void BlockForest::updateWeights() {
 
     info->clear();
 
-    int sum_block_locals = 0;
+    size_t sum_block_locals = 0;
     // Compute the weights for my blocks and their children
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
@@ -139,13 +147,18 @@ void BlockForest::updateWeights() {
         }
     }
     
-    int non_globals = ps->getTrackedVariableAsInteger("nlocal") - UniqueID::getNumGlobals();
+    size_t non_globals = ps->getTrackedVariableAsInteger("nlocal") - UniqueID::getNumGlobals();
     
     if(sum_block_locals!=non_globals){
         std::cout << "Warning: " << non_globals - sum_block_locals << " particles in rank " << rank << 
         " may get lost in the next rebalancing." << std::endl;
     }
 
+// Neighbor weights are currently not used, but they may be useful in the future for other optimizations.
+// Note: Neighborhood cannot be built based on weights, because an empty neighbor in one timestep may become
+// non-empty in the next timestep. Therefore, all neighbors, irrespective of their weights, must be added to neighborhood.
+
+/*
     // Send the weights of my blocks and their children to the neighbors of my blocks
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
@@ -177,12 +190,12 @@ void BlockForest::updateWeights() {
             info->insert(val);
         }
     }
+*/
 }
 
 walberla::Vector3<int> BlockForest::getBlockConfig() {
     real_t area[3];
     real_t best_surf = 0.0;
-    int ndims = 3;
     int d = 0;
     int nranks[3] = {1, 1, 1};
 
@@ -233,10 +246,22 @@ void BlockForest::setBoundingBox() {
     for (int i=0; i<6; ++i) subdom[i] = 0.0;
     if (forest->empty()) return;
 
-    auto aabb_union = forest->begin()->getAABB();
+    walberla::math::AABB aabb_union;
+    int block_idx = 0;
+    bool init_aabb = true;      // Avoid merge with default zero-initialized aabb
     for(auto& iblock: *forest) {
         auto block = static_cast<walberla::blockforest::Block *>(&iblock);
-        aabb_union.merge(block->getAABB());
+        if(non_empty_local_aabbs[block_idx]){
+            auto aabb = block->getAABB();
+            if(init_aabb){
+                aabb_union = aabb;
+                init_aabb = false;
+            }
+            else{
+                aabb_union.merge(aabb);
+            }
+        }
+        ++block_idx;
     }
 
     subdom[0] = aabb_union.xMin();
@@ -263,39 +288,84 @@ void BlockForest::initialize(int *argc, char ***argv) {
     forest = walberla::blockforest::createBlockForest(domain, block_config, pbc, world_size, ref_level);
 
     this->info = make_shared<walberla::blockforest::InfoCollection>();
+    this->updateNeighborhood();
 
     if (rank==0) {
+        std::cout << "Domain Partitioner: BlockForest" << std::endl;
         std::cout << "Domain: " << domain << std::endl;
-        std::cout << "PBC: " << pbc << std::endl;
-        std::cout << "Block config: " << block_config  << std::endl;
+        std::cout << "Configuration: " << block_config  << std::endl;
         std::cout << "Initial refinement level: " << ref_level << std::endl;
         std::cout << "Dynamic load balancing: " << (balance_workload ? "True" : "False") << std::endl;
     }
 }
 
-void BlockForest::update() {
-    if(balance_workload) {
+void BlockForest::updateLocal() {
+    has_non_empty_aabb_in_neighborhood_of_rank.clear();
+    non_empty_local_aabbs.clear();
+    local_aabbs.clear();
+
+    if (forest->empty()) return;
+    if (!is_neighborhood_up_to_date) this->updateNeighborhood();
+
+    int block_idx = 0;
+    for(auto& iblock: *forest) {
+        auto block = static_cast<walberla::blockforest::Block *>(&iblock);
+        auto aabb = block->getAABB();
+        local_aabbs.push_back(aabb.xMin());
+        local_aabbs.push_back(aabb.xMax());
+        local_aabbs.push_back(aabb.yMin());
+        local_aabbs.push_back(aabb.yMax());
+        local_aabbs.push_back(aabb.zMin());
+        local_aabbs.push_back(aabb.zMax());
+        ++block_idx;
+    }
+
+    this->num_local_aabbs = block_idx;
+    non_empty_local_aabbs.resize(this->num_local_aabbs, 0);
+
+    determine_non_empty_aabbs(this->ps, this->num_local_aabbs, local_aabbs.data(), non_empty_local_aabbs.data());
+
+    std::map<int, bool> has_particles_for_rank;
+    block_idx = 0;
+    for(auto& iblock: *forest) {
+        auto block = static_cast<walberla::blockforest::Block *>(&iblock);
+        for(uint neigh = 0; neigh < block->getNeighborhoodSize(); ++neigh) {
+            auto neighbor_rank = walberla::int_c(block->getNeighborProcess(neigh));
+            has_particles_for_rank[neighbor_rank] = has_particles_for_rank[neighbor_rank] || non_empty_local_aabbs[block_idx];
+        }
+        ++block_idx;
+    }
+
+    for(auto& r: ranks) {
+        has_non_empty_aabb_in_neighborhood_of_rank.push_back(has_particles_for_rank[r]);
+    }
+
+    this->setBoundingBox();
+}
+
+void BlockForest::rebalance() {
+    if(balance_workload){
         if(!forest->loadBalancingFunctionRegistered()){
             std::cerr << "Workload balancer is not initialized." << std::endl;
             exit(-1);
         }
 
         this->updateWeights();
+
         const int nlocal = ps->getTrackedVariableAsInteger("nlocal");
         for(auto &prop: ps->getProperties()) {
             if(!prop.isVolatile()) {
-                const int ptypesize = get_proptype_size(prop.getType());
+                const size_t ptypesize = get_proptype_size(prop.getType());
                 ps->copyPropertyToHost(prop, pairs::WriteAfterRead, nlocal*ptypesize);
             }
         }
         
         // PAIRS_DEBUG("Rebalance\n");
         if (rank==0) std::cout << "Rebalance" << std::endl;
-        forest->refresh(); 
-    }
 
-    this->updateNeighborhood();
-    this->setBoundingBox();
+        forest->refresh(); 
+        is_neighborhood_up_to_date = false;
+    }
 }
 
 void BlockForest::initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) {
@@ -401,7 +471,7 @@ int BlockForest::isWithinSubdomain(real_t x, real_t y, real_t z) {
     return false;
 }
 
-void BlockForest::communicateSizes(int dim, const int *nsend, int *nrecv) {
+void BlockForest::communicateSizes(int, const int *nsend, int *nrecv) {
     std::vector<MPI_Request> send_requests;
     std::vector<MPI_Request> recv_requests;
     size_t nranks = 0;
@@ -420,15 +490,15 @@ void BlockForest::communicateSizes(int dim, const int *nsend, int *nrecv) {
     }
 
     if(!send_requests.empty()) {
-        MPI_Waitall(send_requests.size(), send_requests.data(), MPI_STATUSES_IGNORE);
+        MPI_Waitall((int)(send_requests.size()), send_requests.data(), MPI_STATUSES_IGNORE);
     }
     if(!recv_requests.empty()) {
-        MPI_Waitall(recv_requests.size(), recv_requests.data(), MPI_STATUSES_IGNORE);
+        MPI_Waitall((int)(recv_requests.size()), recv_requests.data(), MPI_STATUSES_IGNORE);
     }
 }
 
 void BlockForest::communicateData(
-    int dim, int elem_size,
+    int, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
@@ -456,24 +526,24 @@ void BlockForest::communicateData(
     }
 
     if(!send_requests.empty()) {
-        MPI_Waitall(send_requests.size(), send_requests.data(), MPI_STATUSES_IGNORE);
+        MPI_Waitall((int)(send_requests.size()), send_requests.data(), MPI_STATUSES_IGNORE);
     }
 
     if(!recv_requests.empty()) {
-        MPI_Waitall(recv_requests.size(), recv_requests.data(), MPI_STATUSES_IGNORE);
+        MPI_Waitall((int)(recv_requests.size()), recv_requests.data(), MPI_STATUSES_IGNORE);
     }
 }
 
 void BlockForest::communicateDataReverse(
-    int dim, int elem_size,
+    int, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-        this->communicateData(dim, elem_size,send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
+        this->communicateData(0, elem_size,send_buf, send_offsets, nsend, recv_buf, recv_offsets, nrecv);
 }
 
 void BlockForest::communicateAllData(
-    int ndims, int elem_size,
+    int, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 

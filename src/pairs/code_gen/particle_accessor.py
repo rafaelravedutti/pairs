@@ -2,7 +2,7 @@ from pairs.ir.types import Types
 from pairs.ir.features import FeatureProperty
 from pairs.ir.properties import Property
 
-class PairsAcessor:
+class ParticleAccessor:
     def __init__(self, cgen):
         self.sim = cgen.sim
         self.target = cgen.target
@@ -17,6 +17,7 @@ class PairsAcessor:
         if self.target.is_gpu():
             self.print("namespace pairs::internal{")
             self.print.add_indent(4)
+            self.PropFlags_struct()
             self.DeviceProps_struct()
             self.HostProps_struct()
             self.print.add_indent(-4)
@@ -31,7 +32,7 @@ class PairsAcessor:
         # self.print("#include \"math/Matrix3.hpp\"")
         self.print("")
 
-        self.print("class PairsAccessor {")
+        self.print("class ParticleAccessor {")
         self.print("private:")
         self.print.add_indent(4)
         self.member_variables()
@@ -42,7 +43,7 @@ class PairsAcessor:
         self.sync_ctx_enum()
         self.update()
         self.constructor()
-        # self.destructor()
+        self.end()
 
         for p in self.sim.properties:
             if (p.type()==Types.Vector) or (Types.is_scalar(p.type())):
@@ -61,32 +62,40 @@ class PairsAcessor:
         self.print("};")
         self.print("")
 
+    def PropFlags_struct(self): 
+        self.print("struct PropFlags{")
+        self.print.add_indent(4)
+        for p in self.sim.properties:
+            pname = p.name()
+            self.print(f"unsigned int {pname} : 1;")
+
+        self.print.add_indent(-4)
+        self.print("};")
+        self.print("")
+
     def DeviceProps_struct(self):
         self.print("struct DeviceProps{")
         self.print.add_indent(4)
-
-        self.print("int nlocal;")
-        self.print("int nghost;")
-        self.print("")
 
         self.print("//Property device pointers")
         for p in self.sim.properties:
             pname = p.name()
             tkw = Types.c_keyword(self.sim, p.type())
             self.print(f"{tkw} *{pname}_d;")
-
         self.print("")
-        self.print("//Property device flag pointers")
-        for p in self.sim.properties:
-            pname = p.name()
-            tkw = Types.c_keyword(self.sim, Types.Boolean)
-            self.print(f"{tkw} *{pname}_device_flag_d;")
+
+        self.print("//Device pointer to device flags")
+        self.print(f"PropFlags *prop_device_flags_d;")
 
         self.print("")
         self.print("//Feature properties on device are global")
 
         self.print("")
         self.print("//Feature properties have no flags on device since they can't be modified on device")
+
+        self.print("")
+        self.print("int nlocal;")
+        self.print("int nghost;")
 
         self.print.add_indent(-4)
         self.print("};")   
@@ -103,17 +112,11 @@ class PairsAcessor:
 
         self.print("")
         self.print("//Property host flags")
-        for p in self.sim.properties:
-            pname = p.name()
-            tkw = Types.c_keyword(self.sim, Types.Boolean)
-            self.print(f"{tkw} {pname}_host_flag = false;")
-        
+        self.print("PropFlags prop_host_flags = {};")
+
         self.print("")
         self.print("//Property device flags")
-        for p in self.sim.properties:
-            pname = p.name()
-            tkw = Types.c_keyword(self.sim, Types.Boolean)
-            self.print(f"{tkw} {pname}_device_flag_h = false;")
+        self.print("PropFlags prop_device_flags_h = {};")
 
         self.print("")
         self.print("//Feature property host pointers are in PairsObjects")
@@ -157,44 +160,36 @@ class PairsAcessor:
 
     def constructor(self):
         if self.target.is_gpu():
-            self.print(f"{self.host_attr}PairsAccessor(PairsSimulation *ps_): ps(ps_){{")
+            self.print(f"{self.host_attr}ParticleAccessor(PairsSimulation *ps_): ps(ps_){{")
             self.print.add_indent(4)
 
             self.print(f"hp = new pairs::internal::HostProps;")
             self.print(f"dp_h = new pairs::internal::DeviceProps;")
             self.print(f"cudaMalloc(&dp_d, sizeof(pairs::internal::DeviceProps));")
+            self.print(f"cudaMalloc(&(dp_h->prop_device_flags_d), sizeof(pairs::internal::PropFlags));")
+            self.print(f"cudaMemset(dp_h->prop_device_flags_d, 0, sizeof(pairs::internal::PropFlags));")
 
-            for p in self.sim.properties:
-                pname = p.name()
-                tkw = Types.c_keyword(self.sim, Types.Boolean)
-                self.print(f"cudaMalloc(&(dp_h->{pname}_device_flag_d), sizeof({tkw}));")
-        
             self.print("this->update();")
             self.print.add_indent(-4)
             self.print("}")
 
         else:
-            self.print("PairsAccessor(PairsSimulation *ps_): ps(ps_){}")
+            self.print("ParticleAccessor(PairsSimulation *ps_): ps(ps_){}")
 
         self.print("")
 
-    def destructor(self):
+    def end(self):
+        self.print(f"{self.host_attr} void end(){{")
         if self.target.is_gpu():
-            self.print(f"{self.host_attr}~PairsAccessor(){{")
             self.print.add_indent(4)
-
-            for p in self.sim.properties:
-                pname = p.name()
-                tkw = Types.c_keyword(self.sim, Types.Boolean)
-                self.print(f"cudaFree(dp_h->{pname}_device_flag_d);")
-
-            self.print(f"delete hp;")
-            self.print(f"delete dp_h;")
+            self.print(f"cudaFree(dp_h->prop_device_flags_d);")
             self.print(f"cudaFree(dp_d);")
+            self.print(f"delete dp_h;")
+            self.print(f"delete hp;")
 
             self.print.add_indent(-4)
-            self.print("}")
-            self.print("")
+        self.print("}")
+        self.print("")
 
     def ifdef_else(self, ifdef, func1, args1, func2, args2):
         self.print.add_indent(4)
@@ -264,12 +259,16 @@ class PairsAcessor:
     def setter_body(self, prop, device=False):
         self.print.add_indent(4)
         ptr = self.generate_ref_name(prop, device)
+        pname = prop.name()
 
         if isinstance(prop, Property):
             idx = "i"
+            flag = f"dp_d->prop_device_flags_d->{pname}" if device else f"hp->prop_host_flags.{pname}"
+
         elif isinstance(prop, FeatureProperty):
             fname = prop.feature().name()
             idx = f"({prop.feature().nkinds()}*{fname}1 + {fname}2)"
+            flag = f"hp->{pname}_host_flag"
 
         if Types.is_scalar(prop.type()):
             self.print(f"{ptr}[{idx}] = value;")
@@ -279,8 +278,6 @@ class PairsAcessor:
                 self.print(f"{ptr}[{idx}*{nelems} + {n}] = value[{n}];")
 
         if self.target.is_gpu():
-            pname = prop.name()
-            flag = f"*(dp_d->{pname}_device_flag_d)" if device else f"hp->{pname}_host_flag"
             self.print(f"{flag} = true;")
 
         self.print.add_indent(-4)
@@ -316,7 +313,7 @@ class PairsAcessor:
     def sync_ctx_enum(self):
         self.print("enum SyncContext{")
         self.print("    Host = 0,")
-        self.print("    Device")
+        self.print("    Device = 1")
         self.print("};")
         self.print("")
 
@@ -330,24 +327,24 @@ class PairsAcessor:
 
         if self.target.is_gpu():
             self.print.add_indent(4)
-            self.print(f"cudaMemcpy(&(hp->{pname}_device_flag_h), dp_h->{pname}_device_flag_d, sizeof(bool), cudaMemcpyDeviceToHost);")
+            self.print(f"cudaMemcpy(&(hp->prop_device_flags_h), dp_h->prop_device_flags_d, sizeof(pairs::internal::PropFlags), cudaMemcpyDeviceToHost);")
             self.print("")
             
             #####################################################################################################################
             #####################################################################################################################
 
-            self.print(f"if (hp->{pname}_host_flag && hp->{pname}_device_flag_h){{")
+            self.print(f"if (hp->prop_host_flags.{pname} && hp->prop_device_flags_h.{pname}){{")
             self.print(f"    PAIRS_ERROR(\"OUT OF SYNC 1! Both host and device versions of {pname} are in a modified state.\\n\");")
             self.print("    exit(-1);")
             self.print("}")
             self.print(f"else if(sync_ctx==Host && overwrite==false){{")
-            self.print(f"   if (hp->{pname}_host_flag && !ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})){{")
+            self.print(f"   if (hp->prop_host_flags.{pname} && !ps->pairs_runtime->getPropFlags()->isHostFlagSet({pid})){{")
             self.print(f"       PAIRS_ERROR(\"OUT OF SYNC 2! Did you forget to sync{funcname}(Host) before calling set{funcname} from host? Use sync{funcname}(Host,true) if you want to overwrite {pname} values in host.\\n\");")
             self.print("        exit(-1);")
             self.print("    }")
             self.print("}")
             self.print(f"else if(sync_ctx==Device && overwrite==false){{")
-            self.print(f"   if (hp->{pname}_device_flag_h && !ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid})){{")
+            self.print(f"   if (hp->prop_device_flags_h.{pname} && !ps->pairs_runtime->getPropFlags()->isDeviceFlagSet({pid})){{")
             self.print(f"       PAIRS_ERROR(\"OUT OF SYNC 3! Did you forget to sync{funcname}(Device) before calling set{funcname} from device? Use sync{funcname}(Device,true) if you want to overwrite {pname} values in device.\\n\");")
             self.print("        exit(-1);")
             self.print("    }")
@@ -357,12 +354,12 @@ class PairsAcessor:
             #####################################################################################################################
             #####################################################################################################################
 
-            self.print(f"if (hp->{pname}_host_flag){{")
+            self.print(f"if (hp->prop_host_flags.{pname}){{")
             self.print(f"    ps->pairs_runtime->getPropFlags()->setHostFlag({pid});")
             self.print(f"    ps->pairs_runtime->getPropFlags()->clearDeviceFlag({pid});")
             self.print("}")
             
-            self.print(f"else if (hp->{pname}_device_flag_h){{")
+            self.print(f"else if (hp->prop_device_flags_h.{pname}){{")
             self.print(f"    ps->pairs_runtime->getPropFlags()->setDeviceFlag({pid});")
             self.print(f"    ps->pairs_runtime->getPropFlags()->clearHostFlag({pid});")
             self.print("}")
@@ -381,9 +378,9 @@ class PairsAcessor:
             self.print("}")
             self.print("")
 
-            self.print(f"hp->{pname}_host_flag = false;")
-            self.print(f"hp->{pname}_device_flag_h = false;")
-            self.print(f"cudaMemcpy(dp_h->{pname}_device_flag_d, &(hp->{pname}_device_flag_h), sizeof(bool), cudaMemcpyHostToDevice);")
+            self.print(f"hp->prop_host_flags.{pname} = false;")
+            self.print(f"hp->prop_device_flags_h.{pname} = false;")
+            self.print(f"cudaMemcpy(dp_h->prop_device_flags_d, &(hp->prop_device_flags_h), sizeof(pairs::internal::PropFlags), cudaMemcpyHostToDevice);")
 
             self.print.add_indent(-4)
         self.print("}")

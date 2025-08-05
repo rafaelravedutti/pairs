@@ -88,15 +88,17 @@ __device__ double atomicAdd_double(double* address, double val) {
 __device__ int atomic_add(int *addr, int val) { return atomicAdd(addr, val); }
 __device__ real_t atomic_add(real_t *addr, real_t val) { return atomicAdd_double(addr, val); }
 __device__ int atomic_add_resize_check(int *addr, int val, int *resize, int capacity) {
-    const int add_res = *addr + val;
-    
-    // printf("atomic_add_resize_check::: add_res %d --- val %d --- capacity %d --- resize %d\n", add_res, val, capacity, *resize);
-    
-    if(add_res >= capacity) {
-        *resize = add_res;
-        return *addr;
+    if(*resize==0){     // If we haven't reached cap for addr before
+        const int add_res = *addr + val;
+        if(add_res >= capacity){    // Check if addr is going to exceed cap
+            *resize = add_res;      // Make resize the new cap
+            return *addr;           // Return addr unchanged
+        }
     }
-
+    else if (*resize>0){    // If we have reached cap for addr before, resize is the new cap
+        *resize += val;     // Increase cap
+        return *addr;       // Return addr unchanged
+    }
     return atomic_add(addr, val);
 }
 

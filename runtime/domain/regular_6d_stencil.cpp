@@ -87,11 +87,13 @@ void Regular6DStencil::initialize(int *argc, char ***argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     this->setConfig();
     this->setBoundingBox();
+    if (rank==0) {
+        std::cout << "Domain Partitioner: Regular-6D" << std::endl;
+        std::cout << "Domain: [ <"  << grid_min[0] << "," << grid_min[1] << "," << grid_min[2] << ">, <"
+                                    << grid_max[0] << "," << grid_max[1] << "," << grid_max[2] << "> ]"<< std::endl;
+        std::cout << "Configuration: <" << nranks[0] << "," <<  nranks[1] << "," << nranks[2] << ">" <<std::endl;
+    }
 }
-
-void Regular6DStencil::initWorkloadBalancer(LoadBalancingAlgorithms algorithm, size_t regridMin, size_t regridMax) {}
-
-void Regular6DStencil::update() {}
 
 void Regular6DStencil::finalize() {
     MPI_Finalize();

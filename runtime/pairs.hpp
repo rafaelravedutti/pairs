@@ -2,6 +2,7 @@
 #include <cmath>
 #include <memory>
 #include <vector>
+#include <array>
 //---
 #include "allocate.hpp"
 #include "array.hpp"
@@ -101,6 +102,7 @@ public:
     Array &getArrayByName(std::string name);
     Array &getArrayByHostPointer(const void *h_ptr);
     void addArray(Array array);
+    void removeArray(array_t id);
 
     template<typename T_ptr>
     void addArray(array_t id, std::string name, T_ptr **h_ptr, std::nullptr_t, size_t size);
@@ -149,6 +151,7 @@ public:
     Property &getProperty(property_t id);
     Property &getPropertyByName(std::string name);
     void addProperty(Property prop);
+    void removeProperty(property_t id);
 
     template<typename T_ptr>
     void addProperty(
@@ -326,8 +329,6 @@ public:
     template<typename Domain_T>
     void useDomain(const std::shared_ptr<Domain_T> &domain_ptr);
 
-    void updateDomain() { dom_part->update(); }
-
     DomainPartitioner *getDomainPartitioner() { return dom_part; }
     void communicateSizes(int dim, const int *send_sizes, int *recv_sizes);
 
@@ -356,6 +357,8 @@ public:
     int getNumberOfNeighborAABBs() { return this->getDomainPartitioner()->getNumberOfNeighborAABBs(); }
 
     void allReduceInplaceSum(real_t *red_buffer, int num_elems);
+    void iAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request);
+    void waitIAllReduceInplaceSum(real_t *red_buffer, int num_elems, MPI_Request &request);
 
     // Device functions
     void sync() { device_synchronize(); }

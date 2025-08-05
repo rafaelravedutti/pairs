@@ -15,7 +15,7 @@ class RegisterTimers(FinalLowerable):
 
         # Interface modules
         for m in self.sim.interface_modules():
-            if m.name != 'initialize' and m.name != 'end' and m.return_type==Types.Void:
+            if 'PairsSimulation' not in m.name and m.return_type==Types.Void:
                 Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, "INTERFACE_MODULES::" + m.name])
         
         # Internal modules

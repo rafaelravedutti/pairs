@@ -38,9 +38,6 @@ class Module(ASTNode):
         self._return_type = Types.Void
         self._profile = profile
         
-        if profile:
-            self.sim.enable_profiler()
-
         if interface:
             sim.add_interface_module(self)
         else:

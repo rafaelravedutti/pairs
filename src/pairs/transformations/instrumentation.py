@@ -13,17 +13,17 @@ class AddModulesInstrumentation(Mutator):
         ast_node._module = self.mutate(ast_node._module)
         module = ast_node._module
 
-        if module.name == 'initialize' or module.name == 'end' or module.return_type!=Types.Void:
+        if 'PairsSimulation' in module.name or module.return_type!=Types.Void:
             return ast_node
-
-        if module.must_profile():
-            start_marker = Call_Void(ast_node.sim, "LIKWID_MARKER_START", [module.name])
-            stop_marker = Call_Void(ast_node.sim, "LIKWID_MARKER_STOP", [module.name])
-            module._block =  Block.from_list(ast_node.sim, [start_marker, module._block, stop_marker])
         
         timer_id = module.module_id + Timers.Offset
         start_timer = Call_Void(ast_node.sim, "pairs::start_timer", [timer_id])
         stop_timer = Call_Void(ast_node.sim, "pairs::stop_timer", [timer_id])
         module._block = Block.from_list(ast_node.sim, [start_timer, module._block, stop_timer])
 
+        if module.must_profile():
+            start_marker = Call_Void(ast_node.sim, "LIKWID_MARKER_START", [module.name])
+            stop_marker = Call_Void(ast_node.sim, "LIKWID_MARKER_STOP", [module.name])
+            module._block =  Block.from_list(ast_node.sim, [start_marker, module._block, stop_marker])
+            
         return ast_node

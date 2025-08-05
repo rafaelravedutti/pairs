@@ -89,21 +89,22 @@ class AddDeviceKernels(Mutator):
         self._kernel_id = 0
         self._device_module = False
 
-    def create_kernel(self, sim, iterator, rmax, block):
+    def create_kernel(self, sim, for_node):
         kernel_name = f"{self._module_name}_kernel{self._kernel_id}"
         kernel = sim.find_kernel_by_name(kernel_name)
 
         if kernel is None:
-            kernel_body = Filter(sim, ScalarOp.inline(iterator < rmax.copy(True)), block)
-            kernel = Kernel(sim, kernel_name, kernel_body, iterator)
+            kernel_body = for_node if for_node.serial else Filter(sim, 
+                    ScalarOp.inline(for_node.iterator < for_node.max.copy(True)), for_node.block)
+            kernel = Kernel(sim, kernel_name, kernel_body, for_node.iterator)
             self._kernel_id += 1
 
         return kernel
     
     def mutate_For(self, ast_node):
         if ast_node.is_kernel_candidate() and self._device_module:
-            kernel = self.create_kernel(ast_node.sim, ast_node.iterator, ast_node.max, ast_node.block)
-            ast_node = KernelLaunch(ast_node.sim, kernel, ast_node.iterator, ast_node.min, ast_node.max)
+            kernel = self.create_kernel(ast_node.sim, ast_node)
+            ast_node = KernelLaunch(ast_node.sim, kernel, ast_node.iterator, ast_node.min, ast_node.max, ast_node.serial)
 
         else:
             ast_node.block = self.mutate(ast_node.block)

@@ -25,7 +25,7 @@ class Keywords:
 
     def __call__(self, keyword, args):
         method = self.get_method(f"keyword_{keyword}")
-        assert method is not None, "Invalid keyword: {keyword}"
+        assert method is not None, f"Invalid keyword: {keyword}"
         return method(args)
 
     def exists(self, keyword):
@@ -53,6 +53,12 @@ class Keywords:
         assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
         return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.Box)
 
+    def keyword_is_clump(self, args):
+        assert len(args) == 1, "is_clump() keyword requires one parameter."
+        particle_id = args[0]
+        assert particle_id.type() == Types.Int32, "Particle ID must be an integer."
+        return ScalarOp.cmp(self.sim.particle_shape[particle_id], Shapes.Clump)
+    
     def keyword_is_halfspace(self, args):
         assert len(args) == 1, "is_sphere() keyword requires one parameter."
         particle_id = args[0]
@@ -159,6 +165,10 @@ class Keywords:
         assert len(args) == self.sim.ndims(), "vector()"
         return Vector(self.sim, [args[i] for i in range(self.sim.ndims())])
 
+    def keyword_matrix(self, args):
+        assert len(args) == self.sim.ndims()*self.sim.ndims(), "matrix()"
+        return Matrix(self.sim, [args[i] for i in range(self.sim.ndims()*self.sim.ndims())])
+    
     def keyword_transposed(self, args):
         assert len(args) == 1, "transposed() keyword requires one parameter."
         matrix = args[0]

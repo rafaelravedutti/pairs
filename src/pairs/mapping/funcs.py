@@ -13,7 +13,7 @@ from pairs.ir.types import Types
 from pairs.mapping.keywords import Keywords
 from pairs.sim.flags import Flags
 from pairs.sim.interaction import ParticleInteraction
-from pairs.sim.global_interaction import  GlobalLocalInteraction, GlobalGlobalInteraction, GlobalReduction, SortGlobals, PackGlobals, ResetReductionProps, ReduceGlobals, UnpackGlobals
+from pairs.sim.global_interaction import  GlobalLocalInteraction, GlobalGlobalInteraction, GlobalReduction, WaitReduceGlobals, DetermineGlobalsToCompute, SortGlobals, PackGlobals, ResetReductionProps, ReduceGlobals, UnpackGlobals
 from pairs.ir.module import Module
 from pairs.ir.block import Block, pairs_block
 from pairs.sim.lowerable import Lowerable
@@ -310,10 +310,17 @@ class OneBodyKernel(Lowerable):
         self.sim.module_name(self.module_name)
         self.sim.add_statement(self.block)
 
-def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_globals=False, run_on_device=True, profile=False):
+def compute(sim, func, 
+            cutoff_radius=None, 
+            symbols={}, 
+            parameters={}, 
+            compute_globals=False, 
+            non_blocking_globals=False, 
+            run_on_device=True, 
+            profile=False):
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
-    #print(ast.dump(ast.parse(src, mode='exec')))
+    # print(ast.dump(ast.parse(src, mode='exec')))
 
     # Fetch function info
     info = FetchParticleFuncInfo()
@@ -326,11 +333,14 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
 
     # Convert literal symbols
     symbols = {symbol: Lit.cvt(sim, value) for symbol, value in symbols.items()}
-    parameters = {pname: Parameter(sim, pname, ptype) for pname, ptype in parameters.items()}
+    parameters = {pname: Parameter(sim, pname, ptype, order) for order, (pname, ptype) in enumerate(parameters.items())}
 
     sim.init_block()
     sim.module_name(func.__name__)
 
+    if profile:
+        sim.enable_profiler()
+        
     if nparams == 1:
         for i in OneBodyKernel(sim, func.__name__, run_on_device=run_on_device, profile=profile):
             ir = BuildParticleIR(sim, symbols, parameters)
@@ -340,6 +350,42 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
     else:
         # Compute local-local and local-global interactions
         particle_interaction = ParticleInteraction(sim, func.__name__, nparams, cutoff_radius, run_on_device=run_on_device, profile=profile)
+        if compute_globals:
+            # If compute_globals is enabled, global interactions and reductions become 
+            # part of the same module as local interactions
+            global_reduction = GlobalReduction(sim, func.__name__, particle_interaction, non_blocking_globals)
+
+            Assign(sim, global_reduction.nglobal_red, 0)
+            Assign(sim, global_reduction.min_idx, 0)
+            Assign(sim, global_reduction.min_uid, 0)
+            SortGlobals(global_reduction)           # Sort global bodies with respect to their uid
+            
+            PackGlobals(global_reduction)           # Pack reduction properties in uid order in an intermediate buffer
+            ResetReductionProps(global_reduction)   # Reset reduction properties to be prepared for local reduction 
+
+            Assign(sim, global_reduction.nglobal_computed, 0)
+            DetermineGlobalsToCompute(global_reduction)      # Determine global bodies that intersect with the current process
+            
+            # Compute local contirbutions on global bodies
+            global_local_interactions = GlobalLocalInteraction(sim, func.__name__, nparams, global_reduction)
+            for interaction_data in global_local_interactions:
+                ir = BuildParticleIR(sim, symbols, parameters)
+                ir.add_symbols({
+                    params[0]: interaction_data.i(),
+                    params[1]: interaction_data.j(),
+                    '__i__': interaction_data.i(),
+                    '__j__': interaction_data.j(),
+                    '__delta__': interaction_data.delta(),
+                    '__squared_distance__': interaction_data.squared_distance(),
+                    '__penetration_depth__': interaction_data.penetration_depth(),
+                    '__contact_point__': interaction_data.contact_point(),
+                    '__contact_normal__': interaction_data.contact_normal()
+                })
+                ir.visit(tree)
+
+            PackGlobals(global_reduction, False)    # Pack local contributions in reduction buffer in uid order
+            ReduceGlobals(global_reduction)         # Inplace reduce local contributions over global bodies in the reduction buffer
+
         for interaction_data in particle_interaction:
             # Start building IR
             ir = BuildParticleIR(sim, symbols, parameters)
@@ -357,34 +403,9 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
             ir.visit(tree)
 
         if compute_globals:
-            # If compute_globals is enabled, global interactions and reductions become 
-            # part of the same module as local interactions
-            global_reduction = GlobalReduction(sim, func.__name__, particle_interaction)
-            
-            SortGlobals(global_reduction)           # Sort global bodies with respect to their uid
-            PackGlobals(global_reduction)           # Pack reduction properties in uid order in an intermediate buffer
-            ResetReductionProps(global_reduction)   # Reset reduction properties to be prepared for local reduction 
-            
-            # Compute local contirbutions on global bodies
-            global_local_interactions = GlobalLocalInteraction(sim, func.__name__, nparams)
-            for interaction_data in global_local_interactions:
-                ir = BuildParticleIR(sim, symbols, parameters)
-                ir.add_symbols({
-                    params[0]: interaction_data.i(),
-                    params[1]: interaction_data.j(),
-                    '__i__': interaction_data.i(),
-                    '__j__': interaction_data.j(),
-                    '__delta__': interaction_data.delta(),
-                    '__squared_distance__': interaction_data.squared_distance(),
-                    '__penetration_depth__': interaction_data.penetration_depth(),
-                    '__contact_point__': interaction_data.contact_point(),
-                    '__contact_normal__': interaction_data.contact_normal()
-                })
-                ir.visit(tree)
+            global_reduction.get_reduction_props()
 
-
-            PackGlobals(global_reduction, False)    # Pack local contributions in reduction buffer in uid order
-            ReduceGlobals(global_reduction)         # Inplace reduce local contributions over global bodies in the reduction buffer
+            WaitReduceGlobals(global_reduction)
             UnpackGlobals(global_reduction)         # Add the reduced properties with the intermediate buffer and unpack into global bodies 
 
             # Compute global-global interactions
@@ -408,5 +429,5 @@ def compute(sim, func, cutoff_radius=None, symbols={}, parameters={}, compute_gl
             
     # User defined functions are wrapped inside seperate interface modules here.
     # The udf's have the same name as their interface module but they get implemented in the pairs::internal scope.
-    sim.build_interface_module_with_statements(run_on_device)  
+    sim.build_interface_module_with_statements()  
     

@@ -248,3 +248,16 @@ class ReallocArray(ASTNode):
 
     def __str__(self):
         return f"ReallocArray<{self._array.name()}>"
+
+
+class RemoveArray(ASTNode):
+    def __init__(self, sim, array):
+        super().__init__(sim)
+        self._array = array
+        self.sim.add_statement(self)
+
+    def __str__(self):
+        return f"RemoveArray<{self._array.name()}>"
+
+    def array(self):
+        return self._array

@@ -16,6 +16,12 @@ class Timers {
 public:
     Timers(TimeType _factor) : time_factor(_factor) {}
     ~Timers() {}
+    
+    void enable() { enabled = true; print_results=true;}
+    void disable() { enabled = false; }
+    void enableMPIBarrier() { barrier_enabled = true; }
+    void disableMPIBarrier() { barrier_enabled = false; }
+    void barrier() { if(barrier_enabled) MPI_Barrier(MPI_COMM_WORLD); }
 
     void add(size_t id, std::string name) {
         counter_names.resize(id + 1);
@@ -25,18 +31,26 @@ public:
         counter_names[id] = name;
     }
 
-    void start(size_t id) { clocks[id] = std::chrono::high_resolution_clock::now(); ++call_counters[id];}
+    void start(size_t id) { 
+        if(!enabled) return;
+        clocks[id] = std::chrono::high_resolution_clock::now(); 
+        ++call_counters[id];
+    }
 
     void stop(size_t id) {
+        if(!enabled) return;
         auto current_clock = std::chrono::high_resolution_clock::now();
         time_counters[id] += static_cast<TimeType>(
             std::chrono::duration_cast<TimeUnit>(current_clock - clocks[id]).count()) * time_factor;
     }
 
     void writeToFile(int rank, int world_size){
+        if(!print_results) return;
+        
         std::string filename = "timers_" + std::to_string(world_size) + ".txt";
         if (rank==0) std::cout << "Writing timers log to: " << filename << std::endl;
-
+        std::remove(filename.c_str());
+        
         MPI_File file;
         MPI_File_open(MPI_COMM_WORLD, filename.c_str(), MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &file);
 
@@ -78,11 +92,13 @@ public:
         ss << "\n\n";
 
         std::string output = ss.str();
-        MPI_File_write_ordered(file, output.c_str(), output.size(), MPI_CHAR, MPI_STATUS_IGNORE);
+        MPI_File_write_ordered(file, output.c_str(), (int)(output.size()), MPI_CHAR, MPI_STATUS_IGNORE);
         MPI_File_close(&file);
     }
 
     void print(){
+        if(!print_results) return;
+
         std::cout << "--------------------------------------------------------------------------------------------------------\n";
         std::cout << std::left << std::setw(80) << "Timer (MPI rank: 0)"
             << std::left << std::setw(15) << "Total [ms]"
@@ -92,7 +108,8 @@ public:
         // Modules
         for (size_t i = TimerMarkers::Offset; i < time_counters.size(); ++i) {
             const std::string& counterName = counter_names[i];
-            if(counterName.find("INTERFACE_MODULES::") == 0) {
+            // if(counterName.find("INTERFACE_MODULES::") == 0) {
+            if(counterName.length() > 0) {
                 std::cout << std::left << std::setw(80) << counter_names[i]
                         << std::left << std::setw(15) << std::fixed << std::setprecision(2) << time_counters[i]
                         << std::left << std::setw(15) << call_counters[i]
@@ -108,10 +125,20 @@ public:
                     << "\n";
         }
 
+        computeCategories();
+        
+        // Categories
+        for (const auto& cs : categorySums) {;
+            std::cout << std::left << std::setw(80) << cs.first
+                    << std::left << std::setw(15) << std::fixed << std::setprecision(2) << cs.second
+                    << std::left << std::setw(15) << 1
+                    << "\n";
+        }
         std::cout << "--------------------------------------------------------------------------------------------------------\n";
     }
 
     void computeCategories() {
+        categorySums.clear();
         for (size_t i = 0; i < time_counters.size(); ++i) {
             const std::string& counterName = counter_names[i];
             TimeType counterValue = time_counters[i];
@@ -142,6 +169,9 @@ private:
     std::unordered_map<std::string, TimeType> categorySums;
     std::vector<std::chrono::high_resolution_clock::time_point> clocks;
     TimeType time_factor;
+    bool print_results = false;
+    bool enabled = false;
+    bool barrier_enabled = false;
 };
 
 }
