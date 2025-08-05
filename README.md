@@ -15,7 +15,6 @@ Start by importing the library and creating a simulation instance:
 import pairs
 psim = pairs.simulation("dem", double_prec=True)
 ```
----
 Register properties (their name, type and communication mode):
 
 Communication mdoes:
@@ -41,8 +40,6 @@ psim.add_property('linear_velocity', pairs.vector(), pairs.always())
 psim.add_property('force', pairs.vector(), pairs.never())
 ```
 
----
-
 Features & Feature-Properties:
 Features represent subsets of particles (e.g., material types), while feature-properties are pairswise properties between these subsets (e.g., contact stiffness).
 
@@ -57,16 +54,12 @@ Or define values at runtime using the accessor:
 ac.setTypeStiffness(0, 1, 1e5)  // C++
 ```
 
----
-
 Select the domain partitioner and PBCs:
 
 ```python
 psim.set_domain_partitioner(pairs.block_forest()) # or pairs.regular_domain_partitioner()
 psim.pbc([True, True, False])  # PBCs in x and y
 ```
-
----
 
 Define kernels as simple Python methods.
 
@@ -96,18 +89,14 @@ psim.compute(gravity, symbols={'gravity_SI': 9.81}) # symbols are known at compi
 psim.compute(spring_dashpot, compute_globals=True, run_on_device=True, profile=True)
 ```
 
----
-
-Acceleration Structures & Optimizations
+Acceleration Structures & Optimizations:
 
 ```python
 psim.build_cell_lists(store_neighbors_per_cell=True, use_halo_cells=False)
 # psim.build_neighbor_lists()  # Verlet list for MD
 ```
 
----
-
-Trigger code generation:
+Finally, trigger code generation:
 
 ```python
 psim.generate()
