@@ -6,8 +6,6 @@
 int main(int argc, char **argv) {
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
-    pairs_sim->initialize();
-
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1); 
@@ -43,5 +41,5 @@ int main(int argc, char **argv) {
         pairs::vtk_write_data(pairs_runtime, "output/sd_1_ghost", pairs_sim->nlocal(), pairs_sim->size(), t, vtk_freq);
     }
 
-    pairs_sim->end();
+    
 }

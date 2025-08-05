@@ -31,24 +31,24 @@ class InterfaceModules:
         self.sim = sim
 
     def create_all(self):
-        self.initialize()
+        self.constructor()
+        self.destructor()      
         self.setCellWidth()
         self.setInteractionRadius()
         self.updateDomain()
         self.reneighbor()
         self.refreshGhosts() 
-        self.reverseCommunicate() 
+        self.reduceGhosts() 
         self.resetVolatiles()
         self.rank()
         self.nlocal()
         self.nghost()
         self.size()
-        self.end()      
         self.create_object()
 
     @pairs_interface_block
-    def initialize(self):
-        self.sim.module_name('initialize')
+    def constructor(self):
+        self.sim.module_name('PairsSimulation')
         nprops = self.sim.properties.nprops()
         ncontactprops = self.sim.contact_properties.nprops()
         narrays = self.sim.arrays.narrays()
@@ -74,6 +74,25 @@ class InterfaceModules:
             PrintCode(self.sim, "LIKWID_MARKER_INIT;")
 
         self.sim.add_statement(inits)
+
+    @pairs_interface_block
+    def destructor(self):
+        self.sim.module_name('~PairsSimulation')
+
+        for p in self.sim.properties.all():
+            RemoveProperty(self.sim, p)
+
+        for p in self.sim.arrays.all():
+            RemoveArray(self.sim, p)
+
+        if self.sim._enable_profiler:
+            PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
+            
+        Call_Void(self.sim, "pairs::print_timers", [])
+        # Call_Void(self.sim, "pairs::log_timers", [])
+        Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
+        PrintCode(self.sim, "delete pobj;")
+        PrintCode(self.sim, "delete pairs_runtime;")
 
     @pairs_interface_block
     def setCellWidth(self):
@@ -159,8 +178,8 @@ class InterfaceModules:
         self.sim.add_statement(Synchronize(self.sim))
 
     @pairs_interface_block
-    def reverseCommunicate(self):
-        self.sim.module_name('reverseCommunicate')
+    def reduceGhosts(self):
+        self.sim.module_name('reduceGhosts')
         self.sim.add_statement(ReverseComm(self.sim, reduce=True))
     
     @pairs_interface_block
@@ -187,25 +206,6 @@ class InterfaceModules:
     def size(self):
         self.sim.module_name('size')
         Return(self.sim, ScalarOp.inline(self.sim.nlocal + self.sim.nghost))
-
-    @pairs_interface_block
-    def end(self):
-        self.sim.module_name('end')
-
-        for p in self.sim.properties.all():
-            RemoveProperty(self.sim, p)
-
-        for p in self.sim.arrays.all():
-            RemoveArray(self.sim, p)
-
-        if self.sim._enable_profiler:
-            PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
-            
-        Call_Void(self.sim, "pairs::print_timers", [])
-        # Call_Void(self.sim, "pairs::log_timers", [])
-        Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
-        PrintCode(self.sim, "delete pobj;")
-        PrintCode(self.sim, "delete pairs_runtime;")
 
     @pairs_interface_block
     def create_object(self):

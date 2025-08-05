@@ -2,7 +2,7 @@ from pairs.ir.types import Types
 from pairs.ir.features import FeatureProperty
 from pairs.ir.properties import Property
 
-class PairsAcessor:
+class ParticleAccessor:
     def __init__(self, cgen):
         self.sim = cgen.sim
         self.target = cgen.target
@@ -32,7 +32,7 @@ class PairsAcessor:
         # self.print("#include \"math/Matrix3.hpp\"")
         self.print("")
 
-        self.print("class PairsAccessor {")
+        self.print("class ParticleAccessor {")
         self.print("private:")
         self.print.add_indent(4)
         self.member_variables()
@@ -160,7 +160,7 @@ class PairsAcessor:
 
     def constructor(self):
         if self.target.is_gpu():
-            self.print(f"{self.host_attr}PairsAccessor(PairsSimulation *ps_): ps(ps_){{")
+            self.print(f"{self.host_attr}ParticleAccessor(PairsSimulation *ps_): ps(ps_){{")
             self.print.add_indent(4)
 
             self.print(f"hp = new pairs::internal::HostProps;")
@@ -174,7 +174,7 @@ class PairsAcessor:
             self.print("}")
 
         else:
-            self.print("PairsAccessor(PairsSimulation *ps_): ps(ps_){}")
+            self.print("ParticleAccessor(PairsSimulation *ps_): ps(ps_){}")
 
         self.print("")
 

@@ -58,16 +58,6 @@ psim = pairs.simulation(
     particle_capacity=1000000,
     debug=True)
 
-
-target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
-
-if target == 'gpu':
-    psim.target(pairs.target_gpu())
-elif target == 'cpu':
-    psim.target(pairs.target_cpu())
-else:
-    print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
-
 gravity_SI = 9.81
 ntypes = 2
 
@@ -103,6 +93,7 @@ psim.add_feature_property('type', 'damping_tan', pairs.real())
 psim.add_feature_property('type', 'friction', pairs.real())
 
 psim.set_domain_partitioner(pairs.block_forest())
+# psim.set_domain_partitioner(pairs.regular_domain_partitioner())
 psim.pbc([False, False, False])
 psim.build_cell_lists()
 

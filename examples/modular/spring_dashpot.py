@@ -59,16 +59,6 @@ psim = pairs.simulation(
     particle_capacity=1000000,
     debug=True)
 
-
-target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
-
-if target == 'gpu':
-    psim.target(pairs.target_gpu())
-elif target == 'cpu':
-    psim.target(pairs.target_cpu())
-else:
-    print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
-
 # Add position property
 psim.add_position('position')
 

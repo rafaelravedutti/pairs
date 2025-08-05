@@ -24,18 +24,6 @@ def simulation(
         particle_capacity, 
         neighbor_capacity)
 
-# ======================================================================
-# Targets
-# ======================================================================
-
-def target_cpu(parallel=False):
-    if parallel:
-        return Target(Target.Backend_CPP, [Target.Feature_CPU, Target.Feature_OpenMP])
-
-    return Target(Target.Backend_CPP, Target.Feature_CPU)
-
-def target_gpu():
-    return Target(Target.Backend_CUDA, Target.Feature_GPU)
 
 # ======================================================================
 # Types

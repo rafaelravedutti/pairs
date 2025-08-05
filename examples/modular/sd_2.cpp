@@ -9,7 +9,6 @@
 int main(int argc, char **argv) {
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
-    pairs_sim->initialize();
 
     // Create forest
     // -------------------------------------------------------------------------------
@@ -64,5 +63,4 @@ int main(int argc, char **argv) {
         pairs::vtk_write_data(pairs_runtime, "output/sd_2_ghost", pairs_sim->nlocal(), pairs_sim->size(), t, vtk_freq);
     }
 
-    pairs_sim->end();
 }

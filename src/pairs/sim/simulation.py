@@ -1,3 +1,4 @@
+import sys
 from pairs.ir.arrays import Arrays
 from pairs.ir.block import Block
 from pairs.ir.features import Features, FeatureProperties
@@ -21,6 +22,7 @@ from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
 from pairs.sim.particle_lists import ParticleLists, BuildShapePartitions
 from pairs.transformations import Transformations
 from pairs.code_gen.interface import InterfaceModules
+from pairs.code_gen.target import Target
 
 class Simulation:
     """P4IRS Simulation class, this class is the center of kernel simulations which contains all
@@ -115,6 +117,19 @@ class Simulation:
         self._apply_list = None                 # Context elements when using apply() directive
         self._enable_profiler = False           # Enable/disable profiler
         self._compute_thermo = 0                # Compute thermo information
+        self.get_target_from_arg()
+
+    def get_target_from_arg(self):
+        assert len(sys.argv) == 2 , "Exactly one argument to the input script expected." 
+        # NOTE: Currently only CPU/GPU is specified by CMake, thus only one argumet is expected here.
+        # In the future, other features such as OpenMP should also be handled by CMake during compilation and added here.
+        target = sys.argv[1]
+        if target == 'gpu':
+            self.target(Target(Target.Backend_CUDA, Target.Feature_GPU))
+        elif target == 'cpu':
+            self.target(Target(Target.Backend_CPP, Target.Feature_CPU))
+        else:
+            print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
     def set_domain_partitioner(self, partitioner):
         """Selects domain-partitioner used and create its object for this simulation instance"""

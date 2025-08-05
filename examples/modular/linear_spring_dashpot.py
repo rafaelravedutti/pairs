@@ -118,11 +118,6 @@ def gravity(i):
     force[i][2] -= mass[i] * gravity_SI
 
 
-cmd = sys.argv[0]
-target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
-if target != 'cpu' and target != 'gpu':
-    print(f"Invalid target, use {cmd} <cpu/gpu>")
-
 # Config file parameters
 gravity_SI = 9.81
 ntypes = 1
@@ -140,12 +135,6 @@ psim = pairs.simulation(
     use_contact_history=True,
     particle_capacity=1000000,
     neighbor_capacity=20)
-
-if target == 'gpu':
-    psim.target(pairs.target_gpu())
-else:
-    psim.target(pairs.target_cpu())
-    #psim.target(pairs.target_cpu(parallel=True))
 
 # Add position property
 psim.add_position('position')

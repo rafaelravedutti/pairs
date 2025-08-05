@@ -232,7 +232,7 @@ class BuildCellNeighborLists(Lowerable):
         cell_nneighs = self.cell_lists.cell_nneighs
         cell_neighbors = self.cell_lists.cell_neighbors
         self.sim.module_name("build_cell_neighbor_lists")
-        self.sim.check_resize(self.cell_lists.cell_neigh_capacity, cell_nneighs)
+        # self.sim.check_resize(self.cell_lists.cell_neigh_capacity, cell_nneighs)   # TODO: Check resize for 2D arrays
 
         for cell in For(self.sim, 0, ncells):
             for shape in range(self.sim.max_shapes()):

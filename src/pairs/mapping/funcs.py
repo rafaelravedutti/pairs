@@ -320,7 +320,7 @@ def compute(sim, func,
             profile=False):
     src = inspect.getsource(func)
     tree = ast.parse(src, mode='exec')
-    #print(ast.dump(ast.parse(src, mode='exec')))
+    # print(ast.dump(ast.parse(src, mode='exec')))
 
     # Fetch function info
     info = FetchParticleFuncInfo()
@@ -333,7 +333,7 @@ def compute(sim, func,
 
     # Convert literal symbols
     symbols = {symbol: Lit.cvt(sim, value) for symbol, value in symbols.items()}
-    parameters = {pname: Parameter(sim, pname, ptype) for pname, ptype in parameters.items()}
+    parameters = {pname: Parameter(sim, pname, ptype, order) for order, (pname, ptype) in enumerate(parameters.items())}
 
     sim.init_block()
     sim.module_name(func.__name__)

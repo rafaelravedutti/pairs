@@ -4,37 +4,35 @@
 
 #include "spring_dashpot.hpp"
 
-void set_feature_properties(std::shared_ptr<PairsAccessor> &ac){
-    ac->setTypeStiffness(0,0, 100000);
-    ac->setTypeStiffness(0,1, 100000);
-    ac->setTypeStiffness(1,0, 100000);
-    ac->setTypeStiffness(1,1, 100000);
-    ac->syncTypeStiffness();
+void set_feature_properties(ParticleAccessor ac){
+    ac.setTypeStiffness(0,0, 100000);
+    ac.setTypeStiffness(0,1, 100000);
+    ac.setTypeStiffness(1,0, 100000);
+    ac.setTypeStiffness(1,1, 100000);
+    ac.syncTypeStiffness();
 
-    ac->setTypeDampingNorm(0,0, 300);
-    ac->setTypeDampingNorm(0,1, 300);
-    ac->setTypeDampingNorm(1,0, 300);
-    ac->setTypeDampingNorm(1,1, 300);
-    ac->syncTypeDampingNorm();
+    ac.setTypeDampingNorm(0,0, 300);
+    ac.setTypeDampingNorm(0,1, 300);
+    ac.setTypeDampingNorm(1,0, 300);
+    ac.setTypeDampingNorm(1,1, 300);
+    ac.syncTypeDampingNorm();
 
-    ac->setTypeFriction(0,0, 0.5);
-    ac->setTypeFriction(0,1, 0.5);
-    ac->setTypeFriction(1,0, 0.5);
-    ac->setTypeFriction(1,1, 0.5);
-    ac->syncTypeFriction();
+    ac.setTypeFriction(0,0, 0.5);
+    ac.setTypeFriction(0,1, 0.5);
+    ac.setTypeFriction(1,0, 0.5);
+    ac.setTypeFriction(1,1, 0.5);
+    ac.syncTypeFriction();
 
-    ac->setTypeDampingTan(0,0, 20);
-    ac->setTypeDampingTan(0,1, 20);
-    ac->setTypeDampingTan(1,0, 20);
-    ac->setTypeDampingTan(1,1, 20);
-    ac->syncTypeDampingTan();
+    ac.setTypeDampingTan(0,0, 20);
+    ac.setTypeDampingTan(0,1, 20);
+    ac.setTypeDampingTan(1,0, 20);
+    ac.setTypeDampingTan(1,1, 20);
+    ac.syncTypeDampingTan();
 }
 
 int main(int argc, char **argv) {
     auto pairs_sim = std::make_shared<PairsSimulation>();
-    pairs_sim->initialize();
-
-    auto ac = std::make_shared<PairsAccessor>(pairs_sim.get());
+    ParticleAccessor ac(pairs_sim.get());
     set_feature_properties(ac);
 
     auto pairs_runtime = pairs_sim->getPairsRuntime();
@@ -56,7 +54,7 @@ int main(int argc, char **argv) {
     double diameter_min = 0.3;
     double diameter_max = 0.3;
     double sphere_spacing = 0.4;
-    pairs::dem_sc_grid(pairs_runtime, 20, 20, 30,  sphere_spacing, diameter_min, diameter_min, diameter_max,    2,      100,    2);
+    pairs::dem_sc_grid(pairs_runtime, 10, 10, 20,  sphere_spacing, diameter_min, diameter_min, diameter_max,    2,      100,    2);
     
     double cell_width = diameter_max;
     double interaction_radius = diameter_max;
@@ -124,6 +122,6 @@ int main(int argc, char **argv) {
 
     pairs::log_timers(pairs_runtime);
     
-    ac->end();
-    pairs_sim->end();
+    ac.end();
+    
 }

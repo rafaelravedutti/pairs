@@ -13,7 +13,7 @@ class AddModulesInstrumentation(Mutator):
         ast_node._module = self.mutate(ast_node._module)
         module = ast_node._module
 
-        if module.name == 'initialize' or module.name == 'end' or module.return_type!=Types.Void:
+        if 'PairsSimulation' in module.name or module.return_type!=Types.Void:
             return ast_node
         
         timer_id = module.module_id + Timers.Offset

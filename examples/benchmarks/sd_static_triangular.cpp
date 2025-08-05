@@ -5,19 +5,19 @@
 #include "print_stats.hpp"
 #include "spring_dashpot_no_pbc.hpp"
 
-void randomaize_indices(PairsAccessor ac){
+void randomaize_indices(ParticleAccessor ac){
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(0, ac.nlocal() - 1);
 
-    ac.syncPosition(PairsAccessor::Host);
+    ac.syncPosition(ParticleAccessor::Host);
     for (int i=0; i<ac.nlocal(); ++i){
         int j = dist(gen);
         auto tmp = ac.getPosition(i);
         ac.setPosition(i, ac.getPosition(j));
         ac.setPosition(j, tmp);
     }
-    ac.syncPosition(PairsAccessor::Host);
+    ac.syncPosition(ParticleAccessor::Host);
 }
 
 double run_sim(std::shared_ptr<PairsSimulation> &pairs_sim, double dt, uint64_t num_timesteps, bool profile=false){
@@ -77,9 +77,7 @@ int main(int argc, char **argv) {
     bool load_balanced = (std::stoi(argv[6]) != 0);
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
-    pairs_sim->initialize();
-
-    PairsAccessor ac(pairs_sim.get());
+    ParticleAccessor ac(pairs_sim.get());
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, domain_size[0], domain_size[1], domain_size[2], load_balanced);
@@ -181,5 +179,4 @@ int main(int argc, char **argv) {
     // pairs::vtk_write_data(pairs_runtime, "output/sd_ghost", pairs_sim->nlocal(), pairs_sim->size(), 0);
 
     ac.end();
-    pairs_sim->end();
 }

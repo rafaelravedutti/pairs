@@ -11,16 +11,17 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
 
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
 
-option(USE_MPI                      "USE_MPI" ON)
-option(USE_WALBERLA                 "Enable waLBerla support for using BlockForest domain partitioning and dynamic load balancing" OFF)
-option(COMPILE_CUDA                 "COMPILE_CUDA" OFF)
-set(USER_SOURCE_FILES "" CACHE STRING "List of source files to compile (semicolon-separated)")
+option(PAIRS_BUILD_WITH_WALBERLA    "Enable waLBerla support for using BlockForest domain partitioning and dynamic load balancing" OFF)
+option(PAIRS_BUILD_WITH_CUDA        "PAIRS_BUILD_WITH_CUDA" OFF)
+option(PAIRS_BUILD_WITH_LIKWID      "PAIRS_BUILD_WITH_LIKWID" OFF)
 
-set(INPUT_SCRIPT ${INPUT_SCRIPT} CACHE PATH "The input python script triggering code generation")
-if(NOT EXISTS ${INPUT_SCRIPT})
-    message(FATAL_ERROR "INPUT_SCRIPT doesn't exist! Specify it with -DINPUT_SCRIPT=/path/to/script.py")
+set(PAIRS_INPUT_SRCS "" CACHE STRING "List of source files to compile (semicolon-separated)")
+
+set(PAIRS_INPUT_SCRIPT ${PAIRS_INPUT_SCRIPT} CACHE PATH "The input python script triggering code generation")
+if(NOT EXISTS ${PAIRS_INPUT_SCRIPT})
+    message(FATAL_ERROR "PAIRS_INPUT_SCRIPT doesn't exist! Specify it with -DINPUT_SCRIPT=/path/to/script.py")
 endif()
-get_filename_component(INPUT_SCRIPT_NAME ${INPUT_SCRIPT} NAME_WE)
+get_filename_component(INPUT_SCRIPT_NAME ${PAIRS_INPUT_SCRIPT} NAME_WE)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
@@ -64,17 +65,17 @@ set(RUNTIME_COMMON_FILES
 set(PAIRS_TARGET "pairs")
 
 # PAIRS dependencies 
-set(PAIRS_LINK_LIBRARIES)
+set(PAIRS_LIBRARIES)
 set(PAIRS_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR})
 
 # The target can either be an executable or a static library
-if(USER_SOURCE_FILES)
+if(PAIRS_INPUT_SRCS)
     add_executable(${PAIRS_TARGET} ${RUNTIME_COMMON_FILES})
 else()
     add_library(${PAIRS_TARGET} STATIC ${RUNTIME_COMMON_FILES})
 
     # TODO: Get the location with $<TARGET_FILE> generator expression (at build time)
-    list(APPEND PAIRS_LINK_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/lib${PAIRS_TARGET}.a")
+    list(APPEND PAIRS_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/lib${PAIRS_TARGET}.a")
 endif()
 
 # Include P4IRS 'runtime' dir
@@ -87,21 +88,21 @@ set_target_properties(${PAIRS_TARGET} PROPERTIES
 )
 
 #================================================================================
-# USER_SOURCE_FILES =============================================================
+# PAIRS_INPUT_SRCS =============================================================
 #================================================================================
-if(USER_SOURCE_FILES)
-    foreach(file ${USER_SOURCE_FILES})
+if(PAIRS_INPUT_SRCS)
+    foreach(file ${PAIRS_INPUT_SRCS})
         if(NOT EXISTS ${file})
             message(FATAL_ERROR "File '${file}' does not exist!")
         endif()
     endforeach()
-    target_sources(${PAIRS_TARGET} PRIVATE ${USER_SOURCE_FILES})
+    target_sources(${PAIRS_TARGET} PRIVATE ${PAIRS_INPUT_SRCS})
 endif()
 
 #================================================================================
-# waLBerla ======================================================================
+# WALBERLA ======================================================================
 #================================================================================
-if(USE_WALBERLA)
+if(PAIRS_BUILD_WITH_WALBERLA)
     target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
 
     set(RUNTIME_WALBERLA_FILES
@@ -121,18 +122,13 @@ if(USE_WALBERLA)
     waLBerla_import()
 
     # Recent issue from the waLBerla side: warnings about empty CUDA_ARCHITECTURES for walberla_gpu 
-    target_link_libraries(${PAIRS_TARGET} PUBLIC 
-        walberla::blockforest 
-        walberla::domain_decomposition 
-        walberla::core 
-        stdc++fs
-    )
+    target_link_libraries(${PAIRS_TARGET} PUBLIC  walberla::blockforest)
 
     # TODO: Get the location with $<TARGET_FILE> generator expression (at build time)
-    list(APPEND PAIRS_LINK_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/blockforest/libwalberla_blockforest.a)
-    list(APPEND PAIRS_LINK_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/domain_decomposition/libwalberla_domain_decomposition.a)
-    list(APPEND PAIRS_LINK_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/core/libwalberla_core.a)
-    list(APPEND PAIRS_LINK_LIBRARIES stdc++fs)
+    list(APPEND PAIRS_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/blockforest/libwalberla_blockforest.a)
+    list(APPEND PAIRS_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/domain_decomposition/libwalberla_domain_decomposition.a)
+    list(APPEND PAIRS_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/core/libwalberla_core.a)
+    list(APPEND PAIRS_LIBRARIES stdc++fs)
 endif()
 
 #================================================================================
@@ -157,7 +153,7 @@ execute_process(
 #================================================================================
 # CUDA ==========================================================================
 #================================================================================
-if(COMPILE_CUDA)
+if(PAIRS_BUILD_WITH_CUDA)
     find_package(CUDA REQUIRED)
     enable_language(CUDA)
     set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${INPUT_SCRIPT_NAME}.cu")
@@ -178,9 +174,9 @@ if(COMPILE_CUDA)
     endif()
 
     if(NOT DEFINED ENABLE_GPU_DIRECT)
-        set(ENABLE_GPU_DIRECT ON "Enable GPU Direct (default: ON when COMPILE_CUDA is ON)" FORCE)
+        set(ENABLE_GPU_DIRECT ON "Enable GPU Direct (default: ON when PAIRS_BUILD_WITH_CUDA is ON)" FORCE)
     else()
-         # User choice is respected here if they opt to COMPILE_CUDA without GPU Direct
+         # User choice is respected here if they opt to PAIRS_BUILD_WITH_CUDA without GPU Direct
         set(ENABLE_GPU_DIRECT ${ENABLE_GPU_DIRECT} "Enable GPU Direct (user-defined)" FORCE)
     endif()
 
@@ -200,10 +196,10 @@ if(COMPILE_CUDA)
         CUDA_ARCHITECTURES ${CUDA_ARCH})
 
     target_link_libraries(${PAIRS_TARGET} PUBLIC ${CUDA_LIBRARIES})
-    list(APPEND PAIRS_LINK_LIBRARIES ${CUDA_LIBRARIES})
+    list(APPEND PAIRS_LIBRARIES ${CUDA_LIBRARIES})
 else()
     if(ENABLE_GPU_DIRECT)
-        message(FATAL_ERROR "Invalid combination: ENABLE_GPU_DIRECT requires COMPILE_CUDA to be ON")
+        message(FATAL_ERROR "Invalid combination: ENABLE_GPU_DIRECT requires PAIRS_BUILD_WITH_CUDA to be ON")
     endif()
 
     set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${INPUT_SCRIPT_NAME}.cpp")
@@ -216,12 +212,12 @@ endif()
 #================================================================================
 add_custom_command(
     OUTPUT ${GEN_SOURCES} ${GEN_INTERFACE_HEADER}
-    COMMAND ${PYTHON_EXECUTABLE} ${INPUT_SCRIPT} ${TARGET_ARG}
+    COMMAND ${PYTHON_EXECUTABLE} ${PAIRS_INPUT_SCRIPT} ${TARGET_ARG}
     COMMENT "Generating code with P4IRS"
-    DEPENDS ${INPUT_SCRIPT})
+    DEPENDS ${PAIRS_INPUT_SCRIPT})
 
-add_custom_target(generated_code DEPENDS ${GEN_SOURCES} ${GEN_INTERFACE_HEADER})
-add_dependencies(${PAIRS_TARGET} generated_code)
+add_custom_target(pairs_cgen DEPENDS ${GEN_SOURCES} ${GEN_INTERFACE_HEADER})
+add_dependencies(${PAIRS_TARGET} pairs_cgen)
 
 target_sources(${PAIRS_TARGET} PRIVATE ${GEN_SOURCES})
 target_include_directories(${PAIRS_TARGET} PRIVATE 
@@ -232,27 +228,31 @@ target_include_directories(${PAIRS_TARGET} PRIVATE
 #================================================================================
 # MPI ===========================================================================
 #================================================================================
-if(USE_MPI)
-    find_package(MPI REQUIRED)
-    include_directories(SYSTEM ${MPI_INCLUDE_PATH})
-    target_link_libraries(${PAIRS_TARGET} PUBLIC ${MPI_LIBRARIES})
-    list(APPEND PAIRS_LINK_LIBRARIES "${MPI_LIBRARIES}")
-    list(APPEND PAIRS_INCLUDE_DIRS "${MPI_INCLUDE_PATH}")
-endif()
+find_package(MPI REQUIRED)
+target_include_directories(${PAIRS_TARGET} PRIVATE ${MPI_INCLUDE_PATH})
+target_link_libraries(${PAIRS_TARGET} PUBLIC ${MPI_LIBRARIES})
+list(APPEND PAIRS_LIBRARIES "${MPI_LIBRARIES}")
+list(APPEND PAIRS_INCLUDE_DIRS "${MPI_INCLUDE_PATH}")
 
 #================================================================================
 # LIKWID ========================================================================
 #================================================================================
-if(LIKWID_DIR)
-    # Example: -DLIKWID_DIR=/apps/likwid/5.4.0
+if(PAIRS_BUILD_WITH_LIKWID)
+    find_library( LIKWID_LIB likwid HINTS $ENV{LIKWID_LIBDIR} $ENV{LIKWID_ROOT}/lib )
+    find_path( LIKWID_INCLUDE_DIR likwid.h HINTS $ENV{LIKWID_INCDIR} $ENV{LIKWID_ROOT}/include )
 
-    target_compile_options(${PAIRS_TARGET} PRIVATE -DLIKWID_PERFMON -pthread)
+    if(LIKWID_LIB AND LIKWID_INCLUDE_DIR)
+        target_compile_options(${PAIRS_TARGET} PRIVATE -DLIKWID_PERFMON -pthread)
 
-    target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_DIR}/lib/liblikwid.so)
-    list(APPEND PAIRS_LINK_LIBRARIES ${LIKWID_DIR}/lib/liblikwid.so)
+        target_include_directories(${PAIRS_TARGET} PRIVATE ${LIKWID_INCLUDE_DIR})
+        target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_LIB})
 
-    include_directories(${LIKWID_DIR}/include)
-    list(APPEND PAIRS_INCLUDE_DIRS "${LIKWID_DIR}/include")
+        list(APPEND PAIRS_LIBRARIES ${LIKWID_LIB})
+        list(APPEND PAIRS_INCLUDE_DIRS ${LIKWID_INCLUDE_DIR})
+    else()
+        message(FATAL_ERROR "LIKWID library was not found!")
+    endif()
+
 endif()
 
 #================================================================================

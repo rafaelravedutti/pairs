@@ -32,7 +32,7 @@ from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.ir.ret import Return
 from pairs.code_gen.printer import Printer
-from pairs.code_gen.accessor import PairsAcessor
+from pairs.code_gen.particle_accessor import ParticleAccessor
 
 
 class CGen:
@@ -182,7 +182,8 @@ class CGen:
 
         print_params = ", ".join(module_params)
         ending = "{" if definition else ";"
-        tkw = Types.c_keyword(self.sim, module.return_type)
+        # No type for special members like constructor, desctructor, etc.
+        tkw = '' if 'PairsSimulation' in module.name else Types.c_keyword(self.sim, module.return_type)
         self.print(f"{tkw} {module.name}({print_params}){ending}")
 
     def generate_module_decls(self):
@@ -332,7 +333,7 @@ class CGen:
         self.print("private:")
         self.print("    PairsRuntime *pairs_runtime;")
         self.print("    struct PairsObjects *pobj;")
-        self.print("    friend class PairsAccessor;")
+        self.print("    friend class ParticleAccessor;")
         self.print("")
         self.print("public:")
         self.print.add_indent(4)
@@ -348,7 +349,7 @@ class CGen:
         self.print.add_indent(-4)
         self.print("};")
 
-        PairsAcessor(self).generate()
+        ParticleAccessor(self).generate()
         
         self.print.end()
         self.generate_full_object_names = False

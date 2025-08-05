@@ -56,14 +56,6 @@ psim = pairs.simulation(
     particle_capacity=10000000,
     debug=True)
 
-target = sys.argv[1] if len(sys.argv[1]) > 1 else "none"
-if target == 'gpu':
-    psim.target(pairs.target_gpu())
-elif target == 'cpu':
-    psim.target(pairs.target_cpu())
-else:
-    print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
-
 # Add position property
 psim.add_position('position')
 
@@ -93,7 +85,7 @@ psim.add_feature_property('type', 'friction', pairs.real())
 # psim.set_domain_partitioner(pairs.regular_domain_partitioner())
 psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([True, True, True])
-psim.build_cell_lists(use_halo_cells=False, optimize_halo_paddings=False)
+psim.build_cell_lists(store_neighbors_per_cell=False, use_halo_cells=False, optimize_halo_paddings=False)
 
 psim.compute(update_mass_and_inertia, symbols={'infinity': math.inf })
 psim.compute(spring_dashpot, profile=False)

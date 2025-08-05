@@ -3,19 +3,17 @@
 
 #include "spring_dashpot.hpp"
 
-void change_gravitational_force(std::shared_ptr<PairsAccessor> &ac, int idx){
-    pairs::Vector3<double> upward_gravity(0.0, 0.0, 2 * ac->getMass(idx) * 9.81); 
-    ac->setForce(idx, ac->getForce(idx) + upward_gravity);
+void change_gravitational_force(ParticleAccessor ac, int idx){
+    pairs::Vector3<double> upward_gravity(0.0, 0.0, 2 * ac.getMass(idx) * 9.81); 
+    ac.setForce(idx, ac.getForce(idx) + upward_gravity);
 }
 
 int main(int argc, char **argv) {
 
     auto pairs_sim = std::make_shared<PairsSimulation>();
-    pairs_sim->initialize();
-
-    auto ac = std::make_shared<PairsAccessor>(pairs_sim.get());
-    
+    ParticleAccessor ac(pairs_sim.get());
     auto pairs_runtime = pairs_sim->getPairsRuntime();
+
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1);
 
     pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
@@ -30,7 +28,7 @@ int main(int argc, char **argv) {
 
     MPI_Allreduce(MPI_IN_PLACE, &pUid, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 
-    auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac->uidToIdxLocal(uid) != ac->getInvalidIdx();};
+    auto pIsLocalInMyRank = [&](pairs::id_t uid){return ac.uidToIdxLocal(uid) != ac.getInvalidIdx();};
     
     pairs_sim->update_mass_and_inertia();
 
@@ -49,11 +47,11 @@ int main(int argc, char **argv) {
         //-------------------------------------------------------------------------------------------
         if(pIsLocalInMyRank(pUid)){
             std::cout << "Timestep (" << t << "): Particle " << pUid << " is in rank " << pairs_sim->rank() << std::endl;
-            int idx = ac->uidToIdxLocal(pUid);
+            int idx = ac.uidToIdxLocal(pUid);
             std::cout << "Position = (" 
-                    << ac->getPosition(idx)[0] << ", "
-                    << ac->getPosition(idx)[1] << ", " 
-                    << ac->getPosition(idx)[2] << ")" << std::endl;
+                    << ac.getPosition(idx)[0] << ", "
+                    << ac.getPosition(idx)[1] << ", " 
+                    << ac.getPosition(idx)[2] << ")" << std::endl;
 
         }
 
@@ -65,19 +63,19 @@ int main(int argc, char **argv) {
         // Change gravitational force on particle pUid
         //-------------------------------------------------------------------------------------------
         if(pIsLocalInMyRank(pUid)){
-            int idx = ac->uidToIdxLocal(pUid);
+            int idx = ac.uidToIdxLocal(pUid);
 
             std::cout << "Force before changing = (" 
-                    << ac->getForce(idx)[0] << ", "
-                    << ac->getForce(idx)[1] << ", " 
-                    << ac->getForce(idx)[2] << ")" << std::endl;
+                    << ac.getForce(idx)[0] << ", "
+                    << ac.getForce(idx)[1] << ", " 
+                    << ac.getForce(idx)[2] << ")" << std::endl;
 
             change_gravitational_force(ac, idx);
 
             std::cout << "Force after changing = (" 
-                    << ac->getForce(idx)[0] << ", "
-                    << ac->getForce(idx)[1] << ", " 
-                    << ac->getForce(idx)[2] << ")" << std::endl;
+                    << ac.getForce(idx)[0] << ", "
+                    << ac.getForce(idx)[1] << ", " 
+                    << ac.getForce(idx)[2] << ")" << std::endl;
         }
 
         // Euler
@@ -88,9 +86,9 @@ int main(int argc, char **argv) {
         //-------------------------------------------------------------------------------------------
         pairs_sim->reneighbor();
 
-        pairs::vtk_write_data(pairs_runtime, "output/sd_3_CPU_local", 0, ac->nlocal(), t, vtk_freq);
-        pairs::vtk_write_data(pairs_runtime, "output/sd_3_CPU_ghost", ac->nlocal(), ac->size(), t, vtk_freq);
+        pairs::vtk_write_data(pairs_runtime, "output/sd_3_CPU_local", 0, ac.nlocal(), t, vtk_freq);
+        pairs::vtk_write_data(pairs_runtime, "output/sd_3_CPU_ghost", ac.nlocal(), ac.size(), t, vtk_freq);
     }
 
-    pairs_sim->end();
+    ac.end();
 }
