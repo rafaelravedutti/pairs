@@ -4,6 +4,7 @@
 #include <vector>
 #include <array>
 //---
+#include "likwid-marker.h"
 #include "allocate.hpp"
 #include "array.hpp"
 #include "contact_property.hpp"

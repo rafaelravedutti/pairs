@@ -22,23 +22,22 @@ from pairs.sim.neighbor_lists import NeighborLists, BuildNeighborLists
 from pairs.sim.particle_lists import ParticleLists, BuildShapePartitions
 from pairs.transformations import Transformations
 from pairs.code_gen.interface import InterfaceModules
-from pairs.code_gen.target import Target
+from pairs.code_gen.cgen import CGen
 
 class Simulation:
     """P4IRS Simulation class, this class is the center of kernel simulations which contains all
        fundamental data structures to generate a P4IRS simulation code"""
     def __init__(
         self,
-        code_gen,
         dims=3,
-        double_prec=False,
+        double_prec=True,
         use_contact_history=False,
         particle_capacity=800000,
         neighbor_capacity=100):
 
         # Code generator for the simulation
-        self.code_gen = code_gen
-        self.code_gen.assign_simulation(self)
+        self.code_gen = CGen(self)
+        self.debug = self.code_gen.debug
 
         # Data structures to be generated
         self.particle_position = None
@@ -109,7 +108,7 @@ class Simulation:
         self.dims = dims                        # Number of dimensions
         self.reneighbor_frequency = 1           # Re-neighbor frequency
         self.rebalance_frequency = 0            # Re-balance frequency for dynamic load balancing
-        self._target = None                     # Hardware target info
+        self._target = self.code_gen.target     # Hardware target info
         self._pbc = [True for _ in range(dims)] # PBC flags for each dimension
         self._shapes = []                       # List of shape ID's used in the simulation
         self._shape_objs = []                   # List of shape objects
@@ -117,19 +116,6 @@ class Simulation:
         self._apply_list = None                 # Context elements when using apply() directive
         self._enable_profiler = False           # Enable/disable profiler
         self._compute_thermo = 0                # Compute thermo information
-        self.get_target_from_arg()
-
-    def get_target_from_arg(self):
-        assert len(sys.argv) == 2 , "Exactly one argument to the input script expected." 
-        # NOTE: Currently only CPU/GPU is specified by CMake, thus only one argumet is expected here.
-        # In the future, other features such as OpenMP should also be handled by CMake during compilation and added here.
-        target = sys.argv[1]
-        if target == 'gpu':
-            self.target(Target(Target.Backend_CUDA, Target.Feature_GPU))
-        elif target == 'cpu':
-            self.target(Target(Target.Backend_CPP, Target.Feature_CPU))
-        else:
-            print(f"Invalid target, use {sys.argv[0]} <cpu/gpu>")
 
     def set_domain_partitioner(self, partitioner):
         """Selects domain-partitioner used and create its object for this simulation instance"""
@@ -392,10 +378,6 @@ class Simulation:
         self.vtk_file = filename
         self.vtk_frequency = frequency
 
-    def target(self, target):
-        self._target = target
-        self.code_gen.assign_target(target)
-
     def cell_spacing(self):
         return self.cell_lists.cutoff_radius
 
@@ -426,14 +408,13 @@ class Simulation:
 
     def generate(self):
         """Generate the code for the simulation"""
-        assert self._target is not None, "Target not specified!"
 
         # Initialize communication instance with the specified domain-partitioner
         self._comm = Comm(self, self._dom_part)
         self.create_update_cells_block()
 
         InterfaceModules(self).create_all()
-        Transformations(self.interface_modules(), self._target).apply_all()
+        Transformations(self.interface_modules(), self._target, self.debug).apply_all()
 
         # Generate library
         self.code_gen.generate_library()

@@ -105,7 +105,7 @@ int Regular6DStencil::isWithinSubdomain(real_t x, real_t y, real_t z) {
            z >= subdom_min[2] && z < subdom_max[2] - SMALL;
 }
 
-void Regular6DStencil::copyRuntimeArray(const std::string& name, void *dest, const int size) {
+void Regular6DStencil::copyRuntimeArray(const std::string& name, void *dest, const int) {
     for(int d = 0; d < ndims; d++) {
         if(name.compare("neighbor_ranks") == 0) {
             int *neighbor_ranks = static_cast<int *>(dest);
@@ -201,11 +201,11 @@ void Regular6DStencil::communicateDataReverse(
 }
 
 void Regular6DStencil::communicateAllData(
-    int ndims, int elem_size,
+    int dims, int elem_size,
     const real_t *send_buf, const int *send_offsets, const int *nsend,
     real_t *recv_buf, const int *recv_offsets, const int *nrecv) {
 
-    for (int d = 0; d < ndims; d++) {
+    for (int d = 0; d < dims; d++) {
         const real_t *send_prev = &send_buf[send_offsets[d * 2 + 0] * elem_size];
         const real_t *send_next = &send_buf[send_offsets[d * 2 + 1] * elem_size];
         real_t *recv_prev = &recv_buf[recv_offsets[d * 2 + 0] * elem_size];

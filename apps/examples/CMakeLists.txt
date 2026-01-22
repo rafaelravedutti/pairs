@@ -1,0 +1,5 @@
+add_subdirectory(SD)
+add_subdirectory(LSD)
+add_subdirectory(sphere_box_global)
+add_subdirectory(force_reduction)
+add_subdirectory(ballast)

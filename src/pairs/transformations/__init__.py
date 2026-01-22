@@ -10,14 +10,16 @@ from pairs.transformations.modules import DereferenceWriteVariables, AddResizeLo
 
 
 class Transformations:
-    def __init__(self, ast_list, target):
+    def __init__(self, ast_list, target, debug):
         self._ast_list = ast_list if isinstance(ast_list, list) else [ast_list]
         self._target = target
+        self._debug = debug
         self._module_resizes = None
 
     def apply(self, transformation, data=None):
-        print(f"Applying transformation: {type(transformation).__name__}... ", end="")
-        start = time.time()
+        if self._debug:
+            print(f"Applying transformation: {type(transformation).__name__}... ", end="")
+            start = time.time()
 
         new_ast_list = []
         for ast in self._ast_list:
@@ -28,11 +30,13 @@ class Transformations:
             new_ast_list.append(transformation.mutate())
 
         self._ast_list = new_ast_list
-        elapsed = time.time() - start
-        print(f"{elapsed:.2f}s elapsed.")
+
+        if self._debug:
+            elapsed = time.time() - start
+            print(f"{elapsed:.2f}s elapsed.")
 
     def analysis(self):
-        return Analysis(self._ast_list)
+        return Analysis(self._ast_list, self._debug)
 
     def lower(self, lower_finals=False):
         nlowered = 1

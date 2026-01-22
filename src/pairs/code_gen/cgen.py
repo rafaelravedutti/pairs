@@ -32,24 +32,24 @@ from pairs.ir.parameters import Parameter
 from pairs.ir.vectors import Vector, VectorAccess, VectorOp, ZeroVector
 from pairs.ir.ret import Return
 from pairs.code_gen.printer import Printer
+from pairs.code_gen.config import PairsConfig
 from pairs.code_gen.particle_accessor import ParticleAccessor
 
 
 class CGen:
     temp_id = 0
 
-    def __init__(self, ref, debug=False):
-        self.sim = None
-        self.target = None
+    def __init__(self, sim):
+        self.sim = sim
+        self.config = PairsConfig()
+        self.target = self.config.target
+        self.ref = self.config.ref
+        self.debug = self.config.debug
+        self.output_dir = self.config.output_dir
         self.print = None
         self.kernel_context = False
         self.loop_depth = False
         self.generate_full_object_names = False
-        self.ref = ref
-        self.debug = debug
-
-    def assign_simulation(self, sim):
-        self.sim = sim
 
     def assign_target(self, target):
         self.target = target
@@ -98,8 +98,7 @@ class CGen:
         return f"&({ref})"
 
     def generate_interfaces(self):
-        #self.print = Printer(f"interfaces/{self.ref}.hpp")
-        self.print = Printer("internal_interfaces/last_generated.hpp")
+        self.print = Printer(f"{self.output_dir}/internal/last_generated.hpp")
         self.print.start()
         self.print("#pragma once")
         self.generate_interface_namespace('pairs_host_interface')
@@ -124,7 +123,7 @@ class CGen:
 
             else:
                 nelems = Types.number_of_elements(self.sim, t)
-                func_decl += f"{tkw} get_{prop_name}({tkw} *{prop_name}, int i, int j, int capacity) {{ return {prop_name}["
+                func_decl += f"{tkw} get_{prop_name}({tkw} *{prop_name}, int i, int j, [[maybe_unused]] int capacity) {{ return {prop_name}["
 
                 if prop.layout() == Layouts.AoS:
                     func_decl += f"i * {nelems} + j"
@@ -142,21 +141,20 @@ class CGen:
     def generate_preamble(self):
         if self.target.is_gpu():
             self.print("#include <math_constants.h>")
-             
+    
         if self.target.is_openmp():
             self.print("#define PAIRS_TARGET_OPENMP")
             self.print("#include <omp.h>")
 
-        if self.sim._use_walberla:
-            self.print("#define USE_WALBERLA")
+        # if self.sim._use_walberla:
+        #     self.print("#define USE_WALBERLA")
             
         self.print("#include <limits.h>")
         self.print("#include <math.h>")
         self.print("#include <stdbool.h>")
         self.print("#include <stdio.h>")
         self.print("#include <stdlib.h>")
-        self.print("//---")
-        self.print("#include \"likwid-marker.h\"")
+        self.print("")
         self.print("#include \"pairs.hpp\"")
         self.print("#include \"utility/copper_fcc_lattice.hpp\"")
         self.print("#include \"utility/create_body.hpp\"")
@@ -278,12 +276,16 @@ class CGen:
         self.print("")
 
     def generate_library(self):
+        # Generate internal headers. TODO: Remove
+        # ----------------------------------------------------------------------
         self.generate_interfaces()
-        # Generate CUDA/CPP file with modules
+
+        # Generate CUDA/CPP file with internal modules
+        # ----------------------------------------------------------------------
         ext = ".cu" if self.target.is_gpu() else ".cpp"
-        self.print = Printer(self.ref + ext)
+        self.print = Printer(f"{self.output_dir}/{self.ref}{ext}")
         self.print.start()
-        self.generate_preamble()
+
         self.print(f"#include \"{self.ref}.hpp\"")
         self.print("")
 
@@ -303,7 +305,15 @@ class CGen:
                     self.print(f"__constant__ {tkw} {feature_prop.name()}_d[{size}];")
 
         self.print("")
-                    
+
+        if not self.debug:
+            self.print("#pragma GCC diagnostic push")
+            self.print("#pragma GCC diagnostic ignored \"-Wsign-compare\"")
+            self.print("#pragma GCC diagnostic ignored \"-Wconversion\"")
+            self.print("#pragma GCC diagnostic ignored \"-Wfloat-conversion\"")
+            self.print("#pragma GCC diagnostic ignored \"-Wfloat-equal\"")
+            self.print("#pragma GCC diagnostic ignored \"-Wunused-variable\"")
+
         self.print("namespace pairs::internal {")
         self.print.add_indent(4)
 
@@ -317,10 +327,14 @@ class CGen:
         self.print.add_indent(-4)
         self.print("}")
 
+        if not self.debug:
+            self.print("#pragma GCC diagnostic pop")
+            
         self.print.end()
 
         # Generate library header
-        self.print = Printer(self.ref + ".hpp")
+        # ----------------------------------------------------------------------
+        self.print = Printer(f"{self.output_dir}/{self.ref}.hpp")
         self.print.start()
         self.print("#pragma once")
 

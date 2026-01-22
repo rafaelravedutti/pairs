@@ -8,19 +8,22 @@ from pairs.analysis.modules import FetchModulesReferences, InferModulesReturnTyp
 class Analysis:
     """Compiler analysis performed on P4IRS"""
 
-    def __init__(self, ast):
+    def __init__(self, ast, debug):
         self._ast_list = ast if isinstance(ast, list) else [ast]
+        self._debug = debug
 
     def apply(self, analysis):
-        print(f"Performing analysis: {type(analysis).__name__}... ", end="")
-        start = time.time()
+        if self._debug:
+            print(f"Performing analysis: {type(analysis).__name__}... ", end="")
+            start = time.time()
 
         for ast in self._ast_list:
             analysis.set_ast(ast)
             analysis.visit()
 
-        elapsed = time.time() - start
-        print(f"{elapsed:.2f}s elapsed.")
+        if self._debug:
+            elapsed = time.time() - start
+            print(f"{elapsed:.2f}s elapsed.")
 
     def determine_expressions_terminals(self):
         self.apply(DetermineExpressionsTerminals())

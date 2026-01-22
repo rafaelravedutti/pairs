@@ -1,143 +1,59 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
-project(pairs CXX)
+include(FetchContent)
+
+if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  project(pairs)
+endif()
+
 # Set default build type if none is specified
 if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug, Release, etc.)" FORCE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build (Debug, Release, etc.)")
 endif()
 
-# set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math -S -fverbose-asm")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native")
-# set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native")
-
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -DDEBUG")
+# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -ffast-math -S -fverbose-asm")
+# set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast -march=native")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -DDEBUG")
 
 option(PAIRS_BUILD_WITH_WALBERLA    "Enable waLBerla support for using BlockForest domain partitioning and dynamic load balancing" OFF)
-option(PAIRS_BUILD_WITH_CUDA        "PAIRS_BUILD_WITH_CUDA" OFF)
-option(PAIRS_BUILD_WITH_LIKWID      "PAIRS_BUILD_WITH_LIKWID" OFF)
-
-set(PAIRS_INPUT_SRCS "" CACHE STRING "List of source files to compile (semicolon-separated)")
-
-set(PAIRS_INPUT_SCRIPT ${PAIRS_INPUT_SCRIPT} CACHE PATH "The input python script triggering code generation")
-if(NOT EXISTS ${PAIRS_INPUT_SCRIPT})
-    message(FATAL_ERROR "PAIRS_INPUT_SCRIPT doesn't exist! Specify it with -DINPUT_SCRIPT=/path/to/script.py")
-endif()
-get_filename_component(INPUT_SCRIPT_NAME ${PAIRS_INPUT_SCRIPT} NAME_WE)
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
+option(PAIRS_BUILD_WITH_CUDA        "PAIRS_BUILD_WITH_CUDA"     OFF)
+option(PAIRS_BUILD_WITH_LIKWID      "PAIRS_BUILD_WITH_LIKWID"   OFF)
+option(PAIRS_BUILD_EXAMPLES         "PAIRS_BUILD_EXAMPLES"      OFF)
+option(PAIRS_BUILD_BENCHMARKS       "PAIRS_BUILD_BENCHMARKS"    OFF)
 
 #================================================================================
-# Setup directories =============================================================
+# RUNTIME_COMMON_FILES
 #================================================================================
-file(COPY data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-
-set(OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/output)
-if(EXISTS ${OUTPUT_DIR})
-    file(REMOVE_RECURSE ${OUTPUT_DIR})
-endif()
-file(MAKE_DIRECTORY ${OUTPUT_DIR})
-
-#================================================================================
-# Generated header (internally used by runtime files) ===========================
-#================================================================================
-# TODO: Unify all interfaces
-set(GEN_INTERFACE_DIR ${CMAKE_CURRENT_BINARY_DIR}/internal_interfaces)
-set(GEN_INTERFACE_HEADER ${GEN_INTERFACE_DIR}/last_generated.hpp)
-file(MAKE_DIRECTORY ${GEN_INTERFACE_DIR})
-
-#================================================================================
-# RUNTIME_COMMON_FILES ==========================================================
-#================================================================================
+set(RUNTIME_DIR ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
 set(RUNTIME_COMMON_FILES
-    runtime/pairs.cpp
-    runtime/utility/copper_fcc_lattice.cpp
-    runtime/utility/create_body.cpp
-    runtime/utility/dem_sc_grid.cpp
-    runtime/utility/read_from_file.cpp
-    runtime/utility/stats.cpp
-    runtime/utility/thermo.cpp
-    runtime/utility/timing.cpp
-    runtime/utility/vtk.cpp
-    runtime/domain/regular_6d_stencil.cpp)
-
-#================================================================================
-# PAIRS_TARGET ==================================================================
-#================================================================================
-set(PAIRS_TARGET "pairs")
-
-# PAIRS dependencies 
-set(PAIRS_LIBRARIES)
-set(PAIRS_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR})
-
-# The target can either be an executable or a static library
-if(PAIRS_INPUT_SRCS)
-    add_executable(${PAIRS_TARGET} ${RUNTIME_COMMON_FILES})
-else()
-    add_library(${PAIRS_TARGET} STATIC ${RUNTIME_COMMON_FILES})
-
-    # TODO: Get the location with $<TARGET_FILE> generator expression (at build time)
-    list(APPEND PAIRS_LIBRARIES "${CMAKE_CURRENT_BINARY_DIR}/lib${PAIRS_TARGET}.a")
-endif()
-
-# Include P4IRS 'runtime' dir
-target_include_directories(${PAIRS_TARGET} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
-list(APPEND PAIRS_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/runtime)
-
-set_target_properties(${PAIRS_TARGET} PROPERTIES 
-    CXX_STANDARD_REQUIRED ON
-    CXX_STANDARD 17
+    ${RUNTIME_DIR}/pairs.cpp
+    ${RUNTIME_DIR}/utility/copper_fcc_lattice.cpp
+    ${RUNTIME_DIR}/utility/create_body.cpp
+    ${RUNTIME_DIR}/utility/dem_sc_grid.cpp
+    ${RUNTIME_DIR}/utility/read_from_file.cpp
+    ${RUNTIME_DIR}/utility/stats.cpp
+    ${RUNTIME_DIR}/utility/thermo.cpp
+    ${RUNTIME_DIR}/utility/timing.cpp
+    ${RUNTIME_DIR}/utility/vtk.cpp
+    ${RUNTIME_DIR}/domain/regular_6d_stencil.cpp
 )
 
 #================================================================================
-# PAIRS_INPUT_SRCS =============================================================
+# pairs runtime library (shared by all generated codes)
 #================================================================================
-if(PAIRS_INPUT_SRCS)
-    foreach(file ${PAIRS_INPUT_SRCS})
-        if(NOT EXISTS ${file})
-            message(FATAL_ERROR "File '${file}' does not exist!")
-        endif()
-    endforeach()
-    target_sources(${PAIRS_TARGET} PRIVATE ${PAIRS_INPUT_SRCS})
-endif()
+add_library(pairsrt STATIC ${RUNTIME_COMMON_FILES})
+target_include_directories(pairsrt PUBLIC ${RUNTIME_DIR})
 
-#================================================================================
-# WALBERLA ======================================================================
-#================================================================================
-if(PAIRS_BUILD_WITH_WALBERLA)
-    target_compile_definitions(${PAIRS_TARGET} PUBLIC USE_WALBERLA)
-
-    set(RUNTIME_WALBERLA_FILES
-        runtime/domain/block_forest.cpp
-    )
-
-    # TODO: Generate the host/device functions for computing weights
-    if(COMPILE_CUDA)
-        list(APPEND RUNTIME_WALBERLA_FILES runtime/domain/boundary_weights.cu)
-    else()
-        list(APPEND RUNTIME_WALBERLA_FILES runtime/domain/boundary_weights.cpp)
-    endif()
-    
-    target_sources(${PAIRS_TARGET} PRIVATE ${RUNTIME_WALBERLA_FILES})
-
-    add_subdirectory(external/walberla EXCLUDE_FROM_ALL)
-    waLBerla_import()
-
-    # Recent issue from the waLBerla side: warnings about empty CUDA_ARCHITECTURES for walberla_gpu 
-    target_link_libraries(${PAIRS_TARGET} PUBLIC  walberla::blockforest)
-
-    # TODO: Get the location with $<TARGET_FILE> generator expression (at build time)
-    list(APPEND PAIRS_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/blockforest/libwalberla_blockforest.a)
-    list(APPEND PAIRS_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/domain_decomposition/libwalberla_domain_decomposition.a)
-    list(APPEND PAIRS_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/external/walberla/src/core/libwalberla_core.a)
-    list(APPEND PAIRS_LIBRARIES stdc++fs)
-endif()
+set_target_properties(pairsrt PROPERTIES 
+    CXX_STANDARD_REQUIRED ON
+    CXX_STANDARD 20
+)
 
 #================================================================================
-# Install pairs python package ==================================================
+# Install pairs python package
 #================================================================================
-set(PYTHON_EXECUTABLE ${PYTHON_EXECUTABLE} CACHE STRING "Python executable")
-
-if(NOT PYTHON_EXECUTABLE)
-    set(PYTHON_EXECUTABLE python3)
+if(NOT DEFINED PYTHON_EXECUTABLE)
+    set(PYTHON_EXECUTABLE python3 CACHE STRING "Python executable")
 endif()
 
 execute_process(
@@ -151,20 +67,23 @@ execute_process(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 #================================================================================
-# CUDA ==========================================================================
+# MPI
+#================================================================================
+find_package(MPI REQUIRED)
+target_include_directories(pairsrt PUBLIC ${MPI_INCLUDE_PATH})
+target_link_libraries(pairsrt PUBLIC ${MPI_LIBRARIES})
+
+#================================================================================
+# CUDA
 #================================================================================
 if(PAIRS_BUILD_WITH_CUDA)
-    find_package(CUDA REQUIRED)
     enable_language(CUDA)
-    set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${INPUT_SCRIPT_NAME}.cu")
-    set(CUDA_ARCH ${CUDA_ARCH} CACHE STRING "CUDA_ARCH environment variable must be set.")
-    set(TARGET_ARG "gpu")
+    find_package(CUDAToolkit REQUIRED)
 
-    # Default arch is 80
-    if(NOT CUDA_ARCH)
-        set(CUDA_ARCH 80)
+    if(NOT CMAKE_CUDA_ARCHITECTURES)
+        message(WARNING "CMAKE_CUDA_ARCHITECTURES was not set. It is automatically set to: ${CMAKE_CUDA_ARCHITECTURES}")
     endif()
-
+    
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -rdc=true")
 
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -181,74 +100,70 @@ if(PAIRS_BUILD_WITH_CUDA)
     endif()
 
     if(ENABLE_GPU_DIRECT)
-        target_compile_definitions(${PAIRS_TARGET} PRIVATE ENABLE_CUDA_AWARE_MPI)
+        target_compile_definitions(pairsrt PRIVATE ENABLE_CUDA_AWARE_MPI)
     endif()
 
-    target_sources(${PAIRS_TARGET} PRIVATE runtime/devices/cuda.cu)
-    target_compile_definitions(${PAIRS_TARGET} PUBLIC PAIRS_TARGET_CUDA)
-    target_include_directories(${PAIRS_TARGET} PUBLIC ${CUDA_INCLUDE_DIRS})
-    list(APPEND PAIRS_INCLUDE_DIRS ${CUDA_INCLUDE_DIRS})
+    target_link_libraries(pairsrt PUBLIC CUDA::cudart)
 
-    set_target_properties(${PAIRS_TARGET} PROPERTIES 
-        CUDA_RESOLVE_DEVICE_SYMBOLS ON
-        CUDA_STANDARD 17
-        CUDA_SEPARABLE_COMPILATION ON
-        CUDA_ARCHITECTURES ${CUDA_ARCH})
+    target_sources(pairsrt PRIVATE ${RUNTIME_DIR}/devices/cuda.cu)
+    target_compile_definitions(pairsrt PUBLIC PAIRS_TARGET_CUDA)
 
-    target_link_libraries(${PAIRS_TARGET} PUBLIC ${CUDA_LIBRARIES})
-    list(APPEND PAIRS_LIBRARIES ${CUDA_LIBRARIES})
+    set_target_properties(pairsrt PROPERTIES
+        CUDA_SEPARABLE_COMPILATION ON)
+
 else()
     if(ENABLE_GPU_DIRECT)
         message(FATAL_ERROR "Invalid combination: ENABLE_GPU_DIRECT requires PAIRS_BUILD_WITH_CUDA to be ON")
     endif()
 
-    set(GEN_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/${INPUT_SCRIPT_NAME}.cpp")
-    set(TARGET_ARG "cpu")
-    target_sources(${PAIRS_TARGET} PRIVATE runtime/devices/dummy.cpp)
+    target_sources(pairsrt PRIVATE ${RUNTIME_DIR}/devices/dummy.cpp)
 endif()
 
 #================================================================================
-# Generate code and add them to PAIRS_TARGET ====================================
+# WALBERLA
 #================================================================================
-add_custom_command(
-    OUTPUT ${GEN_SOURCES} ${GEN_INTERFACE_HEADER}
-    COMMAND ${PYTHON_EXECUTABLE} ${PAIRS_INPUT_SCRIPT} ${TARGET_ARG}
-    COMMENT "Generating code with P4IRS"
-    DEPENDS ${PAIRS_INPUT_SCRIPT})
+if(PAIRS_BUILD_WITH_WALBERLA)
+    target_compile_definitions(pairsrt PUBLIC USE_WALBERLA)
 
-add_custom_target(pairs_cgen DEPENDS ${GEN_SOURCES} ${GEN_INTERFACE_HEADER})
-add_dependencies(${PAIRS_TARGET} pairs_cgen)
+    set(RUNTIME_WALBERLA_FILES ${RUNTIME_DIR}/domain/block_forest.cpp)
 
-target_sources(${PAIRS_TARGET} PRIVATE ${GEN_SOURCES})
-target_include_directories(${PAIRS_TARGET} PRIVATE 
-    ${GEN_INTERFACE_DIR}            # Interface header USED INTERNALLY by pairs is located here
-    ${CMAKE_CURRENT_BINARY_DIR}     # Generated source and header FOR USER is located here
-)    
+    # TODO: Generate the host/device functions for computing weights
+    if(COMPILE_CUDA)
+        list(APPEND RUNTIME_WALBERLA_FILES ${RUNTIME_DIR}/domain/boundary_weights.cu)
+    else()
+        list(APPEND RUNTIME_WALBERLA_FILES ${RUNTIME_DIR}/domain/boundary_weights.cpp)
+    endif()
+        
+    target_sources(pairsrt PRIVATE ${RUNTIME_WALBERLA_FILES})
+
+    # Skip building a separate waLBerla if P4IRS is itself 
+    # being built inside a waLBerla CMake environment
+    if(NOT TARGET walberla::blockforest)
+        message(STATUS "Fetching waLBerla")
+        FetchContent_Declare(
+            walberla
+            GIT_REPOSITORY https://i10git.cs.fau.de/walberla/walberla.git
+            GIT_TAG 65fcc780c8843f982b23e3b1f14de6408982c5d8
+        )
+        FetchContent_MakeAvailable(walberla)
+    endif()
+
+    target_link_libraries(pairsrt PUBLIC walberla::blockforest)
+endif()
+
 
 #================================================================================
-# MPI ===========================================================================
-#================================================================================
-find_package(MPI REQUIRED)
-target_include_directories(${PAIRS_TARGET} PRIVATE ${MPI_INCLUDE_PATH})
-target_link_libraries(${PAIRS_TARGET} PUBLIC ${MPI_LIBRARIES})
-list(APPEND PAIRS_LIBRARIES "${MPI_LIBRARIES}")
-list(APPEND PAIRS_INCLUDE_DIRS "${MPI_INCLUDE_PATH}")
-
-#================================================================================
-# LIKWID ========================================================================
+# LIKWID
 #================================================================================
 if(PAIRS_BUILD_WITH_LIKWID)
     find_library( LIKWID_LIB likwid HINTS $ENV{LIKWID_LIBDIR} $ENV{LIKWID_ROOT}/lib )
     find_path( LIKWID_INCLUDE_DIR likwid.h HINTS $ENV{LIKWID_INCDIR} $ENV{LIKWID_ROOT}/include )
 
     if(LIKWID_LIB AND LIKWID_INCLUDE_DIR)
-        target_compile_options(${PAIRS_TARGET} PRIVATE -DLIKWID_PERFMON -pthread)
+        target_compile_options(pairsrt PRIVATE -DLIKWID_PERFMON -pthread)
 
-        target_include_directories(${PAIRS_TARGET} PRIVATE ${LIKWID_INCLUDE_DIR})
-        target_link_libraries(${PAIRS_TARGET} PRIVATE ${LIKWID_LIB})
-
-        list(APPEND PAIRS_LIBRARIES ${LIKWID_LIB})
-        list(APPEND PAIRS_INCLUDE_DIRS ${LIKWID_INCLUDE_DIR})
+        target_include_directories(pairsrt PRIVATE ${LIKWID_INCLUDE_DIR})
+        target_link_libraries(pairsrt PRIVATE ${LIKWID_LIB})
     else()
         message(FATAL_ERROR "LIKWID library was not found!")
     endif()
@@ -256,7 +171,14 @@ if(PAIRS_BUILD_WITH_LIKWID)
 endif()
 
 #================================================================================
-# config file ===================================================================
+# Load pairsFunctions
 #================================================================================
-configure_file ( "${CMAKE_SOURCE_DIR}/cmake/pairs-config.cmake.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/pairs-config.cmake")
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(pairsFunctions)
+
+
+#================================================================================
+# Apps
+#================================================================================
+add_subdirectory(apps)

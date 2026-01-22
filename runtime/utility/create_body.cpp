@@ -137,7 +137,7 @@ id_t create_clump(PairsRuntime *pr,
     real_t * local_positions = static_cast<real_t *>((pr->getArrayByName("local_positions")).getHostPointer());
     real_t * local_radius = static_cast<real_t *>((pr->getArrayByName("local_radius")).getHostPointer());
 
-    double r = 0.05;
+    double r = radius;
     local_radius[0] = r;
     local_radius[1] = r;
     local_radius[2] = r;

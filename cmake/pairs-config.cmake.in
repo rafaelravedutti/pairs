@@ -1,5 +1,0 @@
-set ( pairs_SOURCE_DIR @pairs_SOURCE_DIR@ )
-set ( pairs_BINARY_DIR @pairs_BINARY_DIR@ )
-
-set ( PAIRS_LIBRARIES @PAIRS_LIBRARIES@ )
-set ( PAIRS_INCLUDE_DIRS @PAIRS_INCLUDE_DIRS@ )

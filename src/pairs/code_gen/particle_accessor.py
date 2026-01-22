@@ -323,7 +323,7 @@ class ParticleAccessor:
         splitname = pname.split('_')
         funcname = ''.join(word.capitalize() for word in splitname)
 
-        self.print(f"{self.host_attr}void sync{funcname}(SyncContext sync_ctx = Host, bool overwrite = false){{")
+        self.print(f"{self.host_attr}void sync{funcname}([[maybe_unused]] SyncContext sync_ctx = Host, [[maybe_unused]] bool overwrite = false){{")
 
         if self.target.is_gpu():
             self.print.add_indent(4)
@@ -393,7 +393,7 @@ class ParticleAccessor:
         splitname = f_name.split('_') + fp_name.split('_')
         funcname = ''.join(word.capitalize() for word in splitname)
 
-        self.print(f"{self.host_attr}void sync{funcname}(SyncContext sync_ctx = Host){{")
+        self.print(f"{self.host_attr}void sync{funcname}([[maybe_unused]] SyncContext sync_ctx = Host){{")
 
         if self.target.is_gpu():
             self.print.add_indent(4)

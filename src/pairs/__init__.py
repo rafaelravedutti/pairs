@@ -1,28 +1,8 @@
 from pairs.ir.types import Types
 from pairs.ir.sync_modes import SyncModes
-from pairs.code_gen.cgen import CGen
-from pairs.code_gen.target import Target
 from pairs.sim.domain_partitioners import DomainPartitioners
 from pairs.sim.shapes import Sphere, Halfspace, PointMass, Box, Clump
 from pairs.sim.simulation import Simulation
-
-
-def simulation(
-    ref,
-    dims=3,
-    double_prec=False,
-    use_contact_history=False,
-    particle_capacity=800000,
-    neighbor_capacity=20,
-    debug=False):
-
-    return Simulation(
-        CGen(ref, debug), 
-        dims, 
-        double_prec, 
-        use_contact_history, 
-        particle_capacity, 
-        neighbor_capacity)
 
 
 # ======================================================================

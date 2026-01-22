@@ -1,0 +1,5 @@
+if(PAIRS_BUILD_WITH_WALBERLA)
+    pairs_generate_lib( global_example sphere_box_global.py gen_dir )
+    add_executable( sphere_box_global sphere_box_global.cpp )
+    pairs_attach_to_target( sphere_box_global global_example )
+endif()

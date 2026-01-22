@@ -639,7 +639,7 @@ void PairsRuntime::communicateAllData(
 }
 
 void PairsRuntime::communicateContactHistoryData(
-    int dim, int nelems_per_contact,
+    int dim, int,
     const real_t *send_buf, const int *contact_soffsets, const int *nsend_contact,
     real_t *recv_buf, int *contact_roffsets, int *nrecv_contact) {
 
