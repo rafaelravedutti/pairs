@@ -82,6 +82,14 @@ function(pairs_generate_lib)
     # The generated code is itself built as a separate library
     add_library(${ARG_GEN_LIB} STATIC ${GEN_SOURCES})
 
+    if(PAIRS_BUILD_WITH_CUDA)
+        # Separable compilation is required here since the cuda kernels in the generated code
+        # call device functions that are defined in a separate .cu file in the pairsrt library
+        set_target_properties(${ARG_GEN_LIB} PROPERTIES
+            CUDA_SEPARABLE_COMPILATION ON
+            CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES})
+    endif()
+
     # Add depenency on the generated code (triggers regeneration on script updates)
     add_dependencies(${ARG_GEN_LIB} ${CGEN_TARGET})
 
