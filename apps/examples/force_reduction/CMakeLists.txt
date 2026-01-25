@@ -1,5 +1,8 @@
 if(PAIRS_BUILD_WITH_WALBERLA)
-    pairs_generate_lib( reduction_example force_reduction.py gen_dir )
+    pairs_generate_lib( 
+        GEN_LIB     reduction_example 
+        SCRIPT      force_reduction.py
+    )
     add_executable( force_reduction force_reduction.cpp )
-    pairs_attach_to_target( force_reduction reduction_example )
+    target_link_libraries( force_reduction reduction_example )
 endif()

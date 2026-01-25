@@ -6,7 +6,9 @@
 
 #include "ballastGen.hpp"
 
-void set_feature_properties(ParticleAccessor ac){
+using Accessor_T = pairs::gen::ParticleAccessor;
+
+void set_feature_properties(Accessor_T ac){
     ac.setTypeStiffness(0,0, 1e6);
     ac.setTypeStiffness(0,1, 1e6);
     ac.setTypeStiffness(1,0, 1e6);
@@ -40,9 +42,9 @@ void print_usage(){
 int main(int argc, char **argv) {
     if (argc<4) print_usage();
 
-    auto pairs_sim = std::make_shared<PairsSimulation>();
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
     
-    ParticleAccessor ac(pairs_sim.get());
+    Accessor_T ac(pairs_sim.get());
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     // ===================================================================================================
@@ -136,16 +138,16 @@ int main(int argc, char **argv) {
     auto start = std::chrono::high_resolution_clock::now();
 
     for (int t=0; t<num_timesteps; ++t){
-        ac.syncUid(ParticleAccessor::Host);
+        ac.syncUid(Accessor_T::Host);
         
         // Change bottom plate position
         // ------------------------------------------------------------------
         if (vibrate){
             auto plate_idx = ac.uidToIdxLocal(plate_uid);
             double posz = -cos(2.0*M_PI * vib_freq * (t*dt)) * (vib_amp/2.0) + (vib_amp/2.0);
-            ac.syncPosition(ParticleAccessor::Host);
+            ac.syncPosition(Accessor_T::Host);
             ac.setPosition(plate_idx, {0.0, 0.0, posz});
-            ac.syncPosition(ParticleAccessor::Host);
+            ac.syncPosition(Accessor_T::Host);
         }
 
         // Calculate forces
@@ -158,12 +160,12 @@ int main(int argc, char **argv) {
         // ------------------------------------------------------------------
         for(int i=0; i<num_boxes; ++i){
             auto box_idx = ac.uidToIdxLocal(box_uid[i]);
-            ac.syncForce(ParticleAccessor::Host);
-            ac.syncTorque(ParticleAccessor::Host);
+            ac.syncForce(Accessor_T::Host);
+            ac.syncTorque(Accessor_T::Host);
             ac.setForce(box_idx, ac.getForce(box_idx) + external_force);
             ac.setTorque(box_idx, {0.0, 0.0, 0.0});    // Reset torque to prevent rotation
-            ac.syncForce(ParticleAccessor::Host);
-            ac.syncTorque(ParticleAccessor::Host);
+            ac.syncForce(Accessor_T::Host);
+            ac.syncTorque(Accessor_T::Host);
         }
 
         // Update positions and reneighbor
@@ -179,7 +181,7 @@ int main(int argc, char **argv) {
             if(rank==0){
                 auto runtime = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start).count();
                 std::cout << "Timestep: " << t << " - Time = " << dt*t << " - Runtime = " << runtime << std::endl;
-                ac.syncPosition(ParticleAccessor::Host);
+                ac.syncPosition(Accessor_T::Host);
                 for(int i=0; i<num_boxes; ++i){
                     auto box_idx = ac.uidToIdxLocal(box_uid[i]);
                     std::cout << "\t Box (" << i << ") position = " << ac.getPosition(box_idx) << std::endl;
@@ -207,7 +209,7 @@ int main(int argc, char **argv) {
         double pups = global_nparticles * num_timesteps / total_runtime;    // particle updates per second
         std::cout << "PUPS: " << pups << std::endl;
 
-        ac.syncUid(ParticleAccessor::Host);
+        ac.syncUid(Accessor_T::Host);
         for(int i=0; i<num_boxes; ++i){
             auto box_idx = ac.uidToIdxLocal(box_uid[i]);
             std::cout << "box (" << i << ") final position = " << ac.getPosition(box_idx) << std::endl;

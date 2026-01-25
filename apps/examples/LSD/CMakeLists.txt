@@ -1,3 +1,7 @@
-pairs_generate_lib( linear_spring_dashpot linear_spring_dashpot.py gen_dir )
+pairs_generate_lib( 
+        GEN_LIB  linear_spring_dashpot
+        SCRIPT   linear_spring_dashpot.py 
+)
+
 add_executable( lsd_1 lsd_1.cpp )
-pairs_attach_to_target( lsd_1 linear_spring_dashpot )
+target_link_libraries( lsd_1 linear_spring_dashpot )

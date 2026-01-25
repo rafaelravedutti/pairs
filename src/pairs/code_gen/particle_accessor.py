@@ -15,21 +15,19 @@ class ParticleAccessor:
         self.print("")
 
         if self.target.is_gpu():
-            self.print("namespace pairs::internal{")
+            self.print("namespace internal{")
             self.print.add_indent(4)
             self.PropFlags_struct()
             self.DeviceProps_struct()
             self.HostProps_struct()
             self.print.add_indent(-4)
-            self.print("}")
+            self.print("} // namespace internal")
             self.print("")
 
         if self.target.is_gpu():
             self.host_device_attr = "__host__ __device__ "
             self.host_attr = "__host__ "
-        self.print("#include \"math/Vector3.hpp\"")
-        # self.print("#include \"math/Quaternion.hpp\"")
-        # self.print("#include \"math/Matrix3.hpp\"")
+            
         self.print("")
 
         self.print("class ParticleAccessor {")
@@ -138,9 +136,9 @@ class ParticleAccessor:
     def member_variables(self):
         self.print("PairsSimulation *ps;")
         if self.target.is_gpu():
-            self.print("pairs::internal::HostProps *hp;")
-            self.print("pairs::internal::DeviceProps *dp_h;")
-            self.print("pairs::internal::DeviceProps *dp_d;")
+            self.print("internal::HostProps *hp;")
+            self.print("internal::DeviceProps *dp_h;")
+            self.print("internal::DeviceProps *dp_d;")
 
     def update(self):
         self.print(f"{self.host_attr}void update(){{")
@@ -153,7 +151,7 @@ class ParticleAccessor:
                 pname = p.name()
                 self.print(f"dp_h->{pname}_d = ps->pobj->{pname}_d;")
 
-            self.print(f"cudaMemcpy(dp_d, dp_h, sizeof(pairs::internal::DeviceProps), cudaMemcpyHostToDevice);")
+            self.print(f"cudaMemcpy(dp_d, dp_h, sizeof(internal::DeviceProps), cudaMemcpyHostToDevice);")
             self.print.add_indent(-4)
         self.print("}")
         self.print("")
@@ -163,11 +161,11 @@ class ParticleAccessor:
             self.print(f"{self.host_attr}ParticleAccessor(PairsSimulation *ps_): ps(ps_){{")
             self.print.add_indent(4)
 
-            self.print(f"hp = new pairs::internal::HostProps;")
-            self.print(f"dp_h = new pairs::internal::DeviceProps;")
-            self.print(f"cudaMalloc(&dp_d, sizeof(pairs::internal::DeviceProps));")
-            self.print(f"cudaMalloc(&(dp_h->prop_device_flags_d), sizeof(pairs::internal::PropFlags));")
-            self.print(f"cudaMemset(dp_h->prop_device_flags_d, 0, sizeof(pairs::internal::PropFlags));")
+            self.print(f"hp = new internal::HostProps;")
+            self.print(f"dp_h = new internal::DeviceProps;")
+            self.print(f"cudaMalloc(&dp_d, sizeof(internal::DeviceProps));")
+            self.print(f"cudaMalloc(&(dp_h->prop_device_flags_d), sizeof(internal::PropFlags));")
+            self.print(f"cudaMemset(dp_h->prop_device_flags_d, 0, sizeof(internal::PropFlags));")
 
             self.print("this->update();")
             self.print.add_indent(-4)
@@ -327,7 +325,7 @@ class ParticleAccessor:
 
         if self.target.is_gpu():
             self.print.add_indent(4)
-            self.print(f"cudaMemcpy(&(hp->prop_device_flags_h), dp_h->prop_device_flags_d, sizeof(pairs::internal::PropFlags), cudaMemcpyDeviceToHost);")
+            self.print(f"cudaMemcpy(&(hp->prop_device_flags_h), dp_h->prop_device_flags_d, sizeof(internal::PropFlags), cudaMemcpyDeviceToHost);")
             self.print("")
             
             #####################################################################################################################
@@ -380,7 +378,7 @@ class ParticleAccessor:
 
             self.print(f"hp->prop_host_flags.{pname} = false;")
             self.print(f"hp->prop_device_flags_h.{pname} = false;")
-            self.print(f"cudaMemcpy(dp_h->prop_device_flags_d, &(hp->prop_device_flags_h), sizeof(pairs::internal::PropFlags), cudaMemcpyHostToDevice);")
+            self.print(f"cudaMemcpy(dp_h->prop_device_flags_d, &(hp->prop_device_flags_h), sizeof(internal::PropFlags), cudaMemcpyHostToDevice);")
 
             self.print.add_indent(-4)
         self.print("}")
@@ -454,10 +452,10 @@ class ParticleAccessor:
         self.print(f"{self.host_device_attr}int getInvalidIdx(){{return -1;}}")
         self.print("")
 
-        self.print(f"{self.host_device_attr}pairs::id_t getInvalidUid(){{return 0;}}")
+        self.print(f"{self.host_device_attr}::pairs::id_t getInvalidUid(){{return 0;}}")
         self.print("")
 
-        self.print(f"{self.host_device_attr}int uidToIdx(pairs::id_t uid){{")
+        self.print(f"{self.host_device_attr}int uidToIdx(::pairs::id_t uid){{")
         self.print("    int idx = getInvalidIdx();")
         self.print("    for(int i=0; i<size(); ++i){")
         self.print("        if (getUid(i) == uid){")
@@ -469,7 +467,7 @@ class ParticleAccessor:
         self.print("}")
         self.print("")
 
-        self.print(f"{self.host_device_attr}int uidToIdxLocal(pairs::id_t uid){{")
+        self.print(f"{self.host_device_attr}int uidToIdxLocal(::pairs::id_t uid){{")
         self.print("    int idx = getInvalidIdx();")
         self.print("    for(int i=0; i<nlocal(); ++i){")
         self.print("        if (getUid(i) == uid){")
@@ -481,7 +479,7 @@ class ParticleAccessor:
         self.print("}")
         self.print("")
 
-        self.print(f"{self.host_device_attr}int uidToIdxGhost(pairs::id_t uid){{")
+        self.print(f"{self.host_device_attr}int uidToIdxGhost(::pairs::id_t uid){{")
         self.print("    int idx = getInvalidIdx();")
         self.print("    for(int i=nlocal(); i<size(); ++i){")
         self.print("        if (getUid(i) == uid){")

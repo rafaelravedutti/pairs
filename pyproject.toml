@@ -1,6 +1,29 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
-]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pairs"
+version = "1.2.0"
+description = "A Code Generator for Particle Simulations"
+readme = "README.md"
+requires-python = ">=3.6"
+license = { text = "MIT" }
+
+authors = [
+  { name = "Rafael Ravedutti Lucio Machado", email = "rafael.r.ravedutti@fau.de" },
+  { name = "Behzad Safaei", email = "behzad.safaei@fau.de" }
+]
+
+urls = { Source = "https://i10git.cs.fau.de/software/pairs" }
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent"
+]
+
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]

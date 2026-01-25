@@ -78,7 +78,7 @@ psim.add_feature_property('type', 'damping_norm',   pairs.real(), [10.0 for i in
 psim.add_feature_property('type', 'damping_tan',    pairs.real())
 psim.add_feature_property('type', 'friction',       pairs.real())
 
-psim.set_domain_partitioner(pairs.regular_domain_partitioner())
+psim.set_domain_partitioner(pairs.block_forest())
 psim.pbc([False, False, False])
 psim.build_cell_lists()
 

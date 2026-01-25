@@ -6,7 +6,7 @@
 
 int main(int argc, char **argv) {
 
-    auto pairs_sim = std::make_shared<PairsSimulation>();
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     double dom_size = 0.1;

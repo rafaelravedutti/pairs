@@ -3,20 +3,32 @@
 # them as a static library. 
 #
 # Arguments:
-#   GEN_LIB         Name of the generated library. This is a CMake target, thus 
-#                   the name must be unique across the whole project.
-#   SCRIPT          Path to the Python script that triggers code generation.
-#   OUTPUT_DIR      Directory where the generated sources will be written.
+#   GEN_LIB     [required]  Name of the generated library. This is a CMake target, thus 
+#                           the name must be unique across the whole project.
+#   SCRIPT      [required]  Path to the Python script that triggers code generation.
+#   OUTPUT_DIR  [optional]  Directory where the generated sources will be written.
 #================================================================================
 
-function(pairs_generate_lib GEN_LIB SCRIPT OUTPUT_DIR)
-    # Make SCRIPT path absolute if needed (from the source dir)
-    if(NOT IS_ABSOLUTE "${SCRIPT}")
-        set(SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/${SCRIPT}")
+function(pairs_generate_lib)
+    set(oneValueArgs GEN_LIB SCRIPT OUTPUT_DIR)
+    cmake_parse_arguments(ARG "" "${oneValueArgs}" "" ${ARGN})
+
+    if(NOT ARG_GEN_LIB OR NOT ARG_SCRIPT)
+        message(FATAL_ERROR "pairs_generate_lib requires GEN_LIB and SCRIPT")
     endif()
 
-    if(NOT EXISTS "${SCRIPT}")
-        message(FATAL_ERROR "P4IRS input script not found: '${SCRIPT}'")
+    # Make SCRIPT path absolute if needed (from the source dir)
+    if(NOT IS_ABSOLUTE "${ARG_SCRIPT}")
+        set(ARG_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/${ARG_SCRIPT}")
+    endif()
+
+    if(NOT EXISTS "${ARG_SCRIPT}")
+        message(FATAL_ERROR "P4IRS input script not found: '${ARG_SCRIPT}'")
+    endif()
+
+    # Default output directory
+    if(NOT DEFINED OUTPUT_DIR OR OUTPUT_DIR STREQUAL "")
+        set(OUTPUT_DIR "gen_${ARG_GEN_LIB}")
     endif()
 
     # Make OUTPUT_DIR absolute if needed (from the build dir)
@@ -32,10 +44,10 @@ function(pairs_generate_lib GEN_LIB SCRIPT OUTPUT_DIR)
     file(MAKE_DIRECTORY ${GEN_USER_INTERFACE_DIR})
 
     if(PAIRS_BUILD_WITH_CUDA)
-        set(GEN_SOURCES "${GEN_USER_INTERFACE_DIR}/${GEN_LIB}.cu")
+        set(GEN_SOURCES "${GEN_USER_INTERFACE_DIR}/${ARG_GEN_LIB}.cu")
         set(TARGET_ARG "gpu")
     else()
-        set(GEN_SOURCES "${GEN_USER_INTERFACE_DIR}/${GEN_LIB}.cpp")
+        set(GEN_SOURCES "${GEN_USER_INTERFACE_DIR}/${ARG_GEN_LIB}.cpp")
         set(TARGET_ARG "cpu")
     endif()
 
@@ -51,53 +63,34 @@ function(pairs_generate_lib GEN_LIB SCRIPT OUTPUT_DIR)
         set(DEBUG_ARG 0)
     endif()
 
-    set(CGEN_TARGET "pairs_cgen_${GEN_LIB}" )
+    set(CGEN_TARGET "pairs_cgen_${ARG_GEN_LIB}" )
 
     # Generate code
     add_custom_command(
         OUTPUT ${GEN_SOURCES} ${GEN_INTERNAL_INTERFACE_HEADER}
-        COMMAND ${PYTHON_EXECUTABLE} ${SCRIPT} 
-                --interface-name ${GEN_LIB}
+        COMMAND ${Python_EXECUTABLE} ${ARG_SCRIPT} 
+                --interface-name ${ARG_GEN_LIB}
                 --target ${TARGET_ARG} 
                 --output-dir ${OUTPUT_DIR}
                 --debug ${DEBUG_ARG}
-        COMMENT "P4IRS: Generating code for the library '${GEN_LIB}' using the script '${SCRIPT}'."
-        DEPENDS ${SCRIPT}
-        BYPRODUCTS ${GEN_SOURCES} ${GEN_INTERNAL_INTERFACE_HEADER}
+        COMMENT "P4IRS: Generating code for the library '${ARG_GEN_LIB}' using the script '${ARG_SCRIPT}'."
+        DEPENDS ${ARG_SCRIPT}
     )
         
     add_custom_target(${CGEN_TARGET} DEPENDS ${GEN_SOURCES} ${GEN_INTERNAL_INTERFACE_HEADER})
 
     # The generated code is itself built as a separate library
-    add_library(${GEN_LIB} STATIC ${GEN_SOURCES})
+    add_library(${ARG_GEN_LIB} STATIC ${GEN_SOURCES})
 
     # Add depenency on the generated code (triggers regeneration on script updates)
-    add_dependencies(${GEN_LIB} ${CGEN_TARGET})
+    add_dependencies(${ARG_GEN_LIB} ${CGEN_TARGET})
 
     # Link the generated lib to pairs runime lib (the runtime lib is shared by all generated codes)
-    target_link_libraries(${GEN_LIB} PUBLIC pairsrt)
+    target_link_libraries(${ARG_GEN_LIB} PUBLIC pairsrt)
 
     # Include the generated user-facing header for the generated lib
-    target_include_directories(${GEN_LIB} PUBLIC ${GEN_USER_INTERFACE_DIR})
+    target_include_directories(${ARG_GEN_LIB} PUBLIC ${GEN_USER_INTERFACE_DIR})
 
     # Include the generated internal header in the pairs runtime lib (TODO: to be removed)
     target_include_directories(pairsrt PRIVATE  ${GEN_INTERNAL_INTERFACE_DIR})
-endfunction()
-
-
-#================================================================================
-# This function links a given CMake target to a given generated pairs library. 
-#
-# Arguments:
-#   TARGET          The CMake target
-#   GEN_LIB         The generated library that was built using pairs_generate_lib
-#================================================================================
-
-function(pairs_attach_to_target TARGET GEN_LIB) 
-    if(NOT TARGET ${GEN_LIB})
-        message(FATAL_ERROR "The CMake target '${GEN_LIB}' does not exist.\n"
-                "Make sure you call pairs_generate_lib() to generate the library first.")
-    endif()
-
-    target_link_libraries(${TARGET} PUBLIC ${GEN_LIB})
 endfunction()

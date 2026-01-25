@@ -6,22 +6,24 @@
 #include "print_stats.hpp"
 #include "sd_no_pbc.hpp"
 
-void randomaize_indices(ParticleAccessor ac){
+using Accessor_T = pairs::gen::ParticleAccessor;
+
+void randomaize_indices(Accessor_T ac){
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dist(0, ac.nlocal() - 1);
 
-    ac.syncPosition(ParticleAccessor::Host);
+    ac.syncPosition(Accessor_T::Host);
     for (int i=0; i<ac.nlocal(); ++i){
         int j = dist(gen);
         auto tmp = ac.getPosition(i);
         ac.setPosition(i, ac.getPosition(j));
         ac.setPosition(j, tmp);
     }
-    ac.syncPosition(ParticleAccessor::Host);
+    ac.syncPosition(Accessor_T::Host);
 }
 
-double run_sim(std::shared_ptr<PairsSimulation> &pairs_sim, double dt, uint64_t num_timesteps, bool profile=false){
+double run_sim(std::shared_ptr<pairs::gen::PairsSimulation> &pairs_sim, double dt, uint64_t num_timesteps, bool profile=false){
     MPI_Barrier(MPI_COMM_WORLD);
     auto pairs_runtime = pairs_sim->getPairsRuntime();
     uint64_t print_interval = (num_timesteps >= 5) ? (num_timesteps / 5) : 1;
@@ -77,8 +79,8 @@ int main(int argc, char **argv) {
     uint64_t num_timesteps = std::stoull(argv[5]);
     bool load_balanced = (std::stoi(argv[6]) != 0);
 
-    auto pairs_sim = std::make_shared<PairsSimulation>();
-    ParticleAccessor ac(pairs_sim.get());
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
+    Accessor_T ac(pairs_sim.get());
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, domain_size[0], domain_size[1], domain_size[2], load_balanced);
@@ -86,7 +88,7 @@ int main(int argc, char **argv) {
     if(load_balanced){
         if(argc!=10) print_usage();
         std::string alg_str = argv[7];
-        LoadBalancingAlgorithms alg;
+        pairs::LoadBalancingAlgorithms alg;
 
         if(alg_str == "hilbert") alg = pairs::Hilbert;
         else if (alg_str == "morton") alg = pairs::Morton;

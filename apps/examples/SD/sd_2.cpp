@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) {
 
-    auto pairs_sim = std::make_shared<PairsSimulation>();
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
 
     // Create forest
     // -------------------------------------------------------------------------------

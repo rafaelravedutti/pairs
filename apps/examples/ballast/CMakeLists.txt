@@ -1,3 +1,6 @@
-pairs_generate_lib( ballastGen ballast.py gen_dir )
+pairs_generate_lib( 
+        GEN_LIB  ballastGen 
+        SCRIPT   ballast.py
+)
 add_executable( ballast ballast.cpp )
-pairs_attach_to_target( ballast ballastGen )
+target_link_libraries( ballast ballastGen )

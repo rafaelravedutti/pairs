@@ -164,8 +164,10 @@ class CGen:
         self.print("#include \"utility/timing.hpp\"")
         self.print("#include \"utility/thermo.hpp\"")
         self.print("#include \"utility/vtk.hpp\"")
-        self.print("")
-        self.print("using namespace pairs;")
+
+        self.print("#include \"math/Vector3.hpp\"")
+        # self.print("#include \"math/Quaternion.hpp\"")
+        # self.print("#include \"math/Matrix3.hpp\"")
         self.print("")
 
     def generate_module_header(self, module, definition=True):
@@ -186,7 +188,7 @@ class CGen:
 
     def generate_module_decls(self):
         self.print("")
-        self.print("namespace pairs::internal {")
+        self.print("namespace internal {")
         self.print.add_indent(4)
 
         # All internal modules are declared in the pairs::internal scope
@@ -288,6 +290,7 @@ class CGen:
 
         self.print(f"#include \"{self.ref}.hpp\"")
         self.print("")
+        self.print("namespace  pairs::gen{")
 
         if self.target.is_gpu():
             for array in self.sim.arrays.statics():
@@ -314,7 +317,7 @@ class CGen:
             self.print("#pragma GCC diagnostic ignored \"-Wfloat-equal\"")
             self.print("#pragma GCC diagnostic ignored \"-Wunused-variable\"")
 
-        self.print("namespace pairs::internal {")
+        self.print("namespace internal {")
         self.print.add_indent(4)
 
         for kernel in self.sim.kernels():
@@ -325,11 +328,12 @@ class CGen:
             self.generate_module(module)
 
         self.print.add_indent(-4)
-        self.print("}")
+        self.print("} // namespace internal")
 
         if not self.debug:
             self.print("#pragma GCC diagnostic pop")
-            
+        self.print("} // namespace pairs::gen")
+        
         self.print.end()
 
         # Generate library header
@@ -337,8 +341,9 @@ class CGen:
         self.print = Printer(f"{self.output_dir}/{self.ref}.hpp")
         self.print.start()
         self.print("#pragma once")
-
         self.generate_preamble()
+
+        self.print("namespace  pairs::gen{")
         self.generate_pairs_object_structure()
         self.generate_module_decls()
 
@@ -364,7 +369,7 @@ class CGen:
         self.print("};")
 
         ParticleAccessor(self).generate()
-        
+        self.print("} // namespace  pairs::gen")
         self.print.end()
         self.generate_full_object_names = False
 
@@ -545,10 +550,10 @@ class CGen:
             if ast_node.check_for_resize():
                 resize = self.generate_expression(ast_node.resize)
                 capacity = self.generate_expression(ast_node.capacity)
-                self.print(f"pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
+                self.print(f"::pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
 
             else:
-                self.print(f"pairs::{prefix}atomic_add(&({elem}), {value});")
+                self.print(f"::pairs::{prefix}atomic_add(&({elem}), {value});")
 
         if isinstance(ast_node, Block):
             self.print.add_indent(4)
@@ -589,9 +594,9 @@ class CGen:
                 if atomic_add.check_for_resize():
                     resize = self.generate_expression(atomic_add.resize)
                     capacity = self.generate_expression(atomic_add.capacity)
-                    self.print(f"const {tkw} {acc_ref} = pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
+                    self.print(f"const {tkw} {acc_ref} = ::pairs::{prefix}atomic_add_resize_check(&({elem}), {value}, &({resize}), {capacity});")
                 else:
-                    self.print(f"const {tkw} {acc_ref} = pairs::{prefix}atomic_add(&({elem}), {value});")
+                    self.print(f"const {tkw} {acc_ref} = ::pairs::{prefix}atomic_add(&({elem}), {value});")
 
             if isinstance(ast_node.elem, ContactPropertyAccess):
                 contact_prop_access = ast_node.elem
@@ -810,11 +815,11 @@ class CGen:
             if ast_node.decl:
                 self.print(f"{tkw} *{array_name} = ({tkw} *) malloc({size});")
                 if self.target.is_gpu() and ast_node.array.device_flag:
-                    self.print(f"{tkw} *{array_name}_d = ({tkw} *) pairs::device_alloc({size});")
+                    self.print(f"{tkw} *{array_name}_d = ({tkw} *) ::pairs::device_alloc({size});")
             else:
                 self.print(f"{array_name} = ({tkw} *) malloc({size});")
                 if self.target.is_gpu() and ast_node.array.device_flag:
-                    self.print(f"{array_name}_d = ({tkw} *) pairs::device_alloc({size});")
+                    self.print(f"{array_name}_d = ({tkw} *) ::pairs::device_alloc({size});")
 
         if isinstance(ast_node, KernelLaunch):
             range_start = self.generate_expression(ScalarOp.inline(ast_node.min))
@@ -870,7 +875,7 @@ class CGen:
             module_params += [f"{param.name()}" for param in ast_node.module.parameters()]
 
             print_params = ", ".join(module_params)
-            self.print(f"pairs::internal::{ast_node.module.name}({print_params});")
+            self.print(f"internal::{ast_node.module.name}({print_params});")
 
         if isinstance(ast_node, Print):
             args = ast_node.args
@@ -901,7 +906,7 @@ class CGen:
 
             if self.target.is_gpu() and ast_node.array.device_flag:
                 d_ptr = self.generate_object_reference(ast_node, device=True)
-                self.print(f"{d_ptr} = ({tkw} *) pairs::device_realloc({d_ptr}, {size});")
+                self.print(f"{d_ptr} = ({tkw} *) ::pairs::device_realloc({d_ptr}, {size});")
 
         if isinstance(ast_node, RegisterArray):
             a = ast_node.array()
@@ -1050,7 +1055,7 @@ class CGen:
         if isinstance(ast_node, Call):
             extra_params = []
 
-            if ast_node.name().startswith("pairs::") or  ast_node.name().startswith("UniqueID::"):
+            if ast_node.name().startswith("::pairs::"):
                 extra_params += ["pairs_runtime"]
 
             params = ", ".join(extra_params + [str(self.generate_expression(p)) for p in ast_node.parameters()])

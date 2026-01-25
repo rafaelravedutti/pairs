@@ -5,7 +5,7 @@
 
 #include "global_example.hpp"
 
-void set_feature_properties(ParticleAccessor ac){
+void set_feature_properties(pairs::gen::ParticleAccessor ac){
     ac.setTypeStiffness(0,0, 1e6);
     ac.setTypeStiffness(0,1, 12e6);
     ac.setTypeStiffness(1,0, 1e6);
@@ -32,9 +32,9 @@ void set_feature_properties(ParticleAccessor ac){
 }
 
 int main(int argc, char **argv) {
-    auto pairs_sim = std::make_shared<PairsSimulation>();
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
     auto pairs_runtime = pairs_sim->getPairsRuntime();
-    ParticleAccessor ac(pairs_sim.get());
+    pairs::gen::ParticleAccessor ac(pairs_sim.get());
 
     set_feature_properties(ac);
 

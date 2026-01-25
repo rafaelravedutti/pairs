@@ -13,32 +13,33 @@ Start by importing the library and creating a simulation instance:
 
 ```python
 import pairs
-psim = pairs.simulation("dem", double_prec=True)
+psim = pairs.Simulation()
 ```
-Register properties (their name, type and communication mode):
 
-Communication mdoes:
-
-- `always`: Communicated during `updateDomain()`, `reneighbor()`, and `refreshGhosts()`  
-- `never`: Never communicated
-- `on_reneighbor`: Only communicated during `updateDomain()` and `reneighbor()` 
-- `on_reduction`: Only communicated in reverse and then reduced during `reduceGhosts()` 
-
-Shape registration:
+Register the shapes present in the simulation:
 
 ```python
 psim.add_shape(pairs.sphere('radius'))
 psim.add_shape(pairs.halfspace('normal'))
 ```
 
-Example for property registration:
+Register properties (name, type and communication mode):
 
 ```python
 psim.add_position('position')
 psim.add_property('radius', pairs.real(), pairs.on_reneighbor())
+psim.add_property('normal', pairs.vector(), pairs.on_reneighbor())
 psim.add_property('linear_velocity', pairs.vector(), pairs.always())
 psim.add_property('force', pairs.vector(), pairs.never())
 ```
+Communication modes for properties:
+
+| Mode            | Description |
+|-----------------|-------------|
+| `always`        | Communicated during `updateDomain()`, `reneighbor()`, and `refreshGhosts()` |
+| `on_reneighbor` | Communicated during `updateDomain()` and `reneighbor()` |
+| `on_reduction`  | Communicated in reverse for ghost particles and reduced during `reduceGhosts()` |
+| `never`         | Never communicated |
 
 Features & Feature-Properties:
 Features represent subsets of particles (e.g., material types), while feature-properties are pairswise properties between these subsets (e.g., contact stiffness).
@@ -46,12 +47,6 @@ Features represent subsets of particles (e.g., material types), while feature-pr
 ```python
 psim.add_feature('type', nkinds=2)  # 2 types of materials
 psim.add_feature_property('type', 'stiffness', pairs.real(), [1e7, 1e5, 1e5, 1e4])  # A 2x2 lookup tabel for stifnesses
-```
-
-Or define values at runtime using the accessor:
-
-```cpp
-ac.setTypeStiffness(0, 1, 1e5)  // C++
 ```
 
 Select the domain partitioner and PBCs:
@@ -101,52 +96,70 @@ Finally, trigger code generation:
 ```python
 psim.generate()
 ```
-
-Compilation is handled by CMake, which will compile the generated files with the appropriate backend.
-
 ---
 
 ### C++ Interface
 
-See [examples](examples/modular).
+See [examples](apps/examples).
 
 ## Build Instructions
 
-P4IRS can be built in two different modes using the CMake build system. Before we demostrate each mode, ensure you have CMake, MPI and CUDA (if targeting GPU execution) available in your environment.
+P4IRS applications are built using CMake. Ensure that CMake and MPI are available on your system. CUDA is required only when targeting GPU execution.
 
-In the following, we assume we have created and navigated to a build directory: `mkdir build; cd build` 
+### CMake Integration
+
+* **Create your CMake target** 
+  
+For example, create an executable from your source file:
+
+```cmake
+add_executable( MyApp path/to/main.cpp )
+```
+
+* **Generate the P4IRS library** 
+
+Use the CMake function `pairs_generate_lib` to generate a P4IRS library from your Python script:
+
+```cmake
+pairs_generate_lib(
+    GEN_LIB     MyPairsLib
+    SCRIPT      path/to/my_pairs_script.py
+)
+```
+This generates the P4IRS code and compiles it into a static library called `MyPairsLib` that includes all necessary dependencies. As with any CMake target, the name of the library must be unique within your project.
+
+* **Link your CMake target to the P4IRS library** 
+
+Aattach the library to your executable:
+
+```cmake
+target_link_libraries( MyApp MyPairsLib )
+```
+Multiple targets may link against the same generated P4IRS library, reusing the same generated code.
+
+### Configure and Build
 
 **Basic CMake flags:**  
-* Pass your input script to CMake using `-DPAIRS_INPUT_SCRIPT=path/to/script.py`  
-* Enable CUDA with `-DPAIRS_BUILD_WITH_CUDA=ON`
-* Enable waLBerla support with `-DPAIRS_BUILD_WITH_WALBERLA=ON` for using BlockForest domain partitioning and dynamic load balancing
+| Option                          | Description |
+|---------------------------------|-------------|
+| `PAIRS_BUILD_WITH_CUDA`     | Enable CUDA support |
+| `PAIRS_BUILD_WITH_WALBERLA` | Enable support for waLBerla BlockForest domain partitioning and dynamic load balancing |
+| `PAIRS_BUILD_WITH_LIKWID`   | Enable profiling compute kernels with LIKWID performance tools |
+| `PAIRS_BUILD_EXAMPLES`      | Enable building the example apps |
+| `PAIRS_BUILD_BENCHMAKRS`    | Enable building the benchmark apps |
 
 
-### 1. Stand-Alone P4IRS Application
----------------------
-To build a C++ application using P4IRS, provide the list of your source files to CMake using the `-DPAIRS_INPUT_SRCS` flag (semicolon-seperated).
-
-**Example**: Build the application [sd_1.cpp](examples/modular/sd_1.cpp) using [spring_dashpot.py](examples/modular/spring_dashpot.py) as the input script.
+**Example**: Build the application [sd_4.cpp](apps/examples/SD/sd_4.cpp) for GPU execution, using the CUDA code generated by [spring_dashpot.py](apps/examples/SD/spring_dashpot.py).
 
 ```
-cmake -DPAIRS_INPUT_SCRIPT=../examples/modular/spring_dashpot.py -DPAIRS_INPUT_SRCS=../examples/modular/sd_1.cpp -DPAIRS_BUILD_WITH_WALBERLA=ON ..
-```
-Now call `make` and an **executable** is built.
+cmake -S . -B build -DPAIRS_BUILD_EXAMPLES=ON -DPAIRS_BUILD_WITH_WALBERLA=ON -DPAIRS_BUILD_WITH_CUDA=ON
+cmake --build build --target sd_4 -j
+``` 
 
-
-### 2. P4IRS as a Library
----------------------
-P4IRS can also be compiled as a library for integration into larger projects.  
-To compile P4IRS as a library, simply do not pass any `PAIRS_INPUT_SRCS` to CMake. Configure CMake and call `make` as usual, and a **static library** is built. You can then include P4IRS and its dependencies in your build system as follows:
-```cmake
-find_package(pairs REQUIRED HINTS "path/to/pairs/build" NO_DEFAULT_PATH)
-target_include_directories(my_app PUBLIC ${PAIRS_INCLUDE_DIRS})
-target_link_libraries(my_app PUBLIC ${PAIRS_LIBRARIES})
-```
 
 ## Citations
 
-TBD
+Ravedutti Lucio Machado, R., Eitzinger, J., & Köstler, H. (2025). *P4IRS: An intermediate representation and compiler for parallel and performance-portable particle simulations*. The International Journal of High Performance Computing Applications. https://doi.org/10.1177/10943420251405928
 
 ## Credits
 

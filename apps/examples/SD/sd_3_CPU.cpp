@@ -4,15 +4,15 @@
 
 #include "spring_dashpot.hpp"
 
-void change_gravitational_force(ParticleAccessor ac, int idx){
+void change_gravitational_force(pairs::gen::ParticleAccessor ac, int idx){
     pairs::Vector3<double> upward_gravity(0.0, 0.0, 2 * ac.getMass(idx) * 9.81); 
     ac.setForce(idx, ac.getForce(idx) + upward_gravity);
 }
 
 int main(int argc, char **argv) {
 
-    auto pairs_sim = std::make_shared<PairsSimulation>();
-    ParticleAccessor ac(pairs_sim.get());
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
+    pairs::gen::ParticleAccessor ac(pairs_sim.get());
     auto pairs_runtime = pairs_sim->getPairsRuntime();
 
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1);

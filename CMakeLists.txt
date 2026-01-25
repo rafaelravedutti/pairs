@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
-include(FetchContent)
 
 if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   project(pairs)
@@ -20,6 +19,8 @@ option(PAIRS_BUILD_WITH_CUDA        "PAIRS_BUILD_WITH_CUDA"     OFF)
 option(PAIRS_BUILD_WITH_LIKWID      "PAIRS_BUILD_WITH_LIKWID"   OFF)
 option(PAIRS_BUILD_EXAMPLES         "PAIRS_BUILD_EXAMPLES"      OFF)
 option(PAIRS_BUILD_BENCHMARKS       "PAIRS_BUILD_BENCHMARKS"    OFF)
+
+include(FetchContent)
 
 #================================================================================
 # RUNTIME_COMMON_FILES
@@ -50,22 +51,28 @@ set_target_properties(pairsrt PROPERTIES
 )
 
 #================================================================================
-# Install pairs python package
+# Install pairs python package (optionally using the specified python executable)
 #================================================================================
-if(NOT DEFINED PYTHON_EXECUTABLE)
-    set(PYTHON_EXECUTABLE python3 CACHE STRING "Python executable")
+set(PAIRS_PYTHON_EXECUTABLE "" CACHE PATH "Python executable to install pairs")
+
+if(NOT PAIRS_PYTHON_EXECUTABLE)
+    find_package(Python COMPONENTS Interpreter REQUIRED)
+    set(PAIRS_PYTHON_EXECUTABLE ${Python_EXECUTABLE})
 endif()
 
-execute_process(
-    COMMAND ${PYTHON_EXECUTABLE} setup.py build
-    OUTPUT_QUIET
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+message(STATUS "Installing pairs")
 
 execute_process(
-    COMMAND ${PYTHON_EXECUTABLE} setup.py install --user
-    OUTPUT_QUIET
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    COMMAND ${PAIRS_PYTHON_EXECUTABLE} -m pip install --force-reinstall --editable . -q
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE PAIRS_PIP_RESULT
+)
 
+if(NOT PAIRS_PIP_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to install P4IRS Python package.")
+endif()
+
+message(STATUS "Installing pairs - done")
 #================================================================================
 # MPI
 #================================================================================
@@ -79,10 +86,8 @@ target_link_libraries(pairsrt PUBLIC ${MPI_LIBRARIES})
 if(PAIRS_BUILD_WITH_CUDA)
     enable_language(CUDA)
     find_package(CUDAToolkit REQUIRED)
-
-    if(NOT CMAKE_CUDA_ARCHITECTURES)
-        message(WARNING "CMAKE_CUDA_ARCHITECTURES was not set. It is automatically set to: ${CMAKE_CUDA_ARCHITECTURES}")
-    endif()
+    
+    message(STATUS "CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
     
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -rdc=true")
 
@@ -109,7 +114,8 @@ if(PAIRS_BUILD_WITH_CUDA)
     target_compile_definitions(pairsrt PUBLIC PAIRS_TARGET_CUDA)
 
     set_target_properties(pairsrt PROPERTIES
-        CUDA_SEPARABLE_COMPILATION ON)
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES})
 
 else()
     if(ENABLE_GPU_DIRECT)
@@ -139,6 +145,7 @@ if(PAIRS_BUILD_WITH_WALBERLA)
     # Skip building a separate waLBerla if P4IRS is itself 
     # being built inside a waLBerla CMake environment
     if(NOT TARGET walberla::blockforest)
+        message(STATUS "walberla::blockforest was not found. ")
         message(STATUS "Fetching waLBerla")
         FetchContent_Declare(
             walberla
@@ -146,6 +153,7 @@ if(PAIRS_BUILD_WITH_WALBERLA)
             GIT_TAG 65fcc780c8843f982b23e3b1f14de6408982c5d8
         )
         FetchContent_MakeAvailable(walberla)
+        message(STATUS "Fetching waLBerla - done")
     endif()
 
     target_link_libraries(pairsrt PUBLIC walberla::blockforest)

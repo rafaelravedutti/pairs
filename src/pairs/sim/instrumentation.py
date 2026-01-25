@@ -11,16 +11,16 @@ class RegisterTimers(FinalLowerable):
     @pairs_inline
     def lower(self):
         for t in range(Timers.Offset):
-            Call_Void(self.sim, "pairs::register_timer", [t, Timers.name(t)])
+            Call_Void(self.sim, "::pairs::register_timer", [t, Timers.name(t)])
 
         # Interface modules
         for m in self.sim.interface_modules():
             if 'PairsSimulation' not in m.name and m.return_type==Types.Void:
-                Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, "INTERFACE_MODULES::" + m.name])
+                Call_Void(self.sim, "::pairs::register_timer", [m.module_id + Timers.Offset, "INTERFACE_MODULES::" + m.name])
         
         # Internal modules
         for m in self.sim.modules():
-            Call_Void(self.sim, "pairs::register_timer", [m.module_id + Timers.Offset, "INTERNAL_MODULES::" + m.name])
+            Call_Void(self.sim, "::pairs::register_timer", [m.module_id + Timers.Offset, "INTERNAL_MODULES::" + m.name])
 
 
 class RegisterMarkers(FinalLowerable):

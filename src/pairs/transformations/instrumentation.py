@@ -17,8 +17,8 @@ class AddModulesInstrumentation(Mutator):
             return ast_node
         
         timer_id = module.module_id + Timers.Offset
-        start_timer = Call_Void(ast_node.sim, "pairs::start_timer", [timer_id])
-        stop_timer = Call_Void(ast_node.sim, "pairs::stop_timer", [timer_id])
+        start_timer = Call_Void(ast_node.sim, "::pairs::start_timer", [timer_id])
+        stop_timer = Call_Void(ast_node.sim, "::pairs::stop_timer", [timer_id])
         module._block = Block.from_list(ast_node.sim, [start_timer, module._block, stop_timer])
 
         if module.must_profile():

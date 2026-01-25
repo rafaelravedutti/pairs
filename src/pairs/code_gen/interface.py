@@ -88,9 +88,9 @@ class InterfaceModules:
         if self.sim._enable_profiler:
             PrintCode(self.sim, "LIKWID_MARKER_CLOSE;")
             
-        Call_Void(self.sim, "pairs::print_timers", [])
-        # Call_Void(self.sim, "pairs::log_timers", [])
-        Call_Void(self.sim, "pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
+        Call_Void(self.sim, "::pairs::print_timers", [])
+        # Call_Void(self.sim, "::pairs::log_timers", [])
+        Call_Void(self.sim, "::pairs::print_stats", [self.sim.nlocal, self.sim.nghost])
         PrintCode(self.sim, "delete pobj;")
         PrintCode(self.sim, "delete pairs_runtime;")
 
@@ -263,8 +263,8 @@ class InterfaceModules:
             # (creates a global UID or a local UID of type uint64_t according to the flags provided)
             Assign(self.sim, self.sim.particle_uid[idx], 
                         Select(self.sim, is_global, 
-                                Call(self.sim, "UniqueID::createGlobal", [], Types.UInt64),  
-                                Call(self.sim, "UniqueID::create", [], Types.UInt64)))
+                                Call(self.sim, "::pairs::UniqueID::createGlobal", [], Types.UInt64),  
+                                Call(self.sim, "::pairs::UniqueID::create", [], Types.UInt64)))
             
             # Increment nlocal
             Assign(self.sim, self.sim.nlocal, self.sim.nlocal + 1)

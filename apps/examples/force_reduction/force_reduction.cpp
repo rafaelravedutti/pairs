@@ -1,10 +1,12 @@
 #include <iostream>
 #include "reduction_example.hpp"
 
+using Accessor_T = pairs::gen::ParticleAccessor;
+
 int main(int argc, char **argv) {
 
-    auto pairs_sim = std::make_shared<PairsSimulation>();
-    ParticleAccessor ac(pairs_sim.get());
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
+    Accessor_T ac(pairs_sim.get());
     
     // Set domain
     auto pairs_runtime = pairs_sim->getPairsRuntime();
@@ -40,7 +42,7 @@ int main(int argc, char **argv) {
 
     // Check which rank owns the particle, and which ranks have it as a ghost
     //-------------------------------------------------------------------------------------------
-    ac.syncUid(ParticleAccessor::Host);
+    ac.syncUid(Accessor_T::Host);
     if (pIsLocalInMyRank(pUid)){
         std::cout<< "Particle " << pUid << " is local in rank " << pairs_sim->rank() << std::endl;
     }
@@ -52,7 +54,7 @@ int main(int argc, char **argv) {
     //-------------------------------------------------------------------------------------------
     int num_timesteps = 1;
     for (int t=0; t<num_timesteps; ++t){
-        ac.syncUid(ParticleAccessor::Host);
+        ac.syncUid(Accessor_T::Host);
 
         // Add local contribution
         //-------------------------------------------------------------------------------------------
@@ -66,8 +68,8 @@ int main(int argc, char **argv) {
 
             ac.setHydrodynamicForce(idx, local_force);
             ac.setHydrodynamicTorque(idx, local_torque);
-            ac.syncHydrodynamicForce(ParticleAccessor::Host, true);
-            ac.syncHydrodynamicTorque(ParticleAccessor::Host, true);
+            ac.syncHydrodynamicForce(Accessor_T::Host, true);
+            ac.syncHydrodynamicTorque(Accessor_T::Host, true);
         }
 
         // Add neighbor contributions
@@ -82,8 +84,8 @@ int main(int argc, char **argv) {
 
             ac.setHydrodynamicForce(idx, ghost_force);
             ac.setHydrodynamicTorque(idx, ghost_torque);
-            ac.syncHydrodynamicForce(ParticleAccessor::Host, true);
-            ac.syncHydrodynamicTorque(ParticleAccessor::Host, true);
+            ac.syncHydrodynamicForce(Accessor_T::Host, true);
+            ac.syncHydrodynamicTorque(Accessor_T::Host, true);
         }
         
         // Do computations
@@ -101,8 +103,8 @@ int main(int argc, char **argv) {
         //-------------------------------------------------------------------------------------------
         if (pIsLocalInMyRank(pUid)){
             int idx = ac.uidToIdxLocal(pUid);
-            ac.syncHydrodynamicForce(ParticleAccessor::Host);
-            ac.syncHydrodynamicTorque(ParticleAccessor::Host);
+            ac.syncHydrodynamicForce(Accessor_T::Host);
+            ac.syncHydrodynamicTorque(Accessor_T::Host);
             auto force_sum = ac.getHydrodynamicForce(idx);
             // auto torque_sum = ac.getHydrodynamicTorque(idx);
 

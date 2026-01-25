@@ -5,20 +5,43 @@
 #include "spring_dashpot.hpp"
 
 int main(int argc, char **argv) {
-
-    auto pairs_sim = std::make_shared<PairsSimulation>();
+    
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
     auto pairs_runtime = pairs_sim->getPairsRuntime();
+    pairs::gen::ParticleAccessor ac(pairs_sim.get());
 
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1); 
 
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  1, 0, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 1, 0,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 0,0,0,  0, 0, 1,     0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  -1, 0, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, -1, 0,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_halfspace(pairs_runtime, 1,1,1,  0, 0, -1,    0, pairs::flags::INFINITE | pairs::flags::FIXED);
-    pairs::create_sphere(pairs_runtime, 0.6, 0.6, 0.7,      -2, -2, 0,  1000, 0.05, 0, 0);
-    pairs::create_sphere(pairs_runtime, 0.4, 0.4, 0.68,    2, 2, 0,    1000, 0.05, 0, 0);
+    // Create six halfspaces around the domain
+    int idx = pairs_sim->createObject(0, 0, 0, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac.setNormal(idx, {1, 0, 0});
+    idx = pairs_sim->createObject(0, 0, 0, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac.setNormal(idx, {0, 1, 0});
+    idx = pairs_sim->createObject(0, 0, 0, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac.setNormal(idx, {0, 0, 1});
+    idx = pairs_sim->createObject(1, 1, 1, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac.setNormal(idx, {-1, 0, 0});
+    idx = pairs_sim->createObject(1, 1, 1, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac.setNormal(idx, {0, -1, 0});
+    idx = pairs_sim->createObject(1, 1, 1, pairs::Shapes::Halfspace, pairs::flags::INFINITE | pairs::flags::FIXED);
+    ac.setNormal(idx, {0, 0, -1});
+
+
+    // Create a spheres
+    int sphere_idx = pairs_sim->createObject( 0.6, 0.6, 0.7, pairs::Shapes::Sphere, 0);
+    if(sphere_idx != ac.getInvalidIdx()){
+        ac.setLinearVelocity(sphere_idx, {-2, -2, 0});
+        ac.setRadius(sphere_idx, 0.05);
+        ac.setMass(sphere_idx, ((4.0 / 3.0) * M_PI) * 0.05 * 0.05 * 0.05 * 1000);
+    }
+
+    // Create another sphere
+    sphere_idx = pairs_sim->createObject( 0.4, 0.4, 0.68, pairs::Shapes::Sphere, 0);
+    if(sphere_idx != ac.getInvalidIdx()){
+        ac.setLinearVelocity(sphere_idx, {2, 2, 0});
+        ac.setRadius(sphere_idx, 0.05);
+        ac.setMass(sphere_idx, ((4.0 / 3.0) * M_PI) * 0.05 * 0.05 * 0.05 * 1000);
+    }
 
     pairs_sim->update_mass_and_inertia();
 

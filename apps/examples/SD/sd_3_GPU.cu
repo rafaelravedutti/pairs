@@ -5,6 +5,8 @@
 
 #include "spring_dashpot.hpp"
 
+using Accessor_T = pairs::gen::ParticleAccessor;
+
 void checkCudaError(cudaError_t err, const char* func) {
     if (err != cudaSuccess) {
         fprintf(stderr, "CUDA error in %s: %s\n", func, cudaGetErrorString(err));
@@ -12,11 +14,11 @@ void checkCudaError(cudaError_t err, const char* func) {
     }
 }
 
-__global__ void print_position(ParticleAccessor ac, int idx){
+__global__ void print_position(Accessor_T ac, int idx){
     printf("Position [from device] = (%f, %f, %f) \n", ac.getPosition(idx)[0], ac.getPosition(idx)[1], ac.getPosition(idx)[2]);
 }
 
-__global__ void change_gravitational_force(ParticleAccessor ac, int idx){
+__global__ void change_gravitational_force(Accessor_T ac, int idx){
     printf("Force [from device] before setting = (%f, %f, %f) \n", ac.getForce(idx)[0], ac.getForce(idx)[1], ac.getForce(idx)[2]);
 
     pairs::Vector3<double> upward_gravity(0.0, 0.0, 2 * ac.getMass(idx) * 9.81); 
@@ -25,7 +27,7 @@ __global__ void change_gravitational_force(ParticleAccessor ac, int idx){
     printf("Force [from device] after setting = (%f, %f, %f) \n", ac.getForce(idx)[0], ac.getForce(idx)[1], ac.getForce(idx)[2]);
 }
 
-void set_feature_properties(ParticleAccessor ac){
+void set_feature_properties(Accessor_T ac){
     ac.setTypeStiffness(0,0, 0);
     ac.setTypeStiffness(0,1, 1000);
     ac.setTypeStiffness(1,0, 1000);
@@ -41,10 +43,10 @@ void set_feature_properties(ParticleAccessor ac){
 
 int main(int argc, char **argv) {
 
-    auto pairs_sim = std::make_shared<PairsSimulation>();
+    auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
     
     // Create ParticleAccessor after PairsSimulation is initialized
-    ParticleAccessor ac(pairs_sim.get());
+    Accessor_T ac(pairs_sim.get());
 
     auto pairs_runtime = pairs_sim->getPairsRuntime();
     pairs_runtime->initDomain(&argc, &argv, 0, 0, 0, 1, 1, 1);
@@ -81,7 +83,7 @@ int main(int argc, char **argv) {
 
     for (int t=0; t<num_timesteps; ++t){
         // Up-to-date uids might be on host or device. So sync uid in Host before accessing them from host
-        ac.syncUid(ParticleAccessor::Host);
+        ac.syncUid(Accessor_T::Host);
 
         // Print position of particle pUid
         //-------------------------------------------------------------------------------------------
@@ -91,14 +93,14 @@ int main(int argc, char **argv) {
 
             // Up-to-date position might be on host or device. 
             // Sync position on Host before reading it from host:
-            ac.syncPosition(ParticleAccessor::Host); 
+            ac.syncPosition(Accessor_T::Host); 
             std::cout << "Position [from host] = (" 
                     << ac.getPosition(idx)[0] << ", "
                     << ac.getPosition(idx)[1] << ", " 
                     << ac.getPosition(idx)[2] << ")" << std::endl;
             
             // Sync position on Device before reading it from device:
-            ac.syncPosition(ParticleAccessor::Device); 
+            ac.syncPosition(Accessor_T::Device); 
             print_position<<<1,1>>>(ac, idx);
             checkCudaError(cudaDeviceSynchronize(), "print_position");
             
@@ -112,7 +114,7 @@ int main(int argc, char **argv) {
 
         // Change gravitational force on particle pUid
         //-------------------------------------------------------------------------------------------
-        ac.syncUid(ParticleAccessor::Host);
+        ac.syncUid(Accessor_T::Host);
 
         if(pIsLocalInMyRank(pUid)){
             std::cout << "Force Timestep (" << t << "): Particle " << pUid << " is in rank " << pairs_sim->rank() << std::endl;
@@ -120,8 +122,8 @@ int main(int argc, char **argv) {
 
             // Up-to-date force and mass might be on host or device. 
             // So sync them in Device before accessing them on device. (No data will be transfered if they are already on device)
-            ac.syncForce(ParticleAccessor::Device);
-            ac.syncMass(ParticleAccessor::Device);
+            ac.syncForce(Accessor_T::Device);
+            ac.syncMass(Accessor_T::Device);
 
             // Modify force from device:
             change_gravitational_force<<<1,1>>>(ac, idx);
@@ -129,7 +131,7 @@ int main(int argc, char **argv) {
 
             // Force on device was modified.
             // So sync force before continuing the simulation.
-            ac.syncForce(ParticleAccessor::Host);
+            ac.syncForce(Accessor_T::Host);
             std::cout << "Force [from host] after changing = (" 
                     << ac.getForce(idx)[0] << ", "
                     << ac.getForce(idx)[1] << ", " 
