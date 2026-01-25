@@ -68,7 +68,7 @@ function(pairs_generate_lib)
     # Generate code
     add_custom_command(
         OUTPUT ${GEN_SOURCES} ${GEN_INTERNAL_INTERFACE_HEADER}
-        COMMAND ${Python_EXECUTABLE} ${ARG_SCRIPT} 
+        COMMAND ${PAIRS_PYTHON_EXECUTABLE} ${ARG_SCRIPT} 
                 --interface-name ${ARG_GEN_LIB}
                 --target ${TARGET_ARG} 
                 --output-dir ${OUTPUT_DIR}

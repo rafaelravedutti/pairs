@@ -53,11 +53,13 @@ set_target_properties(pairsrt PROPERTIES
 #================================================================================
 # Install pairs python package (optionally using the specified python executable)
 #================================================================================
-set(PAIRS_PYTHON_EXECUTABLE "" CACHE PATH "Python executable to install pairs")
+if(NOT DEFINED PAIRS_PYTHON_EXECUTABLE)
+    set(PAIRS_PYTHON_EXECUTABLE "" CACHE PATH "Python executable to install pairs")
+endif()
 
-if(NOT PAIRS_PYTHON_EXECUTABLE)
+if(PAIRS_PYTHON_EXECUTABLE STREQUAL "")
     find_package(Python COMPONENTS Interpreter REQUIRED)
-    set(PAIRS_PYTHON_EXECUTABLE ${Python_EXECUTABLE})
+    set(PAIRS_PYTHON_EXECUTABLE ${Python_EXECUTABLE} CACHE PATH "Python executable to install pairs" FORCE)
 endif()
 
 message(STATUS "Installing pairs")
