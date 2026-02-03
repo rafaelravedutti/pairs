@@ -14,6 +14,7 @@ endif()
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -DDEBUG")
 
+option(PAIRS_INSTALL_PYTHON_PACKAGE "Install the P4IRS Python package during CMake configuration"    ON)
 option(PAIRS_BUILD_WITH_WALBERLA    "Enable waLBerla support for using BlockForest domain partitioning and dynamic load balancing" OFF)
 option(PAIRS_BUILD_WITH_CUDA        "PAIRS_BUILD_WITH_CUDA"     OFF)
 option(PAIRS_BUILD_WITH_LIKWID      "PAIRS_BUILD_WITH_LIKWID"   OFF)
@@ -62,19 +63,21 @@ if(PAIRS_PYTHON_EXECUTABLE STREQUAL "")
     set(PAIRS_PYTHON_EXECUTABLE ${Python_EXECUTABLE} CACHE PATH "Python executable to install pairs" FORCE)
 endif()
 
-message(STATUS "Installing pairs")
+if(PAIRS_INSTALL_PYTHON_PACKAGE)
+    message(STATUS "Installing pairs")
 
-execute_process(
-    COMMAND ${PAIRS_PYTHON_EXECUTABLE} -m pip install --force-reinstall --editable . -q
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    RESULT_VARIABLE PAIRS_PIP_RESULT
-)
+    execute_process(
+        COMMAND ${PAIRS_PYTHON_EXECUTABLE} -m pip install --force-reinstall --editable . -q
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        RESULT_VARIABLE PAIRS_PIP_RESULT
+    )
 
-if(NOT PAIRS_PIP_RESULT EQUAL 0)
-    message(FATAL_ERROR "Failed to install P4IRS Python package.")
+    if(NOT PAIRS_PIP_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to install P4IRS Python package.")
+    endif()
+
+    message(STATUS "Installing pairs - done")
 endif()
-
-message(STATUS "Installing pairs - done")
 #================================================================================
 # MPI
 #================================================================================
