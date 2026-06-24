@@ -155,6 +155,10 @@ Multiple targets may link against the same generated P4IRS library, reusing the 
 cmake -S . -B build -DPAIRS_BUILD_EXAMPLES=ON -DPAIRS_BUILD_WITH_WALBERLA=ON -DPAIRS_BUILD_WITH_CUDA=ON
 cmake --build build --target sd_4 -j
 ``` 
+and then run it for example using `srun` on 8 GPUs:
+```
+srun -n 8 --gpus-per-task=1 ./sd_4
+```
 
 
 ## Citations

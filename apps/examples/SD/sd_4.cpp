@@ -35,8 +35,8 @@ int main(int argc, char **argv) {
     auto pairs_sim = std::make_shared<pairs::gen::PairsSimulation>();
     auto pairs_runtime = pairs_sim->getPairsRuntime();
     pairs::gen::ParticleAccessor ac(pairs_sim.get());
+    
     set_feature_properties(ac);
-
 
     pairs_runtime->initDomain(&argc, &argv, 
                     0, 0, 0, 40, 40, 40,    // Domain bounds
@@ -89,12 +89,10 @@ int main(int argc, char **argv) {
                     " neigh_ranks = " << pairs_runtime->getDomainPartitioner()->getNumberOfNeighborRanks() << std::endl;
 
     std::filesystem::create_directories("output");
-    std::cout << "output =========" << std::endl;
     pairs::vtk_write_subdom(pairs_runtime, "output/subdom_init", 0);
     
     for (int t=0; t<num_timesteps; ++t){
-        if ((t % vtk_freq==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
-        
+        // if ((t % vtk_freq==0) && pairs_sim->rank()==0) std::cout << "Timestep: " << t << std::endl;
         // MPI_Barrier(MPI_COMM_WORLD);
         // auto start = std::chrono::high_resolution_clock::now();
         
